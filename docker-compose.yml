@@ -1,0 +1,18 @@
+# 本地 Postgres（可选）。
+# v1 默认用云端免费 Postgres（Neon / Supabase），见 .env 的 DATABASE_URL。
+# 如果你后来想本地跑（装了 Docker Desktop），用：docker compose up -d
+# postgis 镜像即普通 Postgres + 预装 PostGIS，v1 用不到 PostGIS 也无妨，免去日后重搭。
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: tokyo_events
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

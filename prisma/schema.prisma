@@ -1,0 +1,83 @@
+// schema.prisma —— v1 版本（普通经纬度字段，暂不引入 PostGIS / pgvector）
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7：连接 URL 移到 prisma.config.ts（迁移用）+ 运行时用 driver adapter（见 src/lib/db.ts）。
+}
+
+enum EventCategory {
+  EXHIBITION // 展览
+  MARKET     // 市集
+  LIVE       // live
+  FESTIVAL   // 祭典
+  TALK       // 讲座 / 技术活动（connpass 等）
+  OTHER      // 其他 / 兜底
+}
+
+enum SourceType {
+  OFFICIAL_API
+  OFFICIAL_WEB
+  SOCIAL // 预留，v1 不使用
+  USER   // 用户发布
+}
+
+model Event {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  category    EventCategory
+  venueName   String?
+  address     String?
+  lat         Float
+  lng         Float
+  startTime   DateTime?
+  endTime     DateTime?
+
+  sourceType  SourceType
+  sourceUrl   String?
+  trustLevel  Int           @default(0) // 官方高、用户/社交低
+  rawText     String?       // 保留原始文本，便于以后重新解析
+
+  checkIns    CheckIn[]
+  comments    Comment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // v1 用 lat/lng 做矩形范围查询即可，加索引
+  @@index([lat, lng])
+  @@index([startTime])
+  @@index([category])
+  // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  userId    String   @default("me") // v1 单用户，固定为本人；v2 接入真实用户
+  eventId   String? // 可选：关联到地图上已有的活动
+  event     Event?   @relation(fields: [eventId], references: [id])
+  lat       Float
+  lng       Float
+  note      String?
+  photoUrl  String?
+  rating    Int? // 1–5
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String   @default("me") // v1 单用户；v2 接入真实用户
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([eventId, createdAt])
+}
+
+// TODO(v2): model User { ... } 认证启用后引入

@@ -1,0 +1,39 @@
+import type { EventCategory } from "@/lib/categories";
+
+// 经 JSON 序列化后给前端用的 DTO（日期为 ISO 字符串）。
+export type EventDTO = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: EventCategory;
+  venueName: string | null;
+  address: string | null;
+  lat: number;
+  lng: number;
+  startTime: string | null;
+  endTime: string | null;
+  sourceType: string;
+  sourceUrl: string | null;
+  trustLevel: number;
+};
+
+export type CommentDTO = {
+  id: string;
+  eventId: string;
+  userId: string;
+  text: string;
+  createdAt: string;
+};
+
+export type CheckInDTO = {
+  id: string;
+  userId: string;
+  eventId: string | null;
+  lat: number;
+  lng: number;
+  note: string | null;
+  photoUrl: string | null;
+  rating: number | null;
+  createdAt: string;
+  event?: { id: string; title: string; category: EventCategory } | null;
+};
