@@ -53,6 +53,7 @@ export const connpassSource: Source = {
             venueName: e.place || null,
             address: e.address || null,
             imageUrl: null,
+            sourceUrl: e.url || null,
             startTime: e.started_at || null,
             endTime: e.ended_at || null,
           },

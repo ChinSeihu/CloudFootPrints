@@ -1,36 +1,62 @@
-import type { RawDocument, Source } from "../types";
+import type { ExtractedEvent, RawDocument, Source } from "../types";
 import { extractLdEvents, ldToExtracted } from "./jsonLd";
 
 // じゃらん（jalan.net，Recruit 旗下大型旅游媒体）东京活动列表。
-// SSR + 标准 schema.org JSON-LD（@type Event），结构与 walkerplus 同，直接解析。
-// 地域码 130000 = 东京都；首页一屏约 30 个活动，含场馆 + 街道级地址（地理编码更准）。
-// 分页非 ?page=N（待确认其真实分页参数），v1 先抓首页；已是稳定的第二来源。
+// SSR + 标准 schema.org JSON-LD（@type Event）。地域码 130000 = 东京都，首页约 30 个。
+//
+// 关键：**列表页地址只到区/町级**（缺街道），GSI 地理编码会退回都厅、定位很糊；
+// 而**详情页 JSON-LD 带 streetAddress（街道级完整地址）**。故逐个抓详情页拿精确地址。
+// 编码是 Shift_JIS(Windows-31J)，必须 TextDecoder("shift_jis") + 浏览器 headers。
 
 const TOKYO_EVENT_LIST = "https://www.jalan.net/event/130000/";
-// jalan 对缺少常规浏览器 header 的请求会返回不含 JSON-LD 的页面，故补齐 UA/Accept/语言。
 const BROWSER_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "ja,en;q=0.9",
 };
+const DETAIL_DELAY_MS = 400; // 详情页之间的礼貌延迟
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// jalan 是 Shift_JIS 编码，统一在这里解码。
+async function fetchShiftJis(url: string): Promise<string | null> {
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  if (!res.ok) return null;
+  const buf = await res.arrayBuffer();
+  return new TextDecoder("shift_jis").decode(buf);
+}
 
 export const jalanSource: Source = {
   name: "jalan",
   async fetch(): Promise<RawDocument[]> {
     try {
-      const res = await fetch(TOKYO_EVENT_LIST, { headers: BROWSER_HEADERS });
-      if (!res.ok) {
-        console.warn(`  ⚠️  jalan 返回 ${res.status}，跳过。`);
+      const listHtml = await fetchShiftJis(TOKYO_EVENT_LIST);
+      if (!listHtml) {
+        console.warn("  ⚠️  jalan 列表页拉取失败，跳过。");
         return [];
       }
-      // jalan 用 Shift_JIS(Windows-31J) 编码；必须按该编码解码，
-      // 否则日文乱码会让 JSON-LD 的 JSON.parse 失败、解析到 0 个。
-      const buf = await res.arrayBuffer();
-      const html = new TextDecoder("shift_jis").decode(buf);
-      const prestructured = extractLdEvents(html)
-        .filter((e) => e.name)
-        .map(ldToExtracted);
+      const listEvents = extractLdEvents(listHtml).filter((e) => e.name && e.url);
+      console.log(`  jalan：列表 ${listEvents.length} 个，逐个取详情页精确地址…`);
+
+      const prestructured: ExtractedEvent[] = [];
+      for (const le of listEvents) {
+        // 详情页带 streetAddress，地址更准；失败则回退列表页版本。
+        let chosen = le;
+        try {
+          const detailHtml = await fetchShiftJis(le.url!);
+          if (detailHtml) {
+            const de = extractLdEvents(detailHtml).find((e) => e.name);
+            if (de) chosen = de;
+          }
+        } catch {
+          /* 详情失败 → 用列表版 */
+        }
+        const ev = ldToExtracted(chosen);
+        ev.sourceUrl = le.url ?? ev.sourceUrl; // sourceUrl 固定为 jalan 详情页
+        prestructured.push(ev);
+        await sleep(DETAIL_DELAY_MS);
+      }
 
       console.log(`  jalan：解析到 ${prestructured.length} 个活动`);
       if (prestructured.length === 0) return [];

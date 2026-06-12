@@ -53,8 +53,11 @@ export function extractLdEvents(html: string): LdEvent[] {
 export function ldToExtracted(e: LdEvent): ExtractedEvent {
   const a = e.location?.address;
   const venue = e.location?.name ?? "";
+  const street = (a?.streetAddress ?? "").trim();
+  // streetAddress 已是完整地址（含都/区/番地，如详情页）→ 直接用，避免与 region/locality/venue
+  // 重复拼接干扰地理编码；没有 street（如列表页）→ 退回拼「都道府县+区+场馆名」。
   const address =
-    [a?.addressRegion, a?.addressLocality, a?.streetAddress, venue].filter(Boolean).join("") || null;
+    street || [a?.addressRegion, a?.addressLocality, venue].filter(Boolean).join("") || null;
   return {
     title: e.name!,
     description: e.description ?? null,
@@ -62,6 +65,7 @@ export function ldToExtracted(e: LdEvent): ExtractedEvent {
     venueName: venue || null,
     address,
     imageUrl: e.image ?? null,
+    sourceUrl: e.url ?? null, // JSON-LD 的 url = 活动详情页（jalan）/官网（walkerplus）
     startTime: e.startDate ? `${e.startDate}T00:00:00` : null,
     endTime: e.endDate ? `${e.endDate}T00:00:00` : null,
   };

@@ -6,6 +6,26 @@
 
 ## 2026-06-12
 
+### 修复：来源外链跳详情页 + 地址定位（jalan 抓详情页、东京边界校验）
+
+**背景：** 两个 bug——①"来源"链接全跳到列表页；②地图标点明显偏移（jalan 活动被标到北海道札幌）。
+
+**根因 & 修复：**
+1. **外链跳列表**：活动 `sourceUrl` 统一存了源列表页 URL。其实 JSON-LD 每条活动有自己的 `url`（jalan=详情页、walkerplus=官网）。
+   - `ExtractedEvent` 加 `sourceUrl` 字段；`ldToExtracted` 填 `e.url`、connpass 填 `e.url`；ingest 用 `ev.sourceUrl ?? source.sourceUrl`（存库 + 去重键同步）。
+2. **地址偏移**：
+   - jalan 的 `addressRegion="東京"`（非"東京都"）→ GSI 把"東京X"整体误判成**北海道札幌市東区**。**geocode 加地址规范化（東京→東京都）+ 东京边界校验**（解析到东京框外一律判失败，宁缺毋滥）。
+   - jalan 列表页地址只到区/町 → GSI 退回都厅、一堆点糊在一处。**改为逐个抓详情页**，详情页 JSON-LD 带 `streetAddress`（街道+番地），地址精确到番地级。
+   - `ldToExtracted`：有 `streetAddress` 时直接用，不再与 region/locality/venue 重复拼接干扰 GSI。
+
+**数据刷新（重要）：** 旧坏数据（札幌点、列表页 sourceUrl）需清理重抓——新增 `npm run extract -- --reset`：先清掉抓取来的活动（保留发帖/打卡），再重抓。
+
+**实测：** 山王祭→日枝神社、新橋こいち祭→港区新橋、羽田まつり→羽田，均番地级精确、无札幌点；`tsc` 全绿。
+
+**涉及文件：** `extraction/{types,ingest,geocode}.ts`、`sources/{jsonLd,jalan,connpass}.ts`、`scripts/run-extraction.ts`
+
+---
+
 ### 抓取增强：分页 + LLM 分类 + 第二来源 jalan
 
 **背景：** 三点优化——抓更多、分类更准、多来源。

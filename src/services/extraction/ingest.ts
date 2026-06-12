@@ -45,8 +45,11 @@ export async function ingestEvents(
       continue;
     }
 
+    // 每条活动优先用自己的详情页链接；缺失才回退到源的列表页 URL。
+    const eventSourceUrl = ev.sourceUrl ?? source.sourceUrl;
+
     const existing = await prisma.event.findFirst({
-      where: { title: ev.title, startTime, sourceUrl: source.sourceUrl },
+      where: { title: ev.title, startTime, sourceUrl: eventSourceUrl },
       select: { id: true },
     });
     if (existing) {
@@ -67,7 +70,7 @@ export async function ingestEvents(
         startTime,
         endTime: parseDate(ev.endTime),
         sourceType: source.sourceType,
-        sourceUrl: source.sourceUrl,
+        sourceUrl: eventSourceUrl,
         trustLevel: source.trustLevel,
         rawText,
       },

@@ -9,6 +9,7 @@ export const ExtractedEventSchema = z.object({
   venueName: z.string().nullable().default(null),
   address: z.string().nullable().default(null),
   imageUrl: z.string().nullable().default(null), // 活动主图 URL（http/https）
+  sourceUrl: z.string().nullable().default(null), // 该活动自己的详情页/官网链接（缺则回退源列表页）
   startTime: z.string().nullable().default(null), // ISO 8601 字符串
   endTime: z.string().nullable().default(null),
 });
