@@ -156,6 +156,10 @@ export function MeView() {
                 const meta = CATEGORY_META[p.category];
                 return (
                   <li key={p.id} className="rounded-xl border border-black/10 overflow-hidden bg-white">
+                    {p.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                    )}
                     <div className="h-1.5" style={{ backgroundColor: meta.color }} />
                     <div className="p-3">
                       <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">

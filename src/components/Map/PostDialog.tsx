@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { IconPin, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
+import { compressImage } from "@/lib/image";
+import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
 
 export type PostDraft = {
@@ -12,6 +14,7 @@ export type PostDraft = {
   category: EventCategory;
   description: string;
   venueName: string;
+  imageUrl: string | null;
 };
 
 type Props = {
@@ -27,13 +30,46 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
   const [category, setCategory] = useState<EventCategory>("OTHER");
   const [description, setDescription] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<"" | "uploading">("");
+  const [error, setError] = useState<string | null>(null);
+
+  const canUpload = cloudinaryConfigured();
+
+  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  }
+  function removeImage() {
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(null);
+    setPreview(null);
+  }
 
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
+    setError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ lat, lng, title, category, description, venueName });
+      let imageUrl: string | null = null;
+      if (file) {
+        setPhase("uploading");
+        try {
+          const blob = await compressImage(file);
+          imageUrl = await uploadToCloudinary(blob);
+        } catch (err) {
+          setError((err as Error).message || "图片上传失败");
+          return;
+        } finally {
+          setPhase("");
+        }
+      }
+      await onSubmit({ lat, lng, title, category, description, venueName, imageUrl });
     } finally {
       setSubmitting(false);
     }
@@ -78,6 +114,34 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
         })}
       </div>
 
+      {/* 图片（可选，客户端压缩后上传图床） */}
+      <label className="block text-sm mb-1">图片（可选）</label>
+      {canUpload ? (
+        preview ? (
+          <div className="relative mb-4 w-fit">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="" className="max-h-40 rounded-lg object-cover" />
+            <button
+              type="button"
+              onClick={removeImage}
+              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/70 text-white text-sm flex items-center justify-center"
+              aria-label="移除图片"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <label className="mb-4 flex items-center justify-center h-20 border border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 cursor-pointer">
+            + 选择图片
+            <input type="file" accept="image/*" onChange={pickFile} className="hidden" />
+          </label>
+        )
+      ) : (
+        <p className="mb-4 text-[11px] text-amber-600">
+          未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。
+        </p>
+      )}
+
       <label className="block text-sm mb-1">地点名（可选）</label>
       <input
         value={venueName}
@@ -91,9 +155,11 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={3}
-        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-5"
+        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-3"
         placeholder="时间、内容、票价…"
       />
+
+      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
       <div className="flex gap-2 justify-end">
         <button
@@ -110,7 +176,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
           disabled={submitting || !title.trim()}
           className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white disabled:opacity-50"
         >
-          {submitting ? "发布中…" : "发布"}
+          {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布"}
         </button>
       </div>
     </BottomSheet>

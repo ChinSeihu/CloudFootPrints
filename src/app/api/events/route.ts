@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     category: b.category as EventCategory,
     description: typeof b.description === "string" ? b.description : null,
     venueName: typeof b.venueName === "string" ? b.venueName : null,
+    imageUrl: typeof b.imageUrl === "string" ? b.imageUrl : null,
     lat: Number(b.lat),
     lng: Number(b.lng),
   });

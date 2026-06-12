@@ -66,6 +66,7 @@ export type CreateUserEventInput = {
   category: EventCategory;
   description?: string | null;
   venueName?: string | null;
+  imageUrl?: string | null;
   lat: number;
   lng: number;
 };
@@ -81,6 +82,7 @@ function createUserEventRow(input: CreateUserEventInput) {
       description: input.description?.trim() || null,
       category: input.category,
       venueName: input.venueName?.trim() || null,
+      imageUrl: input.imageUrl || null,
       address: null,
       lat: input.lat,
       lng: input.lng,
