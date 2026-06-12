@@ -29,6 +29,13 @@ npm run db:migrate   # 首次建表
 npm run db:push      # 快速同步 schema（开发用）
 ```
 
+## 协作流程（Git / 跨设备）
+
+- **双 PC 开发**：两台机器间复制本仓库。换机后**先 `prisma generate`**（否则 `@prisma/client` 无 `PrismaClient` 导出、API 全 500）。
+- **每次功能新增/变更完成后**：① 更新 `CHANGELOG.md`（涉及锁定决策时同步 `DECISIONS.md`）→ ② `git commit` → ③ `git push`（origin main）。保持 GitHub 实时同步，便于另一台机器接续。
+- 远端：`https://github.com/ChinSeihu/CloudFootPrints`（用 **ChinSeihu** 账号推送，勿用工作账号）。
+- 提交前：`next dev`（Turbopack）不跑严格 tsc，所以改完先跑 `npx tsc --noEmit`（或 `npm run build`）确保全绿。
+
 ## 环境变量（.env）
 
 ```
