@@ -37,15 +37,28 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   const [selected, setSelectedDate] = useState<string>(todayKey);
   const [detail, setDetail] = useState<EventDTO | null>(null);
 
-  // 按东京日期把有开始时间的活动分组。未定档的活动不进日历格子。
+  // 按东京日期把活动分组。长期活动（startTime→endTime 跨多天）在展期每一天都出现。
+  // 未定档（无 startTime）的活动不进日历格子。
   const byDate = useMemo(() => {
     const m = new Map<string, EventDTO[]>();
-    for (const ev of events) {
-      if (!ev.startTime) continue;
-      const key = tokyoDateKey(ev.startTime);
+    const push = (key: string, ev: EventDTO) => {
       const list = m.get(key);
       if (list) list.push(ev);
       else m.set(key, [ev]);
+    };
+    for (const ev of events) {
+      if (!ev.startTime) continue;
+      const startKey = tokyoDateKey(ev.startTime);
+      const endKey = ev.endTime ? tokyoDateKey(ev.endTime) : startKey;
+      // 用 UTC 午夜按天迭代（key 已是东京日期串）；guard 防异常 endTime 导致超长循环
+      const startMs = Date.parse(`${startKey}T00:00:00Z`);
+      const endMs = Date.parse(`${endKey}T00:00:00Z`);
+      if (Number.isNaN(startMs)) continue;
+      const lastMs = Number.isNaN(endMs) ? startMs : Math.max(startMs, endMs);
+      let guard = 0;
+      for (let t = startMs; t <= lastMs && guard < 366; t += 86_400_000, guard++) {
+        push(new Date(t).toISOString().slice(0, 10), ev);
+      }
     }
     return m;
   }, [events]);
@@ -169,6 +182,9 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
               .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
               .map((ev) => {
                 const meta = CATEGORY_META[ev.category];
+                const multiDay =
+                  !!ev.startTime && !!ev.endTime &&
+                  tokyoDateKey(ev.startTime) !== tokyoDateKey(ev.endTime);
                 return (
                   <li key={ev.id}>
                     <button
@@ -177,8 +193,8 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
                       className="w-full text-left flex gap-3 rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
                     >
                       <div className="flex flex-col items-center justify-center w-12 shrink-0">
-                        <span className="text-xs font-semibold" style={{ color: meta.color }}>
-                          {fmtTime(ev.startTime)}
+                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: meta.color }}>
+                          {multiDay ? "展期中" : fmtTime(ev.startTime)}
                         </span>
                         <CategoryIcon category={ev.category} className="w-4 h-4 mt-1 text-neutral-400" />
                       </div>

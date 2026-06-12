@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CATEGORY_META } from "@/lib/categories";
+import { useEffect, useMemo, useState } from "react";
+import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconPin } from "@/components/icons";
 import { EventDetail } from "./EventDetail";
 import type { EventDTO } from "@/lib/types";
@@ -14,6 +14,7 @@ function fmt(d: string | null): string {
 // 推荐瀑布流：卡片可点击 → 打开详情（详情+评论+跳到地图）。
 export function RecommendList({ events }: { events: EventDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
+  const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
 
   // 从地图弹窗"查看详情"跳转过来时（/recommend?event=<id>），直接打开对应详情。
   useEffect(() => {
@@ -23,10 +24,50 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     if (ev) setSelected(ev);
   }, [events]);
 
+  const filtered = useMemo(
+    () => (cat === "ALL" ? events : events.filter((e) => e.category === cat)),
+    [events, cat],
+  );
+
   return (
     <>
+      {/* 分类筛选 */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <button
+          type="button"
+          onClick={() => setCat("ALL")}
+          className={`px-3 py-1.5 rounded-full text-xs border transition ${
+            cat === "ALL" ? "bg-blue-600 text-white border-transparent" : "bg-white text-neutral-500 border-neutral-300"
+          }`}
+        >
+          全部
+        </button>
+        {EVENT_CATEGORIES.map((c) => {
+          const meta = CATEGORY_META[c];
+          const active = cat === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCat(active ? "ALL" : c)}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border transition ${
+                active ? "text-white border-transparent" : "bg-white text-neutral-500 border-neutral-300"
+              }`}
+              style={active ? { backgroundColor: meta.color } : undefined}
+            >
+              <CategoryIcon category={c} className="w-3.5 h-3.5" />
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="text-sm text-neutral-400 py-8 text-center">该分类下暂无活动。</p>
+      )}
+
       <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
-        {events.map((ev) => {
+        {filtered.map((ev) => {
           const meta = CATEGORY_META[ev.category];
           return (
             <button

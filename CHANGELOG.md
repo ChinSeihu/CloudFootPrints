@@ -6,6 +6,15 @@
 
 ## 2026-06-13
 
+### 日历长期活动展期显示 + 推荐页分类筛选
+
+1. **日历长期活动**：跨多天的活动（`startTime`→`endTime`）在**展期每一天都显示条目**（之前只在开始日）；当天清单里这类活动的时间列标「展期中」。`byDate` 分组改为按 UTC 午夜从开始日逐天迭代到结束日填充（`guard < 366` 防异常 `endTime` 导致超长循环）。
+2. **推荐页分类筛选**：瀑布流上方加分类 chip（全部 + 6 类），点击按 `category` 过滤；再点同一类或「全部」取消。
+
+**涉及文件：** `components/Calendar/CalendarView.tsx`、`components/Recommend/RecommendList.tsx`
+
+---
+
 ### UI 优化：天气昼夜 + 页面切换动画 + 详情全屏/原图 + sheet 拖动
 
 5 项体验改进：
