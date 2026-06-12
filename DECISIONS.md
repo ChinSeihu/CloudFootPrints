@@ -45,7 +45,7 @@
 
 - **统一 Source 接口**：`fetch() → RawDocument[]`，文档要么 `prestructured`（已结构化，跳过 LLM），要么 `text`（走 LLM 抽取）。新增源只需实现接口并在 `sources/index.ts` 注册。
 - **主力源 = 内嵌 JSON-LD 的活动媒体**（SSR、稳定、零 LLM 成本）：
-  - **walkerplus**（ar0313 东京全域）：按 `/ar0313/{N}.html` 分页，`WALKERPLUS_MAX_PAGES` 控制（默认 8≈80 个）。全域列表已涵盖各区，不逐区抓。
+  - **walkerplus**（ar0313 东京全域）：翻 `WALKERPLUS_MAX_PAGES` 页（默认 8）收集站内详情页 URL（`/event/ar0313eXXX/`）→ **逐个抓详情页**拿 `streetAddress`（番地级；列表页只到区级、GSI 退回区中心）。UTF-8 编码。全域列表已涵盖各区，不逐区抓。
   - **jalan**（じゃらん，地域码 130000）：列表页约 30 个，但**列表地址只到区/町**（GSI 会退回都厅、点糊在一处）→ **逐个抓详情页**取 `streetAddress`（番地级精确）。**坑：Shift_JIS(Windows-31J) 编码**，必须 `arrayBuffer()`+`TextDecoder("shift_jis")` 解码 + 浏览器 headers，否则解析 0；详情页间加礼貌延迟。
   - 解析/分类/映射共享在 `sources/jsonLd.ts`；有 `streetAddress` 时**直接用**（不与 region/locality/venue 重复拼接，否则干扰 GSI）。
 - **GO TOKYO 等 SPA 不接入**：靠封闭私有搜索 API 动态加载，参数不可逆向、易随改版失效。选源优先"内嵌标准 JSON-LD 且 SSR"。
