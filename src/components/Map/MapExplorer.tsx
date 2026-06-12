@@ -12,7 +12,8 @@ import { WeatherPanel } from "./WeatherPanel";
 import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { IconPin } from "@/components/icons";
-import { CATEGORY_META } from "@/lib/categories";
+import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
+import { CATEGORY_GLYPH } from "@/lib/categoryIcons";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 
@@ -38,6 +39,31 @@ const CATEGORY_COLOR_EXPR = [
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
+}
+
+// 每个分类一张"白色图标"位图，注册到地图，供活动点 symbol 图层按 category 取用。
+function glyphIconSvg(cat: string): string {
+  const glyph = CATEGORY_GLYPH[cat as keyof typeof CATEGORY_GLYPH] ?? "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><g transform="translate(8 8)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
+}
+
+async function loadCategoryGlyphIcons(map: maplibregl.Map): Promise<void> {
+  await Promise.all(
+    EVENT_CATEGORIES.map(
+      (cat) =>
+        new Promise<void>((resolve) => {
+          const name = `glyph-${cat}`;
+          if (map.hasImage(name)) return resolve();
+          const img = new Image(40, 40);
+          img.onload = () => {
+            if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 });
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(glyphIconSvg(cat));
+        }),
+    ),
   );
 }
 
@@ -226,82 +252,43 @@ export function MapExplorer() {
   useEffect(() => { handleDeleteEventRef.current = handleDeleteEvent; });
 
   // ── 活动聚合图层 ──
-  const setupEventClusters = useCallback((map: maplibregl.Map, mlg: typeof maplibregl) => {
+  const setupEventClusters = useCallback(async (map: maplibregl.Map, mlg: typeof maplibregl) => {
     if (map.getSource("events")) return;
+    // 不再聚合活动（用户反馈聚合大圆不直观）：每个活动独立显示，圆 + 分类图标。
     map.addSource("events", {
       type: "geojson",
       data: eventsToFC(filteredRef.current),
-      cluster: true,
-      clusterRadius: 48,
-      clusterMaxZoom: 14,
     });
 
-    // 聚合圆的外层光晕（半透明蓝，垫在主圆下方，让聚合点更醒目）
-    map.addLayer({
-      id: "event-cluster-halo",
-      type: "circle",
-      source: "events",
-      filter: ["has", "point_count"],
-      paint: {
-        "circle-color": "#2563eb",
-        "circle-opacity": 0.18,
-        "circle-radius": ["step", ["get", "point_count"], 24, 5, 30, 20, 37],
-      },
-    });
-
-    // 聚合主圆（实心蓝 + 白边）
-    map.addLayer({
-      id: "event-clusters",
-      type: "circle",
-      source: "events",
-      filter: ["has", "point_count"],
-      paint: {
-        "circle-color": "#2563eb",
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2.5,
-        "circle-radius": ["step", ["get", "point_count"], 16, 5, 21, 20, 26],
-      },
-    });
-
-    // 聚合数量（白字）
-    map.addLayer({
-      id: "event-cluster-count",
-      type: "symbol",
-      source: "events",
-      filter: ["has", "point_count"],
-      layout: {
-        "text-field": ["get", "point_count_abbreviated"],
-        "text-font": ["Open Sans Regular"],
-        "text-size": 13,
-      },
-      paint: { "text-color": "#fff" },
-    });
-
-    // 单个活动点：分类色填充圆 + 白边
+    // 活动点：分类色填充圆 + 白边（USER 发帖用深色边区分抓取活动）
     map.addLayer({
       id: "event-point",
       type: "circle",
       source: "events",
-      filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": CATEGORY_COLOR_EXPR,
-        "circle-radius": 9,
-        "circle-stroke-color": "#fff",
+        "circle-radius": 12,
+        "circle-stroke-color": [
+          "case",
+          ["==", ["get", "sourceType"], "USER"],
+          "#111827",
+          "#ffffff",
+        ],
         "circle-stroke-width": 2.5,
-        "circle-opacity": 0.93,
       },
     });
 
-    // 我的发帖（sourceType=USER）：在圆心叠一个白点，做出"靶心"造型，
-    // 与抓取活动（分类色实心）、打卡（琥珀实心）三者一眼区分。
+    // 分类白色图标叠在圆上 → 辨识度更高
+    await loadCategoryGlyphIcons(map);
     map.addLayer({
-      id: "event-point-user",
-      type: "circle",
+      id: "event-glyph",
+      type: "symbol",
       source: "events",
-      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "sourceType"], "USER"]],
-      paint: {
-        "circle-color": "#fff",
-        "circle-radius": 3.5,
+      layout: {
+        "icon-image": ["concat", "glyph-", ["get", "category"]],
+        "icon-size": 0.6,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
       },
     });
 
@@ -425,41 +412,7 @@ export function MapExplorer() {
       openEventsPopup((f.geometry as GeoJSON.Point).coordinates as [number, number], evs);
     });
 
-    // 点击聚合圆：若叶子节点彼此极近（放大也分不开）→ 直接堆叠卡片；否则放大展开
-    map.on("click", "event-clusters", (e) => {
-      const f = e.features?.[0];
-      if (!f) return;
-      const clusterId = f.properties?.cluster_id as number;
-      const center = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-      const src = map.getSource("events") as maplibregl.GeoJSONSource;
-      src.getClusterLeaves(clusterId, 50, 0).then((leaves) => {
-        // 计算叶子坐标包围盒，判断是否"挤在同一点"
-        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-        for (const lf of leaves) {
-          const [lng, lat] = (lf.geometry as GeoJSON.Point).coordinates;
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-        }
-        const overlapping = maxLat - minLat < 0.0006 && maxLng - minLng < 0.0006;
-        if (overlapping) {
-          const seen = new Set<string>();
-          const evs: PopupEvent[] = [];
-          for (const lf of leaves) {
-            const pe = toPopupEvent(lf.properties ?? {});
-            if (pe.id && !seen.has(pe.id)) { seen.add(pe.id); evs.push(pe); }
-          }
-          openEventsPopup(center, evs);
-        } else {
-          src.getClusterExpansionZoom(clusterId).then((zoom) => {
-            map.easeTo({ center, zoom });
-          });
-        }
-      });
-    });
-
-    for (const layer of ["event-clusters", "event-point"]) {
+    for (const layer of ["event-point", "event-glyph"]) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }
@@ -610,7 +563,7 @@ export function MapExplorer() {
       mapRef.current = map;
       const mlg = (await import("maplibre-gl")).default;
       maplibreRef.current = mlg;
-      setupEventClusters(map, mlg);
+      await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       // jump-to-map：推荐页"在地图上查看"会带 ?lat=&lng= 过来
       const sp = new URLSearchParams(window.location.search);

@@ -52,7 +52,7 @@ export function WeatherPanel() {
         onClick={() => setOpen((v) => !v)}
         aria-label="天气"
         aria-pressed={open}
-        className={`absolute top-28 right-3 z-20 h-10 px-3 rounded-full shadow-md flex items-center gap-1.5 text-sm font-medium backdrop-blur transition-colors ${
+        className={`absolute top-28 right-3 z-[999] h-10 px-3 rounded-full shadow-md flex items-center gap-1.5 text-sm font-medium backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-700"
         }`}
       >
@@ -69,7 +69,7 @@ export function WeatherPanel() {
       {/* 底部横向滑动的近 7 天天气卡片。外层 pointer-events-none，
           让卡片间隙仍可拖动地图；只有卡片本身接收交互。 */}
       {open && data && (
-        <div className="absolute bottom-4 left-0 right-0 z-20 px-3 pointer-events-none">
+        <div className="absolute bottom-4 left-0 right-0 z-[60] px-3 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {data.daily.map((d, i) => (
               <div
