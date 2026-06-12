@@ -41,6 +41,17 @@
 - 时间统一 UTC 存储，展示转东京时区
 - v1 只用普通 lat/lng + 矩形范围查询，不启用 PostGIS/pgvector
 
+## 数据源与抓取
+
+- **统一 Source 接口**：`fetch() → RawDocument[]`，文档要么 `prestructured`（已结构化，跳过 LLM），要么 `text`（走 LLM 抽取）。新增源只需实现接口并在 `sources/index.ts` 注册。
+- **主力源 = 内嵌 JSON-LD 的活动媒体**（SSR、稳定、零 LLM 成本）：
+  - **walkerplus**（ar0313 东京全域）：按 `/ar0313/{N}.html` 分页，`WALKERPLUS_MAX_PAGES` 控制（默认 8≈80 个）。全域列表已涵盖各区，不逐区抓。
+  - **jalan**（じゃらん，地域码 130000）：单页 30 个、街道级地址。**坑：Shift_JIS(Windows-31J) 编码**，必须 `arrayBuffer()`+`TextDecoder("shift_jis")` 解码，并补浏览器 headers，否则解析 0 个。
+  - 解析/分类/映射共享在 `sources/jsonLd.ts`，各源复用。
+- **GO TOKYO 等 SPA 不接入**：靠封闭私有搜索 API 动态加载，参数不可逆向、易随改版失效。选源优先"内嵌标准 JSON-LD 且 SSR"。
+- **分页去重**：同源所有页统一用列表首页作 sourceUrl，使 ingest 的 `(title,startTime,sourceUrl)` 判重在跨页/重抓时成立。跨源去重（同活动两站都收录）留到后续。
+- **分类**：JSON-LD 不带分类 → 先关键词（`classifyByKeyword`，"快闪/IP 体验展"等易误判 OTHER）；可选 `CLASSIFY_WITH_LLM=true` 用 LLM（DeepSeek/Claude）批量重判，关闭或缺 key 时零成本回退关键词。
+
 ## 导航与页面
 
 - 底部 4 tab：地图 / 日历 / 推荐 / 个人（`grid-cols-4`）

@@ -1,4 +1,5 @@
 import { extractFromText } from "./extract";
+import { maybeReclassify } from "./classify";
 import { ingestEvents, type IngestStats } from "./ingest";
 import { getSources } from "./sources";
 import type { Source } from "./types";
@@ -27,8 +28,11 @@ export async function runSource(source: Source): Promise<IngestStats> {
 
   let total = emptyStats();
   for (const doc of docs) {
-    const events = doc.prestructured ?? (doc.text ? await extractFromText(doc.text) : []);
+    let events = doc.prestructured ?? (doc.text ? await extractFromText(doc.text) : []);
     if (events.length === 0) continue;
+    // prestructured 源分类较弱（关键词），可选用 LLM 重分类增强（开关 + 有 key 才生效）。
+    // text 源已由 LLM 抽取时分好类，无需再判。
+    if (doc.prestructured) events = await maybeReclassify(events);
     const stats = await ingestEvents(
       events,
       {

@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { EVENT_CATEGORIES } from "@/lib/categories";
+import { EVENT_CATEGORIES, isEventCategory, type EventCategory } from "@/lib/categories";
 
 // LLM 调用封装。支持可切换 provider：
 //   - LLM_PROVIDER=deepseek（或任意 OpenAI 兼容端点）→ 用 chat/completions + JSON 模式
@@ -170,7 +170,7 @@ async function extractViaOpenAICompatible(pageText: string): Promise<RawExtracte
   return Array.isArray(parsed?.events) ? parsed!.events : [];
 }
 
-// ---------- 对外统一入口 ----------
+// ---------- 对外统一入口（抽取）----------
 
 export async function extractEventsFromText(
   pageText: string,
@@ -178,4 +178,123 @@ export async function extractEventsFromText(
   return getProvider() === "anthropic"
     ? extractViaAnthropic(pageText)
     : extractViaOpenAICompatible(pageText);
+}
+
+// ---------- 批量分类（给已知活动补/纠 category）----------
+// 用于 prestructured 源（如 walkerplus 关键词分类偏弱）：把一批活动交给 LLM
+// 统一重判分类。比逐条调用省 token。provider 切换与抽取一致。
+
+export type ClassifyItem = { title: string; description?: string | null };
+
+const CLASSIFY_SYSTEM = `你是东京活动分类器。给定一批活动（标题 + 可选简介），为每条选出最贴切的分类。
+分类含义：
+- EXHIBITION：展览 / 美术馆 / 艺术 / 摄影 / IP 主题展 / 体验型展览（沉浸展、角色快闪、企划展）
+- MARKET：市集 / 集市 / 跳蚤市场 / 骨董市 / 手作市
+- LIVE：演唱会 / 音乐现场 / 演奏会 / 音乐节
+- FESTIVAL：祭典 / 庙会 / 花火大会 / 盆踊 / 季节性庆典
+- TALK：讲座 / 研讨会 / 工作坊 / 勉强会 / 演讲
+- OTHER：明显不属于以上任何一类时才用
+尽量避免 OTHER：体验展 / 快闪 / IP 企划活动多归 EXHIBITION。`;
+
+function buildClassifyList(items: ClassifyItem[]): string {
+  return items
+    .map((it, i) => `${i + 1}. ${it.title}${it.description ? `（${it.description.slice(0, 120)}）` : ""}`)
+    .join("\n");
+}
+
+const CLASSIFY_TOOL: Anthropic.Tool = {
+  name: "emit_categories",
+  description: "按输入顺序输出每条活动的分类。",
+  input_schema: {
+    type: "object",
+    properties: {
+      categories: {
+        type: "array",
+        description: "与输入等长、同顺序的分类数组。",
+        items: { type: "string", enum: [...EVENT_CATEGORIES] },
+      },
+    },
+    required: ["categories"],
+    additionalProperties: false,
+  },
+};
+
+async function classifyViaAnthropic(items: ClassifyItem[]): Promise<string[]> {
+  const model = process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL;
+  const res = await getAnthropic().messages.create({
+    model,
+    max_tokens: 1024,
+    system: CLASSIFY_SYSTEM,
+    tools: [CLASSIFY_TOOL],
+    tool_choice: { type: "tool", name: "emit_categories" },
+    messages: [
+      {
+        role: "user",
+        content: `共 ${items.length} 条，按 1..${items.length} 顺序输出分类（数组长度必须为 ${items.length}）：\n${buildClassifyList(items)}`,
+      },
+    ],
+  });
+  const toolUse = res.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  const input = toolUse?.input as { categories?: string[] } | undefined;
+  return Array.isArray(input?.categories) ? input.categories : [];
+}
+
+async function classifyViaOpenAICompatible(items: ClassifyItem[]): Promise<string[]> {
+  const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const model = process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL;
+  const instruction = `只输出 JSON：{"categories": ["...", ...]}，数组与输入等长、同顺序，每项是 ${CATEGORY_LIST} 之一。不要解释或 Markdown 围栏。`;
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: `${CLASSIFY_SYSTEM}\n\n${instruction}` },
+        { role: "user", content: `共 ${items.length} 条：\n${buildClassifyList(items)}` },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0,
+      max_tokens: 1024,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 分类请求失败 ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const parsed = safeJsonParse(data.choices?.[0]?.message?.content ?? "") as
+    | { categories?: string[] }
+    | null;
+  return Array.isArray(parsed?.categories) ? parsed.categories : [];
+}
+
+const CLASSIFY_BATCH = 40;
+
+// 批量分类。返回与输入等长的数组；个别无法判定处填 null（调用方回退原分类）。
+export async function classifyEvents(
+  items: ClassifyItem[],
+): Promise<(EventCategory | null)[]> {
+  const out: (EventCategory | null)[] = [];
+  const useAnthropic = getProvider() === "anthropic";
+  for (let i = 0; i < items.length; i += CLASSIFY_BATCH) {
+    const batch = items.slice(i, i + CLASSIFY_BATCH);
+    let cats: string[] = [];
+    try {
+      cats = useAnthropic
+        ? await classifyViaAnthropic(batch)
+        : await classifyViaOpenAICompatible(batch);
+    } catch (err) {
+      console.warn("  ⚠️  LLM 分类失败，本批回退原分类：", (err as Error).message);
+    }
+    for (let j = 0; j < batch.length; j++) {
+      out.push(isEventCategory(cats[j]) ? (cats[j] as EventCategory) : null);
+    }
+  }
+  return out;
 }

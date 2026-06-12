@@ -6,6 +6,23 @@
 
 ## 2026-06-12
 
+### 抓取增强：分页 + LLM 分类 + 第二来源 jalan
+
+**背景：** 三点优化——抓更多、分类更准、多来源。
+
+**实现：**
+1. **walkerplus 分页**：东京全域列表按 `/ar0313/{N}.html` 抓前 `WALKERPLUS_MAX_PAGES` 页（默认 8≈80 个），页间 700ms 延迟、跨页去重；**所有页统一用列表首页作 sourceUrl**，保证 ingest 的 `(title,startTime,sourceUrl)` 去重在跨页/重抓时仍正确。全域列表已涵盖各区，故不逐区抓（逐区只会大量重复）。
+2. **LLM 重分类（可选）**：`lib/llm.ts` 加批量 `classifyEvents`（复用 anthropic/deepseek provider 切换）；管线对 prestructured 源调用 `maybeReclassify`。开关 `CLASSIFY_WITH_LLM=true` 且有 LLM key 才启用，否则零成本回退关键词（关键词把"快闪/IP 体验展"等误判为 OTHER 偏多）。
+3. **第二来源 jalan**：じゃらん东京活动列表（地域码 130000），SSR + 标准 JSON-LD，单页 30 个、含街道级地址。**坑：jalan 是 Shift_JIS(Windows-31J) 编码**，必须 `arrayBuffer()` + `TextDecoder("shift_jis")` 解码，否则日文乱码致 `JSON.parse` 失败、解析到 0。还需补全浏览器 headers（UA/Accept/Accept-Language）。
+4. **共享解析**：抽 `sources/jsonLd.ts`（`extractLdEvents` / `classifyByKeyword` / `ldToExtracted`），walkerplus 与 jalan 复用。
+- **GO TOKYO 未接入**：它是 SPA + 封闭私有搜索 API（参数不可逆向、易随改版失效），不符合"稳定源"原则；改用 jalan 这个稳定 JSON-LD 源达成"多来源"。
+
+**实测：** walkerplus 3 页=30、jalan 1 页=30，均全带图带址；`tsc --noEmit` 全绿。
+
+**涉及文件：** `src/services/extraction/sources/{walkerplus,jalan,jsonLd,index}.ts`、`extraction/{classify,index}.ts`、`src/lib/llm.ts`、`.env.example`
+
+---
+
 ### 真实数据源：Walkerplus（解析页面 JSON-LD）
 
 - **放弃 connpass 做主力**：它是 IT 勉強会平台，与"展览/市集/live/祭典"定位不符（顶多做 TALK 补充）。
