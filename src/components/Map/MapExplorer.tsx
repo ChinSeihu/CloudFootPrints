@@ -252,39 +252,77 @@ export function MapExplorer() {
   // ── 活动聚合图层 ──
   const setupEventClusters = useCallback(async (map: maplibregl.Map, mlg: typeof maplibregl) => {
     if (map.getSource("events")) return;
-    // 不再聚合活动（用户反馈聚合大圆不直观）：每个活动独立显示，圆 + 分类图标。
+    // 活动聚合：缩小时合并成带数量的大圆（不加 icon）；放大到单点时 = 分类色圆 + 分类图标。
     map.addSource("events", {
       type: "geojson",
       data: eventsToFC(filteredRef.current),
+      cluster: true,
+      clusterRadius: 48,
+      clusterMaxZoom: 14,
     });
 
-    // 活动点：分类色填充圆 + 白边（USER 发帖用深色边区分抓取活动）
+    // 聚合圆外层光晕
+    map.addLayer({
+      id: "event-cluster-halo",
+      type: "circle",
+      source: "events",
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": "#2563eb",
+        "circle-opacity": 0.18,
+        "circle-radius": ["step", ["get", "point_count"], 24, 5, 30, 20, 37],
+      },
+    });
+    // 聚合主圆（实心蓝 + 白边 + 白字数量，不加分类 icon）
+    map.addLayer({
+      id: "event-clusters",
+      type: "circle",
+      source: "events",
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": "#2563eb",
+        "circle-stroke-color": "#fff",
+        "circle-stroke-width": 2.5,
+        "circle-radius": ["step", ["get", "point_count"], 17, 5, 22, 20, 27],
+      },
+    });
+    map.addLayer({
+      id: "event-cluster-count",
+      type: "symbol",
+      source: "events",
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": ["get", "point_count_abbreviated"],
+        "text-font": ["Open Sans Regular"],
+        "text-size": 14,
+      },
+      paint: { "text-color": "#fff" },
+    });
+
+    // 单个活动点：分类色填充圆 + 白边
     map.addLayer({
       id: "event-point",
       type: "circle",
       source: "events",
+      filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": CATEGORY_COLOR_EXPR,
-        "circle-radius": 12,
-        "circle-stroke-color": [
-          "case",
-          ["==", ["get", "sourceType"], "USER"],
-          "#111827",
-          "#ffffff",
-        ],
+        "circle-radius": 14,
+        "circle-stroke-color": "#fff",
         "circle-stroke-width": 2.5,
       },
     });
 
-    // 分类白色图标叠在圆上 → 辨识度更高
+    // 分类白色图标叠在单点上（图标更大，辨识度更高）
     await loadCategoryGlyphIcons(map);
     map.addLayer({
       id: "event-glyph",
       type: "symbol",
       source: "events",
+      filter: ["!", ["has", "point_count"]],
       layout: {
         "icon-image": ["concat", "glyph-", ["get", "category"]],
-        "icon-size": 0.6,
+        "icon-size": 0.85,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -410,7 +448,40 @@ export function MapExplorer() {
       openEventsPopup((f.geometry as GeoJSON.Point).coordinates as [number, number], evs);
     });
 
-    for (const layer of ["event-point", "event-glyph"]) {
+    // 点击聚合圆：叶子彼此极近（放大也分不开）→ 堆叠卡片；否则放大展开
+    map.on("click", "event-clusters", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const clusterId = f.properties?.cluster_id as number;
+      const center = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+      const src = map.getSource("events") as maplibregl.GeoJSONSource;
+      src.getClusterLeaves(clusterId, 50, 0).then((leaves) => {
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+        for (const lf of leaves) {
+          const [lng, lat] = (lf.geometry as GeoJSON.Point).coordinates;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        }
+        const overlapping = maxLat - minLat < 0.0006 && maxLng - minLng < 0.0006;
+        if (overlapping) {
+          const seen = new Set<string>();
+          const evs: PopupEvent[] = [];
+          for (const lf of leaves) {
+            const pe = toPopupEvent(lf.properties ?? {});
+            if (pe.id && !seen.has(pe.id)) { seen.add(pe.id); evs.push(pe); }
+          }
+          openEventsPopup(center, evs);
+        } else {
+          src.getClusterExpansionZoom(clusterId).then((zoom) => {
+            map.easeTo({ center, zoom });
+          });
+        }
+      });
+    });
+
+    for (const layer of ["event-clusters", "event-point", "event-glyph"]) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }
