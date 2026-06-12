@@ -60,7 +60,7 @@
 - **页面切换动画**：`app/template.tsx`（每次导航重新挂载）给每个 tab 入场动画（淡入 + 上滑 `tem-page-in`）
 - **日历页**按"东京时区当天"对活动分组；详情统一复用 `Recommend/EventDetail`（地图弹窗、推荐、日历三处入口共用同一详情抽屉）
 - **详情抽屉**：`fixed inset-0 z-50` 铺满屏、盖住底部 tab 导航；图片用 `object-contain`（看全原图，不裁剪）
-- **发帖/打卡 sheet**（`BottomSheet`）：peek/full 两档，拖动**只在两档间切换、不因下拉直接取消**（避免误丢表单），关闭走右上角 ×
+- **发帖/打卡 sheet**（`BottomSheet`）：`fixed inset-x-0 bottom-0 z-50` + `max-h-[88vh]`（底部贴屏幕底、盖底部导航，顶部留抓手；**注意 `max-h-%` 在无固定高度的父级下失效，必须用 `vh`**）。peek/full 两档，拖动**只在两档间切换、不因下拉直接取消**（避免误丢表单），关闭走右上角 ×
 
 ## 天气
 

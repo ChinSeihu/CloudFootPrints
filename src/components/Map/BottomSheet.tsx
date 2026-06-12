@@ -55,9 +55,9 @@ export function BottomSheet({
   const base = snap === "peek" ? `100% - ${HEADER_PX}px` : "0px";
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-40 flex justify-center pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none">
       <div
-        className="relative w-full sm:max-w-md max-h-[82%] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
+        className="relative w-full sm:max-w-md max-h-[88vh] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
         style={{
           transform: `translateY(calc(${base} + ${dragY}px))`,
           transition: dragging ? "none" : "transform 0.22s ease-out",

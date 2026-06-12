@@ -14,7 +14,7 @@
 2. **tab 切换动画**：新增 `app/template.tsx`（App Router template 每次导航重新挂载）→ 触发淡入 + 上滑（`tem-page-in` 0.28s），让切换被感知。
 3. **推荐详情弹窗铺满屏**：`absolute inset-0 z-30` → `fixed inset-0 z-50`，盖住底部 tab 导航，不再漏出。
 4. **详情图片完整显示**：上传/活动图从 `object-cover` 改 `object-contain`（+ 浅灰底 + `max-h-[60vh]`），原图不裁剪、看全。
-5. **发帖/打卡 sheet 拖动不再取消**：下拉只在 peek/full 两档间切换（full→peek 保留已填表单），**不再因下拉直接取消**；新增右上角 × 明确关闭；保留"上拉填写 ›"两步流程。
+5. **发帖/打卡 sheet 拖动不再取消 + 定位修复**：下拉只在 peek/full 两档间切换（full→peek 保留已填表单），**不再因下拉直接取消**；新增右上角 × 明确关闭；保留"上拉填写 ›"两步流程。另修：`max-h-[82%]` 因父容器（`absolute` 无明确高度）失效，表单被撑过屏幕顶、抓手被挤出 → 改 `fixed inset-x-0 bottom-0 z-50` + `max-h-[88vh]`，表单底部贴屏幕底（盖底部导航）、顶部留出抓手拖动区。
 
 **涉及文件：** `components/Map/{WeatherPanel,WeatherAnimation,BottomSheet}.tsx`、`components/Recommend/EventDetail.tsx`、`app/template.tsx`、`app/globals.css`
 
