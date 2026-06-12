@@ -8,14 +8,13 @@ export type DateRange = "all" | "today" | "week";
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
   dateRange: DateRange;
+  mineOnly: boolean; // 只看自己的发帖/打卡
 };
 
 type Props = {
   value: FilterState;
   onChange: (next: FilterState) => void;
-  /** 当前筛选后命中的活动数，给个反馈。 */
   count: number;
-  /** 手动刷新：触发后端重新抓取活动数据入库。 */
   onRefresh: () => void;
   refreshing: boolean;
 };
@@ -39,22 +38,50 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
       <div className="flex flex-wrap gap-1.5 pointer-events-auto">
         {EVENT_CATEGORIES.map((c) => {
           const meta = CATEGORY_META[c];
-          const active = value.categories.size === 0 || value.categories.has(c);
+          const active = !value.mineOnly && (value.categories.size === 0 || value.categories.has(c));
+          const selected = value.categories.has(c);
           return (
             <button
               key={c}
               type="button"
-              onClick={() => toggleCategory(c)}
+              onClick={() => {
+                if (value.mineOnly) onChange({ ...value, mineOnly: false, categories: new Set([c]) });
+                else toggleCategory(c);
+              }}
               className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
-                active ? "text-white border-transparent" : "bg-white/90 text-neutral-500 border-black/10"
+                active && selected
+                  ? "text-white border-transparent"
+                  : active && value.categories.size === 0
+                  ? "text-white border-transparent"
+                  : "bg-white/90 text-neutral-500 border-black/10"
               }`}
-              style={active ? { backgroundColor: meta.color } : undefined}
+              style={
+                (active && selected) || (active && value.categories.size === 0)
+                  ? { backgroundColor: meta.color }
+                  : undefined
+              }
             >
               <CategoryIcon category={c} className="w-3.5 h-3.5" />
               {meta.label}
             </button>
           );
         })}
+
+        {/* 我的 —— 只看自己发帖/打卡 */}
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, mineOnly: !value.mineOnly })}
+          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+            value.mineOnly
+              ? "bg-amber-500 text-white border-transparent"
+              : "bg-white/90 text-neutral-500 border-black/10"
+          }`}
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4Z"/>
+          </svg>
+          我的
+        </button>
       </div>
 
       <div className="flex items-center gap-2 pointer-events-auto">

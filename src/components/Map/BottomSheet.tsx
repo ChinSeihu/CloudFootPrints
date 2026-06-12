@@ -34,7 +34,7 @@ export function BottomSheet({
   }
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center pointer-events-none">
+    <div className="absolute inset-x-0 bottom-0 z-99 flex justify-center pointer-events-none">
       <div
         className="w-full sm:max-w-md max-h-[82%] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
         style={{

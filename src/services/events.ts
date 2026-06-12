@@ -93,6 +93,16 @@ export async function createUserEvent(
   return { ok: true, event };
 }
 
+export type DeleteUserEventResult = { ok: true } | { ok: false; error: string };
+
+export async function deleteUserEvent(id: string): Promise<DeleteUserEventResult> {
+  const existing = await prisma.event.findUnique({ where: { id } });
+  if (!existing) return { ok: false, error: "活动不存在" };
+  if (existing.sourceType !== "USER") return { ok: false, error: "只能删除自己发布的活动" };
+  await prisma.event.delete({ where: { id } });
+  return { ok: true };
+}
+
 // 把 URLSearchParams 解析成 EventQuery，做基本校验。
 export function parseEventQuery(params: URLSearchParams): EventQuery | { error: string } {
   const num = (k: string) => {

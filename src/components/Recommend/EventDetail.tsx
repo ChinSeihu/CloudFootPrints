@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink } from "@/components/icons";
+import { CopyButton } from "@/components/CopyButton";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 
 function fmtRange(start: string | null, end: string | null): string {
@@ -83,11 +84,14 @@ export function EventDetail({
               <IconCalendar className="w-4 h-4 shrink-0 text-neutral-400" />
               {fmtRange(event.startTime, event.endTime)}
             </div>
-            {event.venueName && (
-              <div className="flex items-center gap-1.5">
-                <IconPin className="w-4 h-4 shrink-0 text-neutral-400" />
-                {event.venueName}
-                {event.address ? ` · ${event.address}` : ""}
+            {(event.venueName || event.address) && (
+              <div className="flex items-start gap-1.5">
+                <IconPin className="w-4 h-4 shrink-0 text-neutral-400 mt-0.5" />
+                <span className="flex-1 min-w-0">
+                  {event.venueName}
+                  {event.address ? (event.venueName ? ` · ${event.address}` : event.address) : ""}
+                </span>
+                <CopyButton text={event.address || event.venueName || ""} label="复制地址" />
               </div>
             )}
           </div>

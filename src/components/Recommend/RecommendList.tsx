@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin } from "@/components/icons";
 import { EventDetail } from "./EventDetail";
@@ -14,6 +14,14 @@ function fmt(d: string | null): string {
 // 推荐瀑布流：卡片可点击 → 打开详情（详情+评论+跳到地图）。
 export function RecommendList({ events }: { events: EventDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
+
+  // 从地图弹窗"查看详情"跳转过来时（/recommend?event=<id>），直接打开对应详情。
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("event");
+    if (!id) return;
+    const ev = events.find((e) => e.id === id);
+    if (ev) setSelected(ev);
+  }, [events]);
 
   return (
     <>

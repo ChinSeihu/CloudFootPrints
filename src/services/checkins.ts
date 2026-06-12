@@ -56,3 +56,16 @@ export async function createCheckin(
   const checkin = await createCheckinRow(input, userId);
   return { ok: true, checkin };
 }
+
+export type DeleteCheckinResult = { ok: true } | { ok: false; error: string };
+
+export async function deleteCheckin(
+  id: string,
+  userId: string = CURRENT_USER_ID,
+): Promise<DeleteCheckinResult> {
+  const existing = await prisma.checkIn.findUnique({ where: { id } });
+  if (!existing) return { ok: false, error: "打卡记录不存在" };
+  if (existing.userId !== userId) return { ok: false, error: "无权限删除" };
+  await prisma.checkIn.delete({ where: { id } });
+  return { ok: true };
+}

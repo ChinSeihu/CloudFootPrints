@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* v1 固定亮色主题：底图（CARTO Positron）与所有卡片都按亮色设计，
+     强制 light 可避免 OS 夜间模式把页面翻成黑底导致文字看不清。
+     深色模式留到 v1.5（需为卡片/弹窗补全 dark: 变体）。 */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,15 +16,213 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── 地图弹窗：堆叠活动卡片 ── */
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.18) !important;
+}
+.maplibregl-popup-close-button {
+  font-size: 18px;
+  padding: 2px 8px;
+  color: #94a3b8;
+}
+.maplibregl-popup-close-button:hover {
+  background: transparent;
+  color: #475569;
+}
+
+.tem-pop {
+  max-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: inherit;
+}
+.tem-pop-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 9px 12px 5px;
+}
+.tem-card {
+  display: flex;
+  cursor: pointer;
+  border-top: 1px solid #f1f5f9;
+  transition: background 0.12s ease;
+}
+.tem-card:first-child {
+  border-top: none;
+}
+.tem-card:hover {
+  background: #f8fafc;
+}
+.tem-card-bar {
+  width: 4px;
+  flex: none;
+  align-self: stretch;
+}
+.tem-card-body {
+  padding: 9px 12px;
+  flex: 1;
+  min-width: 0;
+}
+.tem-card-cat {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.tem-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+.tem-card-venue {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+.tem-card-venue-text {
+  flex: 1;
+  min-width: 0;
+}
+.tem-card-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 1px;
+  cursor: pointer;
+  color: #94a3b8;
+  line-height: 0;
+}
+.tem-card-copy:hover {
+  color: #2563eb;
+}
+.tem-card-copy.copied {
+  color: #16a34a;
+}
+.tem-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tem-card-open {
+  font-size: 11px;
+  color: #2563eb;
+  font-weight: 500;
+}
+.tem-card-link {
+  font-size: 11px;
+  color: #64748b;
+  text-decoration: none;
+}
+.tem-card-link:hover {
+  text-decoration: underline;
+}
+.tem-card-del {
+  font-size: 11px;
+  color: #ef4444;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-left: auto;
+}
+.tem-card-del:hover {
+  text-decoration: underline;
+}
+
+/* ── 地图天气动画覆盖层 ── */
+.wx-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 雨 */
+.wx-drop {
+  position: absolute;
+  top: -12%;
+  width: 1.5px;
+  height: 14px;
+  border-radius: 1px;
+  background: linear-gradient(to bottom, rgba(96, 165, 250, 0), rgba(96, 165, 250, 0.55));
+  animation: wx-fall linear infinite;
+}
+@keyframes wx-fall {
+  to { transform: translateY(115vh); }
+}
+
+/* 雪 */
+.wx-flake {
+  position: absolute;
+  top: -6%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 3px rgba(148, 163, 184, 0.6);
+  animation: wx-drift linear infinite;
+}
+@keyframes wx-drift {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(14px, 55vh); }
+  100% { transform: translate(0, 115vh); }
+}
+
+/* 云 / 雾 */
+.wx-cloud {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  filter: blur(8px);
+  animation: wx-blow linear infinite;
+}
+@keyframes wx-blow {
+  from { transform: translateX(-30vw); }
+  to { transform: translateX(130vw); }
+}
+
+/* 晴：右上角阳光光晕 + 缓慢脉动 */
+.wx-sun {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.55) 0%, rgba(253, 224, 71, 0.18) 40%, rgba(253, 224, 71, 0) 70%);
+  animation: wx-pulse 4s ease-in-out infinite;
+}
+@keyframes wx-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+/* 雷暴：整层偶发闪光 */
+.wx-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  animation: wx-lightning 6s linear infinite;
+}
+@keyframes wx-lightning {
+  0%, 92%, 100% { opacity: 0; }
+  93%, 95% { opacity: 0.6; }
+  94% { opacity: 0.1; }
 }

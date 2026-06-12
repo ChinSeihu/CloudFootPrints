@@ -103,6 +103,109 @@ export function IconExternalLink(props: IconProps) {
   );
 }
 
+export function IconCopy(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+export function IconCheck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+export function IconChevronLeft(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+// ---- 天气图标 ----
+
+export function IconSun(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+export function IconCloud(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 6.5 19h11Z" />
+    </svg>
+  );
+}
+
+export function IconCloudRain(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16 13a5 5 0 0 0 0-9 6 6 0 0 0-11.3 1.7A3.5 3.5 0 0 0 5.5 13H16Z" />
+      <path d="M8 17v2M12 18v2M16 17v2" />
+    </svg>
+  );
+}
+
+export function IconCloudSnow(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16 13a5 5 0 0 0 0-9 6 6 0 0 0-11.3 1.7A3.5 3.5 0 0 0 5.5 13H16Z" />
+      <path d="M8 17h.01M12 18h.01M16 17h.01M8 21h.01M12 22h.01M16 21h.01" />
+    </svg>
+  );
+}
+
+export function IconCloudFog(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16 13a5 5 0 0 0 0-9 6 6 0 0 0-11.3 1.7A3.5 3.5 0 0 0 5.5 13H16Z" />
+      <path d="M5 17h14M7 21h10" />
+    </svg>
+  );
+}
+
+export function IconCloudLightning(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M16 12a5 5 0 0 0 0-9 6 6 0 0 0-11.3 1.7A3.5 3.5 0 0 0 5.5 12" />
+      <path d="m13 12-3 5h4l-3 5" />
+    </svg>
+  );
+}
+
+// 按天气大类挑图标（kind 来自 services/weather）。
+export function WeatherIcon({
+  kind,
+  ...props
+}: IconProps & { kind: "sunny" | "cloudy" | "fog" | "rain" | "snow" | "storm" }) {
+  switch (kind) {
+    case "sunny": return <IconSun {...props} />;
+    case "fog": return <IconCloudFog {...props} />;
+    case "rain": return <IconCloudRain {...props} />;
+    case "snow": return <IconCloudSnow {...props} />;
+    case "storm": return <IconCloudLightning {...props} />;
+    default: return <IconCloud {...props} />;
+  }
+}
+
 // ---- 分类图标 ----
 // 与地图 marker 共用同一份 glyph 来源（lib/categoryIcons.ts），保证风格统一。
 
