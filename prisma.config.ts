@@ -1,4 +1,4 @@
-import { defineConfig, env } from "@prisma/config";
+import { defineConfig } from "@prisma/config";
 
 // Prisma 7 配置文件。迁移 / introspection 用到的连接 URL 在这里读取。
 // 运行时（PrismaClient）则通过 src/lib/db.ts 里的 driver adapter 连接。
@@ -15,6 +15,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // 用 ?? "" 而非 env()：这样 `prisma generate`（不连库）在缺少 DATABASE_URL 的
+    // 构建/安装环境也不会抛错；迁移/introspection 缺 URL 时仍会因连不上而清晰报错。
+    url: process.env.DATABASE_URL ?? "",
   },
 });
