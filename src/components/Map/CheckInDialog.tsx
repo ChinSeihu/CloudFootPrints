@@ -10,8 +10,11 @@ export type CheckInDraft = {
   note: string;
   rating: number | null;
   photoUrl: string;
+  visitedAt: string | null; // ISO；用户可选打卡时间，默认现在
   eventId?: string | null;
 };
+
+const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
 type Props = {
   lat: number;
@@ -27,25 +30,40 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit }: Props) 
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [visitedAt, setVisitedAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit() {
     setSubmitting(true);
     try {
-      await onSubmit({ lat, lng, note, rating, photoUrl, eventId: eventId ?? null });
+      await onSubmit({
+        lat,
+        lng,
+        note,
+        rating,
+        photoUrl,
+        visitedAt: toISO(visitedAt),
+        eventId: eventId ?? null,
+      });
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <BottomSheet onClose={onCancel}>
-      <h2 className="text-lg font-semibold mb-1">打卡 · 我来过</h2>
-      <p className="flex items-center gap-1 text-xs text-neutral-500 mb-1">
+    <BottomSheet title="打卡 · 我来过" hint="拖动地图上的蓝色锚点定位" onClose={onCancel}>
+      <p className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
         <IconPin className="w-3.5 h-3.5" />
         {lat.toFixed(5)}, {lng.toFixed(5)}
       </p>
-      <p className="text-[11px] text-blue-600 mb-4">拖动地图上的锚点可微调位置 · 下滑收起</p>
+
+      <label className="block text-sm mb-1">时间</label>
+      <input
+        type="datetime-local"
+        value={visitedAt}
+        onChange={(e) => setVisitedAt(e.target.value)}
+        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-4"
+      />
 
       <label className="block text-sm mb-1">想说点什么</label>
       <textarea

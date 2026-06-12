@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     note: typeof b.note === "string" ? b.note : null,
     photoUrl: typeof b.photoUrl === "string" ? b.photoUrl : null,
     rating: b.rating == null ? null : Number(b.rating),
+    visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
     eventId: typeof b.eventId === "string" ? b.eventId : null,
   });
 

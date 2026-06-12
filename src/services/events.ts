@@ -67,9 +67,17 @@ export type CreateUserEventInput = {
   description?: string | null;
   venueName?: string | null;
   imageUrl?: string | null;
+  startTime?: string | null; // ISO
+  endTime?: string | null; // ISO
   lat: number;
   lng: number;
 };
+
+function parseISO(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export type CreateUserEventResult =
   | { ok: true; event: Awaited<ReturnType<typeof createUserEventRow>> }
@@ -86,6 +94,8 @@ function createUserEventRow(input: CreateUserEventInput) {
       address: null,
       lat: input.lat,
       lng: input.lng,
+      startTime: parseISO(input.startTime),
+      endTime: parseISO(input.endTime),
       sourceType: "USER",
       sourceUrl: null,
       trustLevel: 10, // 用户发布：低信任

@@ -6,6 +6,14 @@
 
 ## 2026-06-12
 
+### 发帖/打卡选日期 + 表单可吸附（peek）+ 天气实况提示
+
+- **#6 表单改为可吸附 sheet**：默认 **peek**（只露标题，地图可见 → 拖锚点定位），**上拉填写**；从 full **下拉回 peek**（重新定位），peek 再下拉才关闭。移除上一版"定位条 + `formOpen`"两步逻辑，统一到 `BottomSheet`。
+- **#3 选日期**：发帖加"时间范围"（开始/结束 `datetime-local` → ISO）；打卡加"时间"（可补录过去打卡，覆盖 `createdAt`）。后端 `createUserEvent`/`createCheckin` + 两个 POST 路由透传。
+- **#5 天气歧义提示**：天气面板加实况条「现在 X° · 动画为实况，下为未来 7 天」，区分"地图动画=当前实况"与"卡片=未来预报"。
+
+**涉及文件：** `BottomSheet.tsx`、`PostDialog.tsx`、`CheckInDialog.tsx`、`MapExplorer.tsx`、`WeatherPanel.tsx`、`services/{events,checkins}.ts`、`api/{events,checkins}/route.ts`
+
 ### 活动点加分类图标（去聚合）+ 天气置顶
 
 - **活动点不再聚合**（用户反馈聚合大圆不直观）：每个活动 = 分类色圆 + **白色分类图标**（symbol 图层，`icon-image` 按 `category` 动态取图，图标位图由 `CATEGORY_GLYPH` 渲染成 data URL 注册），辨识度更高；USER 发帖用**深色描边**区分抓取活动。

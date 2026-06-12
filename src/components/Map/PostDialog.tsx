@@ -15,6 +15,8 @@ export type PostDraft = {
   description: string;
   venueName: string;
   imageUrl: string | null;
+  startTime: string | null; // ISO
+  endTime: string | null; // ISO
 };
 
 type Props = {
@@ -24,12 +26,16 @@ type Props = {
   onSubmit: (draft: PostDraft) => Promise<void>;
 };
 
+const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
+
 // 锚点发帖："这里有个活动"——在地图上标记并发布一个活动（sourceType=USER）。
 export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<EventCategory>("OTHER");
   const [description, setDescription] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +59,10 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
 
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
+    if (start && end && new Date(end) < new Date(start)) {
+      setError("结束时间不能早于开始时间");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -69,20 +79,28 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
           setPhase("");
         }
       }
-      await onSubmit({ lat, lng, title, category, description, venueName, imageUrl });
+      await onSubmit({
+        lat,
+        lng,
+        title,
+        category,
+        description,
+        venueName,
+        imageUrl,
+        startTime: toISO(start),
+        endTime: toISO(end),
+      });
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <BottomSheet onClose={onCancel}>
-      <h2 className="text-lg font-semibold mb-1">发帖 · 标记这里有个活动</h2>
-      <p className="flex items-center gap-1 text-xs text-neutral-500 mb-1">
+    <BottomSheet title="发帖 · 标记这里有个活动" hint="拖动地图上的蓝色锚点定位" onClose={onCancel}>
+      <p className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
         <IconPin className="w-3.5 h-3.5" />
         {lat.toFixed(5)}, {lng.toFixed(5)}
       </p>
-      <p className="text-[11px] text-blue-600 mb-4">拖动地图上的锚点可微调位置 · 下滑收起</p>
 
       <label className="block text-sm mb-1">活动名称 *</label>
       <input
@@ -112,6 +130,24 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
             </button>
           );
         })}
+      </div>
+
+      {/* 活动时间范围 */}
+      <label className="block text-sm mb-1">时间范围</label>
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="datetime-local"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+          className="flex-1 min-w-0 border border-neutral-300 rounded-lg p-2 text-sm"
+        />
+        <span className="text-neutral-400 text-sm">至</span>
+        <input
+          type="datetime-local"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+          className="flex-1 min-w-0 border border-neutral-300 rounded-lg p-2 text-sm"
+        />
       </div>
 
       {/* 图片（可选，客户端压缩后上传图床） */}
@@ -156,7 +192,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
         onChange={(e) => setDescription(e.target.value)}
         rows={3}
         className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-3"
-        placeholder="时间、内容、票价…"
+        placeholder="内容、票价…"
       />
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}

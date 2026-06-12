@@ -70,6 +70,11 @@ export function WeatherPanel() {
           让卡片间隙仍可拖动地图；只有卡片本身接收交互。 */}
       {open && data && (
         <div className="absolute bottom-4 left-0 right-0 z-[60] px-3 pointer-events-none">
+          {/* 提示：地图动画跟"当前实况"，下方卡片是未来 7 天，避免歧义 */}
+          <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] text-neutral-700 bg-white/90 rounded-full px-2.5 py-1 shadow-sm pointer-events-auto">
+            <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />
+            现在 {data.current.label} {data.current.temp}° · 动画为实况，下为未来 7 天
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {data.daily.map((d, i) => (
               <div
