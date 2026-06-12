@@ -11,6 +11,7 @@ import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
 import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
+import { IconPin } from "@/components/icons";
 import { CATEGORY_META } from "@/lib/categories";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
@@ -127,6 +128,7 @@ export function MapExplorer() {
   });
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
+  const [formOpen, setFormOpen] = useState(false); // false=定位中(只显示锚点+定位条) true=填表单
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -474,6 +476,28 @@ export function MapExplorer() {
       clusterMaxZoom: 15,
     });
 
+    // 打卡专属图标：白色对勾（√）。canvas 画一个，注册成地图图标，
+    // 叠在单个打卡的琥珀圆上 → 与活动点（无对勾）一眼区分。
+    if (!map.hasImage("checkin-tick")) {
+      const s = 44;
+      const cv = document.createElement("canvas");
+      cv.width = s;
+      cv.height = s;
+      const cx = cv.getContext("2d");
+      if (cx) {
+        cx.strokeStyle = "#fff";
+        cx.lineWidth = s * 0.13;
+        cx.lineCap = "round";
+        cx.lineJoin = "round";
+        cx.beginPath();
+        cx.moveTo(s * 0.28, s * 0.52);
+        cx.lineTo(s * 0.44, s * 0.68);
+        cx.lineTo(s * 0.74, s * 0.34);
+        cx.stroke();
+        map.addImage("checkin-tick", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
+      }
+    }
+
     map.addLayer({
       id: "checkin-cluster-halo",
       type: "circle",
@@ -519,6 +543,19 @@ export function MapExplorer() {
         "circle-stroke-color": "#fff",
         "circle-stroke-width": 2.5,
         "circle-radius": 9,
+      },
+    });
+    // 白色对勾叠在打卡圆上
+    map.addLayer({
+      id: "checkin-tick-icon",
+      type: "symbol",
+      source: "checkins",
+      filter: ["!", ["has", "point_count"]],
+      layout: {
+        "icon-image": "checkin-tick",
+        "icon-size": 0.6,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
       },
     });
 
@@ -622,6 +659,7 @@ export function MapExplorer() {
     });
     placingRef.current = marker;
     setMode(m);
+    setFormOpen(false); // 先进入"定位中"：只显示锚点 + 定位条，方便拖动
     setDialogAt({ lat: c.lat, lng: c.lng });
   }
 
@@ -632,6 +670,7 @@ export function MapExplorer() {
   function cancelDialog() {
     clearPlacing();
     setDialogAt(null);
+    setFormOpen(false);
   }
   function anchorPos(fallback: { lat: number; lng: number }) {
     const p = placingRef.current?.getLngLat();
@@ -647,6 +686,7 @@ export function MapExplorer() {
     });
     clearPlacing();
     setDialogAt(null);
+    setFormOpen(false);
     if (res.ok) {
       showToast("已打卡");
       await fetchCheckins();
@@ -664,6 +704,7 @@ export function MapExplorer() {
     });
     clearPlacing();
     setDialogAt(null);
+    setFormOpen(false);
     if (res.ok) {
       showToast("已发布");
       if (lastBboxRef.current) await fetchEvents(lastBboxRef.current);
@@ -688,10 +729,38 @@ export function MapExplorer() {
         onCheckin={() => openPlacement("checkin")}
         onPost={() => openPlacement("post")}
       />
-      {dialogAt && mode === "checkin" && (
+      {/* 第一步：定位条（只显示锚点 + 位置 + 取消/下一步，不遮挡锚点，可自由拖动） */}
+      {dialogAt && !formOpen && (
+        <div className="absolute inset-x-0 bottom-0 z-30 flex justify-center pointer-events-none">
+          <div className="w-full sm:max-w-md bg-white rounded-t-2xl shadow-2xl p-4 pointer-events-auto">
+            <p className="text-sm font-semibold mb-1">
+              {mode === "checkin" ? "打卡 · 我来过" : "发帖 · 标记这里有个活动"}
+            </p>
+            <p className="flex items-center gap-1 text-xs text-neutral-500 mb-3">
+              <IconPin className="w-3.5 h-3.5" />
+              拖动地图上的蓝色锚点定位 · {dialogAt.lat.toFixed(5)}, {dialogAt.lng.toFixed(5)}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={cancelDialog} className="px-4 py-2 text-sm rounded-lg text-neutral-600">
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormOpen(true)}
+                className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white"
+              >
+                下一步
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 第二步：填写表单 */}
+      {dialogAt && formOpen && mode === "checkin" && (
         <CheckInDialog lat={dialogAt.lat} lng={dialogAt.lng} onCancel={cancelDialog} onSubmit={submitCheckIn} />
       )}
-      {dialogAt && mode === "post" && (
+      {dialogAt && formOpen && mode === "post" && (
         <PostDialog lat={dialogAt.lat} lng={dialogAt.lng} onCancel={cancelDialog} onSubmit={submitPost} />
       )}
       {toast && (

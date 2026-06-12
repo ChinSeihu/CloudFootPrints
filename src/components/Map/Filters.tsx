@@ -36,8 +36,8 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
   }
 
   return (
-    <div className="absolute top-3 left-3 right-3 z-10 flex flex-col gap-2 pointer-events-none">
-      <div className="flex flex-wrap gap-1.5 pointer-events-auto">
+    <div className="absolute top-3 left-3 right-14 sm:right-3 z-10 flex flex-col gap-2 pointer-events-none">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {EVENT_CATEGORIES.map((c) => {
           const meta = CATEGORY_META[c];
           const active = !value.mineOnly && (value.categories.size === 0 || value.categories.has(c));
@@ -50,7 +50,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
                 if (value.mineOnly) onChange({ ...value, mineOnly: false, categories: new Set([c]) });
                 else toggleCategory(c);
               }}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+              className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
                 active && selected
                   ? "text-white border-transparent"
                   : active && value.categories.size === 0
@@ -73,7 +73,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
         <button
           type="button"
           onClick={() => onChange({ ...value, mineOnly: !value.mineOnly })}
-          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+          className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
             value.mineOnly
               ? "bg-amber-500 text-white border-transparent"
               : "bg-white/90 text-neutral-500 border-black/10"
@@ -86,8 +86,8 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
         </button>
       </div>
 
-      <div className="flex items-center gap-2 pointer-events-auto">
-        <div className="inline-flex rounded-full bg-white/90 shadow-sm border border-black/10 overflow-hidden">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="shrink-0 inline-flex rounded-full bg-white/90 shadow-sm border border-black/10 overflow-hidden">
           {(Object.keys(DATE_LABELS) as DateRange[]).map((r) => (
             <button
               key={r}
@@ -106,7 +106,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
           type="button"
           onClick={() => onChange({ ...value, showExpired: !value.showExpired })}
           title="是否显示已结束的活动"
-          className={`px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
             value.showExpired
               ? "bg-neutral-700 text-white border-transparent"
               : "bg-white/90 text-neutral-600 border-black/10"
@@ -115,7 +115,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
           含过期
         </button>
 
-        <span className="text-xs text-neutral-600 bg-white/80 rounded-full px-2 py-1 shadow-sm">
+        <span className="shrink-0 whitespace-nowrap text-xs text-neutral-600 bg-white/80 rounded-full px-2 py-1 shadow-sm">
           {count} 个活动
         </span>
 
@@ -124,7 +124,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
           onClick={onRefresh}
           disabled={refreshing}
           title="重新抓取活动数据"
-          className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/90 text-neutral-700 text-xs shadow-sm border border-black/10 disabled:opacity-60"
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/90 text-neutral-700 text-xs shadow-sm border border-black/10 disabled:opacity-60"
         >
           <IconRefresh className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
           {refreshing ? "刷新中…" : "刷新"}
