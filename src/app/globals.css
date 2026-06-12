@@ -226,3 +226,41 @@ body {
   93%, 95% { opacity: 0.6; }
   94% { opacity: 0.1; }
 }
+
+/* ── 夜晚天气：夜色遮罩 + 月亮 + 闪烁星星 ── */
+.wx-night {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(13, 20, 40, 0.58) 0%, rgba(30, 41, 59, 0.32) 100%);
+}
+.wx-moon {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 40%, rgba(241, 245, 249, 0.92) 0%, rgba(226, 232, 240, 0.5) 22%, rgba(148, 163, 184, 0.12) 46%, rgba(148, 163, 184, 0) 70%);
+  animation: wx-pulse 5s ease-in-out infinite;
+}
+.wx-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+  animation: wx-twinkle 2.4s ease-in-out infinite;
+}
+@keyframes wx-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* ── 页面切换入场动画（App Router 的 template.tsx 每次导航重新挂载触发） ── */
+.tem-page-enter {
+  height: 100%;
+  animation: tem-page-in 0.28s ease-out;
+}
+@keyframes tem-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

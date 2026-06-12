@@ -69,9 +69,9 @@ export function EventDetail({
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-lg max-h-[85%] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
+      <div className="relative w-full sm:max-w-lg max-h-[92%] sm:max-h-[85%] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col">
         {/* 头部 */}
         <div className="p-5 border-b border-black/5">
           <div className="flex items-center gap-1.5 text-xs mb-2" style={{ color: meta.color }}>
@@ -101,7 +101,7 @@ export function EventDetail({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {event.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.imageUrl} alt="" className="w-full max-h-60 object-cover rounded-lg" />
+            <img src={event.imageUrl} alt="" className="w-full max-h-[60vh] object-contain rounded-lg bg-neutral-100" />
           )}
           {event.description && (
             <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-wrap">

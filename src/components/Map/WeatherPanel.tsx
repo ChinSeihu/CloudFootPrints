@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { WeatherIcon } from "@/components/icons";
 import { WeatherAnimation } from "./WeatherAnimation";
 import type { WeatherForecast } from "@/services/weather";
@@ -33,6 +33,17 @@ export function WeatherPanel() {
     return () => { alive = false; };
   }, []);
 
+  // 东京当前是否夜晚（18:00–翌 6:00）：决定天气动画用昼/夜版本。
+  const isNight = useMemo(() => {
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Tokyo",
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date());
+    const h = parseInt(hourStr, 10) % 24;
+    return h < 6 || h >= 18;
+  }, []);
+
   if (failed) return null;
 
   const todayKey = data?.daily[0]?.date ?? "";
@@ -42,7 +53,7 @@ export function WeatherPanel() {
       {/* 天气动画覆盖层（地图之上、UI 之下） */}
       {open && data && (
         <div className="absolute inset-0 z-10 pointer-events-none">
-          <WeatherAnimation kind={data.current.kind} />
+          <WeatherAnimation kind={data.current.kind} isNight={isNight} />
         </div>
       )}
 

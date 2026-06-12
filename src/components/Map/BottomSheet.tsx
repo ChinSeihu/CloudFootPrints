@@ -42,11 +42,13 @@ export function BottomSheet({
     startYRef.current = null;
     setDragging(false);
     setDragY(0);
+    // 拖动只在两档间切换，绝不因下拉直接取消（避免误拖丢失已填表单）。
+    //  - full 下拉 → peek（回到地图重新定位，表单内容保留）
+    //  - peek 上拉 → full（继续填写）；peek 下拉 → 回弹保持（关闭请用右上角 ×）
     if (snap === "full") {
       if (dy > DOWN_THRESHOLD) setSnap("peek");
-    } else {
-      if (dy < -UP_THRESHOLD) setSnap("full");
-      else if (dy > DOWN_THRESHOLD) onClose();
+    } else if (dy < -UP_THRESHOLD) {
+      setSnap("full");
     }
   }
 
@@ -55,12 +57,23 @@ export function BottomSheet({
   return (
     <div className="absolute inset-x-0 bottom-0 z-40 flex justify-center pointer-events-none">
       <div
-        className="w-full sm:max-w-md max-h-[82%] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
+        className="relative w-full sm:max-w-md max-h-[82%] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
         style={{
           transform: `translateY(calc(${base} + ${dragY}px))`,
           transition: dragging ? "none" : "transform 0.22s ease-out",
         }}
       >
+        {/* 关闭按钮：拖动不会取消，明确关闭走这里（onPointerDown 阻止冒泡，避免触发拖动） */}
+        <button
+          type="button"
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="关闭"
+          className="absolute top-2.5 right-3 z-10 w-7 h-7 grid place-items-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100"
+        >
+          ×
+        </button>
+
         {/* 标题栏 = 抓手 + 标题 + 提示，整块可拖动吸附 */}
         <div
           onPointerDown={onPointerDown}

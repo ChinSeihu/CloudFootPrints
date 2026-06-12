@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-06-13
+
+### UI 优化：天气昼夜 + 页面切换动画 + 详情全屏/原图 + sheet 拖动
+
+5 项体验改进：
+
+1. **天气特效区分昼夜**：`WeatherPanel` 按东京当前时间（18:00–翌 6:00 为夜）算 `isNight` 传给 `WeatherAnimation`；晴天夜晚显示月亮 + 闪烁星空（替代太阳），雨/雪/云夜晚叠一层夜色遮罩，与白天明显区分。
+2. **tab 切换动画**：新增 `app/template.tsx`（App Router template 每次导航重新挂载）→ 触发淡入 + 上滑（`tem-page-in` 0.28s），让切换被感知。
+3. **推荐详情弹窗铺满屏**：`absolute inset-0 z-30` → `fixed inset-0 z-50`，盖住底部 tab 导航，不再漏出。
+4. **详情图片完整显示**：上传/活动图从 `object-cover` 改 `object-contain`（+ 浅灰底 + `max-h-[60vh]`），原图不裁剪、看全。
+5. **发帖/打卡 sheet 拖动不再取消**：下拉只在 peek/full 两档间切换（full→peek 保留已填表单），**不再因下拉直接取消**；新增右上角 × 明确关闭；保留"上拉填写 ›"两步流程。
+
+**涉及文件：** `components/Map/{WeatherPanel,WeatherAnimation,BottomSheet}.tsx`、`components/Recommend/EventDetail.tsx`、`app/template.tsx`、`app/globals.css`
+
+---
+
 ## 2026-06-12
 
 ### 修复：walkerplus 也抓详情页（定位精确到番地）
