@@ -3,12 +3,13 @@
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconRefresh } from "@/components/icons";
 
-export type DateRange = "all" | "today" | "week";
+export type DateRange = "all" | "today" | "week" | "month";
 
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
   dateRange: DateRange;
   mineOnly: boolean; // 只看自己的发帖/打卡
+  showExpired: boolean; // 是否显示已结束（过期）的活动，默认 false
 };
 
 type Props = {
@@ -23,6 +24,7 @@ const DATE_LABELS: Record<DateRange, string> = {
   all: "全部",
   today: "今天",
   week: "本周",
+  month: "本月",
 };
 
 export function Filters({ value, onChange, count, onRefresh, refreshing }: Props) {
@@ -99,6 +101,20 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
             </button>
           ))}
         </div>
+        {/* 含过期：默认关闭（过期活动不显示） */}
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, showExpired: !value.showExpired })}
+          title="是否显示已结束的活动"
+          className={`px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+            value.showExpired
+              ? "bg-neutral-700 text-white border-transparent"
+              : "bg-white/90 text-neutral-600 border-black/10"
+          }`}
+        >
+          含过期
+        </button>
+
         <span className="text-xs text-neutral-600 bg-white/80 rounded-full px-2 py-1 shadow-sm">
           {count} 个活动
         </span>

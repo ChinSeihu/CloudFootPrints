@@ -49,6 +49,16 @@ export async function getEventsInBounds(q: EventQuery) {
   });
 }
 
+// 我的发帖：列出当前用户发布的活动（sourceType=USER），按创建时间倒序。
+// v1 单用户，全部 USER 活动都属于本人；v2 接入认证后按 userId 过滤。
+export function listUserEvents() {
+  return prisma.event.findMany({
+    where: { sourceType: "USER" },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+}
+
 // 锚点发帖：用户在地图上标记并发布一个活动（sourceType=USER）。
 // 用户已在地图上选点，故直接用其 lat/lng，无需地理编码。
 export type CreateUserEventInput = {

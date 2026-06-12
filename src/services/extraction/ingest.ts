@@ -61,6 +61,7 @@ export async function ingestEvents(
         category: ev.category,
         venueName: ev.venueName,
         address: ev.address,
+        imageUrl: ev.imageUrl,
         lat: coords.lat,
         lng: coords.lng,
         startTime,

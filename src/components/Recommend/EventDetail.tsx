@@ -97,8 +97,12 @@ export function EventDetail({
           </div>
         </div>
 
-        {/* 可滚动区：简介 + 评论 */}
+        {/* 可滚动区：图片 + 简介 + 评论 */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {event.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.imageUrl} alt="" className="w-full max-h-60 object-cover rounded-lg" />
+          )}
           {event.description && (
             <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-wrap">
               {event.description}

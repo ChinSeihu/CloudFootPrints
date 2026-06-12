@@ -20,6 +20,7 @@ export default async function CalendarPage() {
       category: e.category,
       venueName: e.venueName,
       address: e.address,
+      imageUrl: e.imageUrl,
       lat: e.lat,
       lng: e.lng,
       startTime: e.startTime ? e.startTime.toISOString() : null,

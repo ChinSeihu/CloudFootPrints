@@ -15,22 +15,31 @@ export default async function RecommendPage() {
   let dbError = false;
   try {
     const rows = await getEventsInBounds(TOKYO_BBOX);
-    // 序列化成 DTO（Date → ISO 字符串）传给客户端组件。
-    events = rows.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      category: e.category,
-      venueName: e.venueName,
-      address: e.address,
-      lat: e.lat,
-      lng: e.lng,
-      startTime: e.startTime ? e.startTime.toISOString() : null,
-      endTime: e.endTime ? e.endTime.toISOString() : null,
-      sourceType: e.sourceType,
-      sourceUrl: e.sourceUrl,
-      trustLevel: e.trustLevel,
-    }));
+    const now = Date.now();
+    events = rows
+      // 过期活动默认不显示（结束时间早于现在；未定档活动保留）。
+      .filter((e) => {
+        if (!e.startTime) return true;
+        const end = (e.endTime ?? e.startTime).getTime();
+        return end >= now;
+      })
+      // 序列化成 DTO（Date → ISO 字符串）传给客户端组件。
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        category: e.category,
+        venueName: e.venueName,
+        address: e.address,
+        imageUrl: e.imageUrl,
+        lat: e.lat,
+        lng: e.lng,
+        startTime: e.startTime ? e.startTime.toISOString() : null,
+        endTime: e.endTime ? e.endTime.toISOString() : null,
+        sourceType: e.sourceType,
+        sourceUrl: e.sourceUrl,
+        trustLevel: e.trustLevel,
+      }));
   } catch {
     dbError = true;
   }

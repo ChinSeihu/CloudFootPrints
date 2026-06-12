@@ -37,6 +37,7 @@ const SYSTEM_PROMPT = `你是一个活动信息抽取器。从给定的东京活
 规则：
 - category 只能是 ${CATEGORY_LIST}，选最贴近的一个（EXHIBITION=展览, MARKET=市集, LIVE=演出/现场, FESTIVAL=祭典, TALK=讲座/技术活动/勉强会, OTHER=其他）。
 - 时间用 ISO 8601 字符串；若只有日期没有时间，补 T00:00:00。
+- imageUrl：活动主图/海报的**完整 http(s) 链接**（页面里有就带上，相对路径或不确定则填 null）。
 - 无法确定的字段填 null。
 - 一页可能含多个活动；没有具体活动时返回空数组。`;
 
@@ -47,6 +48,7 @@ export type RawExtractedEvent = {
   category?: unknown;
   venueName?: unknown;
   address?: unknown;
+  imageUrl?: unknown;
   startTime?: unknown;
   endTime?: unknown;
 };
@@ -89,6 +91,7 @@ const EXTRACT_TOOL: Anthropic.Tool = {
             category: { type: "string", enum: [...EVENT_CATEGORIES] },
             venueName: { type: ["string", "null"] },
             address: { type: ["string", "null"] },
+            imageUrl: { type: ["string", "null"] },
             startTime: { type: ["string", "null"] },
             endTime: { type: ["string", "null"] },
           },
@@ -130,6 +133,7 @@ events 数组中每个对象的字段：
   "category": ${CATEGORY_LIST},
   "venueName": string | null,
   "address": string | null,   // 尽量是可用于地理编码的完整日文地址
+  "imageUrl": string | null,  // 活动主图的完整 http(s) 链接，没有则 null
   "startTime": string | null, // ISO 8601
   "endTime": string | null
 }

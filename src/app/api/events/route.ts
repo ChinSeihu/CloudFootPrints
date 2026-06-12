@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
-import { createUserEvent, getEventsInBounds, parseEventQuery } from "@/services/events";
+import {
+  createUserEvent,
+  getEventsInBounds,
+  listUserEvents,
+  parseEventQuery,
+} from "@/services/events";
 import type { EventCategory } from "@/lib/categories";
 
+// GET /api/events?mine=1                      —— 我的发帖（无需 bbox）
 // GET /api/events?minLat=&maxLat=&minLng=&maxLng=&category=&from=&to=
 // 薄 handler：只解析参数、调 service、返回响应。
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+
+  if (searchParams.get("mine")) {
+    try {
+      const events = await listUserEvents();
+      return NextResponse.json({ events });
+    } catch (err) {
+      console.error("GET /api/events?mine failed:", err);
+      return NextResponse.json({ error: "查询发帖失败" }, { status: 500 });
+    }
+  }
+
   const parsed = parseEventQuery(searchParams);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });

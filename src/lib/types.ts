@@ -8,6 +8,7 @@ export type EventDTO = {
   category: EventCategory;
   venueName: string | null;
   address: string | null;
+  imageUrl: string | null;
   lat: number;
   lng: number;
   startTime: string | null;

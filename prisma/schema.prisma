@@ -32,6 +32,7 @@ model Event {
   category    EventCategory
   venueName   String?
   address     String?
+  imageUrl    String?       // 活动主图 URL（LLM 抽取时尽量带上）
   lat         Float
   lng         Float
   startTime   DateTime?

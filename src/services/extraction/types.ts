@@ -8,6 +8,7 @@ export const ExtractedEventSchema = z.object({
   category: z.enum(EVENT_CATEGORIES),
   venueName: z.string().nullable().default(null),
   address: z.string().nullable().default(null),
+  imageUrl: z.string().nullable().default(null), // 活动主图 URL（http/https）
   startTime: z.string().nullable().default(null), // ISO 8601 字符串
   endTime: z.string().nullable().default(null),
 });

@@ -35,6 +35,10 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
               onClick={() => setSelected(ev)}
               className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
             >
+              {ev.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ev.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+              )}
               <div className="h-1.5" style={{ backgroundColor: meta.color }} />
               <div className="p-3">
                 <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">

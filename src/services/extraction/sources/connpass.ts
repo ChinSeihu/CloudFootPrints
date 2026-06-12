@@ -52,6 +52,7 @@ export const connpassSource: Source = {
             category: classify(e.title, e.catch || e.description || ""),
             venueName: e.place || null,
             address: e.address || null,
+            imageUrl: null,
             startTime: e.started_at || null,
             endTime: e.ended_at || null,
           },

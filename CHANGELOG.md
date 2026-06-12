@@ -6,6 +6,29 @@
 
 ## 2026-06-12
 
+### 时间范围筛选 + 活动图片；地图区分打卡/发帖；个人页分 tab
+
+**背景：** 三个功能需求。
+
+**实现：**
+1. **时间范围 + 过期默认隐藏**
+   - Filters 日期段增加「本月」；新增「含过期」开关（默认关 → 过期活动不显示）
+   - `FilterState` 加 `showExpired`；过期判定 = 结束时间（`endTime` 无则 `startTime`）早于现在，未定档不算过期
+   - 地图 `filtered` 与推荐页都默认过滤过期；地图可用「含过期」临时显示
+2. **活动图片（LLM 抽取）**
+   - `Event` 加 `imageUrl` 字段（迁移 `add_event_image`）
+   - `llm.ts` 抽取 tool/JSON schema + prompt 增加 `imageUrl`；`ingest` 落库；`EventDTO` 加字段
+   - 推荐卡片、详情抽屉展示活动主图
+3. **地图区分打卡 / 发帖**
+   - 新增 `event-point-user` 图层：USER 发帖在圆心叠白点（靶心造型），与抓取活动（分类色实心）、打卡（琥珀实心）三者一眼区分
+4. **个人页 打卡 / 发帖 两 tab**
+   - 新增 `GET /api/events?mine=1` + `listUserEvents()`
+   - `MeView` 改为两 tab：打卡（时间线）/ 发帖（卡片列表，含「在地图上查看」+ 删除）；顶部足迹地图按当前 tab 撒点
+
+**涉及文件：** `prisma/schema.prisma`、`src/services/extraction/{types,ingest}.ts`、`.../sources/connpass.ts`、`src/lib/{llm,types}.ts`、`src/services/events.ts`、`src/app/api/events/route.ts`、`src/components/Map/{Filters,MapExplorer}.tsx`、`src/components/Me/MeView.tsx`、`src/app/{recommend,calendar}/page.tsx`、`src/components/Recommend/{RecommendList,EventDetail}.tsx`
+
+---
+
 ### 文档：README 重写 + 协作工作流
 
 - `README.md` 从过期的早期版本重写为反映当前功能（聚类、两动作 FAB、日历、天气、评论、删除、DeepSeek/Claude 可切换 LLM、4 tab）的完整说明，含快速开始（含 `prisma generate`）、环境变量、目录结构、路线图。

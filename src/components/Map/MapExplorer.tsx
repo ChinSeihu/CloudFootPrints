@@ -40,17 +40,25 @@ function escapeHtml(s: string): string {
   );
 }
 
-function inDateRange(ev: EventDTO, range: FilterState["dateRange"]): boolean {
+// 过期：活动结束时间（endTime，无则 startTime）早于现在。未定档（无 startTime）不算过期。
+function isExpired(ev: EventDTO, now: number): boolean {
+  if (!ev.startTime) return false;
+  const end = ev.endTime ? new Date(ev.endTime).getTime() : new Date(ev.startTime).getTime();
+  return end < now;
+}
+
+// 时间窗：活动 [start, end] 与 [今天起, 今天起+N 天] 有重叠即命中。
+// all = 不限上界；未定档活动始终显示。
+function inDateWindow(ev: EventDTO, range: FilterState["dateRange"], now: number): boolean {
   if (range === "all") return true;
   if (!ev.startTime) return true;
   const start = new Date(ev.startTime).getTime();
   const end = ev.endTime ? new Date(ev.endTime).getTime() : start;
-  const now = new Date();
   const from = new Date(now);
   from.setHours(0, 0, 0, 0);
-  const to = new Date(from);
-  to.setDate(to.getDate() + (range === "today" ? 1 : 7));
-  return start <= to.getTime() && end >= from.getTime();
+  const days = range === "today" ? 1 : range === "week" ? 7 : 30;
+  const to = from.getTime() + days * 86_400_000;
+  return start <= to && end >= from.getTime();
 }
 
 function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
@@ -115,6 +123,7 @@ export function MapExplorer() {
     categories: new Set(),
     dateRange: "all",
     mineOnly: false,
+    showExpired: false,
   });
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
@@ -126,16 +135,16 @@ export function MapExplorer() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  const filtered = useMemo(
-    () =>
-      events.filter(
-        (ev) =>
-          (!filters.mineOnly || ev.sourceType === "USER") &&
-          (filters.categories.size === 0 || filters.categories.has(ev.category)) &&
-          inDateRange(ev, filters.dateRange),
-      ),
-    [events, filters],
-  );
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    return events.filter(
+      (ev) =>
+        (!filters.mineOnly || ev.sourceType === "USER") &&
+        (filters.categories.size === 0 || filters.categories.has(ev.category)) &&
+        (filters.showExpired || !isExpired(ev, now)) &&
+        inDateWindow(ev, filters.dateRange, now),
+    );
+  }, [events, filters]);
 
   // 用 ref 持有最新的 filtered，供 handleReady 设置初始数据
   const filteredRef = useRef(filtered);
@@ -278,6 +287,19 @@ export function MapExplorer() {
         "circle-stroke-color": "#fff",
         "circle-stroke-width": 2.5,
         "circle-opacity": 0.93,
+      },
+    });
+
+    // 我的发帖（sourceType=USER）：在圆心叠一个白点，做出"靶心"造型，
+    // 与抓取活动（分类色实心）、打卡（琥珀实心）三者一眼区分。
+    map.addLayer({
+      id: "event-point-user",
+      type: "circle",
+      source: "events",
+      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "sourceType"], "USER"]],
+      paint: {
+        "circle-color": "#fff",
+        "circle-radius": 3.5,
       },
     });
 
