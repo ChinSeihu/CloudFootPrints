@@ -87,7 +87,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
         </button>
 
         <span className="whitespace-nowrap text-xs text-neutral-600 bg-white/85 rounded-full px-2 py-1 shadow-sm">
-          {count}
+          {count}个活动中
         </span>
       </div>
 
