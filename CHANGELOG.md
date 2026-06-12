@@ -6,6 +6,12 @@
 
 ## 2026-06-12
 
+### 文档：README 重写 + 协作工作流
+
+- `README.md` 从过期的早期版本重写为反映当前功能（聚类、两动作 FAB、日历、天气、评论、删除、DeepSeek/Claude 可切换 LLM、4 tab）的完整说明，含快速开始（含 `prisma generate`）、环境变量、目录结构、路线图。
+- `CLAUDE.md` 新增「协作流程（Git / 跨设备）」：换机先 `prisma generate`；每次功能完成后 `更新 CHANGELOG → commit → push origin main`；远端 `ChinSeihu/CloudFootPrints`。
+- **约定**：今后每次功能新增/变更完成即提交并推送到 GitHub。
+
 ### 跨设备同步修复 + 构建清理
 
 **背景：** 从另一台 PC 同步最新代码到本机后，先做环境对齐与编译修复，确保 `tsc` / `next build` 全绿，便于双机共享进度。
