@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
+import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -119,10 +120,12 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
         </div>
       </div>
 
-      {/* 星期表头 */}
-      <div className="grid grid-cols-7 text-center text-[11px] text-neutral-400 mb-1">
-        {WEEKDAYS.map((w) => (
-          <div key={w} className="py-1">{w}</div>
+      {/* 星期表头（周日红、周六蓝，仿传统日历） */}
+      <div className="grid grid-cols-7 text-center text-[11px] mb-1">
+        {WEEKDAYS.map((w, i) => (
+          <div key={w} className={`py-1 ${i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : "text-neutral-400"}`}>
+            {w}
+          </div>
         ))}
       </div>
 
@@ -134,33 +137,49 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
           const dayEvents = byDate.get(key);
           const isToday = key === todayKey;
           const isSelected = key === selected;
+          const hol = holidayName(key);
+          const dow = i % 7; // 网格首格为周日列
+          const isSun = dow === 0;
+          const isSat = dow === 6;
+          // 数字配色：选中=白；节假日/周日=红；周六=蓝；其余中性
+          const numColor = isSelected
+            ? "text-white"
+            : hol || isSun
+              ? "text-rose-500"
+              : isSat
+                ? "text-sky-600"
+                : "text-neutral-700";
+          // 背景：选中蓝 > 今天蓝底 > 节假日浅红底
+          const bg = isSelected
+            ? "bg-blue-600"
+            : isToday
+              ? "bg-blue-50 ring-1 ring-blue-200"
+              : hol
+                ? "bg-rose-50"
+                : "hover:bg-neutral-100";
+          const n = dayEvents?.length ?? 0;
           return (
             <button
               key={key}
               type="button"
               onClick={() => setSelectedDate(key)}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 text-sm transition-colors ${
-                isSelected
-                  ? "bg-blue-600 text-white"
-                  : isToday
-                    ? "bg-blue-50 text-blue-700"
-                    : "hover:bg-neutral-100 text-neutral-700"
-              }`}
+              title={hol ?? undefined}
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${bg}`}
             >
-              <span>{day}</span>
-              {/* 有活动时显示分类色圆点（最多 3 个） */}
-              {dayEvents && (
-                <span className="flex gap-0.5 h-1.5">
-                  {dayEvents.slice(0, 3).map((ev, j) => (
-                    <span
-                      key={j}
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        backgroundColor: isSelected ? "rgba(255,255,255,.85)" : CATEGORY_META[ev.category].color,
-                      }}
-                    />
-                  ))}
+              <span className={`text-sm leading-none ${numColor}`}>{day}</span>
+              {/* 替代圆点：有活动显示数量；无活动但为节假日显示「祝」 */}
+              {n > 0 ? (
+                <span
+                  className={`text-[10px] leading-none font-medium ${
+                    isSelected ? "text-white/90" : "text-amber-600"
+                  }`}
+                >
+                  {n}场
                 </span>
+              ) : hol && !isSelected ? (
+                <span className="text-[9px] leading-none text-rose-400">祝</span>
+              ) : (
+                <span className="h-[10px]" />
               )}
             </button>
           );
@@ -169,8 +188,15 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
 
       {/* 选中日期的活动清单 */}
       <div className="mt-4">
-        <h2 className="text-sm font-medium text-neutral-700 mb-2 px-1">
-          {Number(selected.slice(5, 7))} 月 {Number(selected.slice(8, 10))} 日 · {selectedEvents.length} 个活动
+        <h2 className="text-sm font-medium text-neutral-700 mb-2 px-1 flex items-center gap-2 flex-wrap">
+          <span>
+            {Number(selected.slice(5, 7))} 月 {Number(selected.slice(8, 10))} 日 · {selectedEvents.length} 个活动
+          </span>
+          {holidayName(selected) && (
+            <span className="inline-flex items-center gap-1 text-xs text-rose-500 bg-rose-50 rounded-full px-2 py-0.5">
+              🎌 {holidayName(selected)}
+            </span>
+          )}
         </h2>
 
         {selectedEvents.length === 0 ? (
