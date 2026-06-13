@@ -16,6 +16,7 @@ import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
 import { CATEGORY_GLYPH } from "@/lib/categoryIcons";
+import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 
@@ -74,20 +75,6 @@ function isExpired(ev: EventDTO, now: number): boolean {
   if (!ev.startTime) return false;
   const end = ev.endTime ? new Date(ev.endTime).getTime() : new Date(ev.startTime).getTime();
   return end < now;
-}
-
-// 时间窗：活动 [start, end] 与 [今天起, 今天起+N 天] 有重叠即命中。
-// all = 不限上界；未定档活动始终显示。
-function inDateWindow(ev: EventDTO, range: FilterState["dateRange"], now: number): boolean {
-  if (range === "all") return true;
-  if (!ev.startTime) return true;
-  const start = new Date(ev.startTime).getTime();
-  const end = ev.endTime ? new Date(ev.endTime).getTime() : start;
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-  const days = range === "today" ? 1 : range === "week" ? 7 : 30;
-  const to = from.getTime() + days * 86_400_000;
-  return start <= to && end >= from.getTime();
 }
 
 function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
@@ -156,7 +143,7 @@ export function MapExplorer() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     categories: new Set(),
-    dateRange: "all",
+    dateRange: ALL_DATES,
     mineOnly: false,
     showExpired: false,
   });
@@ -172,12 +159,14 @@ export function MapExplorer() {
 
   const filtered = useMemo(() => {
     const now = Date.now();
+    // 明确选了含过去的日期范围时，不再用「过期」过滤掉它们（用户主动要看历史）。
+    const ignoreExpired = filters.showExpired || rangeIncludesPast(filters.dateRange);
     return events.filter(
       (ev) =>
         (!filters.mineOnly || ev.sourceType === "USER") &&
         (filters.categories.size === 0 || filters.categories.has(ev.category)) &&
-        (filters.showExpired || !isExpired(ev, now)) &&
-        inDateWindow(ev, filters.dateRange, now),
+        (ignoreExpired || !isExpired(ev, now)) &&
+        eventInDayRange(ev, filters.dateRange),
     );
   }, [events, filters]);
 

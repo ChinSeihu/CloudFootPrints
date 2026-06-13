@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconRefresh } from "@/components/icons";
-
-export type DateRange = "all" | "today" | "week" | "month";
+import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
+import { type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
 
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
-  dateRange: DateRange;
+  dateRange: DayRange; // 日历范围（YYYY-MM-DD），全 null = 全部时间
   mineOnly: boolean; // 只看自己的发帖/打卡
   showExpired: boolean; // 是否显示已结束（过期）的活动，默认 false
 };
@@ -19,13 +19,6 @@ type Props = {
   count: number;
   onRefresh: () => void;
   refreshing: boolean;
-};
-
-const DATE_LABELS: Record<DateRange, string> = {
-  all: "全部",
-  today: "今天",
-  week: "本周",
-  month: "本月",
 };
 
 function IconFilter({ className }: { className?: string }) {
@@ -39,11 +32,12 @@ function IconFilter({ className }: { className?: string }) {
 // 筛选：左上角一个「筛选」按钮，点开展开面板（分类/时间/我的）；收起时不挡地图。
 export function Filters({ value, onChange, count, onRefresh, refreshing }: Props) {
   const [open, setOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const activeCount =
     value.categories.size +
     (value.mineOnly ? 1 : 0) +
-    (value.dateRange !== "all" ? 1 : 0) +
+    (isAllDates(value.dateRange) ? 0 : 1) +
     (value.showExpired ? 1 : 0);
 
   function toggleCategory(c: EventCategory) {
@@ -124,23 +118,31 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
             })}
           </div>
 
-          {/* 时间 */}
-          <div className="text-[11px] text-neutral-400 mb-1.5">时间</div>
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <div className="inline-flex rounded-full border border-neutral-300 overflow-hidden">
-              {(Object.keys(DATE_LABELS) as DateRange[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => onChange({ ...value, dateRange: r })}
-                  className={`px-2.5 py-1 text-xs ${
-                    value.dateRange === r ? "bg-blue-600 text-white" : "text-neutral-600"
-                  }`}
-                >
-                  {DATE_LABELS[r]}
-                </button>
-              ))}
+          {/* 时间 —— 日历范围选择 */}
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] text-neutral-400">时间</span>
+            <button
+              type="button"
+              onClick={() => setDateOpen((v) => !v)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
+                isAllDates(value.dateRange)
+                  ? "bg-white text-neutral-600 border-neutral-300"
+                  : "bg-blue-50 text-blue-700 border-blue-200"
+              }`}
+            >
+              {dayRangeLabel(value.dateRange)}
+              <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${dateOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+          </div>
+          {dateOpen && (
+            <div className="mb-2.5 rounded-xl border border-neutral-200 p-2.5">
+              <CalendarRangePicker
+                value={value.dateRange}
+                onChange={(dr) => onChange({ ...value, dateRange: dr })}
+              />
             </div>
+          )}
+          <div className="mb-3">
             <button
               type="button"
               onClick={() => onChange({ ...value, showExpired: !value.showExpired })}

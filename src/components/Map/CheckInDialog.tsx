@@ -5,6 +5,7 @@ import { IconStar, IconPin, IconPlus } from "@/components/icons";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
+import { DateTimeField } from "@/components/common/DateTimeField";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type CheckInDraft = {
@@ -96,12 +97,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
 
       <div className="mb-5">
         <label className={labelCls}>打卡时间</label>
-        <input
-          type="datetime-local"
-          value={visitedAt}
-          onChange={(e) => setVisitedAt(e.target.value)}
-          className={fieldCls}
-        />
+        <DateTimeField value={visitedAt} onChange={setVisitedAt} placeholder="默认现在" />
       </div>
 
       <div className="mb-5">

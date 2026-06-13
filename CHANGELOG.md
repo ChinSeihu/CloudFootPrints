@@ -6,6 +6,32 @@
 
 ## 2026-06-13
 
+### 日历样式时间筛选（地图 + 推荐）+ 发帖/打卡时间选择改进
+
+把地图原有的「今天/本周/本月」预设按钮升级为**可视化日历范围选择**，并给推荐页补上时间筛选：
+
+- **共享日期逻辑** `lib/dateFilter.ts`：`DayRange`（YYYY-MM-DD，全 null = 全部时间），按**东京日历日**做活动 [start,end] 与所选区间的重叠判断；快捷预设（今天/本周末/本月）；范围含过去日期时自动忽略「过期」过滤（用户主动看历史）。
+- **日历范围选择器** `components/common/CalendarRangePicker.tsx`：月历点选 from→to（自动排序）、月份切换、周末标红、今天蓝点、快捷预设、清除。
+- **地图筛选**（`Map/Filters.tsx` + `MapExplorer.tsx`）：`FilterState.dateRange` 由枚举改为 `DayRange`；时间区折叠展开内嵌日历；过滤逻辑用 `eventInDayRange`。
+- **推荐筛选**（`Recommend/RecommendList.tsx`）：分类 chip 行右侧新增时间 chip + 下拉日历（点外部收起）。
+- **发帖/打卡时间选择**（`PostDialog` / `CheckInDialog`）：原生 `datetime-local` 换成风格统一的 `components/common/DateTimeField.tsx`（弹出月历单选 + 时/分下拉），输出仍是 `YYYY-MM-DDTHH:mm`，兼容既有 `toISO()`。
+
+**涉及文件：** `lib/dateFilter.ts`、`components/common/CalendarRangePicker.tsx`、`components/common/DateTimeField.tsx`、`components/Map/Filters.tsx`、`components/Map/MapExplorer.tsx`、`components/Map/PostDialog.tsx`、`components/Map/CheckInDialog.tsx`、`components/Recommend/RecommendList.tsx`
+
+---
+
+### 评论 / 发帖作者信息（后端打底）
+
+为「评论和发帖显示人物信息」铺底（前端展示随后接）：
+
+- **评论**：`services/comments.ts` 列表 join `User` 附作者公开信息（用户名/头像）；发表评论改为**需登录**（route 取 `getCurrentUserId()` 传入，旧 `me` 数据作者为 null）。
+- **活动**：`services/events.ts` 的 `getEventsInBounds` / `listUserEvents` 批量附作者（仅 USER 帖有 `userId`）。
+- **类型**：`lib/types.ts` 新增 `UserBrief`，`EventDTO` / `CommentDTO` 加可选 `author`。
+
+**涉及文件：** `services/comments.ts`、`app/api/events/[id]/comments/route.ts`、`services/events.ts`、`lib/types.ts`
+
+---
+
 ### 修复：重新抓取产生重复活动
 
 - **现象**：重新 `extract` 后同一活动出现多条。

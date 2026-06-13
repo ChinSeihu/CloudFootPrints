@@ -6,6 +6,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
+import { DateTimeField } from "@/components/common/DateTimeField";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type PostDraft = {
@@ -142,20 +143,9 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
 
       <div className="mb-5">
         <label className={labelCls}>时间范围</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="datetime-local"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className={`${fieldCls} flex-1 min-w-0`}
-          />
-          <span className="text-neutral-400 text-xs shrink-0">至</span>
-          <input
-            type="datetime-local"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            className={`${fieldCls} flex-1 min-w-0`}
-          />
+        <div className="space-y-2">
+          <DateTimeField value={start} onChange={setStart} placeholder="开始时间（可选）" />
+          <DateTimeField value={end} onChange={setEnd} placeholder="结束时间（可选）" />
         </div>
       </div>
 

@@ -59,7 +59,8 @@
 - 底部 4 tab：地图 / 日历 / 推荐 / 个人（`grid-cols-4`）
 - **页面切换动画**：`app/template.tsx`（每次导航重新挂载）给每个 tab 入场动画（淡入 + 上滑 `tem-page-in`）；server 页（推荐/日历/个人）各配 `loading.tsx` 即时显示加载态、`BottomNav` 乐观高亮（点击立即高亮目标），消除切换"卡住"感
 - **日历页**按"东京时区当天"对活动分组；**长期活动（startTime→endTime 跨天）在展期每一天都出现**（按 UTC 午夜逐天填充，guard 防超长），清单里标「展期中」。详情统一复用 `Recommend/EventDetail`（地图弹窗、推荐、日历三处入口共用同一详情抽屉）
-- **推荐页**支持分类 chip 筛选（客户端按 `category` 过滤瀑布流）
+- **推荐页**支持分类 chip + 时间筛选（客户端过滤瀑布流）
+- **时间筛选 = 可视化日历范围**（地图 + 推荐共用 `CalendarRangePicker`）：值为 `DayRange`（YYYY-MM-DD，全 null=全部），按**东京日历日**判活动区间重叠（`lib/dateFilter.ts`）。地图筛选面板内嵌日历、推荐页用下拉日历。选了含过去的范围时自动忽略「过期」过滤。发帖/打卡时间用同源 `DateTimeField`（日历单选+时分），输出 `datetime-local` 同款字符串、不改表单逻辑。
 - **详情抽屉**：`fixed inset-0 z-50` 铺满屏、盖住底部 tab 导航；图片用 `object-contain`（看全原图，不裁剪）
 - **发帖/打卡 sheet**（`BottomSheet`）：`fixed inset-x-0 bottom-0 z-[999]`，full 全屏 `h-[100dvh]`（顶贴顶、底贴底、隐藏滚动条；**注意 `max-h-%` 在无固定高度父级下失效，高度用 `vh/dvh`**）。peek/full 两档拖动切换（peek 上拉不越顶），**不因下拉直接取消**，关闭走右上角 ×。打卡与发帖共用，均支持 Cloudinary 图片上传 + 自定义时间。表单控件统一用 `formStyles.ts`（浅灰底圆角 + 蓝色聚焦环、圆角分类标签、虚线图片上传区），简约现代、与全站一致
 
