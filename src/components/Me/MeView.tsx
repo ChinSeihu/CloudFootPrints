@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconStar, IconPin, IconMap } from "@/components/icons";
+import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
+import { EventDetail } from "@/components/Recommend/EventDetail";
 import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
 
 const DEFAULT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const TOKYO_CENTER: [number, number] = [139.7671, 35.6812];
 
-type Tab = "checkins" | "posts";
+type Tab = "checkins" | "posts" | "favorites";
 
 function fmtDate(d: string | null): string {
   if (!d) return "时间未定";
@@ -31,16 +32,20 @@ function MeContent() {
   const [tab, setTab] = useState<Tab>("checkins");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
+  const [favorites, setFavorites] = useState<EventDTO[]>([]);
+  const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [c, p] = await Promise.all([
+      const [c, p, f] = await Promise.all([
         fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
         fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
+        fetch("/api/favorites").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
       ]);
       setCheckins(c.checkins ?? []);
       setPosts(p.events ?? []);
+      setFavorites(f.events ?? []);
       setLoaded(true);
     })();
   }, []);
@@ -68,10 +73,11 @@ function MeContent() {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
+    const list = tab === "checkins" ? checkins : tab === "posts" ? posts : favorites;
     const pts: Array<{ lat: number; lng: number; color: string }> =
       tab === "checkins"
         ? checkins.map((c) => ({ lat: c.lat, lng: c.lng, color: "#2563eb" }))
-        : posts.map((p) => ({ lat: p.lat, lng: p.lng, color: CATEGORY_META[p.category]?.color ?? "#6b7280" }));
+        : (list as EventDTO[]).map((p) => ({ lat: p.lat, lng: p.lng, color: CATEGORY_META[p.category]?.color ?? "#6b7280" }));
 
     if (pts.length === 0) return;
     const bounds = new maplibregl.LngLatBounds();
@@ -82,7 +88,7 @@ function MeContent() {
       bounds.extend([pt.lng, pt.lat]);
     }
     if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 48, maxZoom: 14 });
-  }, [tab, checkins, posts]);
+  }, [tab, checkins, posts, favorites]);
 
   async function deletePost(id: string) {
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
@@ -98,6 +104,7 @@ function MeContent() {
         {([
           ["checkins", `打卡 ${checkins.length || ""}`],
           ["posts", `发帖 ${posts.length || ""}`],
+          ["favorites", `收藏 ${favorites.length || ""}`],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -114,7 +121,7 @@ function MeContent() {
 
       <div className="p-4">
         {tab === "checkins" ? (
-          <>
+          <>{/* 打卡 */}
             {loaded && checkins.length === 0 && (
               <p className="text-sm text-neutral-500">还没有打卡。回到地图页，用右下角的 ＋ 打卡。</p>
             )}
@@ -147,8 +154,8 @@ function MeContent() {
               ))}
             </ol>
           </>
-        ) : (
-          <>
+        ) : tab === "posts" ? (
+          <>{/* 发帖 */}
             {loaded && posts.length === 0 && (
               <p className="text-sm text-neutral-500">还没有发帖。回到地图页，用右下角的 ＋ → 发帖 标记一个活动。</p>
             )}
@@ -200,8 +207,66 @@ function MeContent() {
               })}
             </ul>
           </>
+        ) : (
+          <>{/* 收藏 */}
+            {loaded && favorites.length === 0 && (
+              <p className="text-sm text-neutral-500">还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。</p>
+            )}
+            <ul className="space-y-3">
+              {favorites.map((p) => {
+                const meta = CATEGORY_META[p.category];
+                return (
+                  <li key={p.id} className="rounded-xl border border-black/10 overflow-hidden bg-white">
+                    {p.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                    )}
+                    <div className="h-1.5" style={{ backgroundColor: meta.color }} />
+                    <button
+                      type="button"
+                      onClick={() => setSelected(p)}
+                      className="block w-full text-left p-3"
+                    >
+                      <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
+                        <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
+                        {meta.label} · {fmtDate(p.startTime)}
+                      </div>
+                      <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
+                      {p.venueName && (
+                        <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
+                          <IconPin className="w-3 h-3 shrink-0" />
+                          {p.venueName}
+                        </div>
+                      )}
+                      {p.description && (
+                        <p className="text-xs text-neutral-600 mt-1 line-clamp-2">{p.description}</p>
+                      )}
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
+                        <IconBookmark filled className="w-3.5 h-3.5" />
+                        已收藏 · 查看详情
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
+
+      {selected && (
+        <EventDetail
+          event={selected}
+          onClose={() => {
+            setSelected(null);
+            // 详情里可能取消了收藏 —— 关闭时刷新收藏列表
+            fetch("/api/favorites")
+              .then((r) => (r.ok ? r.json() : { events: [] }))
+              .then((d) => setFavorites(d.events ?? []))
+              .catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }

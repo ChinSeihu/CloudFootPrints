@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles } from "@/components/icons";
+import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark } from "@/components/icons";
 import { CopyButton } from "@/components/CopyButton";
 import { useGuide } from "@/components/Guide/GuideContext";
 import type { EventDTO, CommentDTO, UserBrief } from "@/lib/types";
+import type { ReactionState } from "@/services/reactions";
 
 function fmtRange(start: string | null, end: string | null): string {
   if (!start) return "时间未定";
@@ -64,13 +65,60 @@ export function EventDetail({
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // 点赞 / 收藏状态
+  const [reactions, setReactions] = useState<ReactionState>({
+    likeCount: 0,
+    favoriteCount: 0,
+    likedByMe: false,
+    favoritedByMe: false,
+  });
+
   useEffect(() => {
     fetch(`/api/events/${event.id}/comments`)
       .then((r) => (r.ok ? r.json() : { comments: [] }))
       .then((d) => setComments(d.comments ?? []))
       .catch(() => setComments([]))
       .finally(() => setLoaded(true));
+    fetch(`/api/events/${event.id}/reactions`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setReactions(d))
+      .catch(() => {});
   }, [event.id]);
+
+  async function toggleReaction(type: "LIKE" | "FAVORITE") {
+    setErr(null);
+    // 乐观更新
+    setReactions((prev) => {
+      const isLike = type === "LIKE";
+      const active = isLike ? prev.likedByMe : prev.favoritedByMe;
+      const delta = active ? -1 : 1;
+      return isLike
+        ? { ...prev, likedByMe: !active, likeCount: prev.likeCount + delta }
+        : { ...prev, favoritedByMe: !active, favoriteCount: prev.favoriteCount + delta };
+    });
+    try {
+      const res = await fetch(`/api/events/${event.id}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      if (!res.ok) {
+        // 回滚 + 提示
+        const refetch = await fetch(`/api/events/${event.id}/reactions`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (refetch) setReactions(refetch);
+        setErr(res.status === 401 ? "请先到「个人」页登录后再操作" : "操作失败");
+      } else {
+        const d = (await res.json()) as { active: boolean; count: number };
+        setReactions((prev) =>
+          type === "LIKE"
+            ? { ...prev, likedByMe: d.active, likeCount: d.count }
+            : { ...prev, favoritedByMe: d.active, favoriteCount: d.count },
+        );
+      }
+    } catch {
+      setErr("网络错误，请稍后再试");
+    }
+  }
 
   async function addComment() {
     const t = text.trim();
@@ -119,9 +167,39 @@ export function EventDetail({
           {meta.label}
         </div>
         <h2 className="text-lg font-semibold leading-snug pr-10">{event.title}</h2>
-        <div className="mt-2 flex items-center gap-1.5 text-sm text-neutral-600">
-          <IconCalendar className="w-4 h-4 shrink-0 text-neutral-400" />
-          {fmtRange(event.startTime, event.endTime)}
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-sm text-neutral-600 min-w-0">
+            <IconCalendar className="w-4 h-4 shrink-0 text-neutral-400" />
+            <span className="truncate">{fmtRange(event.startTime, event.endTime)}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => toggleReaction("LIKE")}
+              aria-label="点赞"
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
+                reactions.likedByMe
+                  ? "bg-rose-50 text-rose-500 border-rose-200"
+                  : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
+              }`}
+            >
+              <IconHeart filled={reactions.likedByMe} className="w-3.5 h-3.5" />
+              {reactions.likeCount > 0 && reactions.likeCount}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleReaction("FAVORITE")}
+              aria-label="收藏"
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
+                reactions.favoritedByMe
+                  ? "bg-amber-50 text-amber-500 border-amber-200"
+                  : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
+              }`}
+            >
+              <IconBookmark filled={reactions.favoritedByMe} className="w-3.5 h-3.5" />
+              {reactions.favoriteCount > 0 && reactions.favoriteCount}
+            </button>
+          </div>
         </div>
       </div>
 

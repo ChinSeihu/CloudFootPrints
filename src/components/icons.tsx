@@ -75,6 +75,22 @@ export function IconStar({ filled, ...props }: IconProps & { filled?: boolean })
   );
 }
 
+export function IconHeart({ filled, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(props)} fill={filled ? "currentColor" : "none"}>
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8Z" />
+    </svg>
+  );
+}
+
+export function IconBookmark({ filled, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <svg {...base(props)} fill={filled ? "currentColor" : "none"}>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z" />
+    </svg>
+  );
+}
+
 export function IconPin(props: IconProps) {
   return (
     <svg {...base(props)}>

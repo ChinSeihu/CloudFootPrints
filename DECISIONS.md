@@ -94,5 +94,5 @@
 - **只实现 v1**，v2/v3 功能（审核、个性化推荐、Python 服务）不超前实现，代码用 `TODO` 标注挂载点
 - 下一阶段（v1.5）：锚点发帖完善、地图风格切换器
 - **用户系统**：✅ 已实现（本地账号 + 认证 + 个人资料 + 未登录拦截，见上「架构」与 CHANGELOG）。
-- **收藏 / 点赞（#2，待实现）**：依赖用户系统；新增收藏（用户↔活动）与点赞表 + API + UI。
+- **收藏 / 点赞（#2）**：✅ 已实现。`Reaction` 单表 + `ReactionType`(LIKE/FAVORITE) 区分，唯一约束 `(userId,eventId,type)`；`services/reactions.ts` + `/api/events/[id]/reactions`（GET 状态 / POST 切换需登录）+ `/api/favorites`。详情页头部点赞/收藏按钮（乐观更新+回滚），个人页「收藏」tab。**改 schema 后 dev server 必须重启**才会加载新 Prisma client。
 - **评论作者展示（待实现）**：Comment 记录真实 userId 后，列表 join User 显示用户名/头像。
