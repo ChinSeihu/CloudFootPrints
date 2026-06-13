@@ -6,6 +6,15 @@
 
 ## 2026-06-13
 
+### loading 趣味化 + AI 导游活动入口
+
+1. **loading 趣味化**：切 tab 的加载占位从单调转圈，改为**分类色波浪跳动圆点 + 文案**（推荐"正在为你找活动…"、日历"正在翻日历…"、个人"正在整理足迹…"），抽出 `PageLoading` 组件。
+2. **AI 导游活动入口**：把 `GuideChat` 提升为**全局**（`GuideContext` + layout 挂载），活动详情抽屉、地图弹窗卡片新增「问导游」按钮 → **针对该活动**开对话（快捷问题嵌入活动名，并把活动信息作为上下文注入首条消息，AI 聚焦讲解）。地图页保留浮动入口（通用咨询，`GuideFab`）。
+
+**涉及文件：** `components/PageLoading.tsx`、`app/{recommend,calendar,me}/loading.tsx`、`components/Guide/{GuideContext,GuideChat,GuideFab}.tsx`、`app/layout.tsx`、`components/Map/MapExplorer.tsx`、`components/Recommend/EventDetail.tsx`、`app/globals.css`
+
+---
+
 ### 发帖/打卡表单现代化改版
 
 把朴素的"label + 灰边输入框"重做为简约高级、与全站一致的风格：

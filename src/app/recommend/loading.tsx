@@ -1,8 +1,5 @@
-// 推荐页加载态：切到本 tab 时立即显示（server 组件查 DB 期间），消除"卡住"感。
+import { PageLoading } from "@/components/PageLoading";
+
 export default function Loading() {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <div className="h-8 w-8 rounded-full border-2 border-neutral-200 border-t-blue-600 animate-spin" />
-    </div>
-  );
+  return <PageLoading text="正在为你找活动…" />;
 }

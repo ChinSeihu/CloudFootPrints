@@ -85,8 +85,8 @@
 
 ## AI 导游
 
-- 地图页浮动入口（紫色）→ 全屏聊天面板（`GuideChat`）。资深导游 system prompt：讲解活动信息 / 历史文化渊源 / 看点 / 推荐 / 路线交通建议；**纯文本输出**（约束不用 Markdown）；不编造具体票价时间。
-- 复用 LLM 层（`chatWithGuide`，DeepSeek/Claude provider 切换），`/api/chat` 保留最近 12 轮上下文。提供默认快捷问题降低门槛。
+- 资深导游 system prompt：讲解活动信息 / 历史文化渊源 / 看点 / 推荐 / 路线交通建议；**纯文本输出**（约束不用 Markdown）；不编造具体票价时间。复用 LLM 层（`chatWithGuide`，DeepSeek/Claude），`/api/chat` 保留最近 12 轮。
+- **全局化**：`GuideContext`（layout 挂载 `GuideProvider` + `GuideChat` 面板），任何组件 `useGuide().openGuide(topic?)` 即可打开。地图页 `GuideFab` 通用入口；活动详情 / 地图弹窗带 `topic`（活动信息）打开 → 聚焦该活动：快捷问题嵌入活动名 + 首条消息注入活动上下文。
 
 ## 阶段约束
 

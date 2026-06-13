@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { GuideProvider } from "@/components/Guide/GuideContext";
+import { GuideChat } from "@/components/Guide/GuideChat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,8 +31,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-screen flex flex-col overflow-hidden">
-        <main className="flex-1 min-h-0 relative">{children}</main>
-        <BottomNav />
+        <GuideProvider>
+          <main className="flex-1 min-h-0 relative">{children}</main>
+          <BottomNav />
+          <GuideChat />
+        </GuideProvider>
       </body>
     </html>
   );

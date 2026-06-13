@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink } from "@/components/icons";
+import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles } from "@/components/icons";
 import { CopyButton } from "@/components/CopyButton";
+import { useGuide } from "@/components/Guide/GuideContext";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 
 function fmtRange(start: string | null, end: string | null): string {
@@ -29,6 +30,7 @@ export function EventDetail({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { openGuide } = useGuide();
   const meta = CATEGORY_META[event.category];
 
   const [comments, setComments] = useState<CommentDTO[]>([]);
@@ -151,10 +153,19 @@ export function EventDetail({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm rounded-lg text-neutral-600"
+              onClick={() =>
+                openGuide({
+                  title: event.title,
+                  category: meta.label,
+                  venueName: event.venueName,
+                  startTime: event.startTime,
+                  description: event.description,
+                })
+              }
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-violet-600 text-white"
             >
-              关闭
+              <IconSparkles className="w-4 h-4" />
+              问导游
             </button>
             <button
               type="button"
@@ -162,7 +173,7 @@ export function EventDetail({
               className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-neutral-900 text-white"
             >
               <IconMap className="w-4 h-4" />
-              在地图上查看
+              看地图
             </button>
             {event.sourceUrl && (
               <a

@@ -9,7 +9,8 @@ import { ActionFab } from "./ActionFab";
 import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
-import { GuideChat } from "@/components/Guide/GuideChat";
+import { GuideFab } from "@/components/Guide/GuideFab";
+import { useGuide } from "@/components/Guide/GuideContext";
 import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
@@ -137,6 +138,10 @@ export function MapExplorer() {
   const router = useRouter();
   const routerRef = useRef(router);
   useEffect(() => { routerRef.current = router; });
+
+  const { openGuide } = useGuide();
+  const openGuideRef = useRef(openGuide);
+  useEffect(() => { openGuideRef.current = openGuide; });
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const maplibreRef = useRef<typeof maplibregl | null>(null);
@@ -380,6 +385,7 @@ export function MapExplorer() {
           ${venueRow}
           <div class="tem-card-foot">
             <span class="tem-card-open">查看详情 ›</span>
+            <button class="tem-card-guide" data-action="guide">问导游</button>
             ${source}${del}
           </div>
         </div>
@@ -421,6 +427,20 @@ export function MapExplorer() {
           if (action === "delete") {
             popup.remove();
             handleDeleteEventRef.current(id);
+            return;
+          }
+          if (action === "guide") {
+            ev.stopPropagation();
+            popup.remove();
+            const pe = evs.find((e) => e.id === id);
+            if (pe) {
+              openGuideRef.current({
+                title: pe.title,
+                category: CATEGORY_META[pe.category as keyof typeof CATEGORY_META]?.label ?? pe.category,
+                venueName: pe.venueName || null,
+                startTime: pe.startTime || null,
+              });
+            }
             return;
           }
           popup.remove();
@@ -744,7 +764,7 @@ export function MapExplorer() {
         refreshing={refreshing}
       />
       <WeatherPanel />
-      <GuideChat />
+      <GuideFab />
       <ActionFab
         onCheckin={() => openPlacement("checkin")}
         onPost={() => openPlacement("post")}
