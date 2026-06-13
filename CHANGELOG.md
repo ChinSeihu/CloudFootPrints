@@ -6,6 +6,18 @@
 
 ## 2026-06-13
 
+### 柔和马卡龙底图风格（可切换）+ 人气活动卡片
+
+参考用户给的插画风地图 mockup。说明：满地手绘樱花/树 + 3D 地标属美术渲染的固定插画地图，真实可交互矢量瓦片无法等价实现；本次落地「柔和水彩氛围 + 人气卡片」方向。
+
+- **柔和主题**（`lib/mapTheme.ts`）：对现有 Positron 矢量图层**就地重着色**（`setPaintProperty`，不调 `setStyle`，故聚合/打卡等自定义图层不被清掉）——暖奶油陆地、柔蓝水域、柔绿公园、白色道路、柔和标注。切回「标准」时从记录的原始 paint 还原。
+- **风格切换器**（`Map/StyleSwitcher.tsx`）：左下角「标准 / 柔和」切换，选择持久化到 `localStorage`，默认柔和。应用时机用「就绪标记 + effect」避免闭包捕获旧 theme。
+- **人气活动卡片**（`Map/PopularCard.tsx`）：按距地图中心的球面距离取最近 3 个活动，显示分类图标 + 标题 + 距离，可折叠；点条目跳详情、「查看全部」去推荐页。地图中心随 `moveend` 更新。
+
+**涉及文件：** `lib/mapTheme.ts`、`components/Map/StyleSwitcher.tsx`、`components/Map/PopularCard.tsx`、`components/Map/MapExplorer.tsx`
+
+---
+
 ### #2 收藏 / 点赞
 
 依赖用户系统，新增活动的点赞与收藏：

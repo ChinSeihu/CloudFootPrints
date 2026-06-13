@@ -9,6 +9,9 @@ import { ActionFab } from "./ActionFab";
 import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
+import { StyleSwitcher } from "./StyleSwitcher";
+import { PopularCard } from "./PopularCard";
+import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -151,6 +154,22 @@ export function MapExplorer() {
   const [mode, setMode] = useState<Mode>("checkin");
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [theme, setTheme] = useState<MapTheme>("soft");
+  const [mapReady, setMapReady] = useState(false);
+  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 读取/持久化底图主题选择
+  useEffect(() => {
+    const saved = localStorage.getItem("tem_map_theme");
+    if (saved === "standard" || saved === "soft") setTheme(saved);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("tem_map_theme", theme);
+  }, [theme]);
+  // 地图就绪或主题变化时应用（重着色现有矢量图层）
+  useEffect(() => {
+    if (mapReady && mapRef.current) applyMapTheme(mapRef.current, theme);
+  }, [mapReady, theme]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -178,6 +197,7 @@ export function MapExplorer() {
 
   const fetchEvents = useCallback(async (bbox: BBox) => {
     lastBboxRef.current = bbox;
+    setCenter({ lat: (bbox.minLat + bbox.maxLat) / 2, lng: (bbox.minLng + bbox.maxLng) / 2 });
     const id = ++reqIdRef.current;
     const params = new URLSearchParams({
       minLat: String(bbox.minLat),
@@ -647,6 +667,7 @@ export function MapExplorer() {
       maplibreRef.current = mlg;
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
+      setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
       // jump-to-map：推荐页"在地图上查看"会带 ?lat=&lng= 过来
       const sp = new URLSearchParams(window.location.search);
       const lat = parseFloat(sp.get("lat") ?? "");
@@ -760,6 +781,13 @@ export function MapExplorer() {
         refreshing={refreshing}
       />
       <WeatherPanel />
+      <StyleSwitcher value={theme} onChange={setTheme} />
+      <PopularCard
+        events={filtered}
+        center={center}
+        onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
+        onViewAll={() => router.push("/recommend")}
+      />
       <GuideFab />
       <ActionFab
         onCheckin={() => openPlacement("checkin")}

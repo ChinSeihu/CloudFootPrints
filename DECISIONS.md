@@ -24,6 +24,8 @@
   - 聚合圆：实心蓝（#2563eb）+ 白边 + 外层半透明蓝光晕（halo 单独一层垫在下方）+ 白字数量
   - 单点：分类色填充圆（radius 9）+ 白色描边（2.5px）
 - **打卡 marker 同样用 GeoJSON cluster 图层**，琥珀色（#f59e0b）+ 同款光晕
+- **底图风格可切换（标准 / 柔和）**：`lib/mapTheme.ts` 对现有矢量图层**就地重着色**（`setPaintProperty`），**不调 `map.setStyle()`**——否则会清掉聚合/打卡等自定义 source/layer，需在 `style.load` 重新挂载，复杂且易错。柔和 = 马卡龙水彩（暖奶油陆地/柔蓝水/柔绿园/白路）；切回标准从记录的原始 paint 还原。选择存 `localStorage`，默认柔和。**插画风固定底图（满地手绘樱花/树 + 3D 地标）不做**：需美术出图/定制瓦片、失去任意缩放与地理精度，超出 v1。
+- **人气活动卡片**：按距地图中心球面距离取最近活动（纯前端，与底图无关），地图中心随 `moveend` 更新。
 - **锚点针（拖拽放置）保留 DOM SVG marker**，现代扁平蓝色水滴造型
 - **同位置/极近活动 → 堆叠卡片弹窗**：
   - 点击单点时 `queryRenderedFeatures` 取点击像素 ±14px 内的所有点；点击聚合时取 `getClusterLeaves`，若叶子坐标包围盒 < 0.0006°（约 60m）判定为"挤在一起"，直接弹堆叠卡片，否则 `easeTo` 放大展开
@@ -92,7 +94,7 @@
 ## 阶段约束
 
 - **只实现 v1**，v2/v3 功能（审核、个性化推荐、Python 服务）不超前实现，代码用 `TODO` 标注挂载点
-- 下一阶段（v1.5）：锚点发帖完善、地图风格切换器
+- 下一阶段（v1.5）：锚点发帖完善（地图风格切换器已实现：标准/柔和）
 - **用户系统**：✅ 已实现（本地账号 + 认证 + 个人资料 + 未登录拦截，见上「架构」与 CHANGELOG）。
 - **收藏 / 点赞（#2）**：✅ 已实现。`Reaction` 单表 + `ReactionType`(LIKE/FAVORITE) 区分，唯一约束 `(userId,eventId,type)`；`services/reactions.ts` + `/api/events/[id]/reactions`（GET 状态 / POST 切换需登录）+ `/api/favorites`。详情页头部点赞/收藏按钮（乐观更新+回滚），个人页「收藏」tab。**改 schema 后 dev server 必须重启**才会加载新 Prisma client。
 - **评论作者展示（待实现）**：Comment 记录真实 userId 后，列表 join User 显示用户名/头像。
