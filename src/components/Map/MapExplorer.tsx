@@ -12,6 +12,7 @@ import { WeatherPanel } from "./WeatherPanel";
 import { StyleSwitcher } from "./StyleSwitcher";
 import { PopularCard } from "./PopularCard";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
+import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -71,6 +72,44 @@ async function loadCategoryGlyphIcons(map: maplibregl.Map): Promise<void> {
         }),
     ),
   );
+}
+
+// ── 地标（名胜/公园）图标与数据 ──
+function landmarkIconSvg(kind: LandmarkKind): string {
+  const color = LANDMARK_KIND_META[kind].color;
+  const glyph = LANDMARK_GLYPH[kind];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(22 22)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
+}
+
+async function loadLandmarkIcons(map: maplibregl.Map): Promise<void> {
+  const kinds = Object.keys(LANDMARK_KIND_META) as LandmarkKind[];
+  await Promise.all(
+    kinds.map(
+      (kind) =>
+        new Promise<void>((resolve) => {
+          const name = `landmark-${kind}`;
+          if (map.hasImage(name)) return resolve();
+          const img = new Image(44, 44);
+          img.onload = () => {
+            if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 });
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(landmarkIconSvg(kind));
+        }),
+    ),
+  );
+}
+
+function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: LANDMARKS.map((l) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [l.lng, l.lat] },
+      properties: { id: l.id, name: l.name, kind: l.kind },
+    })),
+  };
 }
 
 // 过期：活动结束时间（endTime，无则 startTime）早于现在。未定档（无 startTime）不算过期。
@@ -155,6 +194,7 @@ export function MapExplorer() {
   const [toast, setToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [theme, setTheme] = useState<MapTheme>("soft");
+  const [showLandmarks, setShowLandmarks] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -170,6 +210,19 @@ export function MapExplorer() {
   useEffect(() => {
     if (mapReady && mapRef.current) applyMapTheme(mapRef.current, theme);
   }, [mapReady, theme]);
+
+  // 地标显隐（读取/持久化 + 切换图层 visibility）
+  useEffect(() => {
+    const saved = localStorage.getItem("tem_show_landmarks");
+    if (saved === "0") setShowLandmarks(false);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("tem_show_landmarks", showLandmarks ? "1" : "0");
+    const map = mapRef.current;
+    if (mapReady && map && map.getLayer("landmark-icon")) {
+      map.setLayoutProperty("landmark-icon", "visibility", showLandmarks ? "visible" : "none");
+    }
+  }, [mapReady, showLandmarks]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -660,11 +713,45 @@ export function MapExplorer() {
     }
   }, []);
 
+  // ── 地标（名胜/公园）图层：自定义图标 symbol + 名称标注，放在活动层之下 ──
+  const setupLandmarks = useCallback(async (map: maplibregl.Map) => {
+    if (map.getSource("landmarks")) return;
+    await loadLandmarkIcons(map);
+    map.addSource("landmarks", { type: "geojson", data: landmarksToFC() });
+    map.addLayer({
+      id: "landmark-icon",
+      type: "symbol",
+      source: "landmarks",
+      layout: {
+        "icon-image": ["concat", "landmark-", ["get", "kind"]],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.5, 14, 0.8],
+        "icon-allow-overlap": false,
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Regular"],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [0, 1],
+        "text-optional": true,
+        "text-max-width": 8,
+      },
+      paint: {
+        "text-color": "#7a6a5e",
+        "text-halo-color": "#fffaf6",
+        "text-halo-width": 1.4,
+        // 名称仅在放大后显示，避免低缩放拥挤
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
+      },
+    });
+    map.on("mouseenter", "landmark-icon", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "landmark-icon", () => { map.getCanvas().style.cursor = ""; });
+  }, []);
+
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
       mapRef.current = map;
       const mlg = (await import("maplibre-gl")).default;
       maplibreRef.current = mlg;
+      await setupLandmarks(map); // 先加地标（在活动层之下）
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
@@ -676,7 +763,7 @@ export function MapExplorer() {
         map.flyTo({ center: [lng, lat], zoom: 16 });
       }
     },
-    [setupEventClusters, setupCheckinClusters],
+    [setupLandmarks, setupEventClusters, setupCheckinClusters],
   );
 
   async function handleRefresh() {
@@ -782,6 +869,17 @@ export function MapExplorer() {
       />
       <WeatherPanel />
       <StyleSwitcher value={theme} onChange={setTheme} />
+      <button
+        type="button"
+        onClick={() => setShowLandmarks((v) => !v)}
+        className={`absolute bottom-36 left-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+          showLandmarks
+            ? "bg-blue-600 text-white border-transparent"
+            : "bg-white/95 text-neutral-600 border-black/10"
+        }`}
+      >
+        🏯 景点
+      </button>
       <PopularCard
         events={filtered}
         center={center}
