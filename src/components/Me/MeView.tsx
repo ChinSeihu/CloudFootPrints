@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark } from "@/components/icons";
+import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark, IconBell } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
 import { ProfileHeader } from "./ProfileHeader";
-import type { CheckInDTO, EventDTO } from "@/lib/types";
+import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 const DEFAULT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const TOKYO_CENTER: [number, number] = [139.7671, 35.6812];
 
-type Tab = "checkins" | "posts" | "favorites";
+type Tab = "checkins" | "posts" | "favorites" | "messages";
 
 function fmtDate(d: string | null): string {
   if (!d) return "时间未定";
@@ -34,19 +34,22 @@ function MeContent() {
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
+  const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [c, p, f] = await Promise.all([
+      const [c, p, f, n] = await Promise.all([
         fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
         fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/favorites").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
+        fetch("/api/replies").then((r) => (r.ok ? r.json() : { notices: [] })).catch(() => ({ notices: [] })),
       ]);
       setCheckins(c.checkins ?? []);
       setPosts(p.events ?? []);
       setFavorites(f.events ?? []);
+      setNotices(n.notices ?? []);
       setLoaded(true);
     })();
   }, []);
@@ -107,6 +110,7 @@ function MeContent() {
             ["checkins", "打卡", checkins.length, IconStar],
             ["posts", "发帖", posts.length, IconPin],
             ["favorites", "收藏", favorites.length, IconBookmark],
+            ["messages", "消息", notices.length, IconBell],
           ] as const).map(([key, label, count, Icon]) => {
             const active = tab === key;
             return (
@@ -114,11 +118,11 @@ function MeContent() {
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
-                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm transition ${
+                className={`flex-1 inline-flex items-center justify-center gap-1 py-2 rounded-xl text-[13px] transition ${
                   active ? "bg-white text-blue-600 font-medium shadow-sm" : "text-neutral-500"
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 shrink-0" />
                 {label}
                 {count > 0 && <CountBadge count={count} active={active} />}
               </button>
@@ -215,7 +219,7 @@ function MeContent() {
               })}
             </ul>
           </>
-        ) : (
+        ) : tab === "favorites" ? (
           <>{/* 收藏 */}
             {loaded && favorites.length === 0 && (
               <p className="text-sm text-neutral-500">还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。</p>
@@ -259,6 +263,37 @@ function MeContent() {
                 );
               })}
             </div>
+          </>
+        ) : (
+          <>{/* 消息：被回复 */}
+            {loaded && notices.length === 0 && (
+              <p className="text-sm text-neutral-500">还没有新消息。当别人评论你的帖子或回复你的评论时，会出现在这里。</p>
+            )}
+            <ul className="space-y-2.5">
+              {notices.map((n) => (
+                <li key={n.id} className="rounded-xl border border-black/10 bg-white p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold grid place-items-center shrink-0">
+                      {(n.author?.username ?? "用户").slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
+                    <span className="text-[11px] text-neutral-400 shrink-0">
+                      {n.type === "reply" ? "回复了你的评论" : "评论了你的帖子"}
+                    </span>
+                    <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
+                      {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>
+                  {n.type === "reply" && n.parentText && (
+                    <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
+                      你：{n.parentText}
+                    </p>
+                  )}
+                  <div className="text-[11px] text-neutral-400 mt-1.5 truncate">在《{n.eventTitle}》</div>
+                </li>
+              ))}
+            </ul>
           </>
         )}
       </div>

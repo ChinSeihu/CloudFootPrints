@@ -33,8 +33,10 @@ export async function POST(request: Request, ctx: Ctx) {
   if (typeof text !== "string") {
     return NextResponse.json({ error: "缺少 text" }, { status: 400 });
   }
+  const parentIdRaw = (body as { parentId?: unknown })?.parentId;
+  const parentId = typeof parentIdRaw === "string" ? parentIdRaw : null;
 
-  const result = await createComment(id, text, userId);
+  const result = await createComment(id, text, userId, parentId);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

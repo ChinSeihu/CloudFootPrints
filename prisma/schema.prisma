@@ -84,9 +84,13 @@ model Comment {
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   userId    String   @default("me") // v1 单用户；v2 接入真实用户
   text      String
+  parentId  String? // 回复的目标评论（顶层评论为 null）
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
   createdAt DateTime @default(now())
 
   @@index([eventId, createdAt])
+  @@index([parentId])
 }
 
 // 点赞 / 收藏：用户↔活动。一张表 + type 区分，唯一约束防重复。

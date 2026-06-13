@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark } from "@/components/icons";
 import { CopyButton } from "@/components/CopyButton";
 import { useGuide } from "@/components/Guide/GuideContext";
+import { useAuth } from "@/components/Auth/AuthContext";
 import { displayTags } from "@/lib/tags";
 import type { EventDTO, CommentDTO, UserBrief } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
@@ -58,6 +59,7 @@ export function EventDetail({
 }) {
   const router = useRouter();
   const { openGuide } = useGuide();
+  const { user } = useAuth();
   const meta = CATEGORY_META[event.category];
 
   const [comments, setComments] = useState<CommentDTO[]>([]);
@@ -65,6 +67,20 @@ export function EventDetail({
   const [posting, setPosting] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+
+  // 顶层评论 + 各自的回复（按时间）
+  const threads = useMemo(() => {
+    const top = comments.filter((c) => !c.parentId);
+    const repliesByParent = new Map<string, CommentDTO[]>();
+    for (const c of comments) {
+      if (!c.parentId) continue;
+      const arr = repliesByParent.get(c.parentId);
+      if (arr) arr.push(c);
+      else repliesByParent.set(c.parentId, [c]);
+    }
+    return top.map((t) => ({ comment: t, replies: repliesByParent.get(t.id) ?? [] }));
+  }, [comments]);
 
   // 点赞 / 收藏状态
   const [reactions, setReactions] = useState<ReactionState>({
@@ -130,12 +146,13 @@ export function EventDetail({
       const res = await fetch(`/api/events/${event.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: t }),
+        body: JSON.stringify({ text: t, parentId: replyTo?.id ?? null }),
       });
       if (res.ok) {
         const d = await res.json();
         setComments((prev) => [...prev, d.comment]);
         setText("");
+        setReplyTo(null);
       } else {
         const d = await res.json().catch(() => ({}));
         setErr(res.status === 401 ? "请先到「个人」页登录后再评论" : d.error || "评论失败");
@@ -147,8 +164,59 @@ export function EventDetail({
     }
   }
 
+  async function removeComment(id: string) {
+    setErr(null);
+    try {
+      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        // 删除该评论及其回复（parentId 指向它的）
+        setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setErr(d.error || "删除失败");
+      }
+    } catch {
+      setErr("网络错误，请稍后再试");
+    }
+  }
+
   function jumpToMap() {
     router.push(`/?lat=${event.lat}&lng=${event.lng}`);
+  }
+
+  // 单条评论（含回复缩进、回复/删除按钮）
+  function renderComment(c: CommentDTO, isReply: boolean) {
+    const mine = !!user && c.userId === user.id;
+    return (
+      <div className={`flex gap-2.5 ${isReply ? "ml-9" : ""}`}>
+        <Avatar user={c.author} size={isReply ? 26 : 30} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-neutral-800">{c.author?.username ?? "用户"}</span>
+            <span className="text-[11px] text-neutral-400">{new Date(c.createdAt).toLocaleString("zh-CN")}</span>
+          </div>
+          <div className="text-sm text-neutral-700 whitespace-pre-wrap mt-0.5">{c.text}</div>
+          <div className="flex items-center gap-3 mt-1">
+            <button
+              type="button"
+              onClick={() => setReplyTo({ id: isReply ? (c.parentId as string) : c.id, username: c.author?.username ?? "用户" })}
+              className="text-[11px] text-neutral-400 hover:text-blue-600 transition"
+            >
+              回复
+            </button>
+            {mine && (
+              <button
+                type="button"
+                onClick={() => removeComment(c.id)}
+                className="text-[11px] text-neutral-400 hover:text-red-500 transition"
+              >
+                删除
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -257,20 +325,12 @@ export function EventDetail({
             <p className="text-xs text-neutral-400">还没有评论，来说两句。</p>
           )}
           <ul className="space-y-3">
-            {comments.map((c) => (
-              <li key={c.id} className="flex gap-2.5">
-                <Avatar user={c.author} size={30} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-800">
-                      {c.author?.username ?? "用户"}
-                    </span>
-                    <span className="text-[11px] text-neutral-400">
-                      {new Date(c.createdAt).toLocaleString("zh-CN")}
-                    </span>
-                  </div>
-                  <div className="text-sm text-neutral-700 whitespace-pre-wrap mt-0.5">{c.text}</div>
-                </div>
+            {threads.map(({ comment, replies }) => (
+              <li key={comment.id} className="space-y-3">
+                {renderComment(comment, false)}
+                {replies.map((r) => (
+                  <div key={r.id}>{renderComment(r, true)}</div>
+                ))}
               </li>
             ))}
           </ul>
@@ -280,6 +340,14 @@ export function EventDetail({
       {/* 底部操作：评论输入 + 问导游/看地图/来源 */}
       <div className="shrink-0 p-3 border-t border-black/5 space-y-2">
         {err && <p className="text-xs text-red-500 px-1">{err}</p>}
+        {replyTo && (
+          <div className="flex items-center justify-between text-[11px] text-blue-600 bg-blue-50 rounded-lg px-2.5 py-1">
+            <span>回复 @{replyTo.username}</span>
+            <button type="button" onClick={() => setReplyTo(null)} className="text-blue-400 hover:text-blue-600">
+              取消
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             value={text}
@@ -287,7 +355,7 @@ export function EventDetail({
             onKeyDown={(e) => {
               if (e.key === "Enter") addComment();
             }}
-            placeholder="写下你的评论…"
+            placeholder={replyTo ? `回复 @${replyTo.username}…` : "写下你的评论…"}
             className="flex-1 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
           />
           <button

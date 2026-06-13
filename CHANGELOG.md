@@ -6,6 +6,26 @@
 
 ## 2026-06-13
 
+### 评论回复 / 删除 + 个人页「消息」
+
+- **数据库**：`Comment` 加自关联 `parentId`（回复目标，顶层为 null；级联删除回复）。db push 到 Neon。
+- **回复**：详情页评论线程化（顶层评论 + 缩进回复），每条带「回复」；回复保持一级（回复"回复"时挂到同一顶层）。输入区显示「回复 @某人 · 取消」。
+- **删除**：评论作者可删自己的评论（`DELETE /api/comments/[id]`，仅作者，级联删回复）。
+- **个人页「消息」tab**（第 4 个 tab，铃铛图标 + 计数）：展示**被回复**——① 别人回复了我的评论（带我原评论引用）；② 别人评论了我的帖子；显示对方、内容、所在活动、时间。
+- 服务/接口：`services/replies.ts` + `GET /api/replies`；`comments` 服务加 `parentId`/`deleteComment`；`CommentDTO.parentId` + `ReplyNoticeDTO`；新增 `IconBell`。
+
+**涉及文件：** `prisma/schema.prisma`、`services/comments.ts`、`services/replies.ts`、`app/api/comments/[id]/route.ts`、`app/api/replies/route.ts`、`app/api/events/[id]/comments/route.ts`、`components/Recommend/EventDetail.tsx`、`components/Me/MeView.tsx`、`components/icons.tsx`、`lib/types.ts`
+
+---
+
+### 发帖时间改为必选
+
+发帖的「开始时间」必填（否则无法按时间筛选）：表单标 `*`、未选禁用发布并提示，`POST /api/events` 同步校验。
+
+**涉及文件：** `components/Map/PostDialog.tsx`、`app/api/events/route.ts`
+
+---
+
 ### 聚合点呼吸动效增强
 
 聚合光晕的「呼吸」从仅透明度微动 → **透明度 + 半径一起脉动**（opacity 0.12–0.28、半径 ×1.0–1.2），效果更明显；半径在基础 step 表达式上乘时间系数，保留按数量分级。实测平滑无卡顿。

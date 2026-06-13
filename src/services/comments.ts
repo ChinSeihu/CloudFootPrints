@@ -27,14 +27,15 @@ export type CreateCommentResult =
   | { ok: true; comment: Awaited<ReturnType<typeof createCommentRow>> & { author: CommentAuthor | null } }
   | { ok: false; error: string };
 
-function createCommentRow(eventId: string, text: string, userId: string) {
-  return prisma.comment.create({ data: { eventId, text, userId } });
+function createCommentRow(eventId: string, text: string, userId: string, parentId: string | null) {
+  return prisma.comment.create({ data: { eventId, text, userId, parentId } });
 }
 
 export async function createComment(
   eventId: string,
   text: string,
   userId: string,
+  parentId?: string | null,
 ): Promise<CreateCommentResult> {
   const trimmed = text.trim();
   if (!trimmed) return { ok: false, error: "评论内容不能为空" };
@@ -43,7 +44,30 @@ export async function createComment(
   const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
   if (!event) return { ok: false, error: "活动不存在" };
 
-  const comment = await createCommentRow(eventId, trimmed, userId);
+  // 校验回复目标存在且属于同一活动
+  let pid: string | null = null;
+  if (parentId) {
+    const parent = await prisma.comment.findUnique({
+      where: { id: parentId },
+      select: { id: true, eventId: true },
+    });
+    if (!parent || parent.eventId !== eventId) return { ok: false, error: "回复的评论不存在" };
+    pid = parent.id;
+  }
+
+  const comment = await createCommentRow(eventId, trimmed, userId, pid);
   const author = await prisma.user.findUnique({ where: { id: userId }, select: AUTHOR_SELECT });
   return { ok: true, comment: { ...comment, author } };
+}
+
+// 删除评论：仅作者本人可删（级联删除其回复）。
+export async function deleteComment(
+  commentId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  const c = await prisma.comment.findUnique({ where: { id: commentId }, select: { id: true, userId: true } });
+  if (!c) return { ok: false, error: "评论不存在", status: 404 };
+  if (c.userId !== userId) return { ok: false, error: "只能删除自己的评论", status: 403 };
+  await prisma.comment.delete({ where: { id: commentId } });
+  return { ok: true };
 }

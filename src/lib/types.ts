@@ -32,8 +32,20 @@ export type CommentDTO = {
   eventId: string;
   userId: string;
   text: string;
+  parentId: string | null;
   createdAt: string;
   author?: UserBrief | null;
+};
+
+export type ReplyNoticeDTO = {
+  id: string;
+  type: "reply" | "post";
+  text: string;
+  author?: UserBrief | null;
+  eventId: string;
+  eventTitle: string;
+  parentText: string | null;
+  createdAt: string;
 };
 
 export type CheckInDTO = {
