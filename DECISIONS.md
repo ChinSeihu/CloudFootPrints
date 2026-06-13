@@ -83,7 +83,13 @@
 - 已建预设：**`cloudfootprints_unsigned`**（unsigned，folder `cloudfootprints`，仅图片格式）。App **只用 cloud name + 该 preset**；**Cloudinary API Key/Secret 一律不用于 App、不写入任何文件或仓库**（仅在控制台/Admin API 一次性建预设时用过）。两台 PC 各自把这两个公开值填进自己的 `.env`。Secret 若在对话/外部暴露过应去控制台轮换（不影响 App）。
 - LLM 抽取的活动图片（`imageUrl`）是源站的外链，不转存（v1）。
 
+## AI 导游
+
+- 地图页浮动入口（紫色）→ 全屏聊天面板（`GuideChat`）。资深导游 system prompt：讲解活动信息 / 历史文化渊源 / 看点 / 推荐 / 路线交通建议；**纯文本输出**（约束不用 Markdown）；不编造具体票价时间。
+- 复用 LLM 层（`chatWithGuide`，DeepSeek/Claude provider 切换），`/api/chat` 保留最近 12 轮上下文。提供默认快捷问题降低门槛。
+
 ## 阶段约束
 
-- **只实现 v1**，v2/v3 功能（认证、审核、个性化推荐、社交整合、Python 服务）不超前实现，代码用 `TODO` 标注挂载点
+- **只实现 v1**，v2/v3 功能（审核、个性化推荐、Python 服务）不超前实现，代码用 `TODO` 标注挂载点
 - 下一阶段（v1.5）：锚点发帖完善、地图风格切换器
+- **用户系统（v2，已确认需求，待实现）**：简单本地账号（口令 `bcrypt` 哈希）；用户资料字段 = 用户名 / 个性签名 / 头像 / 常住地（可选）/ 状态；用于发帖、评论区分用户，并支撑**收藏 / 点赞**。未登录不可打卡/发帖，个人页提供登录入口。届时把现有固定 `userId="me"` 替换为真实用户。

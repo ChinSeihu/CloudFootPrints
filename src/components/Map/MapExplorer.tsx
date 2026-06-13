@@ -9,6 +9,7 @@ import { ActionFab } from "./ActionFab";
 import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
+import { GuideChat } from "@/components/Guide/GuideChat";
 import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
@@ -743,6 +744,7 @@ export function MapExplorer() {
         refreshing={refreshing}
       />
       <WeatherPanel />
+      <GuideChat />
       <ActionFab
         onCheckin={() => openPlacement("checkin")}
         onPost={() => openPlacement("post")}

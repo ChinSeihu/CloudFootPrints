@@ -346,3 +346,46 @@ export async function classifyEvents(
   }
   return out;
 }
+
+// ---------- AI 导游咨询（多轮对话）----------
+
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+const GUIDE_SYSTEM = `你是「东京活动地图」内置的 AI 导游——一位在东京生活多年、资深的专业导游兼文化讲解员。
+你的专长：东京的展览、市集、live、祭典等各类活动，以及它们背后的历史、文化与渊源。
+
+回答时请：
+- 语气专业又亲切，像带朋友逛东京的当地向导。
+- 讲解活动时，除了基本信息，适当补充其历史由来、文化背景、看点与小贴士，让用户「知其所以然」。
+- 根据用户兴趣给出具体、可执行的推荐（活动 + 时间段 + 理由）。
+- 需要时提供路线 / 交通 / 游览顺序建议，结合东京的地理与电车线路（如山手线、地铁），给出顺路、省时的安排。
+- 用中文回答，条理清晰，篇幅适中，不啰嗦。
+- **用纯文本，不要 Markdown 标记**（不要出现 **、##、\` 等符号）；分点用「・」开头，标题用普通文字即可。
+- 对不确定的具体信息（确切票价、当日营业时间、是否需预约等）提醒用户以官方信息为准，绝不编造。`;
+
+export async function chatWithGuide(messages: ChatMessage[]): Promise<string> {
+  if (getProvider() === "anthropic") {
+    const res = await getAnthropic().messages.create({
+      model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+      max_tokens: 1024,
+      system: GUIDE_SYSTEM,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    });
+    const block = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    return block ? block.text : "";
+  }
+  const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+    body: JSON.stringify({
+      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      messages: [{ role: "system", content: GUIDE_SYSTEM }, ...messages],
+      temperature: 0.7,
+      max_tokens: 1024,
+    }),
+  });
+  if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
+}

@@ -136,6 +136,15 @@ export function IconChevronRight(props: IconProps) {
   );
 }
 
+export function IconSparkles(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 3l1.6 4.4L15 9l-4.4 1.6L9 15l-1.6-4.4L3 9l4.4-1.6z" />
+      <path d="M18 5l.8 2.2L21 8l-2.2.8L18 11l-.8-2.2L15 8l2.2-.8z" />
+    </svg>
+  );
+}
+
 // ---- 天气图标 ----
 
 export function IconSun(props: IconProps) {
