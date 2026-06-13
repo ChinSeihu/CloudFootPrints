@@ -635,12 +635,17 @@ export function MapExplorer() {
       setExploreAnchor({ lat: e.lngLat.lat, lng: e.lngLat.lng });
     });
 
-    // 聚合光晕轻微「呼吸」动效（只动 halo 的透明度，开销小）
+    // 聚合光晕「呼吸」动效：透明度 + 半径一起脉动（更明显）。
+    // 半径在基础 step 表达式上乘一个随时间变化的系数，保留按数量分级。
+    const haloBaseRadius = ["step", ["get", "point_count"], 26, 5, 32, 20, 40];
     const pulse = () => {
       if (!map.getLayer("event-cluster-halo")) return; // 已卸载
-      const o = 0.16 + 0.07 * (0.5 + 0.5 * Math.sin(Date.now() / 900));
+      const s = 0.5 + 0.5 * Math.sin(Date.now() / 1100); // 0..1
+      const o = 0.12 + 0.16 * s; // 透明度 0.12 → 0.28
+      const scale = 1 + 0.2 * s; // 半径 ×1.0 → ×1.2
       try {
         map.setPaintProperty("event-cluster-halo", "circle-opacity", o);
+        map.setPaintProperty("event-cluster-halo", "circle-radius", ["*", scale, haloBaseRadius] as unknown as maplibregl.ExpressionSpecification);
       } catch {
         return;
       }
