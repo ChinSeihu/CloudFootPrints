@@ -46,7 +46,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         onClick={() => setOpen(true)}
         className="absolute bottom-24 right-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur shadow-sm border border-black/10 text-xs text-neutral-700"
       >
-        🔥 人气活动
+        {anchored ? "📍 锚点周边" : "🔥 人气活动"}
       </button>
     );
   }
