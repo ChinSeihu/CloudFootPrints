@@ -107,7 +107,7 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
     features: LANDMARKS.map((l) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [l.lng, l.lat] },
-      properties: { id: l.id, name: l.name, kind: l.kind },
+      properties: { id: l.id, name: l.name, kind: l.kind, blurb: l.blurb },
     })),
   };
 }
@@ -820,16 +820,40 @@ export function MapExplorer() {
     });
     map.on("mouseenter", "landmark-icon", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "landmark-icon", () => { map.getCanvas().style.cursor = ""; });
-    // 点击景点 → 唤起 AI 导游，针对该名胜对话
+    // 点击景点 → 先弹「名胜介绍卡」（与活动卡区分），由用户确认再咨询 AI
     map.on("click", "landmark-icon", (e) => {
-      const p = e.features?.[0]?.properties as { name?: string; kind?: LandmarkKind } | undefined;
+      const f = e.features?.[0];
+      const p = f?.properties as { name?: string; kind?: LandmarkKind; blurb?: string } | undefined;
       if (!p?.name) return;
-      const kindLabel = p.kind ? LANDMARK_KIND_META[p.kind].label : "名胜";
-      openGuideRef.current({
-        title: p.name,
-        category: kindLabel,
-        venueName: p.name,
-        description: `东京名胜：${p.name}（${kindLabel}）`,
+      const mlg = maplibreRef.current;
+      if (!mlg) return;
+      const kind = (p.kind ?? "landmark") as LandmarkKind;
+      const kindLabel = LANDMARK_KIND_META[kind].label;
+      const color = LANDMARK_KIND_META[kind].color;
+      const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      const html = `<div class="tem-lm">
+        <div class="tem-lm-head">
+          <span class="tem-lm-badge">${landmarkIconSvg(kind)}</span>
+          <div class="tem-lm-titles">
+            <div class="tem-lm-name">${escapeHtml(p.name)}</div>
+            <div class="tem-lm-kind" style="color:${color}">名胜 · ${escapeHtml(kindLabel)}</div>
+          </div>
+        </div>
+        <p class="tem-lm-desc">${escapeHtml(p.blurb ?? "")}</p>
+        <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+      </div>`;
+      const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-lm-popup" })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+      popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
+        popup.remove();
+        openGuideRef.current({
+          title: p.name!,
+          category: kindLabel,
+          venueName: p.name!,
+          description: `东京名胜：${p.name}（${kindLabel}）。${p.blurb ?? ""}`,
+        });
       });
     });
   }, []);
