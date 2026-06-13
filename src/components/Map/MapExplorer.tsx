@@ -640,7 +640,7 @@ export function MapExplorer() {
     const haloBaseRadius = ["step", ["get", "point_count"], 26, 5, 32, 20, 40];
     const pulse = () => {
       if (!map.getLayer("event-cluster-halo")) return; // 已卸载
-      const s = 0.5 + 0.5 * Math.sin(Date.now() / 1100); // 0..1
+      const s = 0.5 + 0.5 * Math.sin(Date.now() / 650); // 0..1（越小越快）
       const o = 0.12 + 0.16 * s; // 透明度 0.12 → 0.28
       const scale = 1 + 0.2 * s; // 半径 ×1.0 → ×1.2
       try {
