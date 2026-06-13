@@ -39,6 +39,7 @@ export default async function RecommendPage() {
         sourceType: e.sourceType,
         sourceUrl: e.sourceUrl,
         trustLevel: e.trustLevel,
+        author: e.author ?? null,
       }));
   } catch {
     dbError = true;
