@@ -48,7 +48,7 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
   }
 
   return (
-    <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-2 pointer-events-none">
+    <div className="absolute top-3 left-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
       {/* 收起行：筛选按钮 + 刷新 + 计数 */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <button
