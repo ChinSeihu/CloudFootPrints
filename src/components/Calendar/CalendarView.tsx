@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
+import { CountBadge } from "@/components/common/CountBadge";
 import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
 
@@ -233,7 +234,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
                 }`}
               >
                 {label}
-                <span className={`text-[11px] ${active ? "text-blue-400" : "text-neutral-400"}`}>{c}</span>
+                <CountBadge count={c} active={active} />
               </button>
             );
           })}

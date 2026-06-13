@@ -9,6 +9,7 @@ import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark } from "@/compon
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
+import { CountBadge } from "@/components/common/CountBadge";
 import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
 
@@ -119,9 +120,7 @@ function MeContent() {
               >
                 <Icon className="w-4 h-4" />
                 {label}
-                {count > 0 && (
-                  <span className={`text-[11px] ${active ? "text-blue-400" : "text-neutral-400"}`}>{count}</span>
-                )}
+                {count > 0 && <CountBadge count={count} active={active} />}
               </button>
             );
           })}
