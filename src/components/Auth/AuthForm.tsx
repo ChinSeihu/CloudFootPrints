@@ -62,7 +62,7 @@ export function AuthForm() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-sm mx-auto px-6 py-10 pb-16">
+      <div className="max-w-sm mx-auto px-6 py-6 pb-10">
       <h1 className="text-xl font-semibold mb-1">{mode === "login" ? "登录" : "注册"}</h1>
       <p className="text-sm text-neutral-500 mb-6">登录后即可打卡、发帖、评论</p>
 
@@ -103,7 +103,7 @@ export function AuthForm() {
       </button>
 
       {/* 测试账号一键登录（当前阶段方便用） */}
-      <div className="mt-8">
+      <div className="mt-6">
         <div className="flex items-center gap-2 mb-3">
           <div className="h-px flex-1 bg-neutral-200" />
           <span className="text-[11px] text-neutral-400">测试账号 · 一键登录</span>

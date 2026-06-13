@@ -31,7 +31,7 @@ export default function RootLayout({
       lang="zh"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-screen flex flex-col overflow-hidden">
+      <body className="h-[100dvh] flex flex-col overflow-hidden">
         <AuthProvider>
           <GuideProvider>
             <main className="flex-1 min-h-0 relative">{children}</main>
