@@ -9,6 +9,7 @@ export async function PATCH(req: Request) {
   const user = await updateProfile(userId, {
     signature: typeof body.signature === "string" ? body.signature : null,
     avatarUrl: typeof body.avatarUrl === "string" ? body.avatarUrl : null,
+    coverUrl: typeof body.coverUrl === "string" ? body.coverUrl : null,
     hometown: typeof body.hometown === "string" ? body.hometown : null,
     status: typeof body.status === "string" ? body.status : null,
   });

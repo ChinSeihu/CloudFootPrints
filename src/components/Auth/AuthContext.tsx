@@ -14,6 +14,7 @@ export type AuthUser = {
   username: string;
   signature: string | null;
   avatarUrl: string | null;
+  coverUrl: string | null;
   hometown: string | null;
   status: string | null;
 };

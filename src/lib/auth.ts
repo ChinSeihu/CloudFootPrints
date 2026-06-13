@@ -58,6 +58,7 @@ export type PublicUser = {
   username: string;
   signature: string | null;
   avatarUrl: string | null;
+  coverUrl: string | null;
   hometown: string | null;
   status: string | null;
 };
@@ -67,6 +68,7 @@ const PUBLIC_SELECT = {
   username: true,
   signature: true,
   avatarUrl: true,
+  coverUrl: true,
   hometown: true,
   status: true,
 } as const;

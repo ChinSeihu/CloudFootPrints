@@ -31,6 +31,7 @@ const PUBLIC_SELECT = {
   username: true,
   signature: true,
   avatarUrl: true,
+  coverUrl: true,
   hometown: true,
   status: true,
 } as const;
@@ -61,6 +62,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
 export type ProfileUpdate = {
   signature?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
   hometown?: string | null;
   status?: string | null;
 };
@@ -71,6 +73,7 @@ export async function updateProfile(userId: string, data: ProfileUpdate): Promis
     data: {
       signature: data.signature ?? null,
       avatarUrl: data.avatarUrl ?? null,
+      coverUrl: data.coverUrl ?? null,
       hometown: data.hometown ?? null,
       status: data.status ?? null,
     },

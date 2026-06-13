@@ -16,6 +16,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 固定视口 App：根文档不滚动，避免出现页面级细滚动条；
+   各页面用内部 overflow-y-auto 容器滚动。 */
+html {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

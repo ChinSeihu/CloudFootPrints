@@ -115,6 +115,7 @@ model User {
   passwordHash String
   signature    String? // 个性签名
   avatarUrl    String? // 头像（Cloudinary URL）
+  coverUrl     String? // 资料卡背景图（Cloudinary URL）
   hometown     String? // 常住地（可选）
   status       String? // 状态 / 心情
   createdAt    DateTime @default(now())

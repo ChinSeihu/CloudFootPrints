@@ -100,7 +100,7 @@ function MeContent() {
   }
 
   return (
-    <div className="h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="h-full overflow-y-auto">
       <ProfileHeader />
       <div ref={containerRef} className="h-56 w-full relative bg-neutral-100" />
 

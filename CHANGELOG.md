@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-06-14
+
+### 修复页面级滚动条（根因）+ 资料卡自定义背景图
+
+- **页面级滚动条**：根因是文档根 `html` 仍可滚动（body 虽 `overflow-hidden`）。globals.css 给 `html` 加 `overflow:hidden` + `overscroll-behavior:none`，并撤掉先前 MeView 上隐藏滚动条的临时补丁，恢复内部正常滚动。
+- **资料卡背景图**：`User` 加 `coverUrl`（Cloudinary）。编辑资料里可「更换背景 / 移除背景」（客户端压缩后上传，与头像同管线）；卡片以背景图渲染并压暗色渐变遮罩、文字转白，保证可读。贯通 `lib/auth`(PublicUser) / `services/users`(ProfileUpdate) / `/api/auth/profile` / `AuthContext`(AuthUser)。
+
+**涉及文件：** `app/globals.css`、`prisma/schema.prisma`、`lib/auth.ts`、`services/users.ts`、`app/api/auth/profile/route.ts`、`components/Auth/AuthContext.tsx`、`components/Me/ProfileHeader.tsx`、`components/Me/MeView.tsx`
+
+---
+
 ## 2026-06-13
 
 ### 个人页：资料卡片化 + 隐藏外层滚动条
