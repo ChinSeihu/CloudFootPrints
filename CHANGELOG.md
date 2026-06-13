@@ -6,6 +6,15 @@
 
 ## 2026-06-13
 
+### 个人页：资料卡片化 + 隐藏外层滚动条
+
+- **资料栏卡片化**：`ProfileHeader` 从平铺改为**渐变卡片**（蓝→白→玫粉 + 角落柔光 + 阴影），头像放大加白环，常住地做成胶囊 chip，更突出。
+- **外层滚动条**：Me 页外层容器加 `[scrollbar-width:none]` + `::-webkit-scrollbar` 隐藏（保留滚动），消除生硬的滚动条视觉（与 BottomSheet 一致）。
+
+**涉及文件：** `components/Me/ProfileHeader.tsx`、`components/Me/MeView.tsx`
+
+---
+
 ### 评论回复 / 删除 + 个人页「消息」
 
 - **数据库**：`Comment` 加自关联 `parentId`（回复目标，顶层为 null；级联删除回复）。db push 到 Neon。
