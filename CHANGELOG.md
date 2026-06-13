@@ -6,6 +6,19 @@
 
 ## 2026-06-13
 
+### 表单全屏化 + 打卡图片/时间 + tab 切换反馈
+
+1. **发帖/打卡表单全屏可滑动**：`BottomSheet` full 状态改为全屏（`h-[100dvh]`，顶贴屏幕顶、底贴屏幕底）、`z-[999]`、隐藏滚动条；peek/full 拖动切换，关闭走右上角 ×。
+2. **打卡支持图片上传 + 打卡时间**：`CheckInDialog` 把"照片外链"换成 Cloudinary 图片上传（与发帖一致：客户端压缩后上传，DB 只存 URL）；保留 datetime「打卡时间」（写入 `CheckIn.createdAt`）。
+3. **tab 切换反馈**：给 recommend/calendar/me 加 `loading.tsx`（点 tab 立即显示加载 spinner，消除"卡住"感）；`BottomNav` 乐观高亮（点击立即高亮目标 tab + 轻微放大），配合 `template.tsx` 入场动画。
+4. 移除之前 peek 的"取消 FAB"（被全屏 sheet 盖住、已失效），关闭统一走拖动收起 + ×；peek 上拉限制不越过屏幕顶。
+5. **推荐卡片限高**：标题 `line-clamp-2`，长标题截断为两行，避免撑乱瀑布流。
+6. **地址定位增强（可选 LLM）**：含建筑名/设施名的地址 GSI 常定位到区中心（如「東京タワー」落到都厅）。新增 `GEOCODE_LLM_FALLBACK` 开关，开启后用 LLM 把这类地址规范成标准住所再地理编码（「東京タワー」→「東京都港区芝公園」、「TOKYO DREAM PARK」→「東京都江東区有明3-3-8」），东京边界校验兜底 LLM 幻觉。
+
+**涉及文件：** `components/Map/{BottomSheet,CheckInDialog,PostDialog,ActionFab,MapExplorer}.tsx`、`components/BottomNav.tsx`、`components/Recommend/RecommendList.tsx`、`app/{recommend,calendar,me}/loading.tsx`、`lib/llm.ts`、`services/extraction/ingest.ts`、`.env.example`
+
+---
+
 ### 日历长期活动展期显示 + 推荐页分类筛选
 
 1. **日历长期活动**：跨多天的活动（`startTime`→`endTime`）在**展期每一天都显示条目**（之前只在开始日）；当天清单里这类活动的时间列标「展期中」。`byDate` 分组改为按 UTC 午夜从开始日逐天迭代到结束日填充（`guard < 366` 防异常 `endTime` 导致超长循环）。

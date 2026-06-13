@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 
 // 可吸附底部 sheet：两档 peek（最小化，露出地图便于拖锚点）/ full（完整表单）。
 //  - 打开默认 peek：只露出标题栏，地图可见 → 拖动锚点定位
@@ -13,17 +13,21 @@ export function BottomSheet({
   title,
   hint,
   onClose,
+  onSnapChange,
   children,
 }: {
   title: string;
   hint?: string;
   onClose: () => void;
+  onSnapChange?: (snap: "peek" | "full") => void;
   children: ReactNode;
 }) {
   const [snap, setSnap] = useState<"peek" | "full">("peek");
+  useEffect(() => { onSnapChange?.(snap); }, [snap, onSnapChange]);
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   function onPointerDown(e: PointerEvent) {
     startYRef.current = e.clientY;
@@ -33,8 +37,13 @@ export function BottomSheet({
   function onPointerMove(e: PointerEvent) {
     if (startYRef.current == null) return;
     const dy = e.clientY - startYRef.current;
-    // full 时不允许拖到 0 以上（往上拉无意义）；peek 时上下都可
-    setDragY(snap === "full" ? Math.max(0, dy) : dy);
+    if (snap === "full") {
+      setDragY(Math.max(0, dy)); // full 只能往下拖（回 peek）
+    } else {
+      // peek：下拖随意；上拖最多到 full 位置，不越过顶部留给抓手的空间
+      const sheetH = sheetRef.current?.offsetHeight ?? 0;
+      setDragY(Math.max(dy, -(sheetH - HEADER_PX)));
+    }
   }
   function onPointerUp() {
     if (startYRef.current == null) return;
@@ -55,9 +64,10 @@ export function BottomSheet({
   const base = snap === "peek" ? `100% - ${HEADER_PX}px` : "0px";
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 z-[999] flex justify-center pointer-events-none">
       <div
-        className="relative w-full sm:max-w-md max-h-[88vh] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
+        ref={sheetRef}
+        className="relative w-full sm:max-w-md h-[100dvh] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
         style={{
           transform: `translateY(calc(${base} + ${dragY}px))`,
           transition: dragging ? "none" : "transform 0.22s ease-out",
@@ -93,7 +103,9 @@ export function BottomSheet({
           )}
         </div>
 
-        <div className="overflow-y-auto px-5 pb-5">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,21 @@
 import { prisma } from "@/lib/db";
 import { geocode } from "./geocode";
+import { normalizeAddressForGeocode } from "@/lib/llm";
 import type { ExtractedEvent, RawDocument } from "./types";
+
+// 开关：用 LLM 把含建筑名/设施名的地址规范成标准住所，再交 GSI 地理编码（需 LLM key）。
+function geocodeLLMEnabled(): boolean {
+  const f = (process.env.GEOCODE_LLM_FALLBACK ?? "").toLowerCase();
+  const on = f === "1" || f === "true" || f === "yes";
+  return on && !!(process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY);
+}
+
+// 地址疑似含建筑名/设施名（含拉丁字母，或不以番地数字结尾）→ 值得 LLM 规范化。
+// 标准住所（如「東京都江東区有明3-3-8」）以数字结尾、无字母 → 跳过，省 LLM 调用。
+function looksLikeFacilityName(addr: string): boolean {
+  const a = addr.trim();
+  return /[A-Za-z]/.test(a) || !/[0-9０-９]\s*$/.test(a);
+}
 
 export type IngestStats = {
   considered: number;
@@ -38,7 +53,19 @@ export async function ingestEvents(
       console.warn(`  ⚠️  无地址，跳过："${ev.title}"`);
       continue;
     }
-    const coords = await geocode(ev.address);
+    // 含建筑名/设施名的地址，GSI 常定位到区中心/都厅 → 先 LLM 规范成标准住所再编码。
+    let queryAddr = ev.address;
+    if (geocodeLLMEnabled() && looksLikeFacilityName(ev.address)) {
+      const norm = await normalizeAddressForGeocode(ev.address);
+      if (norm && norm !== ev.address) {
+        queryAddr = norm;
+        console.log(`  ✓ LLM 规范化地址："${ev.address}" → "${norm}"`);
+      }
+    }
+    let coords = await geocode(queryAddr);
+    if (!coords && queryAddr !== ev.address) {
+      coords = await geocode(ev.address); // 规范化后定位失败 → 回退原地址再试
+    }
     if (!coords) {
       stats.geocodeFailed++;
       console.warn(`  ⚠️  地理编码失败，跳过："${ev.title}" @ ${ev.address}`);

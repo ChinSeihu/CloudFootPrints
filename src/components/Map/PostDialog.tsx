@@ -24,12 +24,13 @@ type Props = {
   lng: number;
   onCancel: () => void;
   onSubmit: (draft: PostDraft) => Promise<void>;
+  onSnapChange?: (snap: "peek" | "full") => void;
 };
 
 const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
 // 锚点发帖："这里有个活动"——在地图上标记并发布一个活动（sourceType=USER）。
-export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
+export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<EventCategory>("OTHER");
   const [description, setDescription] = useState("");
@@ -96,7 +97,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit }: Props) {
   }
 
   return (
-    <BottomSheet title="发帖 · 标记这里有个活动" hint="拖动地图上的蓝色锚点定位" onClose={onCancel}>
+    <BottomSheet title="发帖 · 标记这里有个活动" hint="拖动地图上的蓝色锚点定位" onClose={onCancel} onSnapChange={onSnapChange}>
       <p className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
         <IconPin className="w-3.5 h-3.5" />
         {lat.toFixed(5)}, {lng.toFixed(5)}

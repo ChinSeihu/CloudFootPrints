@@ -747,7 +747,7 @@ export function MapExplorer() {
         onCheckin={() => openPlacement("checkin")}
         onPost={() => openPlacement("post")}
       />
-      {/* 表单为可吸附 sheet：默认 peek（露出地图拖锚点），上拉填写，下拉重新定位 */}
+      {/* 表单为全屏可吸附 sheet：默认 peek（露出地图拖锚点），上拉展开填写，下拉收起 */}
       {dialogAt && mode === "checkin" && (
         <CheckInDialog lat={dialogAt.lat} lng={dialogAt.lng} onCancel={cancelDialog} onSubmit={submitCheckIn} />
       )}

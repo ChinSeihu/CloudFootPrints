@@ -86,7 +86,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                   <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
                   {meta.label} · {fmt(ev.startTime)}
                 </div>
-                <h2 className="text-sm font-medium leading-snug mb-1">{ev.title}</h2>
+                <h2 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{ev.title}</h2>
                 {ev.venueName && (
                   <div className="flex items-center gap-1 text-xs text-neutral-500">
                     <IconPin className="w-3 h-3 shrink-0" />

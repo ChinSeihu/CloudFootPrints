@@ -50,18 +50,18 @@
   - 解析/分类/映射共享在 `sources/jsonLd.ts`；有 `streetAddress` 时**直接用**（不与 region/locality/venue 重复拼接，否则干扰 GSI）。
 - **GO TOKYO 等 SPA 不接入**：靠封闭私有搜索 API 动态加载，参数不可逆向、易随改版失效。选源优先"内嵌标准 JSON-LD 且 SSR"。
 - **sourceUrl = 每条活动自己的详情页/官网**（JSON-LD 的 `url`），缺失才回退源列表页。ingest 去重键 `(title, startTime, sourceUrl)` 随之更稳（同活动 url 稳定，跨页/重抓判重成立）。跨源去重（同活动两站都收录）留到后续。
-- **地理编码（GSI）**：地址规范化（"東京"→"東京都"，否则 GSI 把"東京X"误判到北海道札幌）+ **东京边界校验**（解析到框外一律判失败，宁缺毋滥）。
+- **地理编码（GSI）**：地址规范化（"東京"→"東京都"，否则 GSI 把"東京X"误判到北海道札幌）+ **东京边界校验**（解析到框外一律判失败，宁缺毋滥）。含建筑名/设施名的地址 GSI 易落到区中心 → 可选 `GEOCODE_LLM_FALLBACK`：用 LLM 把地址规范成标准住所再编码（如「東京タワー」→「東京都港区芝公園」），东京边界校验兜底幻觉。
 - **分类**：JSON-LD 不带分类 → 先关键词（`classifyByKeyword`，"快闪/IP 体验展"等易误判 OTHER）；可选 `CLASSIFY_WITH_LLM=true` 用 LLM（DeepSeek/Claude）批量重判，关闭或缺 key 时零成本回退关键词。
 - **改了来源/坐标逻辑后用 `npm run extract -- --reset`**：先清掉抓取来的活动（保留发帖/打卡）再重抓，避免旧坏数据残留 + sourceUrl 变化导致重复。
 
 ## 导航与页面
 
 - 底部 4 tab：地图 / 日历 / 推荐 / 个人（`grid-cols-4`）
-- **页面切换动画**：`app/template.tsx`（每次导航重新挂载）给每个 tab 入场动画（淡入 + 上滑 `tem-page-in`）
+- **页面切换动画**：`app/template.tsx`（每次导航重新挂载）给每个 tab 入场动画（淡入 + 上滑 `tem-page-in`）；server 页（推荐/日历/个人）各配 `loading.tsx` 即时显示加载态、`BottomNav` 乐观高亮（点击立即高亮目标），消除切换"卡住"感
 - **日历页**按"东京时区当天"对活动分组；**长期活动（startTime→endTime 跨天）在展期每一天都出现**（按 UTC 午夜逐天填充，guard 防超长），清单里标「展期中」。详情统一复用 `Recommend/EventDetail`（地图弹窗、推荐、日历三处入口共用同一详情抽屉）
 - **推荐页**支持分类 chip 筛选（客户端按 `category` 过滤瀑布流）
 - **详情抽屉**：`fixed inset-0 z-50` 铺满屏、盖住底部 tab 导航；图片用 `object-contain`（看全原图，不裁剪）
-- **发帖/打卡 sheet**（`BottomSheet`）：`fixed inset-x-0 bottom-0 z-50` + `max-h-[88vh]`（底部贴屏幕底、盖底部导航，顶部留抓手；**注意 `max-h-%` 在无固定高度的父级下失效，必须用 `vh`**）。peek/full 两档，拖动**只在两档间切换、不因下拉直接取消**（避免误丢表单），关闭走右上角 ×
+- **发帖/打卡 sheet**（`BottomSheet`）：`fixed inset-x-0 bottom-0 z-[999]`，full 全屏 `h-[100dvh]`（顶贴顶、底贴底、隐藏滚动条；**注意 `max-h-%` 在无固定高度父级下失效，高度用 `vh/dvh`**）。peek/full 两档拖动切换（peek 上拉不越顶），**不因下拉直接取消**，关闭走右上角 ×。打卡与发帖共用，均支持 Cloudinary 图片上传 + 自定义时间
 
 ## 天气
 

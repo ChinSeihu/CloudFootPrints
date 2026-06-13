@@ -274,6 +274,54 @@ async function classifyViaOpenAICompatible(items: ClassifyItem[]): Promise<strin
   return Array.isArray(parsed?.categories) ? parsed.categories : [];
 }
 
+// ---------- 地址规范化（GSI 地理编码失败时的兜底）----------
+// walkerplus/jalan 的地址常带建筑名/设施名，GSI 可能匹配不到。让 LLM 转成
+// 「国土地理院地址检索」能识别的标准日文住所；不确定就到町级，不编造番地。
+
+const GEOCODE_NORMALIZE_SYSTEM = `你是日本地址规范化器。把给定的活动地址转成「国土地理院地址検索」能精确匹配的标准日文住所。
+规则：
+- 输出格式：都道府県 + 市区町村 + 町名 +（可选）丁目・番地，例如「東京都江東区有明3-3-8」。
+- 去掉建筑名/设施名/店铺名/楼层（如「TOKYO DREAM PARK」「○○ビル3F」「△△駅前」）。
+- 若能确定该设施的准确番地就输出到番地；**不确定就只输出到「都道府県+市区町村+町名」，绝不编造番地**。
+- 只输出一行地址字符串，不要任何解释、引号或多余文字。`;
+
+export async function normalizeAddressForGeocode(raw: string): Promise<string | null> {
+  const addr = raw?.trim();
+  if (!addr) return null;
+  try {
+    if (getProvider() === "anthropic") {
+      const res = await getAnthropic().messages.create({
+        model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+        max_tokens: 128,
+        system: GEOCODE_NORMALIZE_SYSTEM,
+        messages: [{ role: "user", content: addr }],
+      });
+      const block = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+      return block ? block.text.trim() : null;
+    }
+    const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+      body: JSON.stringify({
+        model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: GEOCODE_NORMALIZE_SYSTEM },
+          { role: "user", content: addr },
+        ],
+        temperature: 0,
+        max_tokens: 128,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content;
+    return content ? String(content).trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 const CLASSIFY_BATCH = 40;
 
 // 批量分类。返回与输入等长的数组；个别无法判定处填 null（调用方回退原分类）。
