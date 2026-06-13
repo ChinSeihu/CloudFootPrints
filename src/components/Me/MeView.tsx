@@ -212,44 +212,45 @@ function MeContent() {
             {loaded && favorites.length === 0 && (
               <p className="text-sm text-neutral-500">还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。</p>
             )}
-            <ul className="space-y-3">
+            <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
               {favorites.map((p) => {
                 const meta = CATEGORY_META[p.category];
                 return (
-                  <li key={p.id} className="rounded-xl border border-black/10 overflow-hidden bg-white">
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelected(p)}
+                    className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
+                  >
                     {p.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
                     )}
                     <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-                    <button
-                      type="button"
-                      onClick={() => setSelected(p)}
-                      className="block w-full text-left p-3"
-                    >
+                    <div className="p-3">
                       <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                         <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
                         {meta.label} · {fmtDate(p.startTime)}
                       </div>
-                      <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
+                      <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{p.title}</h3>
                       {p.venueName && (
-                        <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
+                        <div className="flex items-center gap-1 text-xs text-neutral-500">
                           <IconPin className="w-3 h-3 shrink-0" />
                           {p.venueName}
                         </div>
                       )}
                       {p.description && (
-                        <p className="text-xs text-neutral-600 mt-1 line-clamp-2">{p.description}</p>
+                        <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
                       )}
                       <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
                         <IconBookmark filled className="w-3.5 h-3.5" />
-                        已收藏 · 查看详情
+                        已收藏
                       </span>
-                    </button>
-                  </li>
+                    </div>
+                  </button>
                 );
               })}
-            </ul>
+            </div>
           </>
         )}
       </div>

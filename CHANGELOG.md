@@ -14,7 +14,7 @@
 - **服务层** `services/reactions.ts`：`getReactionState`（点赞/收藏计数 + 当前用户是否已操作）、`toggleReaction`（切换，返回新状态 + 计数）、`listFavoriteEvents`（我的收藏，附作者）。service 不读 cookie，userId 由 route 传入。
 - **API**：`GET/POST /api/events/[id]/reactions`（查状态 / 切换，POST 需登录）、`GET /api/favorites`（我的收藏）。
 - **详情页**：头部日期行右侧新增 ❤️ 点赞 + 🔖 收藏按钮（带计数、激活态变色），乐观更新 + 失败回滚，未登录提示登录。
-- **个人页**：新增「收藏」tab，列出收藏的活动（足迹地图同步打点），点击进详情（可在详情里取消收藏，关闭时刷新列表）。
+- **个人页**：新增「收藏」tab，**卡片瀑布流**（`columns-2` 2 列，与推荐页一致：封面图 + 色条 + 分类日期 + 标题 + 场馆 + 简介 + 「已收藏」角标），足迹地图同步打点，点击进详情（可在详情里取消收藏，关闭时刷新列表）。
 - **图标**：`icons.tsx` 新增 `IconHeart` / `IconBookmark`（支持 `filled`）。
 
 > 注意：本地改 schema 后 dev server 需**重启**才能加载新生成的 Prisma client（否则 `prisma.reaction` 为 undefined → 500）。
