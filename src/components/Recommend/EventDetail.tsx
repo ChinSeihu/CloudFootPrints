@@ -69,17 +69,33 @@ export function EventDetail({
   const [err, setErr] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
 
-  // 顶层评论 + 各自的回复（按时间）
+  // 按 id 索引，便于查回复目标
+  const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
+
+  // 顶层评论 + 其整棵子树的所有回复（楼中楼，平铺一层缩进，按时间排序）
   const threads = useMemo(() => {
+    const map = new Map(comments.map((c) => [c.id, c]));
+    const rootOf = (c: CommentDTO): string => {
+      let cur = c;
+      let guard = 0;
+      while (cur.parentId && map.get(cur.parentId) && guard < 50) {
+        cur = map.get(cur.parentId)!;
+        guard++;
+      }
+      return cur.id;
+    };
     const top = comments.filter((c) => !c.parentId);
-    const repliesByParent = new Map<string, CommentDTO[]>();
+    const descByRoot = new Map<string, CommentDTO[]>();
     for (const c of comments) {
       if (!c.parentId) continue;
-      const arr = repliesByParent.get(c.parentId);
+      const root = rootOf(c);
+      if (root === c.id) continue;
+      const arr = descByRoot.get(root);
       if (arr) arr.push(c);
-      else repliesByParent.set(c.parentId, [c]);
+      else descByRoot.set(root, [c]);
     }
-    return top.map((t) => ({ comment: t, replies: repliesByParent.get(t.id) ?? [] }));
+    for (const arr of descByRoot.values()) arr.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return top.map((t) => ({ comment: t, replies: descByRoot.get(t.id) ?? [] }));
   }, [comments]);
 
   // 点赞 / 收藏状态
@@ -169,8 +185,21 @@ export function EventDetail({
     try {
       const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
       if (res.ok) {
-        // 删除该评论及其回复（parentId 指向它的）
-        setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+        // 删除该评论及其整棵子树（后端级联删，前端同步移除）
+        setComments((prev) => {
+          const remove = new Set([id]);
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const c of prev) {
+              if (c.parentId && remove.has(c.parentId) && !remove.has(c.id)) {
+                remove.add(c.id);
+                changed = true;
+              }
+            }
+          }
+          return prev.filter((c) => !remove.has(c.id));
+        });
       } else {
         const d = await res.json().catch(() => ({}));
         setErr(d.error || "删除失败");
@@ -184,9 +213,13 @@ export function EventDetail({
     router.push(`/?lat=${event.lat}&lng=${event.lng}`);
   }
 
-  // 单条评论（含回复缩进、回复/删除按钮）
+  // 单条评论（含回复缩进、回复/删除按钮；楼中楼显示 @回复目标）
   function renderComment(c: CommentDTO, isReply: boolean) {
     const mine = !!user && c.userId === user.id;
+    // 父级是「回复」（而非顶层评论）时，属于楼中楼 → 显示 @目标
+    const parent = c.parentId ? byId.get(c.parentId) : null;
+    const showAt = !!parent && !!parent.parentId;
+    const atName = parent?.author?.username ?? "用户";
     return (
       <div className={`flex gap-2.5 ${isReply ? "ml-9" : ""}`}>
         <Avatar user={c.author} size={isReply ? 26 : 30} />
@@ -195,11 +228,14 @@ export function EventDetail({
             <span className="text-sm font-medium text-neutral-800">{c.author?.username ?? "用户"}</span>
             <span className="text-[11px] text-neutral-400">{new Date(c.createdAt).toLocaleString("zh-CN")}</span>
           </div>
-          <div className="text-sm text-neutral-700 whitespace-pre-wrap mt-0.5">{c.text}</div>
+          <div className="text-sm text-neutral-700 whitespace-pre-wrap mt-0.5">
+            {showAt && <span className="text-blue-600 font-medium">@{atName}：</span>}
+            {c.text}
+          </div>
           <div className="flex items-center gap-3 mt-1">
             <button
               type="button"
-              onClick={() => setReplyTo({ id: isReply ? (c.parentId as string) : c.id, username: c.author?.username ?? "用户" })}
+              onClick={() => setReplyTo({ id: c.id, username: c.author?.username ?? "用户" })}
               className="text-[11px] text-neutral-400 hover:text-blue-600 transition"
             >
               回复

@@ -57,6 +57,12 @@ function MeContent() {
     if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
   }
 
+  async function deleteCheckin(id: string) {
+    if (!confirm("确定删除这条打卡吗？")) return;
+    const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
+    if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <ProfileHeader />
@@ -123,9 +129,18 @@ function MeContent() {
               {checkins.map((c) => (
                 <li key={c.id} className="mb-5 ml-4">
                   <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-blue-600 border border-white" />
-                  <time className="text-[11px] text-neutral-400">
-                    {new Date(c.createdAt).toLocaleString("zh-CN")}
-                  </time>
+                  <div className="flex items-center gap-2">
+                    <time className="text-[11px] text-neutral-400">
+                      {new Date(c.createdAt).toLocaleString("zh-CN")}
+                    </time>
+                    <button
+                      type="button"
+                      onClick={() => deleteCheckin(c.id)}
+                      className="ml-auto text-[11px] text-neutral-400 hover:text-red-500 transition"
+                    >
+                      删除
+                    </button>
+                  </div>
                   {c.event && (
                     <div className="flex items-center gap-1 text-xs text-neutral-500">
                       <CategoryIcon category={c.event.category} className="w-3.5 h-3.5" />

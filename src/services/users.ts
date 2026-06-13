@@ -12,8 +12,8 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
   if (!demo) return null;
   const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, coverUrl: true } });
   if (existing) {
-    // 老测试账号补上莫奈背景（仅当当前没有背景时，不覆盖手动设置）
-    if (!existing.coverUrl) {
+    // 测试账号背景同步为当前预设（demo 账号是展示用的固定形象）
+    if (existing.coverUrl !== demo.coverUrl) {
       await prisma.user.update({ where: { id: existing.id }, data: { coverUrl: demo.coverUrl } });
     }
     return existing.id;
