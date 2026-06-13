@@ -6,6 +6,16 @@
 
 ## 2026-06-13
 
+### 测试账号一键登录（当前阶段方便用）
+
+- 预置 5 个真实感测试账号（さくら / ケンジ / 小林ゆい / たけし / 美咲，各带签名 / 常住地 / 状态）。
+- 登录页底部「测试账号 · 一键登录」区：点选即登录、**无需注册**；首次点选自动创建该账号（含预置资料）。
+- 统一口令只在服务端（`services/users.ts`），不暴露前端；`/api/auth/demo` 仅接受白名单用户名。
+
+**涉及文件：** `lib/demoUsers.ts`、`services/users.ts`（`ensureDemoUser`）、`app/api/auth/demo/route.ts`、`components/Auth/AuthForm.tsx`
+
+---
+
 ### #1 用户系统（本地账号）
 
 从"单用户 `me`"升级为真实账号：

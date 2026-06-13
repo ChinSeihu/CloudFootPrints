@@ -1,5 +1,28 @@
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword, type PublicUser } from "@/lib/auth";
+import { DEMO_USERS } from "@/lib/demoUsers";
+
+// 测试账号统一口令（仅服务端）；用户走"快速登录"无需输入，正常登录则需要此口令。
+const DEMO_PASSWORD = "demo-pass-1234";
+
+// 确保某个白名单测试账号存在（首次自动创建，带预置资料），返回其 id；非白名单返回 null。
+export async function ensureDemoUser(username: string): Promise<string | null> {
+  const demo = DEMO_USERS.find((d) => d.username === username);
+  if (!demo) return null;
+  const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+  if (existing) return existing.id;
+  const user = await prisma.user.create({
+    data: {
+      username: demo.username,
+      passwordHash: await hashPassword(DEMO_PASSWORD),
+      signature: demo.signature,
+      hometown: demo.hometown,
+      status: demo.status,
+    },
+    select: { id: true },
+  });
+  return user.id;
+}
 
 // 领域逻辑：账号注册 / 登录 / 资料更新。route handler 只调用这里。
 
