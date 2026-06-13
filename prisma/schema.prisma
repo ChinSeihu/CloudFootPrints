@@ -42,6 +42,7 @@ model Event {
   sourceUrl   String?
   trustLevel  Int           @default(0) // 官方高、用户/社交低
   rawText     String?       // 保留原始文本，便于以后重新解析
+  userId      String?       // USER 发帖的作者（User.id）；抓取来源为 null
 
   checkIns    CheckIn[]
   comments    Comment[]
@@ -81,4 +82,15 @@ model Comment {
   @@index([eventId, createdAt])
 }
 
-// TODO(v2): model User { ... } 认证启用后引入
+// v2：本地账号（用户名 + 口令哈希）。CheckIn/Comment/Event 的 userId 存本表 id（旧数据沿用 "me"，不加外键以免破坏）。
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  signature    String? // 个性签名
+  avatarUrl    String? // 头像（Cloudinary URL）
+  hometown     String? // 常住地（可选）
+  status       String? // 状态 / 心情
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

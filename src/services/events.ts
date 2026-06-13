@@ -51,9 +51,9 @@ export async function getEventsInBounds(q: EventQuery) {
 
 // 我的发帖：列出当前用户发布的活动（sourceType=USER），按创建时间倒序。
 // v1 单用户，全部 USER 活动都属于本人；v2 接入认证后按 userId 过滤。
-export function listUserEvents() {
+export function listUserEvents(userId: string) {
   return prisma.event.findMany({
-    where: { sourceType: "USER" },
+    where: { sourceType: "USER", userId },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
@@ -83,7 +83,7 @@ export type CreateUserEventResult =
   | { ok: true; event: Awaited<ReturnType<typeof createUserEventRow>> }
   | { ok: false; error: string };
 
-function createUserEventRow(input: CreateUserEventInput) {
+function createUserEventRow(input: CreateUserEventInput, userId: string) {
   return prisma.event.create({
     data: {
       title: input.title.trim(),
@@ -99,28 +99,34 @@ function createUserEventRow(input: CreateUserEventInput) {
       sourceType: "USER",
       sourceUrl: null,
       trustLevel: 10, // 用户发布：低信任
+      userId,
     },
   });
 }
 
 export async function createUserEvent(
   input: CreateUserEventInput,
+  userId: string,
 ): Promise<CreateUserEventResult> {
   if (!input.title?.trim()) return { ok: false, error: "缺少活动名称" };
   if (!isEventCategory(input.category)) return { ok: false, error: "非法分类" };
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     return { ok: false, error: "缺少或非法的坐标" };
   }
-  const event = await createUserEventRow(input);
+  const event = await createUserEventRow(input, userId);
   return { ok: true, event };
 }
 
 export type DeleteUserEventResult = { ok: true } | { ok: false; error: string };
 
-export async function deleteUserEvent(id: string): Promise<DeleteUserEventResult> {
-  const existing = await prisma.event.findUnique({ where: { id } });
+export async function deleteUserEvent(id: string, userId: string): Promise<DeleteUserEventResult> {
+  const existing = await prisma.event.findUnique({
+    where: { id },
+    select: { sourceType: true, userId: true },
+  });
   if (!existing) return { ok: false, error: "活动不存在" };
   if (existing.sourceType !== "USER") return { ok: false, error: "只能删除自己发布的活动" };
+  if (existing.userId && existing.userId !== userId) return { ok: false, error: "无权限删除" };
   await prisma.event.delete({ where: { id } });
   return { ok: true };
 }

@@ -8,7 +8,7 @@
 
 - **薄 route handler + 厚 service 层**：领域逻辑全在 `src/services/*`，route handler 只解析参数/调 service/返回响应。目的：为未来迁移 Python 留门。
 - **数据库即接缝**：未来 Python 服务接入时，以 DB + HTTP/JSON 为边界，不提前搭抽象层。
-- **v1 单用户**：`userId` 固定 `"me"`，所有打卡/发帖都属于本人。v2 接入真实认证后替换。
+- **用户系统（已接入本地账号）**：`User` 表 + bcrypt 口令哈希 + jose JWT(httpOnly cookie)，`lib/auth.ts` 提供会话。打卡/发帖/删除按真实 `userId` 鉴权；未登录不可打卡/发帖。**service 不读 cookie**——route 取 `getCurrentUserId()` 后传入，避免脱离 request context（如 extract 脚本）。旧 `userId="me"` 历史数据保留不迁移。前端登录态用 `AuthContext`（layout 挂载）。`AUTH_SECRET` 签名密钥（本地有开发默认）。
 
 ## 技术栈（锁定，不随意替换）
 
@@ -92,4 +92,6 @@
 
 - **只实现 v1**，v2/v3 功能（审核、个性化推荐、Python 服务）不超前实现，代码用 `TODO` 标注挂载点
 - 下一阶段（v1.5）：锚点发帖完善、地图风格切换器
-- **用户系统（v2，已确认需求，待实现）**：简单本地账号（口令 `bcrypt` 哈希）；用户资料字段 = 用户名 / 个性签名 / 头像 / 常住地（可选）/ 状态；用于发帖、评论区分用户，并支撑**收藏 / 点赞**。未登录不可打卡/发帖，个人页提供登录入口。届时把现有固定 `userId="me"` 替换为真实用户。
+- **用户系统**：✅ 已实现（本地账号 + 认证 + 个人资料 + 未登录拦截，见上「架构」与 CHANGELOG）。
+- **收藏 / 点赞（#2，待实现）**：依赖用户系统；新增收藏（用户↔活动）与点赞表 + API + UI。
+- **评论作者展示（待实现）**：Comment 记录真实 userId 后，列表 join User 显示用户名/头像。

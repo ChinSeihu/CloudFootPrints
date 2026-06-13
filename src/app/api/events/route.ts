@@ -5,6 +5,7 @@ import {
   listUserEvents,
   parseEventQuery,
 } from "@/services/events";
+import { getCurrentUserId } from "@/lib/auth";
 import type { EventCategory } from "@/lib/categories";
 
 // GET /api/events?mine=1                      —— 我的发帖（无需 bbox）
@@ -15,7 +16,9 @@ export async function GET(request: Request) {
 
   if (searchParams.get("mine")) {
     try {
-      const events = await listUserEvents();
+      const userId = await getCurrentUserId();
+      if (!userId) return NextResponse.json({ events: [] });
+      const events = await listUserEvents(userId);
       return NextResponse.json({ events });
     } catch (err) {
       console.error("GET /api/events?mine failed:", err);
@@ -44,18 +47,24 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "请先登录后再发帖" }, { status: 401 });
+
   const b = (body ?? {}) as Record<string, unknown>;
-  const result = await createUserEvent({
-    title: typeof b.title === "string" ? b.title : "",
-    category: b.category as EventCategory,
-    description: typeof b.description === "string" ? b.description : null,
-    venueName: typeof b.venueName === "string" ? b.venueName : null,
-    imageUrl: typeof b.imageUrl === "string" ? b.imageUrl : null,
-    startTime: typeof b.startTime === "string" ? b.startTime : null,
-    endTime: typeof b.endTime === "string" ? b.endTime : null,
-    lat: Number(b.lat),
-    lng: Number(b.lng),
-  });
+  const result = await createUserEvent(
+    {
+      title: typeof b.title === "string" ? b.title : "",
+      category: b.category as EventCategory,
+      description: typeof b.description === "string" ? b.description : null,
+      venueName: typeof b.venueName === "string" ? b.venueName : null,
+      imageUrl: typeof b.imageUrl === "string" ? b.imageUrl : null,
+      startTime: typeof b.startTime === "string" ? b.startTime : null,
+      endTime: typeof b.endTime === "string" ? b.endTime : null,
+      lat: Number(b.lat),
+      lng: Number(b.lng),
+    },
+    userId,
+  );
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

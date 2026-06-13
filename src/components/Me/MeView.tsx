@@ -6,6 +6,9 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconStar, IconPin, IconMap } from "@/components/icons";
+import { useAuth } from "@/components/Auth/AuthContext";
+import { AuthForm } from "@/components/Auth/AuthForm";
+import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
 
 const DEFAULT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
@@ -18,8 +21,8 @@ function fmtDate(d: string | null): string {
   return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// 个人页：打卡 / 发帖 两个 tab，共用顶部足迹地图（按当前 tab 撒点）。v1 单用户。
-export function MeView() {
+// 登录后的个人页内容：资料头部 + 足迹地图 + 打卡/发帖两 tab。
+function MeContent() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -30,21 +33,19 @@ export function MeView() {
   const [posts, setPosts] = useState<EventDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  async function loadAll() {
-    const [c, p] = await Promise.all([
-      fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
-      fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
-    ]);
-    setCheckins(c.checkins ?? []);
-    setPosts(p.events ?? []);
-    setLoaded(true);
-  }
-
   useEffect(() => {
-    loadAll();
+    (async () => {
+      const [c, p] = await Promise.all([
+        fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
+        fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
+      ]);
+      setCheckins(c.checkins ?? []);
+      setPosts(p.events ?? []);
+      setLoaded(true);
+    })();
   }, []);
 
-  // 足迹地图初始化（常驻）
+  // 足迹地图初始化
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
@@ -90,9 +91,9 @@ export function MeView() {
 
   return (
     <div className="h-full overflow-y-auto">
+      <ProfileHeader />
       <div ref={containerRef} className="h-56 w-full relative bg-neutral-100" />
 
-      {/* tab 切换 */}
       <div className="flex border-b border-neutral-200 px-4 pt-3 gap-4">
         {([
           ["checkins", `打卡 ${checkins.length || ""}`],
@@ -203,4 +204,18 @@ export function MeView() {
       </div>
     </div>
   );
+}
+
+// 个人页：未登录显示登录/注册，登录后显示资料 + 足迹。
+export function MeView() {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="h-full grid place-items-center">
+        <div className="h-8 w-8 rounded-full border-2 border-neutral-200 border-t-blue-600 animate-spin" />
+      </div>
+    );
+  }
+  if (!user) return <AuthForm />;
+  return <MeContent />;
 }

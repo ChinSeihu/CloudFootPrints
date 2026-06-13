@@ -11,6 +11,7 @@ import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
+import { useAuth } from "@/components/Auth/AuthContext";
 import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
@@ -142,6 +143,8 @@ export function MapExplorer() {
   const { openGuide } = useGuide();
   const openGuideRef = useRef(openGuide);
   useEffect(() => { openGuideRef.current = openGuide; });
+
+  const { user } = useAuth();
 
   const mapRef = useRef<maplibregl.Map | null>(null);
   const maplibreRef = useRef<typeof maplibregl | null>(null);
@@ -688,6 +691,10 @@ export function MapExplorer() {
   }
 
   function openPlacement(m: Mode) {
+    if (!user) {
+      showToast("请先到「个人」页登录后再打卡 / 发帖");
+      return;
+    }
     const map = mapRef.current;
     const mlg = maplibreRef.current;
     if (!map || !mlg || placingRef.current) return;

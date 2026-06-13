@@ -6,6 +6,22 @@
 
 ## 2026-06-13
 
+### #1 用户系统（本地账号）
+
+从"单用户 `me`"升级为真实账号：
+
+- **数据库**：新增 `User` 表（用户名 / 口令哈希 / 个性签名 / 头像 / 常住地 / 状态）；`Event` 加 `userId`（发帖作者）。db push 到 Neon。
+- **认证**：`bcryptjs` 口令哈希 + `jose` 签发 JWT 存 httpOnly cookie。`lib/auth.ts`（hash/verify/session/getCurrentUser）+ `/api/auth/{register,login,logout,me,profile}`。
+- **个人页**：未登录显示登录/注册表单（`AuthForm`）；登录后显示资料卡（头像 / 用户名 / 状态 / 签名 / 常住地，可内联编辑 + 头像上传 + 登出）+ 原有打卡/发帖足迹。全局登录态 `AuthContext`（layout 挂载）。
+- **权限**：未登录**不可打卡 / 发帖**（前端 toast 提示 + 后端 401）；打卡 / 发帖记录真实 `userId`；打卡列表、我的发帖按当前用户过滤；删除仅本人可操作。
+- **依赖**：`bcryptjs`、`jose`；env 加 `AUTH_SECRET`（本地有开发默认）。
+
+> 待办：评论作者用户名展示；**#2 收藏 / 点赞**（依赖本系统）。旧 `userId="me"` 的历史数据保留、不迁移。
+
+**涉及文件：** `prisma/schema.prisma`、`lib/auth.ts`、`services/users.ts`、`app/api/auth/*`、`components/Auth/{AuthContext,AuthForm}.tsx`、`components/Me/{MeView,ProfileHeader}.tsx`、`services/{checkins,events}.ts` 与对应 route、`components/Map/MapExplorer.tsx`、`app/layout.tsx`、`.env.example`
+
+---
+
 ### loading 趣味化 + AI 导游活动入口
 
 1. **loading 趣味化**：切 tab 的加载占位从单调转圈，改为**分类色波浪跳动圆点 + 文案**（推荐"正在为你找活动…"、日历"正在翻日历…"、个人"正在整理足迹…"），抽出 `PageLoading` 组件。

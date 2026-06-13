@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createCheckin, listCheckins } from "@/services/checkins";
+import { getCurrentUserId } from "@/lib/auth";
 
-// GET /api/checkins —— 我的打卡列表
+// GET /api/checkins —— 当前登录用户的打卡列表（未登录返回空，打卡属个人足迹）
 export async function GET() {
   try {
-    const checkins = await listCheckins();
+    const userId = await getCurrentUserId();
+    if (!userId) return NextResponse.json({ checkins: [] });
+    const checkins = await listCheckins(userId);
     return NextResponse.json({ checkins });
   } catch (err) {
     console.error("GET /api/checkins failed:", err);
@@ -21,16 +24,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
 
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "请先登录后再打卡" }, { status: 401 });
+
   const b = (body ?? {}) as Record<string, unknown>;
-  const result = await createCheckin({
-    lat: Number(b.lat),
-    lng: Number(b.lng),
-    note: typeof b.note === "string" ? b.note : null,
-    photoUrl: typeof b.photoUrl === "string" ? b.photoUrl : null,
-    rating: b.rating == null ? null : Number(b.rating),
-    visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
-    eventId: typeof b.eventId === "string" ? b.eventId : null,
-  });
+  const result = await createCheckin(
+    {
+      lat: Number(b.lat),
+      lng: Number(b.lng),
+      note: typeof b.note === "string" ? b.note : null,
+      photoUrl: typeof b.photoUrl === "string" ? b.photoUrl : null,
+      rating: b.rating == null ? null : Number(b.rating),
+      visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
+      eventId: typeof b.eventId === "string" ? b.eventId : null,
+    },
+    userId,
+  );
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
