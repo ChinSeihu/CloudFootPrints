@@ -6,6 +6,7 @@ import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin } from "@/components/icons";
+import { PRESET_COVERS } from "@/lib/covers";
 
 function Avatar({ url, name, size = 56 }: { url: string | null; name: string; size?: number }) {
   if (url) {
@@ -173,6 +174,26 @@ export function ProfileHeader() {
                 )}
               </div>
             )}
+            {/* 莫奈预设背景，可直接选 */}
+            <div>
+              <div className={`text-[11px] mb-1.5 ${hasCover ? "text-white/80" : "text-neutral-400"}`}>选择背景（莫奈）</div>
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {PRESET_COVERS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCoverUrl(c.url)}
+                    title={c.name}
+                    className={`relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition ${
+                      coverUrl === c.url ? "border-blue-500" : hasCover ? "border-white/40" : "border-transparent"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.url} alt={c.name} loading="lazy" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
             <input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="状态 / 此刻心情" className={fieldCls} />
             <input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="个性签名" className={fieldCls} />
             <input value={hometown} onChange={(e) => setHometown(e.target.value)} placeholder="常住地（可选）" className={fieldCls} />

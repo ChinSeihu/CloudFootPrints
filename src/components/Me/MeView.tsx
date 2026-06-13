@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark, IconBell } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -13,9 +11,6 @@ import { CountBadge } from "@/components/common/CountBadge";
 import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
-const DEFAULT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-const TOKYO_CENTER: [number, number] = [139.7671, 35.6812];
-
 type Tab = "checkins" | "posts" | "favorites" | "messages";
 
 function fmtDate(d: string | null): string {
@@ -23,12 +18,9 @@ function fmtDate(d: string | null): string {
   return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// 登录后的个人页内容：资料头部 + 足迹地图 + 打卡/发帖两 tab。
+// 登录后的个人页内容：资料卡 + 打卡照片拼图 + 打卡/发帖/收藏/消息 tab。
 function MeContent() {
   const router = useRouter();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
 
   const [tab, setTab] = useState<Tab>("checkins");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
@@ -54,45 +46,11 @@ function MeContent() {
     })();
   }, []);
 
-  // 足迹地图初始化
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_STYLE,
-      center: TOKYO_CENTER,
-      zoom: 11,
-    });
-    mapRef.current = map;
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  // 按当前 tab 在地图上撒点
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    const list = tab === "checkins" ? checkins : tab === "posts" ? posts : favorites;
-    const pts: Array<{ lat: number; lng: number; color: string }> =
-      tab === "checkins"
-        ? checkins.map((c) => ({ lat: c.lat, lng: c.lng, color: "#2563eb" }))
-        : (list as EventDTO[]).map((p) => ({ lat: p.lat, lng: p.lng, color: CATEGORY_META[p.category]?.color ?? "#6b7280" }));
-
-    if (pts.length === 0) return;
-    const bounds = new maplibregl.LngLatBounds();
-    for (const pt of pts) {
-      const el = document.createElement("div");
-      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${pt.color};border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4)`;
-      markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([pt.lng, pt.lat]).addTo(map));
-      bounds.extend([pt.lng, pt.lat]);
-    }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 48, maxZoom: 14 });
-  }, [tab, checkins, posts, favorites]);
+  // 打卡照片拼图：收集打卡上传的照片（最多 9 张）
+  const photos = useMemo(
+    () => checkins.map((c) => c.photoUrl).filter((u): u is string => !!u).slice(0, 9),
+    [checkins],
+  );
 
   async function deletePost(id: string) {
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
@@ -102,7 +60,31 @@ function MeContent() {
   return (
     <div className="h-full overflow-y-auto">
       <ProfileHeader />
-      <div ref={containerRef} className="h-56 w-full relative bg-neutral-100" />
+
+      {/* 打卡照片拼图 */}
+      <div className="px-4 pt-2 pb-1">
+        {photos.length === 0 ? (
+          <div className="h-28 rounded-2xl bg-neutral-100 grid place-items-center text-neutral-400">
+            <div className="text-center px-4">
+              <IconStar className="w-6 h-6 mx-auto mb-1 opacity-50" />
+              <p className="text-xs">打卡时上传照片，这里会拼成你的足迹相册</p>
+            </div>
+          </div>
+        ) : (
+          <div className={`grid gap-0.5 rounded-2xl overflow-hidden ${photos.length === 1 ? "grid-cols-1" : photos.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+            {photos.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={url}
+                alt=""
+                loading="lazy"
+                className={`w-full object-cover ${photos.length === 1 ? "max-h-56" : "aspect-square"}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="px-4 pt-3 pb-1">
         <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">

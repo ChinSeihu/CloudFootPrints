@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword, type PublicUser } from "@/lib/auth";
 import { DEMO_USERS } from "@/lib/demoUsers";
+import { DEFAULT_COVER } from "@/lib/covers";
 
 // 测试账号统一口令（仅服务端）；用户走"快速登录"无需输入，正常登录则需要此口令。
 const DEMO_PASSWORD = "demo-pass-1234";
@@ -9,8 +10,14 @@ const DEMO_PASSWORD = "demo-pass-1234";
 export async function ensureDemoUser(username: string): Promise<string | null> {
   const demo = DEMO_USERS.find((d) => d.username === username);
   if (!demo) return null;
-  const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } });
-  if (existing) return existing.id;
+  const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, coverUrl: true } });
+  if (existing) {
+    // 老测试账号补上莫奈背景（仅当当前没有背景时，不覆盖手动设置）
+    if (!existing.coverUrl) {
+      await prisma.user.update({ where: { id: existing.id }, data: { coverUrl: demo.coverUrl } });
+    }
+    return existing.id;
+  }
   const user = await prisma.user.create({
     data: {
       username: demo.username,
@@ -18,6 +25,7 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
       signature: demo.signature,
       hometown: demo.hometown,
       status: demo.status,
+      coverUrl: demo.coverUrl,
     },
     select: { id: true },
   });
@@ -45,7 +53,7 @@ export async function registerUser(username: string, password: string): Promise<
   const exists = await prisma.user.findUnique({ where: { username: u }, select: { id: true } });
   if (exists) return { ok: false, error: "用户名已被占用" };
   const user = await prisma.user.create({
-    data: { username: u, passwordHash: await hashPassword(password) },
+    data: { username: u, passwordHash: await hashPassword(password), coverUrl: DEFAULT_COVER },
     select: { id: true },
   });
   return { ok: true, userId: user.id };

@@ -6,6 +6,17 @@
 
 ## 2026-06-14
 
+### 个人页：足迹地图换成打卡照片拼图 + 莫奈预设背景
+
+- **打卡照片拼图**：个人页顶部的「足迹地图」替换为**打卡照片网格**（取打卡上传的照片，最多 9 张，1/2/3 列自适应；无照片时占位提示）。顺带移除 MeView 的 MapLibre 依赖，更轻量。
+- **莫奈预设背景**：`lib/covers.ts` 收录 6 幅莫奈公有领域作品（Wikimedia Commons，已验证可加载）。资料卡编辑里可从预设缩略图一键选择背景，或继续自定义上传。
+- **测试账号背景**：5 个 demo 账号各配一幅莫奈背景（`demoUsers.ts`）；`ensureDemoUser` 对老账号补背景（仅当为空，不覆盖手动设置）。
+- **新用户默认背景**：注册时默认给「睡莲」背景（`registerUser` 写入 `DEFAULT_COVER`）。
+
+**涉及文件：** `lib/covers.ts`、`lib/demoUsers.ts`、`services/users.ts`、`components/Me/MeView.tsx`、`components/Me/ProfileHeader.tsx`
+
+---
+
 ### 修复页面级滚动条（根因）+ 资料卡自定义背景图
 
 - **页面级滚动条**：根因是文档根 `html` 仍可滚动（body 虽 `overflow-hidden`）。globals.css 给 `html` 加 `overflow:hidden` + `overscroll-behavior:none`，并撤掉先前 MeView 上隐藏滚动条的临时补丁，恢复内部正常滚动。
