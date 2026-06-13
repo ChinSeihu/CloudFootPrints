@@ -66,7 +66,8 @@ export function ldToExtracted(e: LdEvent): ExtractedEvent {
     address,
     imageUrl: e.image ?? null,
     sourceUrl: e.url ?? null, // JSON-LD 的 url = 活动详情页（jalan）/官网（walkerplus）
-    startTime: e.startDate ? `${e.startDate}T00:00:00` : null,
-    endTime: e.endDate ? `${e.endDate}T00:00:00` : null,
+    // 日期补东京时区，避免无时区字符串被不同环境解析成不同 UTC（曾导致重复）
+    startTime: e.startDate ? `${e.startDate}T00:00:00+09:00` : null,
+    endTime: e.endDate ? `${e.endDate}T00:00:00+09:00` : null,
   };
 }

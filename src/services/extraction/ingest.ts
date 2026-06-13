@@ -32,7 +32,8 @@ function parseDate(s: string | null): Date | null {
 
 // 把一批已抽取的活动（含来源元数据）落库：
 //  1) 必填校验  2) 地理编码（无地址或失败则跳过该条）  3) 简单去重  4) 写入。
-// 去重：v1 用 (title + startTime + sourceUrl) 判同一条。多源融合去重留待后续。
+// 去重：用 (title + sourceUrl) 判同一条。**不含 startTime**——日期来源无时区，
+// 不同环境解析出的 UTC 时间会漂移，曾导致同一活动重复入库。多源融合去重留待后续。
 export async function ingestEvents(
   events: ExtractedEvent[],
   source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">,
@@ -76,7 +77,7 @@ export async function ingestEvents(
     const eventSourceUrl = ev.sourceUrl ?? source.sourceUrl;
 
     const existing = await prisma.event.findFirst({
-      where: { title: ev.title, startTime, sourceUrl: eventSourceUrl },
+      where: { title: ev.title, sourceUrl: eventSourceUrl },
       select: { id: true },
     });
     if (existing) {
