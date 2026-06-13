@@ -1,5 +1,12 @@
 import type { EventCategory } from "@/lib/categories";
 
+// 用户公开信息（用于显示发帖人 / 评论作者）。
+export type UserBrief = {
+  id: string;
+  username: string;
+  avatarUrl: string | null;
+};
+
 // 经 JSON 序列化后给前端用的 DTO（日期为 ISO 字符串）。
 export type EventDTO = {
   id: string;
@@ -16,6 +23,7 @@ export type EventDTO = {
   sourceType: string;
   sourceUrl: string | null;
   trustLevel: number;
+  author?: UserBrief | null; // USER 发帖的作者；抓取来源为 null
 };
 
 export type CommentDTO = {
@@ -24,6 +32,7 @@ export type CommentDTO = {
   userId: string;
   text: string;
   createdAt: string;
+  author?: UserBrief | null;
 };
 
 export type CheckInDTO = {

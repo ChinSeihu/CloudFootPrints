@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listComments, createComment } from "@/services/comments";
+import { getCurrentUserId } from "@/lib/auth";
 
 // Next 16：动态段的 params 是 Promise，需 await。
 type Ctx = { params: Promise<{ id: string }> };
@@ -25,12 +26,15 @@ export async function POST(request: Request, ctx: Ctx) {
   } catch {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "请先登录后再评论" }, { status: 401 });
+
   const text = (body as { text?: unknown })?.text;
   if (typeof text !== "string") {
     return NextResponse.json({ error: "缺少 text" }, { status: 400 });
   }
 
-  const result = await createComment(id, text);
+  const result = await createComment(id, text, userId);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

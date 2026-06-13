@@ -42,21 +42,36 @@ export async function getEventsInBounds(q: EventQuery) {
     ];
   }
 
-  return prisma.event.findMany({
+  const events = await prisma.event.findMany({
     where,
     orderBy: [{ startTime: "asc" }],
     take: 500, // v1 安全上限，避免一次返回过多
   });
+  return attachAuthors(events);
+}
+
+// 给一批活动附作者公开信息（仅 USER 帖有 userId；抓取来源 author 为 null）。
+async function attachAuthors<T extends { userId: string | null }>(events: T[]) {
+  const ids = [...new Set(events.map((e) => e.userId).filter((x): x is string => !!x))];
+  const users = ids.length
+    ? await prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, username: true, avatarUrl: true },
+      })
+    : [];
+  const map = new Map(users.map((u) => [u.id, u]));
+  return events.map((e) => ({ ...e, author: e.userId ? map.get(e.userId) ?? null : null }));
 }
 
 // 我的发帖：列出当前用户发布的活动（sourceType=USER），按创建时间倒序。
 // v1 单用户，全部 USER 活动都属于本人；v2 接入认证后按 userId 过滤。
-export function listUserEvents(userId: string) {
-  return prisma.event.findMany({
+export async function listUserEvents(userId: string) {
+  const events = await prisma.event.findMany({
     where: { sourceType: "USER", userId },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
+  return attachAuthors(events);
 }
 
 // 锚点发帖：用户在地图上标记并发布一个活动（sourceType=USER）。
