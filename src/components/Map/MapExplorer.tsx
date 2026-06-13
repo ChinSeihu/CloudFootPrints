@@ -197,6 +197,9 @@ export function MapExplorer() {
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
+  const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const pulseRafRef = useRef<number | null>(null);
 
   // 读取/持久化底图主题选择
   useEffect(() => {
@@ -223,6 +226,32 @@ export function MapExplorer() {
       map.setLayoutProperty("landmark-icon", "visibility", showLandmarks ? "visible" : "none");
     }
   }, [mapReady, showLandmarks]);
+
+  // 探索锚点：放置/移动/清除一个独立的玫红脉冲标记
+  useEffect(() => {
+    const map = mapRef.current;
+    const mlg = maplibreRef.current;
+    if (!map || !mlg) return;
+    if (!exploreAnchor) {
+      exploreMarkerRef.current?.remove();
+      exploreMarkerRef.current = null;
+      return;
+    }
+    const lngLat: [number, number] = [exploreAnchor.lng, exploreAnchor.lat];
+    if (!exploreMarkerRef.current) {
+      const el = document.createElement("div");
+      el.className = "tem-explore-anchor";
+      el.innerHTML = `<span class="tem-explore-dot"></span>`;
+      exploreMarkerRef.current = new mlg.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
+    } else {
+      exploreMarkerRef.current.setLngLat(lngLat);
+    }
+  }, [exploreAnchor, mapReady]);
+
+  // 卸载时停止呼吸动效
+  useEffect(() => () => {
+    if (pulseRafRef.current) cancelAnimationFrame(pulseRafRef.current);
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -332,28 +361,36 @@ export function MapExplorer() {
       clusterMaxZoom: 14,
     });
 
-    // 聚合圆外层光晕
+    // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
       id: "event-cluster-halo",
       type: "circle",
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#2563eb",
-        "circle-opacity": 0.18,
-        "circle-radius": ["step", ["get", "point_count"], 24, 5, 30, 20, 37],
+        "circle-color": "#88b0f2",
+        "circle-opacity": 0.16,
+        "circle-blur": 0.45,
+        "circle-radius": ["step", ["get", "point_count"], 26, 5, 32, 20, 40],
       },
     });
-    // 聚合主圆（实心蓝 + 白边 + 白字数量，不加分类 icon）
+    // 聚合主圆：柔和的渐变蓝（按数量从浅到深），半透明 + 柔白边
     map.addLayer({
       id: "event-clusters",
       type: "circle",
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#2563eb",
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2.5,
+        "circle-color": [
+          "interpolate", ["linear"], ["get", "point_count"],
+          2, "#9cc0f7",
+          15, "#7aa0ec",
+          50, "#6b8ee0",
+        ],
+        "circle-opacity": 0.92,
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2,
+        "circle-stroke-opacity": 0.85,
         "circle-radius": ["step", ["get", "point_count"], 17, 5, 22, 20, 27],
       },
     });
@@ -370,7 +407,20 @@ export function MapExplorer() {
       paint: { "text-color": "#fff" },
     });
 
-    // 单个活动点：分类色填充圆 + 白边
+    // 单点柔光（分类色，低透明，垫底，让点更柔和灵动）
+    map.addLayer({
+      id: "event-point-halo",
+      type: "circle",
+      source: "events",
+      filter: ["!", ["has", "point_count"]],
+      paint: {
+        "circle-color": CATEGORY_COLOR_EXPR,
+        "circle-opacity": 0.16,
+        "circle-blur": 0.5,
+        "circle-radius": 20,
+      },
+    });
+    // 单个活动点：分类色填充圆 + 柔白边（略降透明，弱化突兀感）
     map.addLayer({
       id: "event-point",
       type: "circle",
@@ -378,9 +428,11 @@ export function MapExplorer() {
       filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": CATEGORY_COLOR_EXPR,
+        "circle-opacity": 0.92,
         "circle-radius": 14,
         "circle-stroke-color": "#fff",
         "circle-stroke-width": 2.5,
+        "circle-stroke-opacity": 0.9,
       },
     });
 
@@ -571,6 +623,30 @@ export function MapExplorer() {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }
+
+    // 点击地图空白处 → 落「探索锚点」，人气活动改以锚点为基准
+    map.on("click", (e) => {
+      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon"].filter(
+        (l) => map.getLayer(l),
+      );
+      const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
+      if (hits.length > 0) return; // 命中要素交给各自 handler
+      if (placingRef.current) return; // 正在放置发帖/打卡锚点时不抢
+      setExploreAnchor({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    });
+
+    // 聚合光晕轻微「呼吸」动效（只动 halo 的透明度，开销小）
+    const pulse = () => {
+      if (!map.getLayer("event-cluster-halo")) return; // 已卸载
+      const o = 0.16 + 0.07 * (0.5 + 0.5 * Math.sin(Date.now() / 900));
+      try {
+        map.setPaintProperty("event-cluster-halo", "circle-opacity", o);
+      } catch {
+        return;
+      }
+      pulseRafRef.current = requestAnimationFrame(pulse);
+    };
+    pulseRafRef.current = requestAnimationFrame(pulse);
   }, []);
 
   // ── 打卡聚合图层 ──
@@ -724,13 +800,13 @@ export function MapExplorer() {
       source: "landmarks",
       layout: {
         "icon-image": ["concat", "landmark-", ["get", "kind"]],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.5, 14, 0.8],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.62, 14, 0.98],
         "icon-allow-overlap": false,
         "text-field": ["get", "name"],
         "text-font": ["Open Sans Regular"],
         "text-size": 11,
         "text-anchor": "top",
-        "text-offset": [0, 1],
+        "text-offset": [0, 1.1],
         "text-optional": true,
         "text-max-width": 8,
       },
@@ -744,6 +820,18 @@ export function MapExplorer() {
     });
     map.on("mouseenter", "landmark-icon", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "landmark-icon", () => { map.getCanvas().style.cursor = ""; });
+    // 点击景点 → 唤起 AI 导游，针对该名胜对话
+    map.on("click", "landmark-icon", (e) => {
+      const p = e.features?.[0]?.properties as { name?: string; kind?: LandmarkKind } | undefined;
+      if (!p?.name) return;
+      const kindLabel = p.kind ? LANDMARK_KIND_META[p.kind].label : "名胜";
+      openGuideRef.current({
+        title: p.name,
+        category: kindLabel,
+        venueName: p.name,
+        description: `东京名胜：${p.name}（${kindLabel}）`,
+      });
+    });
   }, []);
 
   const handleReady = useCallback(
@@ -882,7 +970,9 @@ export function MapExplorer() {
       </button>
       <PopularCard
         events={filtered}
-        center={center}
+        center={exploreAnchor ?? center}
+        anchored={!!exploreAnchor}
+        onClearAnchor={() => setExploreAnchor(null)}
         onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
         onViewAll={() => router.push("/recommend")}
       />

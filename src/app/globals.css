@@ -39,6 +39,35 @@ body {
   color: #475569;
 }
 
+/* 探索锚点：玫红脉冲点（区别于发帖蓝色水滴针） */
+.tem-explore-anchor {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+}
+.tem-explore-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #f43f5e;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.tem-explore-dot::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  animation: tem-explore-ping 1.4s ease-out infinite;
+}
+@keyframes tem-explore-ping {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
 .tem-pop {
   max-width: 260px;
   max-height: 320px;

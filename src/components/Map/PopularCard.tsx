@@ -8,6 +8,8 @@ import type { EventDTO } from "@/lib/types";
 type Props = {
   events: EventDTO[];
   center: { lat: number; lng: number } | null;
+  anchored?: boolean; // center 是否来自用户落的探索锚点
+  onClearAnchor?: () => void;
   onSelect: (ev: EventDTO) => void;
   onViewAll: () => void;
 };
@@ -24,7 +26,7 @@ function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }
 }
 
 // 人气活动卡片：按距地图中心的距离取最近的几个活动。可折叠。
-export function PopularCard({ events, center, onSelect, onViewAll }: Props) {
+export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
   const [open, setOpen] = useState(true);
 
   const nearest = useMemo<{ e: EventDTO; d: number | null }[]>(() => {
@@ -52,16 +54,32 @@ export function PopularCard({ events, center, onSelect, onViewAll }: Props) {
   return (
     <div className="absolute bottom-24 right-3 z-10 w-56 max-w-[70vw] pointer-events-auto rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-black/10 p-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-neutral-800">人气活动</span>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-neutral-400 hover:text-neutral-600 text-base leading-none"
-          aria-label="收起"
-        >
-          ×
-        </button>
+        <span className="text-sm font-medium text-neutral-800">
+          {anchored ? "锚点周边" : "人气活动"}
+        </span>
+        <div className="flex items-center gap-2">
+          {anchored && onClearAnchor && (
+            <button
+              type="button"
+              onClick={onClearAnchor}
+              className="text-[11px] text-blue-600 hover:underline"
+            >
+              重置
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-neutral-400 hover:text-neutral-600 text-base leading-none"
+            aria-label="收起"
+          >
+            ×
+          </button>
+        </div>
       </div>
+      {anchored && (
+        <p className="text-[11px] text-rose-500 mb-1.5 -mt-1">📍 以你点选的锚点为中心</p>
+      )}
 
       <ul className="space-y-1.5">
         {nearest.map(({ e: ev, d }) => {
