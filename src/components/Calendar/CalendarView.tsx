@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
@@ -37,6 +37,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   const [month, setMonth] = useState(() => Number(todayKey.slice(5, 7)) - 1); // 0-based
   const [selected, setSelectedDate] = useState<string>(todayKey);
   const [detail, setDetail] = useState<EventDTO | null>(null);
+  const [dayTab, setDayTab] = useState<"starting" | "ongoing">("starting");
 
   // 按东京日期把活动分组。长期活动（startTime→endTime 跨多天）在展期每一天都出现。
   // 未定档（无 startTime）的活动不进日历格子。
@@ -76,6 +77,25 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   }, [year, month]);
 
   const selectedEvents = byDate.get(selected) ?? [];
+
+  // 分两组：当天「开始」的活动 vs「展期中」（更早开始、当天仍在展期的长期活动）
+  const { startingEvents, ongoingEvents } = useMemo(() => {
+    const starting: EventDTO[] = [];
+    const ongoing: EventDTO[] = [];
+    for (const ev of selectedEvents) {
+      if (ev.startTime && tokyoDateKey(ev.startTime) === selected) starting.push(ev);
+      else ongoing.push(ev);
+    }
+    const byTime = (a: EventDTO, b: EventDTO) => (a.startTime ?? "").localeCompare(b.startTime ?? "");
+    return { startingEvents: starting.sort(byTime), ongoingEvents: ongoing.sort(byTime) };
+  }, [selectedEvents, selected]);
+
+  // 切换日期时，自动落到有内容的分组（优先「当天开始」）
+  useEffect(() => {
+    setDayTab(startingEvents.length === 0 && ongoingEvents.length > 0 ? "ongoing" : "starting");
+  }, [selected, startingEvents.length, ongoingEvents.length]);
+
+  const shownEvents = dayTab === "starting" ? startingEvents : ongoingEvents;
 
   function shiftMonth(delta: number) {
     let m = month + delta;
@@ -157,29 +177,26 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
               : hol
                 ? "bg-rose-50"
                 : "hover:bg-neutral-100";
-          const n = dayEvents?.length ?? 0;
           return (
             <button
               key={key}
               type="button"
               onClick={() => setSelectedDate(key)}
               title={hol ?? undefined}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${bg}`}
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 px-0.5 transition-colors ${bg}`}
             >
               <span className={`text-sm leading-none ${numColor}`}>{day}</span>
-              {/* 替代圆点：有活动显示数量；无活动但为节假日显示「祝」 */}
-              {n > 0 ? (
+              {/* 底部仅显示节日名（红日子），不再显示活动数量 */}
+              {hol ? (
                 <span
-                  className={`text-[10px] leading-none font-medium ${
-                    isSelected ? "text-white/90" : "text-amber-600"
+                  className={`text-[9px] leading-tight text-center w-full truncate ${
+                    isSelected ? "text-white/90" : "text-rose-500"
                   }`}
                 >
-                  {n}场
+                  {hol}
                 </span>
-              ) : hol && !isSelected ? (
-                <span className="text-[9px] leading-none text-rose-400">祝</span>
               ) : (
-                <span className="h-[10px]" />
+                <span className="h-[11px]" />
               )}
             </button>
           );
@@ -190,7 +207,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
       <div className="mt-4">
         <h2 className="text-sm font-medium text-neutral-700 mb-2 px-1 flex items-center gap-2 flex-wrap">
           <span>
-            {Number(selected.slice(5, 7))} 月 {Number(selected.slice(8, 10))} 日 · {selectedEvents.length} 个活动
+            {Number(selected.slice(5, 7))} 月 {Number(selected.slice(8, 10))} 日
           </span>
           {holidayName(selected) && (
             <span className="inline-flex items-center gap-1 text-xs text-rose-500 bg-rose-50 rounded-full px-2 py-0.5">
@@ -199,45 +216,64 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
           )}
         </h2>
 
-        {selectedEvents.length === 0 ? (
-          <p className="text-sm text-neutral-400 px-1 py-6 text-center">这一天还没有活动。</p>
+        {/* 分组：当天开始 / 展期中（长期活动） */}
+        <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 mb-3">
+          {([
+            ["starting", "当天开始", startingEvents.length],
+            ["ongoing", "展期中", ongoingEvents.length],
+          ] as const).map(([k, label, c]) => {
+            const active = dayTab === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setDayTab(k)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-sm transition ${
+                  active ? "bg-white text-blue-600 font-medium shadow-sm" : "text-neutral-500"
+                }`}
+              >
+                {label}
+                <span className={`text-[11px] ${active ? "text-blue-400" : "text-neutral-400"}`}>{c}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {shownEvents.length === 0 ? (
+          <p className="text-sm text-neutral-400 px-1 py-6 text-center">
+            {dayTab === "starting" ? "这一天没有新开始的活动。" : "这一天没有展期中的长期活动。"}
+          </p>
         ) : (
           <ul className="space-y-2">
-            {selectedEvents
-              .slice()
-              .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
-              .map((ev) => {
-                const meta = CATEGORY_META[ev.category];
-                const multiDay =
-                  !!ev.startTime && !!ev.endTime &&
-                  tokyoDateKey(ev.startTime) !== tokyoDateKey(ev.endTime);
-                return (
-                  <li key={ev.id}>
-                    <button
-                      type="button"
-                      onClick={() => setDetail(ev)}
-                      className="w-full text-left flex gap-3 rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex flex-col items-center justify-center w-12 shrink-0">
-                        <span className="text-xs font-semibold text-center leading-tight" style={{ color: meta.color }}>
-                          {multiDay ? "展期中" : fmtTime(ev.startTime)}
-                        </span>
-                        <CategoryIcon category={ev.category} className="w-4 h-4 mt-1 text-neutral-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] text-neutral-500 mb-0.5">{meta.label}</div>
-                        <h3 className="text-sm font-medium leading-snug">{ev.title}</h3>
-                        {ev.venueName && (
-                          <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
-                            <IconPin className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{ev.venueName}</span>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
+            {shownEvents.map((ev) => {
+              const meta = CATEGORY_META[ev.category];
+              return (
+                <li key={ev.id}>
+                  <button
+                    type="button"
+                    onClick={() => setDetail(ev)}
+                    className="w-full text-left flex gap-3 rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-col items-center justify-center w-12 shrink-0">
+                      <span className="text-xs font-semibold text-center leading-tight" style={{ color: meta.color }}>
+                        {dayTab === "ongoing" ? "展期中" : fmtTime(ev.startTime)}
+                      </span>
+                      <CategoryIcon category={ev.category} className="w-4 h-4 mt-1 text-neutral-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] text-neutral-500 mb-0.5">{meta.label}</div>
+                      <h3 className="text-sm font-medium leading-snug">{ev.title}</h3>
+                      {ev.venueName && (
+                        <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
+                          <IconPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{ev.venueName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
