@@ -61,7 +61,8 @@ export function AuthForm() {
   }
 
   return (
-    <div className="max-w-sm mx-auto px-6 py-12">
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-sm mx-auto px-6 py-10 pb-16">
       <h1 className="text-xl font-semibold mb-1">{mode === "login" ? "登录" : "注册"}</h1>
       <p className="text-sm text-neutral-500 mb-6">登录后即可打卡、发帖、评论</p>
 
@@ -127,6 +128,7 @@ export function AuthForm() {
             </button>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );
