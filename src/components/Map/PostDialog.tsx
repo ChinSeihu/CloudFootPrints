@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { IconPin, CategoryIcon } from "@/components/icons";
+import { IconPin, IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
+import { fieldCls, labelCls } from "./formStyles";
 
 export type PostDraft = {
   lat: number;
@@ -98,112 +99,126 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
 
   return (
     <BottomSheet title="发帖 · 标记这里有个活动" hint="拖动地图上的蓝色锚点定位" onClose={onCancel} onSnapChange={onSnapChange}>
-      <p className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
-        <IconPin className="w-3.5 h-3.5" />
+      <div className="inline-flex items-center gap-1 text-[11px] text-neutral-500 bg-neutral-100 rounded-full px-2.5 py-1 mb-5">
+        <IconPin className="w-3 h-3" />
         {lat.toFixed(5)}, {lng.toFixed(5)}
-      </p>
-
-      <label className="block text-sm mb-1">活动名称 *</label>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-4"
-        placeholder="例如：下北沢古着市集"
-      />
-
-      <label className="block text-sm mb-1">分类</label>
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {EVENT_CATEGORIES.map((c) => {
-          const active = c === category;
-          const meta = CATEGORY_META[c];
-          return (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border transition ${
-                active ? "text-white border-transparent" : "bg-white text-neutral-500 border-neutral-300"
-              }`}
-              style={active ? { backgroundColor: meta.color } : undefined}
-            >
-              <CategoryIcon category={c} className="w-3.5 h-3.5" />
-              {meta.label}
-            </button>
-          );
-        })}
       </div>
 
-      {/* 活动时间范围 */}
-      <label className="block text-sm mb-1">时间范围</label>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="mb-5">
+        <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input
-          type="datetime-local"
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-          className="flex-1 min-w-0 border border-neutral-300 rounded-lg p-2 text-sm"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className={fieldCls}
+          placeholder="例如：下北沢古着市集"
         />
-        <span className="text-neutral-400 text-sm">至</span>
-        <input
-          type="datetime-local"
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-          className="flex-1 min-w-0 border border-neutral-300 rounded-lg p-2 text-sm"
-        />
+      </div>
+
+      <div className="mb-5">
+        <label className={labelCls}>分类</label>
+        <div className="flex flex-wrap gap-2">
+          {EVENT_CATEGORIES.map((c) => {
+            const active = c === category;
+            const meta = CATEGORY_META[c];
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition ${
+                  active
+                    ? "text-white border-transparent shadow-sm"
+                    : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-300"
+                }`}
+                style={active ? { backgroundColor: meta.color } : undefined}
+              >
+                <CategoryIcon category={c} className="w-4 h-4" />
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <label className={labelCls}>时间范围</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="datetime-local"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className={`${fieldCls} flex-1 min-w-0`}
+          />
+          <span className="text-neutral-400 text-xs shrink-0">至</span>
+          <input
+            type="datetime-local"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className={`${fieldCls} flex-1 min-w-0`}
+          />
+        </div>
       </div>
 
       {/* 图片（可选，客户端压缩后上传图床） */}
-      <label className="block text-sm mb-1">图片（可选）</label>
-      {canUpload ? (
-        preview ? (
-          <div className="relative mb-4 w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="" className="max-h-40 rounded-lg object-cover" />
-            <button
-              type="button"
-              onClick={removeImage}
-              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/70 text-white text-sm flex items-center justify-center"
-              aria-label="移除图片"
-            >
-              ×
-            </button>
-          </div>
+      <div className="mb-5">
+        <label className={labelCls}>图片（可选）</label>
+        {canUpload ? (
+          preview ? (
+            <div className="relative w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={preview} alt="" className="w-full max-h-48 object-cover rounded-xl" />
+              <button
+                type="button"
+                onClick={removeImage}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/55 text-white text-base leading-none flex items-center justify-center backdrop-blur"
+                aria-label="移除图片"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center gap-1.5 h-28 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
+              <IconPlus className="w-6 h-6" />
+              <span className="text-xs">选择图片</span>
+              <input type="file" accept="image/*" onChange={pickFile} className="hidden" />
+            </label>
+          )
         ) : (
-          <label className="mb-4 flex items-center justify-center h-20 border border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 cursor-pointer">
-            + 选择图片
-            <input type="file" accept="image/*" onChange={pickFile} className="hidden" />
-          </label>
-        )
-      ) : (
-        <p className="mb-4 text-[11px] text-amber-600">
-          未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。
-        </p>
-      )}
+          <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+            未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。
+          </p>
+        )}
+      </div>
 
-      <label className="block text-sm mb-1">地点名（可选）</label>
-      <input
-        value={venueName}
-        onChange={(e) => setVenueName(e.target.value)}
-        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-4"
-        placeholder="场馆 / 地点名"
-      />
+      <div className="mb-5">
+        <label className={labelCls}>地点名（可选）</label>
+        <input
+          value={venueName}
+          onChange={(e) => setVenueName(e.target.value)}
+          className={fieldCls}
+          placeholder="场馆 / 地点名"
+        />
+      </div>
 
-      <label className="block text-sm mb-1">说明（可选）</label>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        rows={3}
-        className="w-full border border-neutral-300 rounded-lg p-2 text-sm mb-3"
-        placeholder="内容、票价…"
-      />
+      <div className="mb-5">
+        <label className={labelCls}>说明（可选）</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          className={`${fieldCls} resize-none`}
+          placeholder="内容、票价…"
+        />
+      </div>
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-3 pt-1">
         <button
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="px-4 py-2 text-sm rounded-lg text-neutral-600"
+          className="px-5 py-3 text-sm rounded-xl text-neutral-500 hover:bg-neutral-100 transition"
         >
           取消
         </button>
@@ -211,9 +226,9 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
           type="button"
           onClick={handleSubmit}
           disabled={submitting || !title.trim()}
-          className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white disabled:opacity-50"
+          className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
         >
-          {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布"}
+          {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布活动"}
         </button>
       </div>
     </BottomSheet>

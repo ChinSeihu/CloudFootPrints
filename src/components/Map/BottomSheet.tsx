@@ -89,17 +89,17 @@ export function BottomSheet({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          className="shrink-0 px-5 pt-2 pb-2 cursor-grab active:cursor-grabbing touch-none select-none"
+          className="shrink-0 px-5 pt-2.5 pb-3 border-b border-black/5 cursor-grab active:cursor-grabbing touch-none select-none"
         >
-          <div className="mx-auto mb-2 w-10 h-1.5 rounded-full bg-neutral-300" />
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-base font-semibold">{title}</h2>
-            <span className="text-[11px] text-blue-600 shrink-0">
+          <div className="mx-auto mb-3 w-9 h-1 rounded-full bg-neutral-300" />
+          <div className="flex items-center justify-between gap-2 pr-7">
+            <h2 className="text-[15px] font-semibold text-neutral-900">{title}</h2>
+            <span className="shrink-0 text-[11px] text-blue-600">
               {snap === "peek" ? "上拉填写 ›" : "下拉重新定位"}
             </span>
           </div>
           {hint && snap === "peek" && (
-            <p className="text-[11px] text-neutral-500 mt-0.5">{hint}</p>
+            <p className="text-[11px] text-neutral-400 mt-1">{hint}</p>
           )}
         </div>
 
