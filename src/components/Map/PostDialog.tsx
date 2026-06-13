@@ -19,6 +19,7 @@ export type PostDraft = {
   imageUrl: string | null;
   startTime: string | null; // ISO
   endTime: string | null; // ISO
+  tags: string[];
 };
 
 type Props = {
@@ -39,6 +40,8 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   const [venueName, setVenueName] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +61,19 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
     if (preview) URL.revokeObjectURL(preview);
     setFile(null);
     setPreview(null);
+  }
+
+  function addTag() {
+    const t = tagInput.trim().replace(/^#/, "").slice(0, 16);
+    if (!t || tags.includes(t) || tags.length >= 8) {
+      setTagInput("");
+      return;
+    }
+    setTags((prev) => [...prev, t]);
+    setTagInput("");
+  }
+  function removeTag(t: string) {
+    setTags((prev) => prev.filter((x) => x !== t));
   }
 
   async function handleSubmit() {
@@ -92,6 +108,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         imageUrl,
         startTime: toISO(start),
         endTime: toISO(end),
+        tags,
       });
     } finally {
       setSubmitting(false);
@@ -199,6 +216,37 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
           className={`${fieldCls} resize-none`}
           placeholder="内容、票价…"
         />
+      </div>
+
+      <div className="mb-5">
+        <label className={labelCls}>标签（可选）</label>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {tags.map((t) => (
+              <span key={t} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
+                #{t}
+                <button type="button" onClick={() => removeTag(t)} className="text-blue-400 hover:text-blue-600 leading-none" aria-label="移除标签">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+            placeholder="如 免费、亲子、夜场…回车添加"
+            className={`${fieldCls} flex-1 min-w-0`}
+          />
+          <button
+            type="button"
+            onClick={addTag}
+            disabled={!tagInput.trim() || tags.length >= 8}
+            className="px-4 rounded-xl bg-neutral-100 text-neutral-600 text-sm disabled:opacity-40"
+          >
+            添加
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}

@@ -23,6 +23,7 @@ export async function GET() {
       sourceType: e.sourceType,
       sourceUrl: e.sourceUrl,
       trustLevel: e.trustLevel,
+      tags: e.tags ?? [],
       author: e.author ?? null,
     }));
     return NextResponse.json({ events });

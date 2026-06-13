@@ -5,6 +5,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { CategoryIcon, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
+import { displayTags } from "@/lib/tags";
 import { EventDetail } from "./EventDetail";
 import type { EventDTO } from "@/lib/types";
 
@@ -129,12 +130,25 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                 {ev.venueName && (
                   <div className="flex items-center gap-1 text-xs text-neutral-500">
                     <IconPin className="w-3 h-3 shrink-0" />
-                    {ev.venueName}
+                    <span className="truncate">{ev.venueName}</span>
                   </div>
                 )}
-                {ev.description && (
-                  <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{ev.description}</p>
-                )}
+                {(() => {
+                  const tags = displayTags(ev);
+                  if (tags.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {tags.map((t) => (
+                        <span
+                          key={t}
+                          className="px-1.5 py-0.5 rounded-md text-[10px] bg-neutral-100 text-neutral-600"
+                        >
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </button>
           );

@@ -844,7 +844,7 @@ export function MapExplorer() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrl: draft.imageUrl || null, startTime: draft.startTime, endTime: draft.endTime, lat, lng }),
+      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrl: draft.imageUrl || null, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, lat, lng }),
     });
     clearPlacing();
     setDialogAt(null);

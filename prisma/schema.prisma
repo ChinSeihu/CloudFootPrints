@@ -48,6 +48,7 @@ model Event {
   trustLevel  Int           @default(0) // 官方高、用户/社交低
   rawText     String?       // 保留原始文本，便于以后重新解析
   userId      String?       // USER 发帖的作者（User.id）；抓取来源为 null
+  tags        String[]      @default([]) // 活动标签（用户发帖填写；抓取来源为空，展示时按关键词派生）
 
   checkIns    CheckIn[]
   comments    Comment[]

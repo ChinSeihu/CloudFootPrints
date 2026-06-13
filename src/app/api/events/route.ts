@@ -6,6 +6,7 @@ import {
   parseEventQuery,
 } from "@/services/events";
 import { getCurrentUserId } from "@/lib/auth";
+import { normalizeTags } from "@/lib/tags";
 import type { EventCategory } from "@/lib/categories";
 
 // GET /api/events?mine=1                      —— 我的发帖（无需 bbox）
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       imageUrl: typeof b.imageUrl === "string" ? b.imageUrl : null,
       startTime: typeof b.startTime === "string" ? b.startTime : null,
       endTime: typeof b.endTime === "string" ? b.endTime : null,
+      tags: normalizeTags(b.tags),
       lat: Number(b.lat),
       lng: Number(b.lng),
     },

@@ -6,6 +6,37 @@
 
 ## 2026-06-13
 
+### 活动标签（tag）管理：推荐卡片显示标签、发帖可加标签
+
+- **数据库**：`Event` 加 `tags String[] @default([])`。db push 到 Neon（改 schema 后 dev server 需重启）。
+- **标签工具** `lib/tags.ts`：`displayTags`（优先人工标签，抓取来源按关键词派生：免费/需购票/需预约/亲子/夜场/限定/体验/户外/室内/美食/音乐）、`normalizeTags`（清洗用户输入）。
+- **推荐卡片**：去掉冗长说明文字，改为显示标签 chip（`#xxx`），更清爽。
+- **发帖表单**：新增标签输入（回车/按钮添加、chip 可删、最多 8 个），随发帖入库。
+- **详情页**：简介下也展示标签。
+- DTO（`EventDTO.tags`）+ 各 page/route map 补 `tags`；`createUserEvent` 接收 tags。
+
+**涉及文件：** `prisma/schema.prisma`、`lib/tags.ts`、`lib/types.ts`、`services/events.ts`、`app/api/events/route.ts`、`app/recommend/page.tsx`、`app/calendar/page.tsx`、`app/api/favorites/route.ts`、`components/Recommend/RecommendList.tsx`、`components/Recommend/EventDetail.tsx`、`components/Map/PostDialog.tsx`、`components/Map/MapExplorer.tsx`
+
+---
+
+### 个人页选项卡化（分段控件）
+
+打卡/发帖/收藏三 tab 从下划线样式改为**分段控件**（圆角灰底容器 + 选中白底蓝字带阴影 + 图标 + 计数），更有设计感。
+
+**涉及文件：** `components/Me/MeView.tsx`
+
+---
+
+### 日历：节假日标注 + 活动数量替代圆点
+
+- **日本祝日**（`lib/holidays.ts`，2025–2027 含振替休日/国民の休日/春分秋分）：日历格红日子浅红底 + 红字；选中日在清单标题显示「🎌 节日名」。
+- **传统配色**：周日 / 节假日红、周六蓝（仿日本日历）。
+- **圆点 → 数量**：原分类色圆点改为显示当天活动数（「N场」），更直观。
+
+**涉及文件：** `lib/holidays.ts`、`components/Calendar/CalendarView.tsx`
+
+---
+
 ### 名胜 / 地标 / 公园 标识
 
 在地图上标识主要景点（插画风固定底图做不了，先用图标渲染景点）：

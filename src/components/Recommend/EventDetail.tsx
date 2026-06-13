@@ -6,6 +6,7 @@ import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark } from "@/components/icons";
 import { CopyButton } from "@/components/CopyButton";
 import { useGuide } from "@/components/Guide/GuideContext";
+import { displayTags } from "@/lib/tags";
 import type { EventDTO, CommentDTO, UserBrief } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -236,6 +237,19 @@ export function EventDetail({
             {event.description}
           </p>
         )}
+        {(() => {
+          const tags = displayTags(event);
+          if (tags.length === 0) return null;
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <span key={t} className="px-2 py-0.5 rounded-md text-xs bg-neutral-100 text-neutral-600">
+                  #{t}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
 
         <div>
           <h3 className="text-sm font-medium mb-2">评论 {comments.length > 0 && `(${comments.length})`}</h3>

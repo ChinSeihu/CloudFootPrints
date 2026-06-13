@@ -84,6 +84,7 @@ export type CreateUserEventInput = {
   imageUrl?: string | null;
   startTime?: string | null; // ISO
   endTime?: string | null; // ISO
+  tags?: string[];
   lat: number;
   lng: number;
 };
@@ -111,6 +112,7 @@ function createUserEventRow(input: CreateUserEventInput, userId: string) {
       lng: input.lng,
       startTime: parseISO(input.startTime),
       endTime: parseISO(input.endTime),
+      tags: input.tags ?? [],
       sourceType: "USER",
       sourceUrl: null,
       trustLevel: 10, // 用户发布：低信任

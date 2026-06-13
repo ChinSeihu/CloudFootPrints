@@ -28,6 +28,7 @@ export default async function CalendarPage() {
       sourceType: e.sourceType,
       sourceUrl: e.sourceUrl,
       trustLevel: e.trustLevel,
+      tags: e.tags ?? [],
       author: e.author ?? null,
     }));
   } catch {
