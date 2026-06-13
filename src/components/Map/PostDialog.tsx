@@ -78,6 +78,10 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
 
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
+    if (!start) {
+      setError("请选择活动开始时间");
+      return;
+    }
     if (start && end && new Date(end) < new Date(start)) {
       setError("结束时间不能早于开始时间");
       return;
@@ -159,9 +163,9 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>时间范围</label>
+        <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
         <div className="space-y-2">
-          <DateTimeField value={start} onChange={setStart} placeholder="开始时间（可选）" />
+          <DateTimeField value={start} onChange={setStart} placeholder="开始时间（必选）" />
           <DateTimeField value={end} onChange={setEnd} placeholder="结束时间（可选）" />
         </div>
       </div>
@@ -263,7 +267,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || !title.trim()}
+          disabled={submitting || !title.trim() || !start}
           className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
         >
           {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布活动"}

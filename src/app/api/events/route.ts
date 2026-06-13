@@ -52,6 +52,9 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "请先登录后再发帖" }, { status: 401 });
 
   const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b.startTime !== "string" || !b.startTime) {
+    return NextResponse.json({ error: "请选择活动开始时间" }, { status: 400 });
+  }
   const result = await createUserEvent(
     {
       title: typeof b.title === "string" ? b.title : "",
