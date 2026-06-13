@@ -100,23 +100,32 @@ function MeContent() {
       <ProfileHeader />
       <div ref={containerRef} className="h-56 w-full relative bg-neutral-100" />
 
-      <div className="flex border-b border-neutral-200 px-4 pt-3 gap-4">
-        {([
-          ["checkins", `打卡 ${checkins.length || ""}`],
-          ["posts", `发帖 ${posts.length || ""}`],
-          ["favorites", `收藏 ${favorites.length || ""}`],
-        ] as const).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`pb-2 text-sm border-b-2 -mb-px transition ${
-              tab === key ? "border-blue-600 text-blue-600 font-medium" : "border-transparent text-neutral-500"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="px-4 pt-3 pb-1">
+        <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">
+          {([
+            ["checkins", "打卡", checkins.length, IconStar],
+            ["posts", "发帖", posts.length, IconPin],
+            ["favorites", "收藏", favorites.length, IconBookmark],
+          ] as const).map(([key, label, count, Icon]) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm transition ${
+                  active ? "bg-white text-blue-600 font-medium shadow-sm" : "text-neutral-500"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+                {count > 0 && (
+                  <span className={`text-[11px] ${active ? "text-blue-400" : "text-neutral-400"}`}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="p-4">
