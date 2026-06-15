@@ -25,6 +25,7 @@ export type EventDTO = {
   sourceUrl: string | null;
   trustLevel: number;
   tags: string[];
+  signupEnabled: boolean;
   author?: UserBrief | null; // USER 发帖的作者；抓取来源为 null
 };
 

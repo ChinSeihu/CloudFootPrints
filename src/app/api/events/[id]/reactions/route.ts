@@ -32,8 +32,8 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
   const type = (body as { type?: unknown })?.type;
-  if (type !== ReactionType.LIKE && type !== ReactionType.FAVORITE) {
-    return NextResponse.json({ error: "type 必须是 LIKE 或 FAVORITE" }, { status: 400 });
+  if (type !== ReactionType.LIKE && type !== ReactionType.FAVORITE && type !== ReactionType.SIGNUP) {
+    return NextResponse.json({ error: "type 必须是 LIKE / FAVORITE / SIGNUP" }, { status: 400 });
   }
 
   try {

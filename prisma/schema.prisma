@@ -29,6 +29,7 @@ enum SourceType {
 enum ReactionType {
   LIKE     // 点赞
   FAVORITE // 收藏
+  SIGNUP   // 报名（仅当 Event.signupEnabled 时有意义）
 }
 
 model Event {
@@ -51,6 +52,7 @@ model Event {
   rawText     String?       // 保留原始文本，便于以后重新解析
   userId      String?       // USER 发帖的作者（User.id）；抓取来源为 null
   tags        String[]      @default([]) // 活动标签（用户发帖填写；抓取来源为空，展示时按关键词派生）
+  signupEnabled Boolean     @default(false) // 是否开启报名（用户发帖可选）
 
   checkIns    CheckIn[]
   comments    Comment[]

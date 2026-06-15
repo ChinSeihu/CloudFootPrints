@@ -6,18 +6,21 @@ import { ReactionType } from "@prisma/client";
 export type ReactionState = {
   likeCount: number;
   favoriteCount: number;
+  signupCount: number;
   likedByMe: boolean;
   favoritedByMe: boolean;
+  signedUpByMe: boolean;
 };
 
-// 某活动的点赞/收藏汇总 + 当前用户是否已操作（未登录则 byMe 恒 false）。
+// 某活动的点赞/收藏/报名汇总 + 当前用户是否已操作（未登录则 byMe 恒 false）。
 export async function getReactionState(
   eventId: string,
   userId: string | null,
 ): Promise<ReactionState> {
-  const [likeCount, favoriteCount, mine] = await Promise.all([
+  const [likeCount, favoriteCount, signupCount, mine] = await Promise.all([
     prisma.reaction.count({ where: { eventId, type: ReactionType.LIKE } }),
     prisma.reaction.count({ where: { eventId, type: ReactionType.FAVORITE } }),
+    prisma.reaction.count({ where: { eventId, type: ReactionType.SIGNUP } }),
     userId
       ? prisma.reaction.findMany({ where: { eventId, userId }, select: { type: true } })
       : Promise.resolve([] as { type: ReactionType }[]),
@@ -25,8 +28,10 @@ export async function getReactionState(
   return {
     likeCount,
     favoriteCount,
+    signupCount,
     likedByMe: mine.some((r) => r.type === ReactionType.LIKE),
     favoritedByMe: mine.some((r) => r.type === ReactionType.FAVORITE),
+    signedUpByMe: mine.some((r) => r.type === ReactionType.SIGNUP),
   };
 }
 

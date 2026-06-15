@@ -20,6 +20,7 @@ export type PostDraft = {
   startTime: string | null; // ISO
   endTime: string | null; // ISO
   tags: string[];
+  signupEnabled: boolean;
 };
 
 type Props = {
@@ -42,6 +43,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   const [end, setEnd] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [signupEnabled, setSignupEnabled] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -117,6 +119,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         startTime: toISO(start),
         endTime: toISO(end),
         tags,
+        signupEnabled,
       });
     } finally {
       setSubmitting(false);
@@ -258,6 +261,23 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
             添加
           </button>
         </div>
+      </div>
+
+      {/* 报名模式 */}
+      <div className="mb-5">
+        <button
+          type="button"
+          onClick={() => setSignupEnabled((v) => !v)}
+          className="w-full flex items-center justify-between rounded-xl bg-neutral-50 border border-neutral-200 px-3.5 py-3"
+        >
+          <span className="text-left">
+            <span className="block text-sm text-neutral-800">开启报名</span>
+            <span className="block text-[11px] text-neutral-400">其他用户可点「报名」，你能看到报名人数</span>
+          </span>
+          <span className={`relative w-10 h-6 rounded-full transition ${signupEnabled ? "bg-blue-600" : "bg-neutral-300"}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${signupEnabled ? "left-[1.125rem]" : "left-0.5"}`} />
+          </span>
+        </button>
       </div>
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}

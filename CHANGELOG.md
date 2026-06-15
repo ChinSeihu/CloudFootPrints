@@ -6,6 +6,17 @@
 
 ## 2026-06-14
 
+### 发帖报名模式
+
+- **数据库**：`Event.signupEnabled`（发帖可开启）；`ReactionType` 加 `SIGNUP`（复用 Reaction 系统，报名=一条 SIGNUP reaction）。db push 到 Neon。
+- **发帖表单**：新增「开启报名」开关。
+- **详情页**：开启报名的活动顶部显示「报名参加 / 已报名·点击取消」按钮 + 报名人数；乐观更新、未登录提示登录。
+- 服务/接口：`getReactionState` 增加 `signupCount/signedUpByMe`；`/reactions` POST 允许 `SIGNUP`；`EventDTO.signupEnabled` + 各 page/route/createUserEvent 贯通。
+
+**涉及文件：** `prisma/schema.prisma`、`lib/types.ts`、`services/{reactions,events}.ts`、`app/api/events/[id]/reactions/route.ts`、相关 page/route、`components/Map/PostDialog.tsx`、`components/Map/MapExplorer.tsx`、`components/Recommend/EventDetail.tsx`
+
+---
+
 ### 加载优化：推荐懒加载 + 推荐/日历 ISR 缓存 + 个人页骨架
 
 - **推荐页懒加载**：瀑布流先渲染 12 张，`IntersectionObserver` 触底再加 12，减少首屏 DOM、加快渲染。

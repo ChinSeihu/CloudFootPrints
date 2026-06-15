@@ -94,6 +94,7 @@ export type CreateUserEventInput = {
   startTime?: string | null; // ISO
   endTime?: string | null; // ISO
   tags?: string[];
+  signupEnabled?: boolean;
   lat: number;
   lng: number;
 };
@@ -124,6 +125,7 @@ function createUserEventRow(input: CreateUserEventInput, userId: string) {
       startTime: parseISO(input.startTime),
       endTime: parseISO(input.endTime),
       tags: input.tags ?? [],
+      signupEnabled: input.signupEnabled ?? false,
       sourceType: "USER",
       sourceUrl: null,
       trustLevel: 10, // 用户发布：低信任

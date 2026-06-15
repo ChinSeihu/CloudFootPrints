@@ -100,12 +100,14 @@ export function EventDetail({
     return top.map((t) => ({ comment: t, replies: descByRoot.get(t.id) ?? [] }));
   }, [comments]);
 
-  // 点赞 / 收藏状态
+  // 点赞 / 收藏 / 报名状态
   const [reactions, setReactions] = useState<ReactionState>({
     likeCount: 0,
     favoriteCount: 0,
+    signupCount: 0,
     likedByMe: false,
     favoritedByMe: false,
+    signedUpByMe: false,
   });
 
   useEffect(() => {
@@ -120,16 +122,20 @@ export function EventDetail({
       .catch(() => {});
   }, [event.id]);
 
-  async function toggleReaction(type: "LIKE" | "FAVORITE") {
+  async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP") {
     setErr(null);
     // 乐观更新
     setReactions((prev) => {
-      const isLike = type === "LIKE";
-      const active = isLike ? prev.likedByMe : prev.favoritedByMe;
-      const delta = active ? -1 : 1;
-      return isLike
-        ? { ...prev, likedByMe: !active, likeCount: prev.likeCount + delta }
-        : { ...prev, favoritedByMe: !active, favoriteCount: prev.favoriteCount + delta };
+      if (type === "LIKE") {
+        const a = prev.likedByMe;
+        return { ...prev, likedByMe: !a, likeCount: prev.likeCount + (a ? -1 : 1) };
+      }
+      if (type === "FAVORITE") {
+        const a = prev.favoritedByMe;
+        return { ...prev, favoritedByMe: !a, favoriteCount: prev.favoriteCount + (a ? -1 : 1) };
+      }
+      const a = prev.signedUpByMe;
+      return { ...prev, signedUpByMe: !a, signupCount: prev.signupCount + (a ? -1 : 1) };
     });
     try {
       const res = await fetch(`/api/events/${event.id}/reactions`, {
@@ -147,7 +153,9 @@ export function EventDetail({
         setReactions((prev) =>
           type === "LIKE"
             ? { ...prev, likedByMe: d.active, likeCount: d.count }
-            : { ...prev, favoritedByMe: d.active, favoriteCount: d.count },
+            : type === "FAVORITE"
+              ? { ...prev, favoritedByMe: d.active, favoriteCount: d.count }
+              : { ...prev, signedUpByMe: d.active, signupCount: d.count },
         );
       }
     } catch {
@@ -310,8 +318,26 @@ export function EventDetail({
         </div>
       </div>
 
-      {/* 可滚动区：发帖人 + 地点 + 图片 + 简介 + 评论 */}
+      {/* 可滚动区：报名 + 发帖人 + 地点 + 图片 + 简介 + 评论 */}
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
+        {/* 报名（仅开启报名的活动） */}
+        {event.signupEnabled && (
+          <button
+            type="button"
+            onClick={() => toggleReaction("SIGNUP")}
+            className={`w-full py-2.5 rounded-xl text-sm font-medium transition ${
+              reactions.signedUpByMe
+                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                : "bg-blue-600 text-white"
+            }`}
+          >
+            {reactions.signedUpByMe ? "已报名 · 点击取消" : "报名参加"}
+            {reactions.signupCount > 0 && (
+              <span className="ml-1 opacity-75 font-normal">（{reactions.signupCount} 人已报名）</span>
+            )}
+          </button>
+        )}
+
         {/* 发帖人（仅用户发布的活动有作者） */}
         {event.author && (
           <div className="flex items-center gap-2.5">

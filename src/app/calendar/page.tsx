@@ -31,6 +31,7 @@ export default async function CalendarPage() {
       sourceUrl: e.sourceUrl,
       trustLevel: e.trustLevel,
       tags: e.tags ?? [],
+      signupEnabled: e.signupEnabled ?? false,
       author: e.author ?? null,
     }));
   } catch {
