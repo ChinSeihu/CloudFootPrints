@@ -6,6 +6,14 @@
 
 ## 2026-06-14
 
+### 聚合圆按「地理分散度」定大小（同点不放大）
+
+聚合圆半径从「按数量」改为「按聚合内各点的经纬包围盒边长」：**同一地点的多个活动 → spread≈0 → 小圆**（如皆在皇居受付的多场马拉松，不再撑成巨型圈）；**不同地点分散 → 越散越大**。实现：source 加 `clusterProperties`(min/max lng·lat) → 半径用 `interpolate(spread)`（主圆 15→27、光晕 22→38）；呼吸动效仍在此基础上脉动。`eventsToFC` 的 properties 补 `lng/lat` 供聚合统计。
+
+**涉及文件：** `components/Map/MapExplorer.tsx`
+
+---
+
 ### 多图上传 + 图片点击放大；AI 导游按类型给选项
 
 - **AI 导游分类型快捷问题**：`GuideTopic` 加 `kind`（event/landmark/food），快捷问题随类型变——餐厅问招牌/预算/周边、景区问看点/路线/周边、活动问看点/路线/类似推荐。名胜→landmark、美食→food、活动默认 event。

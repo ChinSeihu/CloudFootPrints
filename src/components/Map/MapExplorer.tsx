@@ -181,6 +181,9 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
         endTime: ev.endTime ?? "",
         sourceType: ev.sourceType,
         sourceUrl: ev.sourceUrl ?? "",
+        // 供聚合按「地理分散度」计算半径用（同点活动不放大，分散才放大）
+        lng: ev.lng,
+        lat: ev.lat,
       },
     })),
   };
@@ -423,7 +426,24 @@ export function MapExplorer() {
       cluster: true,
       clusterRadius: 36, // 收紧聚合范围，邻近但不同地点的活动更早分开
       clusterMaxZoom: 15, // 放大到 15 级即全部散开为单点
+      // 聚合内各点的经纬度包围盒 → 用于按「地理分散度」定圆大小
+      clusterProperties: {
+        minLng: ["min", ["get", "lng"]],
+        maxLng: ["max", ["get", "lng"]],
+        minLat: ["min", ["get", "lat"]],
+        maxLat: ["max", ["get", "lat"]],
+      },
     });
+
+    // 圆大小按「地理分散度」（经纬包围盒边长，单位度）而非数量：
+    // 同一地点的多活动 → spread≈0 → 小圆；不同地点分散 → 越散越大。
+    const spread: maplibregl.ExpressionSpecification = [
+      "max",
+      ["-", ["get", "maxLng"], ["get", "minLng"]],
+      ["-", ["get", "maxLat"], ["get", "minLat"]],
+    ] as unknown as maplibregl.ExpressionSpecification;
+    const mainRadius = ["interpolate", ["linear"], spread, 0, 15, 0.004, 21, 0.02, 27] as unknown as maplibregl.ExpressionSpecification;
+    const haloRadius = ["interpolate", ["linear"], spread, 0, 22, 0.004, 30, 0.02, 38] as unknown as maplibregl.ExpressionSpecification;
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
@@ -435,7 +455,7 @@ export function MapExplorer() {
         "circle-color": "#88b0f2",
         "circle-opacity": 0.16,
         "circle-blur": 0.45,
-        "circle-radius": ["step", ["get", "point_count"], 26, 5, 32, 20, 40],
+        "circle-radius": haloRadius,
       },
     });
     // 聚合主圆：柔和的渐变蓝（按数量从浅到深），半透明 + 柔白边
@@ -455,7 +475,7 @@ export function MapExplorer() {
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2,
         "circle-stroke-opacity": 0.85,
-        "circle-radius": ["step", ["get", "point_count"], 17, 5, 22, 20, 27],
+        "circle-radius": mainRadius,
       },
     });
     map.addLayer({
@@ -700,8 +720,7 @@ export function MapExplorer() {
     });
 
     // 聚合光晕「呼吸」动效：透明度 + 半径一起脉动（更明显）。
-    // 半径在基础 step 表达式上乘一个随时间变化的系数，保留按数量分级。
-    const haloBaseRadius = ["step", ["get", "point_count"], 26, 5, 32, 20, 40];
+    // 半径在「分散度」基础半径上乘随时间变化的系数（保留同点小/分散大）。
     const pulse = () => {
       if (!map.getLayer("event-cluster-halo")) return; // 已卸载
       const s = 0.5 + 0.5 * Math.sin(Date.now() / 650); // 0..1（越小越快）
@@ -709,7 +728,7 @@ export function MapExplorer() {
       const scale = 1 + 0.2 * s; // 半径 ×1.0 → ×1.2
       try {
         map.setPaintProperty("event-cluster-halo", "circle-opacity", o);
-        map.setPaintProperty("event-cluster-halo", "circle-radius", ["*", scale, haloBaseRadius] as unknown as maplibregl.ExpressionSpecification);
+        map.setPaintProperty("event-cluster-halo", "circle-radius", ["*", scale, haloRadius] as unknown as maplibregl.ExpressionSpecification);
       } catch {
         return;
       }
