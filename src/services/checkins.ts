@@ -64,6 +64,47 @@ export async function createCheckin(
   return { ok: true, checkin };
 }
 
+// 编辑打卡：仅本人可改，文字信息 + 照片 + 时间（不改坐标）。
+export type UpdateCheckinInput = {
+  note?: string | null;
+  rating?: number | null;
+  photoUrls?: string[];
+  visitedAt?: string | null; // ISO
+};
+
+export type UpdateCheckinResult =
+  | { ok: true; checkin: Awaited<ReturnType<typeof prisma.checkIn.update>> }
+  | { ok: false; error: string };
+
+export async function updateCheckin(
+  id: string,
+  userId: string,
+  input: UpdateCheckinInput,
+): Promise<UpdateCheckinResult> {
+  const existing = await prisma.checkIn.findUnique({ where: { id } });
+  if (!existing) return { ok: false, error: "打卡记录不存在" };
+  if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
+  if (input.rating != null && (input.rating < 1 || input.rating > 5)) {
+    return { ok: false, error: "rating 必须在 1–5 之间" };
+  }
+
+  const data: Record<string, unknown> = {};
+  if (input.note !== undefined) data.note = input.note ?? null;
+  if (input.rating !== undefined) data.rating = input.rating ?? null;
+  if (input.photoUrls !== undefined) {
+    const photoUrls = input.photoUrls.filter(Boolean);
+    data.photoUrls = photoUrls;
+    data.photoUrl = photoUrls[0] ?? null; // 封面 = 首图
+  }
+  if (input.visitedAt !== undefined) {
+    const v = input.visitedAt ? new Date(input.visitedAt) : null;
+    if (v && !Number.isNaN(v.getTime())) data.createdAt = v;
+  }
+
+  const checkin = await prisma.checkIn.update({ where: { id }, data });
+  return { ok: true, checkin };
+}
+
 export type DeleteCheckinResult = { ok: true } | { ok: false; error: string };
 
 export async function deleteCheckin(

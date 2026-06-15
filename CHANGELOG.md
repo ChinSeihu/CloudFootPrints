@@ -6,6 +6,20 @@
 
 ## 2026-06-15
 
+### 报名活动展示 + 发帖/打卡编辑功能
+
+- **报名活动**：个人页「收藏」tab 改为「收藏 / 报名」二级切换，新增展示当前用户报名过的活动。
+  - 新增 `listSignupEvents`（复用 `listEventsByReaction` 泛化）+ `GET /api/signups`。
+- **编辑发帖**（仅作者，文字信息，不动坐标/图片）：标题/分类/简介/地点名/时间/标签/报名开关。
+  - `updateUserEvent` 服务（鉴权：USER 来源 + 作者）+ `PATCH /api/events/[id]`。
+- **编辑打卡**（仅本人）：备注/评分/照片（保留+增删）/时间。
+  - `updateCheckin` 服务 + `PATCH /api/checkins/[id]`。
+- **UI**：发帖/打卡列表加「编辑」按钮；新增 `Me/EditDialogs.tsx`（居中模态，区别于地图底部 sheet），复用日期选择/图片上传逻辑。
+
+**涉及文件：** `src/services/{reactions,events,checkins}.ts`、`src/app/api/signups/route.ts`、`src/app/api/events/[id]/route.ts`、`src/app/api/checkins/[id]/route.ts`、`src/components/Me/EditDialogs.tsx`、`src/components/Me/MeView.tsx`
+
+---
+
 ### 精选名店详细信息补全
 
 最初手工精选的 ~21 家名店字段比 Hot Pepper 导入店少，卡片简陋。补全：

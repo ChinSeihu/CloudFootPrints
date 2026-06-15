@@ -11,6 +11,7 @@ import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
+import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 type Tab = "checkins" | "posts" | "favorites" | "messages";
@@ -26,26 +27,32 @@ function MeContent() {
   const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("checkins");
+  const [favSub, setFavSub] = useState<"favorites" | "signups">("favorites");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
+  const [signups, setSignups] = useState<EventDTO[]>([]);
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
   const [selected, setSelected] = useState<EventDTO | null>(null);
+  const [editingPost, setEditingPost] = useState<EventDTO | null>(null);
+  const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [c, p, f, n] = await Promise.all([
+      const [c, p, f, s, n] = await Promise.all([
         fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
         fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/favorites").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
+        fetch("/api/signups").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/replies").then((r) => (r.ok ? r.json() : { notices: [] })).catch(() => ({ notices: [] })),
       ]);
       setCheckins(c.checkins ?? []);
       setPosts(p.events ?? []);
       setFavorites(f.events ?? []);
+      setSignups(s.events ?? []);
       setNotices(n.notices ?? []);
       setLoaded(true);
     })();
@@ -190,8 +197,15 @@ function MeContent() {
                     </time>
                     <button
                       type="button"
+                      onClick={() => setEditingCheckin(c)}
+                      className="ml-auto text-[11px] text-neutral-400 hover:text-blue-500 transition"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => deleteCheckin(c.id)}
-                      className="ml-auto text-[11px] text-neutral-400 hover:text-red-500 transition"
+                      className="text-[11px] text-neutral-400 hover:text-red-500 transition"
                     >
                       删除
                     </button>
@@ -277,8 +291,15 @@ function MeContent() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setEditingPost(p)}
+                        className="text-xs text-neutral-500 hover:text-blue-600 ml-auto"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => deletePost(p.id)}
-                        className="text-xs text-red-500 ml-auto"
+                        className="text-xs text-red-500"
                       >
                         删除
                       </button>
@@ -289,50 +310,83 @@ function MeContent() {
             </ul>
           </>
         ) : tab === "favorites" ? (
-          <>{/* 收藏 */}
-            {loaded && favorites.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。</p>
-            )}
-            <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
-              {favorites.map((p) => {
-                const meta = CATEGORY_META[p.category];
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelected(p)}
-                    className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
-                  >
-                    {p.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
-                    )}
-                    <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-                    <div className="p-3">
-                      <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
-                        <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                        {meta.label} · {fmtDate(p.startTime)}
-                      </div>
-                      <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{p.title}</h3>
-                      {p.venueName && (
-                        <div className="flex items-center gap-1 text-xs text-neutral-500">
-                          <IconPin className="w-3 h-3 shrink-0" />
-                          {p.venueName}
+          (() => {
+            const list = favSub === "favorites" ? favorites : signups;
+            return (
+              <>{/* 收藏 / 报名 二级切换 */}
+                <div className="flex gap-2 mb-3">
+                  {([["favorites", "收藏", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
+                    const active = favSub === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFavSub(key)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] border transition ${
+                          active ? "bg-blue-600 text-white border-transparent" : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-300"
+                        }`}
+                      >
+                        {label}
+                        {n > 0 && <CountBadge count={n} active={active} tone="blue" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {loaded && list.length === 0 && (
+                  <p className="text-sm text-neutral-500">
+                    {favSub === "favorites"
+                      ? "还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。"
+                      : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
+                  </p>
+                )}
+                <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
+                  {list.map((p) => {
+                    const meta = CATEGORY_META[p.category];
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelected(p)}
+                        className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
+                      >
+                        {p.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                        )}
+                        <div className="h-1.5" style={{ backgroundColor: meta.color }} />
+                        <div className="p-3">
+                          <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
+                            <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
+                            {meta.label} · {fmtDate(p.startTime)}
+                          </div>
+                          <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{p.title}</h3>
+                          {p.venueName && (
+                            <div className="flex items-center gap-1 text-xs text-neutral-500">
+                              <IconPin className="w-3 h-3 shrink-0" />
+                              {p.venueName}
+                            </div>
+                          )}
+                          {p.description && (
+                            <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
+                          )}
+                          {favSub === "favorites" ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
+                              <IconBookmark filled className="w-3.5 h-3.5" />
+                              已收藏
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-2">
+                              ✓ 已报名
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {p.description && (
-                        <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
-                        <IconBookmark filled className="w-3.5 h-3.5" />
-                        已收藏
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()
         ) : (
           <>{/* 消息：被回复 */}
             {loaded && notices.length === 0 && (
@@ -378,12 +432,32 @@ function MeContent() {
           event={selected}
           onClose={() => {
             setSelected(null);
-            // 详情里可能取消了收藏 —— 关闭时刷新收藏列表
+            // 详情里可能改了收藏/报名 —— 关闭时刷新这两个列表
             fetch("/api/favorites")
               .then((r) => (r.ok ? r.json() : { events: [] }))
               .then((d) => setFavorites(d.events ?? []))
               .catch(() => {});
+            fetch("/api/signups")
+              .then((r) => (r.ok ? r.json() : { events: [] }))
+              .then((d) => setSignups(d.events ?? []))
+              .catch(() => {});
           }}
+        />
+      )}
+
+      {editingPost && (
+        <EditPostDialog
+          event={editingPost}
+          onClose={() => setEditingPost(null)}
+          onSaved={(patch) => setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, ...patch } : p)))}
+        />
+      )}
+
+      {editingCheckin && (
+        <EditCheckInDialog
+          checkin={editingCheckin}
+          onClose={() => setEditingCheckin(null)}
+          onSaved={(patch) => setCheckins((prev) => prev.map((c) => (c.id === editingCheckin.id ? { ...c, ...patch } : c)))}
         />
       )}
 

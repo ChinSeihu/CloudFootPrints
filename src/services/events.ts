@@ -161,6 +161,53 @@ export async function deleteUserEvent(id: string, userId: string): Promise<Delet
   return { ok: true };
 }
 
+// 编辑发帖：仅作者可改，且只改文字信息（不动地图位置 lat/lng 与图片）。
+export type UpdateUserEventInput = {
+  title?: string;
+  category?: EventCategory;
+  description?: string | null;
+  venueName?: string | null;
+  startTime?: string | null; // ISO
+  endTime?: string | null; // ISO
+  tags?: string[];
+  signupEnabled?: boolean;
+};
+
+export type UpdateUserEventResult =
+  | { ok: true; event: Awaited<ReturnType<typeof prisma.event.update>> }
+  | { ok: false; error: string };
+
+export async function updateUserEvent(
+  id: string,
+  userId: string,
+  input: UpdateUserEventInput,
+): Promise<UpdateUserEventResult> {
+  const existing = await prisma.event.findUnique({
+    where: { id },
+    select: { sourceType: true, userId: true },
+  });
+  if (!existing) return { ok: false, error: "活动不存在" };
+  if (existing.sourceType !== "USER") return { ok: false, error: "只能编辑自己发布的活动" };
+  if (existing.userId && existing.userId !== userId) return { ok: false, error: "无权限编辑" };
+  if (input.title !== undefined && !input.title.trim()) return { ok: false, error: "缺少活动名称" };
+  if (input.category !== undefined && !isEventCategory(input.category)) {
+    return { ok: false, error: "非法分类" };
+  }
+
+  const data: Record<string, unknown> = {};
+  if (input.title !== undefined) data.title = input.title.trim();
+  if (input.category !== undefined) data.category = input.category;
+  if (input.description !== undefined) data.description = input.description?.trim() || null;
+  if (input.venueName !== undefined) data.venueName = input.venueName?.trim() || null;
+  if (input.startTime !== undefined) data.startTime = parseISO(input.startTime);
+  if (input.endTime !== undefined) data.endTime = parseISO(input.endTime);
+  if (input.tags !== undefined) data.tags = input.tags;
+  if (input.signupEnabled !== undefined) data.signupEnabled = input.signupEnabled;
+
+  const event = await prisma.event.update({ where: { id }, data });
+  return { ok: true, event };
+}
+
 // 把 URLSearchParams 解析成 EventQuery，做基本校验。
 export function parseEventQuery(params: URLSearchParams): EventQuery | { error: string } {
   const num = (k: string) => {

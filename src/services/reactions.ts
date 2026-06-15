@@ -58,14 +58,14 @@ export async function toggleReaction(
   return { active: !existing, count };
 }
 
-// 当前用户收藏的活动（按收藏时间倒序）。返回活动 + 作者公开信息。
-export async function listFavoriteEvents(userId: string) {
-  const favs = await prisma.reaction.findMany({
-    where: { userId, type: ReactionType.FAVORITE },
+// 当前用户某类型 reaction 关联的活动（按操作时间倒序）。返回活动 + 作者公开信息。
+async function listEventsByReaction(userId: string, type: ReactionType) {
+  const rows = await prisma.reaction.findMany({
+    where: { userId, type },
     orderBy: { createdAt: "desc" },
     include: { event: true },
   });
-  const events = favs.map((f) => f.event);
+  const events = rows.map((r) => r.event);
   const authorIds = [...new Set(events.map((e) => e.userId).filter((x): x is string => !!x))];
   const users = authorIds.length
     ? await prisma.user.findMany({
@@ -75,4 +75,14 @@ export async function listFavoriteEvents(userId: string) {
     : [];
   const map = new Map(users.map((u) => [u.id, u]));
   return events.map((e) => ({ ...e, author: e.userId ? map.get(e.userId) ?? null : null }));
+}
+
+// 当前用户收藏的活动。
+export function listFavoriteEvents(userId: string) {
+  return listEventsByReaction(userId, ReactionType.FAVORITE);
+}
+
+// 当前用户报名的活动。
+export function listSignupEvents(userId: string) {
+  return listEventsByReaction(userId, ReactionType.SIGNUP);
 }
