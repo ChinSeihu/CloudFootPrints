@@ -28,8 +28,11 @@ jobs:
       - name: 跑抓取管线（采集 → 抽取 → 地理编码 → 入库）
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # 可选：开启 LLM 重分类（需 secret）；不设则用关键词分类，零成本
+          # LLM = DeepSeek（OpenAI 兼容端点）。显式声明 provider，避免误判。
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_PROVIDER: deepseek
+          # 开启 LLM 重分类：把关键词判成 OTHER 的活动交给 DeepSeek 重判，更准；失败自动回退关键词。
+          CLASSIFY_WITH_LLM: "true"
           # 体育子分类抓几页（可调）
           WALKERPLUS_SPORTS_MAX_PAGES: "6"
         run: npm run extract
