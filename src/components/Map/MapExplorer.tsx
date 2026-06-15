@@ -188,8 +188,8 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
       properties: {
         id: ev.id,
         title: ev.title,
-        // 图标下方的一句摘要：优先用活动简介，缺省退回分类名（避免直接截标题）
-        summary: (ev.description?.trim() || CATEGORY_META[ev.category as keyof typeof CATEGORY_META]?.label || ev.title),
+        // 图标下方的一句摘要：优先用 LLM 生成的 summary，其次活动简介，再退回分类名（避免直接截标题）
+        summary: (ev.summary?.trim() || ev.description?.trim() || CATEGORY_META[ev.category as keyof typeof CATEGORY_META]?.label || ev.title),
         category: ev.category,
         venueName: ev.venueName ?? "",
         address: ev.address ?? "",

@@ -89,6 +89,7 @@ export async function ingestEvents(
       data: {
         title: ev.title,
         description: ev.description,
+        summary: ev.summary,
         category: ev.category,
         venueName: ev.venueName,
         address: ev.address,

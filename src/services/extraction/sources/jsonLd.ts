@@ -62,6 +62,7 @@ export function ldToExtracted(e: LdEvent): ExtractedEvent {
   return {
     title: e.name!,
     description: e.description ?? null,
+    summary: null, // 摘要由管线 LLM 步骤生成
     category: classifyByKeyword(`${e.name ?? ""} ${e.description ?? ""}`),
     venueName: venue || null,
     address,

@@ -15,6 +15,7 @@ export async function GET(_req: Request, ctx: Ctx) {
         id: e.id,
         title: e.title,
         description: e.description,
+        summary: e.summary,
         category: e.category,
         venueName: e.venueName,
         address: e.address,

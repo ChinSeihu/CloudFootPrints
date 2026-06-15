@@ -348,6 +348,114 @@ export async function classifyEvents(
   return out;
 }
 
+// ---------- 批量一句话摘要（给活动生成地图标签用的短摘要）----------
+// 活动 description 常冗长/缺失，直接截取效果差。让 LLM 为一批活动各生成一句
+// ≤14 字、点明看点/特色的中文短摘要，存入 Event.summary，地图标签直接用。
+
+export type SummarizeItem = { title: string; description?: string | null };
+
+const SUMMARIZE_SYSTEM = `你是东京活动文案编辑。给定一批活动（标题 + 可选简介），为每条写一句**极短的中文摘要**，用作地图标签。
+要求：
+- 每条**不超过 14 个字**，越短越好，点明这是什么 / 看点 / 特色。
+- 是名词性短语或一句话，不要标点结尾，不要书名号/引号，不要编号。
+- 不要照抄标题；提炼其内容或类型（如「teamLab 沉浸光影展」「隅田川夏夜花火」「草间弥生回顾展」）。
+- 信息不足时，用分类层面的简短描述（如「现代艺术展览」「地方特色市集」）。`;
+
+function buildSummarizeList(items: SummarizeItem[]): string {
+  return items
+    .map((it, i) => `${i + 1}. ${it.title}${it.description ? `（${it.description.slice(0, 160)}）` : ""}`)
+    .join("\n");
+}
+
+const SUMMARIZE_TOOL: Anthropic.Tool = {
+  name: "emit_summaries",
+  description: "按输入顺序输出每条活动的一句话短摘要。",
+  input_schema: {
+    type: "object",
+    properties: {
+      summaries: {
+        type: "array",
+        description: "与输入等长、同顺序的短摘要数组，每条 ≤14 字。",
+        items: { type: "string" },
+      },
+    },
+    required: ["summaries"],
+    additionalProperties: false,
+  },
+};
+
+async function summarizeViaAnthropic(items: SummarizeItem[]): Promise<string[]> {
+  const model = process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL;
+  const res = await getAnthropic().messages.create({
+    model,
+    max_tokens: 1024,
+    system: SUMMARIZE_SYSTEM,
+    tools: [SUMMARIZE_TOOL],
+    tool_choice: { type: "tool", name: "emit_summaries" },
+    messages: [
+      {
+        role: "user",
+        content: `共 ${items.length} 条，按 1..${items.length} 顺序输出摘要（数组长度必须为 ${items.length}）：\n${buildSummarizeList(items)}`,
+      },
+    ],
+  });
+  const toolUse = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+  const input = toolUse?.input as { summaries?: string[] } | undefined;
+  return Array.isArray(input?.summaries) ? input.summaries : [];
+}
+
+async function summarizeViaOpenAICompatible(items: SummarizeItem[]): Promise<string[]> {
+  const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const model = process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL;
+  const instruction = `只输出 JSON：{"summaries": ["...", ...]}，数组与输入等长、同顺序，每项是 ≤14 字的中文短摘要。不要解释或 Markdown 围栏。`;
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: `${SUMMARIZE_SYSTEM}\n\n${instruction}` },
+        { role: "user", content: `共 ${items.length} 条：\n${buildSummarizeList(items)}` },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 1024,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 摘要请求失败 ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const parsed = safeJsonParse(data.choices?.[0]?.message?.content ?? "") as
+    | { summaries?: string[] }
+    | null;
+  return Array.isArray(parsed?.summaries) ? parsed.summaries : [];
+}
+
+const SUMMARIZE_BATCH = 30;
+
+// 批量摘要。返回与输入等长的数组；无法生成处填 null（调用方回退）。摘要硬截到 14 字。
+export async function summarizeEvents(items: SummarizeItem[]): Promise<(string | null)[]> {
+  const out: (string | null)[] = [];
+  const useAnthropic = getProvider() === "anthropic";
+  for (let i = 0; i < items.length; i += SUMMARIZE_BATCH) {
+    const batch = items.slice(i, i + SUMMARIZE_BATCH);
+    let sums: string[] = [];
+    try {
+      sums = useAnthropic
+        ? await summarizeViaAnthropic(batch)
+        : await summarizeViaOpenAICompatible(batch);
+    } catch (err) {
+      console.warn("  ⚠️  LLM 摘要失败，本批留空：", (err as Error).message);
+    }
+    for (let j = 0; j < batch.length; j++) {
+      const s = typeof sums[j] === "string" ? sums[j].trim().replace(/^[「『"']|[」』"']$/g, "") : "";
+      out.push(s ? (s.length > 14 ? s.slice(0, 14) : s) : null);
+    }
+  }
+  return out;
+}
+
 // ---------- AI 导游咨询（多轮对话）----------
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };

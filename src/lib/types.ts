@@ -12,6 +12,7 @@ export type EventDTO = {
   id: string;
   title: string;
   description: string | null;
+  summary: string | null; // LLM 一句话摘要（地图标签用）
   category: EventCategory;
   venueName: string | null;
   address: string | null;

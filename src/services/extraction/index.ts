@@ -1,5 +1,6 @@
 import { extractFromText } from "./extract";
 import { maybeReclassify } from "./classify";
+import { maybeSummarize } from "./summarize";
 import { ingestEvents, type IngestStats } from "./ingest";
 import { getSources } from "./sources";
 import type { Source } from "./types";
@@ -33,6 +34,8 @@ export async function runSource(source: Source): Promise<IngestStats> {
     // prestructured 源分类较弱（关键词），可选用 LLM 重分类增强（开关 + 有 key 才生效）。
     // text 源已由 LLM 抽取时分好类，无需再判。
     if (doc.prestructured) events = await maybeReclassify(events);
+    // 为所有活动生成一句话短摘要（地图标签用），不分来源。
+    events = await maybeSummarize(events);
     const stats = await ingestEvents(
       events,
       {

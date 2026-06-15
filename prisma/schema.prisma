@@ -36,6 +36,7 @@ model Event {
   id          String        @id @default(cuid())
   title       String
   description String?
+  summary     String?       // LLM 生成的一句话摘要（≤14 字，地图标签用）
   category    EventCategory
   venueName   String?
   address     String?

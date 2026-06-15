@@ -6,6 +6,21 @@
 
 ## 2026-06-15
 
+### 抓取管线 LLM 生成活动一句话摘要（存 Event.summary）
+
+地图标签用活动 description 直接截取效果差（冗长/缺失）。改为在抓取管线里用 LLM 为每条活动生成一句 ≤14 字短摘要，存入新字段，地图标签优先用它。
+
+- **数据库**：`Event.summary String?`（db push 到 Neon）。
+- **管线**：新增 `services/extraction/summarize.ts`（`maybeSummarize`，开关 `SUMMARIZE_WITH_LLM=true` + 有 LLM key 才启用，失败静默回退 null），在 `index.ts` 对所有源的活动执行；`lib/llm.ts` 加 `summarizeEvents`（批量 30 条，DeepSeek/Anthropic 双 provider，硬截 14 字）。
+- **入库 / DTO**：`ingest.ts` 写入 summary；`ExtractedEvent`、`EventDTO` 加 summary，相关页面/接口 DTO（recommend/calendar/favorites/events[id]）补字段。
+- **地图标签**：活动摘要优先级 `summary → description → 分类名 → 标题`。
+- **定时任务**：`.github/workflows/extract.yml` 加 `SUMMARIZE_WITH_LLM=true`。
+- 实测（DeepSeek）：チームラボ→「teamLab沉浸光影展」、隅田川花火→「隅田川夏夜花火」、東京蚤の市→「东京古董市集」、草間彌生展→「草间弥生回顾展」。
+
+**涉及文件：** `prisma/schema.prisma`、`src/lib/llm.ts`、`src/lib/types.ts`、`src/services/extraction/{summarize,index,ingest,types}.ts`、`src/services/extraction/sources/{jsonLd,connpass}.ts`、`src/components/Map/MapExplorer.tsx`、`src/app/recommend/page.tsx`、`src/app/calendar/page.tsx`、`src/app/api/favorites/route.ts`、`src/app/api/events/[id]/route.ts`、`.github/workflows/extract.yml`
+
+---
+
 ### 放大后显示简介标签（活动 / 美食 / 景点）
 
 地图放大到一定缩放级别后，在图标下方显示一句摘要标签（超出截断加省略号，用 MapLibre 表达式渲染时截断，不改数据）：

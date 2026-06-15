@@ -5,6 +5,7 @@ import { EVENT_CATEGORIES } from "@/lib/categories";
 export const ExtractedEventSchema = z.object({
   title: z.string().min(1),
   description: z.string().nullable().default(null),
+  summary: z.string().nullable().default(null), // LLM 一句话摘要（≤14 字，地图标签用）
   category: z.enum(EVENT_CATEGORIES),
   venueName: z.string().nullable().default(null),
   address: z.string().nullable().default(null),

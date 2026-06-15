@@ -33,6 +33,8 @@ jobs:
           LLM_PROVIDER: deepseek
           # 开启 LLM 重分类：把关键词判成 OTHER 的活动交给 DeepSeek 重判，更准；失败自动回退关键词。
           CLASSIFY_WITH_LLM: "true"
+          # 开启 LLM 一句话摘要：为每条活动生成 ≤14 字短摘要，存 Event.summary，地图标签用。
+          SUMMARIZE_WITH_LLM: "true"
           # 体育子分类抓几页（可调）
           WALKERPLUS_SPORTS_MAX_PAGES: "6"
         run: npm run extract
