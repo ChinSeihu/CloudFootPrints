@@ -11,6 +11,7 @@ import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
 import { StyleSwitcher } from "./StyleSwitcher";
 import { PopularCard } from "./PopularCard";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
 import { FOOD_SPOTS, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
@@ -241,6 +242,7 @@ export function MapExplorer() {
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
@@ -391,25 +393,34 @@ export function MapExplorer() {
   useEffect(() => { fetchEventsRef.current = fetchEvents; });
   useEffect(() => { fetchCheckinsRef.current = fetchCheckins; });
 
-  const handleDeleteCheckin = useCallback(async (id: string) => {
-    const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      showToast("打卡已删除");
-      await fetchCheckinsRef.current();
-    } else {
-      showToast("删除失败");
-    }
+  const handleDeleteCheckin = useCallback((id: string) => {
+    setConfirmBox({
+      message: "确定删除这条打卡吗？",
+      onOk: async () => {
+        const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast("打卡已删除");
+          await fetchCheckinsRef.current();
+        } else {
+          showToast("删除失败");
+        }
+      },
+    });
   }, []);
 
-  const handleDeleteEvent = useCallback(async (id: string) => {
-    if (!confirm("确定删除这条发帖吗？")) return;
-    const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      showToast("发帖已删除");
-      if (lastBboxRef.current) await fetchEventsRef.current(lastBboxRef.current);
-    } else {
-      showToast("删除失败");
-    }
+  const handleDeleteEvent = useCallback((id: string) => {
+    setConfirmBox({
+      message: "确定删除这条发帖吗？",
+      onOk: async () => {
+        const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast("发帖已删除");
+          if (lastBboxRef.current) await fetchEventsRef.current(lastBboxRef.current);
+        } else {
+          showToast("删除失败");
+        }
+      },
+    });
   }, []);
 
   const handleDeleteCheckinRef = useRef(handleDeleteCheckin);
@@ -1188,6 +1199,13 @@ export function MapExplorer() {
           {toast}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmBox}
+        message={confirmBox?.message ?? ""}
+        onConfirm={() => { confirmBox?.onOk(); setConfirmBox(null); }}
+        onCancel={() => setConfirmBox(null)}
+      />
     </div>
   );
 }

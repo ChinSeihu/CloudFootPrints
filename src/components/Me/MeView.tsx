@@ -9,6 +9,7 @@ import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
@@ -31,6 +32,7 @@ function MeContent() {
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -83,16 +85,24 @@ function MeContent() {
     }
   }
 
-  async function deletePost(id: string) {
-    if (!confirm("确定删除这条发帖吗？")) return;
-    const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
-    if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
+  function deletePost(id: string) {
+    setConfirmBox({
+      message: "确定删除这条发帖吗？",
+      onOk: async () => {
+        const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+        if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
+      },
+    });
   }
 
-  async function deleteCheckin(id: string) {
-    if (!confirm("确定删除这条打卡吗？")) return;
-    const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
-    if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
+  function deleteCheckin(id: string) {
+    setConfirmBox({
+      message: "确定删除这条打卡吗？",
+      onOk: async () => {
+        const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
+        if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
+      },
+    });
   }
 
   return (
@@ -372,6 +382,13 @@ function MeContent() {
       {lightbox && (
         <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />
       )}
+
+      <ConfirmDialog
+        open={!!confirmBox}
+        message={confirmBox?.message ?? ""}
+        onConfirm={() => { confirmBox?.onOk(); setConfirmBox(null); }}
+        onCancel={() => setConfirmBox(null)}
+      />
     </div>
   );
 }

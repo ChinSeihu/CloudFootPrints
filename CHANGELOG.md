@@ -6,6 +6,15 @@
 
 ## 2026-06-14
 
+### 修复：删除确认用 `window.confirm` 在部分 webview 误删
+
+- **现象**：连续「删除→取消」循环时仍会被删除。**根因**：部分移动端 webview 的 `window.confirm()` 行为不可靠（点「取消」也可能返回 true）。
+- **修复**：新增应用内 `ConfirmDialog`（受控弹窗、取消/确认明确回调），替换发帖/打卡删除处的原生 `confirm()`（个人页 + 地图弹窗）。实测「删除→取消」循环不再误删，确认才删。
+
+**涉及文件：** `components/common/ConfirmDialog.tsx`、`components/Me/MeView.tsx`、`components/Map/MapExplorer.tsx`
+
+---
+
 ### 聚合圆按「地理分散度」定大小（同点不放大）
 
 聚合圆半径从「按数量」改为「按聚合内各点的经纬包围盒边长」：**同一地点的多个活动 → spread≈0 → 小圆**（如皆在皇居受付的多场马拉松，不再撑成巨型圈）；**不同地点分散 → 越散越大**。实现：source 加 `clusterProperties`(min/max lng·lat) → 半径用 `interpolate(spread)`（主圆 15→27、光晕 22→38）；呼吸动效仍在此基础上脉动。`eventsToFC` 的 properties 补 `lng/lat` 供聚合统计。
