@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Hot Pepper 候选池中间产物（由 npm run fetch:hotpepper 生成；精选结果在 src/lib/foodSpotsImported.ts）
+/scripts/hotpepper-candidates.json

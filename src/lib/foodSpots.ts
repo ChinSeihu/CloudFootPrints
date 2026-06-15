@@ -1,5 +1,6 @@
 // 精选东京高分美食（人工精选，评分 >4.0；评分为参考性精选标注，非实时抓取）。
 // 餐厅是常驻 POI（无开始/结束时间），用独立图层呈现（类似名胜），卡片展示评分 + 招牌菜单。
+import { FOOD_SPOTS_IMPORTED } from "./foodSpotsImported";
 
 export type FoodKind = "japanese" | "chinese" | "western" | "cafe" | "dessert";
 
@@ -34,6 +35,7 @@ export const FOOD_KIND_META: Record<FoodKind, { label: string; color: string; gl
   },
 };
 
+// 人工精选名店（含参考评分 + 招牌菜单）。
 export type FoodSpot = {
   id: string;
   name: string;
@@ -41,9 +43,39 @@ export type FoodSpot = {
   genre: string; // 细分菜系（卡片展示）
   lat: number;
   lng: number;
-  rating: number; // 精选评分（>4.0）
+  rating: number; // 精选参考评分（>4.0，人工标注）
   menu: string[]; // 招牌菜单
   blurb: string; // 一句话简介
+};
+
+// Hot Pepper API 导入的真实店（无评分，带预算/照片/官网链接）。kind 用宽松 string 以兼容生成文件。
+export type FoodSpotImported = {
+  id: string;
+  name: string;
+  kind: string;
+  genre: string;
+  lat: number;
+  lng: number;
+  blurb: string; // Hot Pepper 招牌语(catch)
+  budget: string; // 预算区间，如 "3001～4000円"
+  photo: string; // 店铺照片 URL
+  url: string; // Hot Pepper 店铺页
+};
+
+// 地图渲染统一用的形状（精选 + 导入合并后）。可选字段区分两类来源。
+export type FoodSpotView = {
+  id: string;
+  name: string;
+  kind: FoodKind;
+  genre: string;
+  lat: number;
+  lng: number;
+  rating?: number;
+  menu?: string[];
+  blurb: string;
+  budget?: string;
+  photo?: string;
+  url?: string;
 };
 
 export const FOOD_SPOTS: FoodSpot[] = [
@@ -73,4 +105,22 @@ export const FOOD_SPOTS: FoodSpot[] = [
   // 甜品
   { id: "higashiya", name: "HIGASHIYA GINZA", kind: "dessert", genre: "和菓子", lat: 35.672, lng: 139.765, rating: 4.0, menu: ["季節の生菓子", "羊羹"], blurb: "银座现代和菓子茶房。" },
   { id: "shiseido", name: "資生堂パーラー 銀座", kind: "dessert", genre: "甜点", lat: 35.67, lng: 139.767, rating: 4.0, menu: ["ストロベリーパフェ"], blurb: "银座百年洋风甜点，草莓芭菲招牌。" },
+];
+
+// 合并：人工精选名店（带评分/招牌菜）+ Hot Pepper 导入真实店（带预算/照片/链接）。
+// 地图、AI 导游统一消费 FOOD_SPOTS_ALL。
+export const FOOD_SPOTS_ALL: FoodSpotView[] = [
+  ...FOOD_SPOTS.map((f) => ({ ...f })),
+  ...FOOD_SPOTS_IMPORTED.map((f) => ({
+    id: f.id,
+    name: f.name,
+    kind: (FOOD_KINDS as readonly string[]).includes(f.kind) ? (f.kind as FoodKind) : "japanese",
+    genre: f.genre,
+    lat: f.lat,
+    lng: f.lng,
+    blurb: f.blurb,
+    budget: f.budget,
+    photo: f.photo,
+    url: f.url,
+  })),
 ];

@@ -14,7 +14,7 @@ import { PopularCard } from "./PopularCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
-import { FOOD_SPOTS, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
+import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -143,7 +143,7 @@ async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
 function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
-    features: FOOD_SPOTS.map((f) => ({
+    features: FOOD_SPOTS_ALL.map((f) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [f.lng, f.lat] },
       properties: {
@@ -151,9 +151,12 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         name: f.name,
         kind: f.kind,
         genre: f.genre,
-        rating: f.rating,
-        menu: f.menu.join("|"),
+        rating: f.rating ?? 0,
+        menu: (f.menu ?? []).join("|"),
         blurb: f.blurb,
+        budget: f.budget ?? "",
+        photo: f.photo ?? "",
+        url: f.url ?? "",
       },
     })),
   };
@@ -991,7 +994,7 @@ export function MapExplorer() {
     map.on("mouseleave", "food-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "food-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string; budget?: string; photo?: string; url?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
@@ -999,17 +1002,26 @@ export function MapExplorer() {
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
       const menuItems = (p.menu ?? "").split("|").filter(Boolean);
       const menuHtml = menuItems.map((m) => `<span class="tem-food-tag">${escapeHtml(m)}</span>`).join("");
+      const rating = Number(p.rating ?? 0);
+      // 精选名店显示参考评分；Hot Pepper 导入店显示预算（无评分）。
+      const metaTail = rating > 0
+        ? `<span class="tem-food-rating">★ ${rating.toFixed(1)}</span>`
+        : (p.budget ? `<span class="tem-food-budget">${escapeHtml(p.budget)}</span>` : "");
       const html = `<div class="tem-food">
+        ${p.photo ? `<div class="tem-food-photo"><img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}" loading="lazy"/></div>` : ""}
         <div class="tem-food-head">
           <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
             <div class="tem-food-name">${escapeHtml(p.name)}</div>
-            <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")} · <span class="tem-food-rating">★ ${Number(p.rating ?? 0).toFixed(1)}</span></div>
+            <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")}${metaTail ? " · " + metaTail : ""}</div>
           </div>
         </div>
         ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
         ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
-        <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+        <div class="tem-food-actions">
+          <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
+        </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
         .setLngLat(coords)
@@ -1022,7 +1034,7 @@ export function MapExplorer() {
           kind: "food",
           category: `美食 · ${p.genre ?? ""}`,
           venueName: p.name!,
-          description: `东京美食：${p.name}（${p.genre ?? ""}，评分 ${p.rating}）。招牌：${menuItems.join("、")}。${p.blurb ?? ""}`,
+          description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : p.budget ? `，预算 ${p.budget}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${p.blurb ?? ""}`,
         });
       });
     });

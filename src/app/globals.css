@@ -171,6 +171,15 @@ body {
 .tem-food-name { font-size: 15px; font-weight: 600; color: #3f3a36; line-height: 1.25; }
 .tem-food-meta { font-size: 11px; margin-top: 2px; color: #8a7f79; }
 .tem-food-rating { color: #e11d48; font-weight: 600; }
+.tem-food-budget { color: #0d9488; font-weight: 600; }
+.tem-food-photo {
+  margin: -2px -2px 9px;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background: #f1ece8;
+}
+.tem-food-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tem-food-desc { font-size: 12.5px; line-height: 1.6; color: #6b625b; margin: 0 0 9px; }
 .tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
 .tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
@@ -181,8 +190,9 @@ body {
   background: rgba(225, 29, 72, 0.1);
   color: #be123c;
 }
+.tem-food-actions { display: flex; gap: 7px; align-items: stretch; }
 .tem-food-ask {
-  width: 100%;
+  flex: 1;
   padding: 8px 10px;
   border: none;
   border-radius: 10px;
@@ -194,6 +204,20 @@ body {
   transition: filter 0.15s;
 }
 .tem-food-ask:hover { filter: brightness(1.06); }
+.tem-food-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.tem-food-link:hover { background: rgba(225, 29, 72, 0.18); }
 .tem-food-popup .maplibregl-popup-content {
   background: transparent;
   box-shadow: 0 8px 28px rgba(190, 18, 60, 0.18);

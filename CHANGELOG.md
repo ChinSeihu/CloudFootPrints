@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-06-15
+
+### 美食扩充：Hot Pepper API 导入 + 人工精选混合
+
+之前美食点只有 ~21 家纯人工精选，店少信息少。改为「Hot Pepper Gourmet API 拉真实候选池 → 精选 → 入库」的混合模式：
+
+- **拉取脚本** `scripts/fetch-hotpepper.ts`（`npm run fetch:hotpepper`，需 `HOTPEPPER_API_KEY`）：按 7 个菜系（和食/焼肉/ラーメン/中華/洋食/伊法/カフェ・スイーツ）各拉东京 100 家，输出候选池 `scripts/hotpepper-candidates.json`（已 gitignore）。
+- **精选脚本** `scripts/build-foodspots.ts`：从候选池按菜系配额 + 地理打散（~1.2km 网格去重，避免堆在同一商圈）精选 ~139 家，拆分咖啡/甜品，生成 `src/lib/foodSpotsImported.ts`。
+- **数据结构**：`FoodSpot`（人工精选，带参考评分+招牌菜）+ 新增 `FoodSpotImported`（导入店，带预算/照片/官网链接，**无评分**——Hot Pepper API 不提供评分）+ 合并视图 `FoodSpotView` / `FOOD_SPOTS_ALL`。
+- **地图卡片**：导入店展示**店铺照片 + 预算 + 招牌语 + Hot Pepper 详情链接**；精选名店仍显示参考评分。
+- 说明：用户在 Hot Pepper 网页看到的「料理・味/雰囲気」评分百分比来自网页口コミ，官方 API 不含，故导入店不显示评分。
+
+**涉及文件：** `scripts/fetch-hotpepper.ts`、`scripts/build-foodspots.ts`、`src/lib/foodSpots.ts`、`src/lib/foodSpotsImported.ts`、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`、`package.json`、`.gitignore`
+
+---
+
 ## 2026-06-14
 
 ### 新增演唱会数据源（walkerplus ライブ）
