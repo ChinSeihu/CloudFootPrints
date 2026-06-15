@@ -172,6 +172,13 @@ function isExpired(ev: EventDTO, now: number): boolean {
   return end < now;
 }
 
+// 地图标签：把某字段截到 10 字以内（超出加省略号）作为图标下方的简介标签。
+// 用 MapLibre 表达式在渲染时截断，避免改数据。
+function shortLabelExpr(prop: string): unknown {
+  const s: unknown = ["to-string", ["get", prop]];
+  return ["case", [">", ["length", s], 10], ["concat", ["slice", s, 0, 9], "…"], s];
+}
+
 function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
@@ -550,6 +557,21 @@ export function MapExplorer() {
         "icon-size": 0.85,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
+        // 放大到一定尺度后，图标下方显示活动标题（截 10 字内）
+        "text-field": shortLabelExpr("title") as never,
+        "text-font": ["Open Sans Regular"],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [0, 1.2],
+        "text-optional": true,
+        "text-max-width": 10,
+      },
+      paint: {
+        "text-color": "#5b5048",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.4,
+        // 仅在放大后淡入，避免低缩放拥挤
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0, 14.6, 1],
       },
     });
 
@@ -908,13 +930,13 @@ export function MapExplorer() {
         "icon-image": ["concat", "landmark-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.62, 14, 0.98],
         "icon-allow-overlap": false,
-        "text-field": ["get", "name"],
+        "text-field": shortLabelExpr("name") as never,
         "text-font": ["Open Sans Regular"],
         "text-size": 11,
         "text-anchor": "top",
         "text-offset": [0, 1.1],
         "text-optional": true,
-        "text-max-width": 8,
+        "text-max-width": 10,
       },
       paint: {
         "text-color": "#7a6a5e",
@@ -978,13 +1000,13 @@ export function MapExplorer() {
         "icon-image": ["concat", "food-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.95],
         "icon-allow-overlap": false,
-        "text-field": ["get", "name"],
+        "text-field": shortLabelExpr("name") as never,
         "text-font": ["Open Sans Regular"],
         "text-size": 11,
         "text-anchor": "top",
         "text-offset": [0, 1.1],
         "text-optional": true,
-        "text-max-width": 8,
+        "text-max-width": 10,
       },
       paint: {
         "text-color": "#9b2c45",
