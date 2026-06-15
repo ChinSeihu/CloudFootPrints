@@ -6,6 +6,16 @@
 
 ## 2026-06-14
 
+### 加载优化：推荐懒加载 + 推荐/日历 ISR 缓存 + 个人页骨架
+
+- **推荐页懒加载**：瀑布流先渲染 12 张，`IntersectionObserver` 触底再加 12，减少首屏 DOM、加快渲染。
+- **推荐/日历 ISR 缓存**：从 `force-dynamic` 改 `revalidate=3600`（数据每日定时更新，1h 缓存即可），避免每次请求都查库，显著加快加载。
+- **个人页加载骨架**：数据拉取期间显示灰色骨架（照片拼图 + 列表），消除「空白一会才出现」。
+
+**涉及文件：** `components/Recommend/RecommendList.tsx`、`app/recommend/page.tsx`、`app/calendar/page.tsx`、`components/Me/MeView.tsx`
+
+---
+
 ### 修复：删除确认用 `window.confirm` 在部分 webview 误删
 
 - **现象**：连续「删除→取消」循环时仍会被删除。**根因**：部分移动端 webview 的 `window.confirm()` 行为不可靠（点「取消」也可能返回 true）。

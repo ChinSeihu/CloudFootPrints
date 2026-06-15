@@ -48,6 +48,25 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     [events, cat, dateRange],
   );
 
+  // 懒加载：先渲染一批，触底再加载更多（减少首屏 DOM、加快渲染）
+  const PAGE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  useEffect(() => { setVisibleCount(PAGE); }, [cat, dateRange]);
+  const shown = filtered.slice(0, visibleCount);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisibleCount((v) => Math.min(v + PAGE, filtered.length));
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filtered.length]);
+
   return (
     <>
       {/* 分类筛选 + 时间筛选 */}
@@ -107,7 +126,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
       )}
 
       <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
-        {filtered.map((ev) => {
+        {shown.map((ev) => {
           const meta = CATEGORY_META[ev.category];
           return (
             <button
@@ -154,6 +173,8 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
           );
         })}
       </div>
+      {/* 触底加载更多 */}
+      {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
 
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
     </>

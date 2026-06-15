@@ -111,7 +111,9 @@ function MeContent() {
 
       {/* 打卡照片拼图 */}
       <div className="px-4 pt-2 pb-1">
-        {photos.length === 0 ? (
+        {!loaded ? (
+          <div className="h-28 rounded-2xl bg-neutral-100 animate-pulse" />
+        ) : photos.length === 0 ? (
           <div className="h-28 rounded-2xl bg-neutral-100 grid place-items-center text-neutral-400">
             <div className="text-center px-4">
               <IconStar className="w-6 h-6 mx-auto mb-1 opacity-50" />
@@ -167,7 +169,13 @@ function MeContent() {
       </div>
 
       <div className="p-4">
-        {tab === "checkins" ? (
+        {!loaded ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-20 rounded-xl bg-neutral-100 animate-pulse" />
+            ))}
+          </div>
+        ) : tab === "checkins" ? (
           <>{/* 打卡 */}
             {loaded && checkins.length === 0 && (
               <p className="text-sm text-neutral-500">还没有打卡。回到地图页，用右下角的 ＋ 打卡。</p>

@@ -3,7 +3,8 @@ import { CalendarView } from "@/components/Calendar/CalendarView";
 import type { EventDTO } from "@/lib/types";
 
 // 日历页：按日期排布活动，点某天看当天清单，点活动开详情。
-export const dynamic = "force-dynamic";
+// 数据每日定时更新，用 ISR 缓存（1h 重新生成）加快加载。
+export const revalidate = 3600;
 
 // 东京全域大致范围，作为 v1 数据来源（与推荐页一致）。
 const TOKYO_BBOX = { minLat: 35.5, maxLat: 35.85, minLng: 139.5, maxLng: 139.95 };
