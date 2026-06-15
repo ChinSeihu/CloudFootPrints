@@ -402,6 +402,7 @@ export function MapExplorer() {
   }, []);
 
   const handleDeleteEvent = useCallback(async (id: string) => {
+    if (!confirm("确定删除这条发帖吗？")) return;
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
     if (res.ok) {
       showToast("发帖已删除");

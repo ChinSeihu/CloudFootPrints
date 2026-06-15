@@ -84,6 +84,7 @@ function MeContent() {
   }
 
   async function deletePost(id: string) {
+    if (!confirm("确定删除这条发帖吗？")) return;
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
     if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
   }
