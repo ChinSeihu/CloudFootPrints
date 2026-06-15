@@ -51,12 +51,12 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   return (
     <>
       {/* 分类筛选 + 时间筛选 */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <button
           type="button"
           onClick={() => setCat("ALL")}
-          className={`px-3 py-1.5 rounded-full text-xs border transition ${
-            cat === "ALL" ? "bg-blue-600 text-white border-transparent" : "bg-white text-neutral-500 border-neutral-300"
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            cat === "ALL" ? "bg-blue-600 text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
           }`}
         >
           全部
@@ -69,8 +69,8 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
               key={c}
               type="button"
               onClick={() => setCat(active ? "ALL" : c)}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border transition ${
-                active ? "text-white border-transparent" : "bg-white text-neutral-500 border-neutral-300"
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                active ? "text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
               }`}
               style={active ? { backgroundColor: meta.color } : undefined}
             >
@@ -85,17 +85,17 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
           <button
             type="button"
             onClick={() => setDateOpen((v) => !v)}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border transition ${
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
               isAllDates(dateRange)
-                ? "bg-white text-neutral-500 border-neutral-300"
-                : "bg-blue-50 text-blue-700 border-blue-200"
+                ? "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+                : "bg-blue-600 text-white shadow-sm"
             }`}
           >
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
             {dayRangeLabel(dateRange)}
           </button>
           {dateOpen && (
-            <div className="absolute right-0 z-20 mt-1.5 rounded-xl border border-neutral-200 bg-white shadow-lg p-3">
+            <div className="absolute right-0 z-20 mt-1.5 rounded-2xl border border-black/5 bg-white shadow-xl p-3">
               <CalendarRangePicker value={dateRange} onChange={setDateRange} />
             </div>
           )}
