@@ -116,17 +116,24 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
 }
 
 // ── 精选美食 POI 图标与数据（按菜系不同图标/配色）──
-function foodIconSvg(kind: FoodKind): string {
+// 右上角相机角标：标记「有照片」的店（Hot Pepper 导入数据），与普通点区分。
+const PHOTO_BADGE = `<g transform="translate(29 8)"><circle cx="6" cy="6" r="7.6" fill="#f59e0b" stroke="#fff" stroke-width="1.7"/><g fill="none" stroke="#fff" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round"><rect x="2.3" y="4.4" width="7.4" height="5" rx="1.3"/><circle cx="6" cy="6.9" r="1.5"/><path d="M4.3 4.4l.6-1h2.2l.6 1"/></g></g>`;
+
+function foodIconSvg(kind: FoodKind, withPhoto = false): string {
   const { color, glyph } = FOOD_KIND_META[kind];
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(11.2 11.2) scale(0.9)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(11.2 11.2) scale(0.9)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g>${withPhoto ? PHOTO_BADGE : ""}</svg>`;
 }
 
 async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
+  const variants: { name: string; svg: string }[] = [];
+  for (const kind of FOOD_KINDS) {
+    variants.push({ name: `food-${kind}`, svg: foodIconSvg(kind) });
+    variants.push({ name: `foodfeat-${kind}`, svg: foodIconSvg(kind, true) }); // 带相机角标
+  }
   await Promise.all(
-    FOOD_KINDS.map(
-      (kind) =>
+    variants.map(
+      ({ name, svg }) =>
         new Promise<void>((resolve) => {
-          const name = `food-${kind}`;
           if (map.hasImage(name)) return resolve();
           const img = new Image(44, 44);
           img.onload = () => {
@@ -134,7 +141,7 @@ async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
             resolve();
           };
           img.onerror = () => resolve();
-          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(foodIconSvg(kind));
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
         }),
     ),
   );
@@ -161,6 +168,7 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         tips: f.tips ?? "",
         photo: f.photo ?? "",
         url: f.url ?? "",
+        featured: f.photo ? 1 : 0, // 有照片（Hot Pepper）→ 角标突出
       },
     })),
   };
@@ -1058,7 +1066,8 @@ export function MapExplorer() {
       source: "food",
       minzoom: 12.5, // 美食点密集（百余个），缩小时隐藏，放大才显示
       layout: {
-        "icon-image": ["concat", "food-", ["get", "kind"]],
+        // 有照片（Hot Pepper）用带相机角标的图标，与普通点区分
+        "icon-image": ["case", ["==", ["get", "featured"], 1], ["concat", "foodfeat-", ["get", "kind"]], ["concat", "food-", ["get", "kind"]]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.62, 15, 0.95],
         "icon-allow-overlap": false,
         "text-field": shortLabelExpr("blurb") as never,

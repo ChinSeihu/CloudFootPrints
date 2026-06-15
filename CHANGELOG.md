@@ -6,6 +6,15 @@
 
 ## 2026-06-15
 
+### 美食铺开全 23 区 + Hot Pepper(有照片)相机角标
+
+- **铺开 23 区**：`scripts/import-osm-food.ts` 改为对东京 23 区外包围盒**网格平铺**（0.04°≈4km 一片，约 80 片）逐片拉取，带限流退避重试；osmId upsert 自动跨片去重。一次跑通全 23 区。
+- **有照片特殊标识**：Hot Pepper 导入的店（带 `photo`）在地图图标右上角加**相机角标**（`foodfeat-<kind>` 变体图标），与普通点/ OSM 点区分；`featured` 由「是否有照片」派生，`food-icon` 用 `case` 表达式选图标。
+
+**涉及文件：** `scripts/import-osm-food.ts`、`src/components/Map/MapExplorer.tsx`
+
+---
+
 ### 美食全量底图：接入 OpenStreetMap（试点）
 
 Hot Pepper 覆盖有限（仅广告合作店、缺大量外国餐厅）。引入 OSM(Overpass) 作为「全量底图」，精选 + Hot Pepper 作亮点叠加。本次为试点（涩谷/新宿/银座三区，跑通整条链路）。
