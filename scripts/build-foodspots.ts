@@ -7,8 +7,9 @@ import path from "node:path";
 
 type Candidate = {
   id: string; name: string; suggestedKind: string; genre: string; subGenre: string;
-  lat: number; lng: number; budget: string; access: string; catch: string;
-  address: string; photo: string; url: string;
+  lat: number; lng: number; budget: string; access: string; station: string; open: string;
+  catch: string; address: string; photo: string; url: string;
+  card: string; nonSmoking: string; wifi: string; privateRoom: string; lunch: string;
 };
 
 // 每菜系目标数量（合计 ~150）。
@@ -48,6 +49,24 @@ function blurb(c: Candidate): string {
   return t.length > 60 ? t.slice(0, 58) + "…" : t;
 }
 
+// 营业时间太长，截到首段（到第一个全角空格/换行前），再限长。
+function shortOpen(open: string): string {
+  const t = (open || "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return t.length > 36 ? t.slice(0, 34) + "…" : t;
+}
+
+// 从原始字段归一出简短设施标签（仅保留确定为「有」的，避免噪音）。
+function amenities(c: Candidate): string[] {
+  const out: string[] = [];
+  if (c.privateRoom.startsWith("あり")) out.push("個室");
+  if (c.nonSmoking.includes("禁煙") && !c.nonSmoking.includes("不可")) out.push("禁煙席");
+  if (c.wifi === "あり") out.push("Wi-Fi");
+  if (c.card === "利用可") out.push("カード可");
+  if (c.lunch === "あり") out.push("ランチ");
+  return out;
+}
+
 async function main() {
   const raw = await readFile(path.join(process.cwd(), "scripts", "hotpepper-candidates.json"), "utf-8");
   const all: Candidate[] = JSON.parse(raw);
@@ -73,6 +92,9 @@ async function main() {
       lng: Number(c.lng.toFixed(6)),
       blurb: blurb(c),
       budget: c.budget,
+      station: c.station,
+      open: shortOpen(c.open),
+      amenities: amenities(c),
       photo: c.photo,
       url: c.url,
     };

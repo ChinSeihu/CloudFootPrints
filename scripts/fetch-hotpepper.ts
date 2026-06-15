@@ -40,10 +40,17 @@ type Candidate = {
   lng: number;
   budget: string;
   access: string;
+  station: string; // 最寄駅
+  open: string; // 营业时间
   catch: string;
   address: string;
   photo: string;
   url: string;
+  card: string; // カード 利用可/不可
+  nonSmoking: string; // 禁煙席
+  wifi: string; // Wi-Fi
+  privateRoom: string; // 個室
+  lunch: string; // ランチ
 };
 
 async function fetchGenre(code: string, kind: string): Promise<Candidate[]> {
@@ -74,10 +81,17 @@ async function fetchGenre(code: string, kind: string): Promise<Candidate[]> {
       lng: Number(s.lng),
       budget: s.budget?.name ?? "",
       access: s.access ?? "",
+      station: s.station_name ?? "",
+      open: s.open ?? "",
       catch: s.catch ?? "",
       address: s.address ?? "",
       photo: s.photo?.pc?.l ?? s.photo?.pc?.m ?? "",
       url: s.urls?.pc ?? "",
+      card: s.card ?? "",
+      nonSmoking: s.non_smoking ?? "",
+      wifi: s.wifi ?? "",
+      privateRoom: s.private_room ?? "",
+      lunch: s.lunch ?? "",
     }));
 }
 

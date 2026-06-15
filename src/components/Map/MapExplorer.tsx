@@ -155,6 +155,9 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         menu: (f.menu ?? []).join("|"),
         blurb: f.blurb,
         budget: f.budget ?? "",
+        station: f.station ?? "",
+        open: f.open ?? "",
+        amenities: (f.amenities ?? []).join("|"),
         photo: f.photo ?? "",
         url: f.url ?? "",
       },
@@ -994,7 +997,7 @@ export function MapExplorer() {
     map.on("mouseleave", "food-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "food-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string; budget?: string; photo?: string; url?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string; budget?: string; station?: string; open?: string; amenities?: string; photo?: string; url?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
@@ -1007,6 +1010,13 @@ export function MapExplorer() {
       const metaTail = rating > 0
         ? `<span class="tem-food-rating">★ ${rating.toFixed(1)}</span>`
         : (p.budget ? `<span class="tem-food-budget">${escapeHtml(p.budget)}</span>` : "");
+      // 信息行：最寄駅 / 营业时间（导入店有，精选名店通常无）。
+      const infoRows = [
+        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(p.station)}站</div>` : "",
+        p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
+      ].filter(Boolean).join("");
+      const amenityItems = (p.amenities ?? "").split("|").filter(Boolean);
+      const amenityHtml = amenityItems.map((a) => `<span class="tem-food-amenity">${escapeHtml(a)}</span>`).join("");
       const html = `<div class="tem-food">
         ${p.photo ? `<div class="tem-food-photo"><img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}" loading="lazy"/></div>` : ""}
         <div class="tem-food-head">
@@ -1017,6 +1027,8 @@ export function MapExplorer() {
           </div>
         </div>
         ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
+        ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
+        ${amenityItems.length ? `<div class="tem-food-amenities">${amenityHtml}</div>` : ""}
         ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
         <div class="tem-food-actions">
           <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
@@ -1034,7 +1046,7 @@ export function MapExplorer() {
           kind: "food",
           category: `美食 · ${p.genre ?? ""}`,
           venueName: p.name!,
-          description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : p.budget ? `，预算 ${p.budget}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${p.blurb ?? ""}`,
+          description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : p.budget ? `，预算 ${p.budget}` : ""}${p.station ? `，最近车站 ${p.station}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${amenityItems.length ? `设施：${amenityItems.join("、")}。` : ""}${p.blurb ?? ""}`,
         });
       });
     });

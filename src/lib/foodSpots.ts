@@ -58,6 +58,9 @@ export type FoodSpotImported = {
   lng: number;
   blurb: string; // Hot Pepper 招牌语(catch)
   budget: string; // 预算区间，如 "3001～4000円"
+  station: string; // 最寄駅
+  open: string; // 营业时间（已截短）
+  amenities: string[]; // 设施标签：個室/禁煙席/Wi-Fi/カード可/ランチ
   photo: string; // 店铺照片 URL
   url: string; // Hot Pepper 店铺页
 };
@@ -74,6 +77,9 @@ export type FoodSpotView = {
   menu?: string[];
   blurb: string;
   budget?: string;
+  station?: string;
+  open?: string;
+  amenities?: string[];
   photo?: string;
   url?: string;
 };
@@ -120,6 +126,9 @@ export const FOOD_SPOTS_ALL: FoodSpotView[] = [
     lng: f.lng,
     blurb: f.blurb,
     budget: f.budget,
+    station: f.station,
+    open: f.open,
+    amenities: f.amenities,
     photo: f.photo,
     url: f.url,
   })),

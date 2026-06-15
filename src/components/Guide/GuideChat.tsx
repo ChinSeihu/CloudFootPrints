@@ -17,9 +17,10 @@ function topicQuick(t: GuideTopic): string[] {
   switch (t.kind) {
     case "food":
       return [
+        `「${n}」的口碑和评价怎么样？`,
+        `「${n}」适合什么场合？（约会 / 聚餐 / 一人 / 商务）`,
         `「${n}」必点 / 招牌菜是什么？`,
-        `「${n}」人均预算多少？需要预约吗？`,
-        `「${n}」怎么去？周边还有什么好吃的？`,
+        `「${n}」人均预算多少？需要预约吗？怎么去？`,
       ];
     case "landmark":
       return [
@@ -44,8 +45,10 @@ function topicInfo(t: GuideTopic): string {
     t.venueName && `地点：${t.venueName}`,
     t.startTime &&
       `时间：${new Date(t.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" })}`,
+    t.description && `资料：${t.description}`,
   ].filter(Boolean);
-  return `【用户正在查看的活动】${parts.join("；")}`;
+  const label = t.kind === "food" ? "用户正在查看的餐厅" : t.kind === "landmark" ? "用户正在查看的景点" : "用户正在查看的活动";
+  return `【${label}】${parts.join("；")}`;
 }
 
 // 全局 AI 导游聊天面板（受 GuideContext 控制）。可带活动话题聚焦对话。

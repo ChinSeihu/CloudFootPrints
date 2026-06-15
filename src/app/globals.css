@@ -181,6 +181,17 @@ body {
 }
 .tem-food-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tem-food-desc { font-size: 12.5px; line-height: 1.6; color: #6b625b; margin: 0 0 9px; }
+.tem-food-infos { display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px; }
+.tem-food-info { display: flex; gap: 5px; font-size: 11.5px; color: #6b625b; line-height: 1.4; }
+.tem-food-info span { flex: none; }
+.tem-food-amenities { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
+.tem-food-amenity {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+}
 .tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
 .tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
 .tem-food-tag {

@@ -6,6 +6,15 @@
 
 ## 2026-06-15
 
+### 美食卡片丰富 + AI 导览加「店铺评价」
+
+- **AI 导览**：餐厅快捷问题新增「口碑和评价怎么样？」「适合什么场合（约会/聚餐/一人/商务，シーン）」；并把店铺资料（评分/预算/最近车站/设施/招牌语）注入对话上下文，评价更贴合该店。
+- **地图美食卡片丰富**：拉取脚本补抓 Hot Pepper 更多真实字段（最寄駅 `station_name`、营业时间 `open`、設施 `card`/`non_smoking`/`wifi`/`private_room`/`lunch`）。卡片新增：📍最寄駅、🕒营业时间、设施标签（個室/禁煙席/Wi-Fi/カード可/ランチ）。
+
+**涉及文件：** `scripts/fetch-hotpepper.ts`、`scripts/build-foodspots.ts`、`src/lib/foodSpots.ts`、`src/lib/foodSpotsImported.ts`、`src/components/Guide/GuideChat.tsx`、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`
+
+---
+
 ### 美食扩充：Hot Pepper API 导入 + 人工精选混合
 
 之前美食点只有 ~21 家纯人工精选，店少信息少。改为「Hot Pepper Gourmet API 拉真实候选池 → 精选 → 入库」的混合模式：
