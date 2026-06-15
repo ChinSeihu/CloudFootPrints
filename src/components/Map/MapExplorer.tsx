@@ -166,6 +166,35 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   };
 }
 
+// OSM 美食 POI（按视野从 /api/food 拉取，常驻地点）。
+type FoodPoiDTO = {
+  id: string; name: string; nameEn: string | null; kind: string; cuisine: string | null;
+  lat: number; lng: number; openingHours: string | null; phone: string | null;
+  website: string | null; takeaway: boolean; wheelchair: boolean; address: string | null;
+};
+
+function osmFoodToFC(pois: FoodPoiDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: pois.map((p) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+      properties: {
+        id: p.id,
+        name: p.name,
+        nameEn: p.nameEn ?? "",
+        kind: (FOOD_KINDS as readonly string[]).includes(p.kind) ? p.kind : "other",
+        cuisine: p.cuisine ?? "",
+        openingHours: p.openingHours ?? "",
+        phone: p.phone ?? "",
+        website: p.website ?? "",
+        takeaway: p.takeaway ? "1" : "",
+        wheelchair: p.wheelchair ? "1" : "",
+      },
+    })),
+  };
+}
+
 // 过期：活动结束时间（endTime，无则 startTime）早于现在。未定档（无 startTime）不算过期。
 function isExpired(ev: EventDTO, now: number): boolean {
   if (!ev.startTime) return false;
@@ -305,11 +334,15 @@ export function MapExplorer() {
     localStorage.setItem("tem_food_filter", foodFilter);
     const map = mapRef.current;
     if (!mapReady || !map || !map.getLayer("food-icon")) return;
-    map.setLayoutProperty("food-icon", "visibility", foodFilter === "OFF" ? "none" : "visible");
-    map.setFilter(
-      "food-icon",
-      foodFilter === "OFF" || foodFilter === "ALL" ? null : ["==", ["get", "kind"], foodFilter],
-    );
+    const vis = foodFilter === "OFF" ? "none" : "visible";
+    const filter = foodFilter === "OFF" || foodFilter === "ALL" ? null : ["==", ["get", "kind"], foodFilter];
+    map.setLayoutProperty("food-icon", "visibility", vis);
+    map.setFilter("food-icon", filter as never);
+    // OSM 全量美食层同步开关 / 按菜系筛选
+    if (map.getLayer("osmfood-icon")) {
+      map.setLayoutProperty("osmfood-icon", "visibility", vis);
+      map.setFilter("osmfood-icon", filter as never);
+    }
   }, [mapReady, foodFilter]);
 
   // 探索锚点：放置/移动/清除一个独立的玫红脉冲标记
@@ -378,6 +411,23 @@ export function MapExplorer() {
       const data = (await res.json()) as { events: EventDTO[] };
       if (id === reqIdRef.current) setEvents(data.events);
     } catch { /* 静默 */ }
+
+    // OSM 全量美食：仅放大后按视野加载（避免大范围海量点）；缩小时清空。
+    const foodSrc = mapRef.current?.getSource("osmfood") as maplibregl.GeoJSONSource | undefined;
+    if (foodSrc) {
+      const z = mapRef.current?.getZoom() ?? 0;
+      if (z < 13.5) {
+        foodSrc.setData(osmFoodToFC([]));
+      } else {
+        try {
+          const fr = await fetch(`/api/food?${params}`);
+          if (fr.ok) {
+            const fd = (await fr.json()) as { pois: FoodPoiDTO[] };
+            foodSrc.setData(osmFoodToFC(fd.pois ?? []));
+          }
+        } catch { /* 静默 */ }
+      }
+    }
   }, []);
 
   // 更新活动 GeoJSON source
@@ -753,7 +803,7 @@ export function MapExplorer() {
 
     // 点击地图空白处 → 落「探索锚点」，人气活动改以锚点为基准
     map.on("click", (e) => {
-      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon"].filter(
+      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon", "osmfood-icon"].filter(
         (l) => map.getLayer(l),
       );
       const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
@@ -1088,13 +1138,94 @@ export function MapExplorer() {
     });
   }, []);
 
+  // ── OSM 全量美食 POI 图层：按视野懒加载，点击弹简卡（菜系/营业/电话/官网）──
+  const setupOsmFood = useCallback(async (map: maplibregl.Map) => {
+    if (map.getSource("osmfood")) return;
+    await loadFoodIcons(map); // 复用菜系图标（含 other）
+    map.addSource("osmfood", { type: "geojson", data: osmFoodToFC([]) });
+    map.addLayer({
+      id: "osmfood-icon",
+      type: "symbol",
+      source: "osmfood",
+      minzoom: 14, // 全量点很密，放大较深才显示，配合按视野拉取
+      layout: {
+        "icon-image": ["concat", "food-", ["get", "kind"]],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.55, 16, 0.85],
+        "icon-allow-overlap": false,
+        "text-field": shortLabelExpr("name") as never,
+        "text-font": ["Open Sans Regular"],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [0, 1.0],
+        "text-optional": true,
+        "text-max-width": 12,
+        "text-padding": 6,
+      },
+      paint: {
+        "text-color": "#a65a6e",
+        "text-halo-color": "#fffaf6",
+        "text-halo-width": 1.5,
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 14.5, 0, 15, 1],
+      },
+    });
+    map.on("mouseenter", "osmfood-icon", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "osmfood-icon", () => { map.getCanvas().style.cursor = ""; });
+    map.on("click", "osmfood-icon", (e) => {
+      const f = e.features?.[0];
+      const p = f?.properties as { name?: string; nameEn?: string; kind?: string; cuisine?: string; openingHours?: string; phone?: string; website?: string; takeaway?: string; wheelchair?: string } | undefined;
+      if (!p?.name) return;
+      const mlg = maplibreRef.current;
+      if (!mlg) return;
+      const kind = ((FOOD_KINDS as readonly string[]).includes(p.kind ?? "") ? p.kind : "other") as FoodKind;
+      const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      const infoRows = [
+        p.openingHours ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.openingHours)}</div>` : "",
+        p.phone ? `<div class="tem-food-info"><span>📞</span>${escapeHtml(p.phone)}</div>` : "",
+      ].filter(Boolean).join("");
+      const chips = [p.takeaway ? "外带" : "", p.wheelchair ? "无障碍" : ""].filter(Boolean)
+        .map((a) => `<span class="tem-food-amenity">${a}</span>`).join("");
+      const subtitle = [FOOD_KIND_META[kind].label, p.cuisine].filter(Boolean).join(" · ");
+      const html = `<div class="tem-food">
+        <div class="tem-food-head">
+          <span class="tem-food-badge">${foodIconSvg(kind)}</span>
+          <div class="tem-food-titles">
+            <div class="tem-food-name">${escapeHtml(p.name)}</div>
+            ${p.nameEn ? `<div class="tem-food-meta">${escapeHtml(p.nameEn)}</div>` : ""}
+            <div class="tem-food-meta">${escapeHtml(subtitle)}</div>
+          </div>
+        </div>
+        ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
+        ${chips ? `<div class="tem-food-amenities">${chips}</div>` : ""}
+        <div class="tem-food-actions">
+          <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+          ${p.website ? `<a class="tem-food-link" href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">官网 ↗</a>` : ""}
+        </div>
+      </div>`;
+      const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+      popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
+        popup.remove();
+        openGuideRef.current({
+          title: p.name!,
+          kind: "food",
+          category: `美食 · ${p.cuisine || FOOD_KIND_META[kind].label}`,
+          venueName: p.name!,
+          description: `东京餐厅：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}，类型 ${subtitle}${p.openingHours ? `，营业 ${p.openingHours}` : ""}。`,
+        });
+      });
+    });
+  }, []);
+
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
       mapRef.current = map;
       const mlg = (await import("maplibre-gl")).default;
       maplibreRef.current = mlg;
       await setupLandmarks(map); // 先加地标（在活动层之下）
-      await setupFood(map); // 美食 POI 层
+      await setupFood(map); // 精选美食 POI 层
+      await setupOsmFood(map); // OSM 全量美食 POI 层（按视野懒加载）
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
@@ -1106,7 +1237,7 @@ export function MapExplorer() {
         map.flyTo({ center: [lng, lat], zoom: 16 });
       }
     },
-    [setupLandmarks, setupFood, setupEventClusters, setupCheckinClusters],
+    [setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
   );
 
   function openPlacement(m: Mode) {

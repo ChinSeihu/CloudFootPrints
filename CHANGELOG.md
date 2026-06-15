@@ -6,6 +6,20 @@
 
 ## 2026-06-15
 
+### 美食全量底图：接入 OpenStreetMap（试点）
+
+Hot Pepper 覆盖有限（仅广告合作店、缺大量外国餐厅）。引入 OSM(Overpass) 作为「全量底图」，精选 + Hot Pepper 作亮点叠加。本次为试点（涩谷/新宿/银座三区，跑通整条链路）。
+
+- **数据库**：新增 `FoodPoi` 表（osmType+osmId 唯一、name/nameEn/kind/cuisine/经纬度/营业时间/电话/官网/外带/无障碍/地址）。
+- **导入脚本** `scripts/import-osm-food.ts`：Overpass 按区 bbox 拉 restaurant/cafe/fast_food，`cuisine→kind` 映射（`lib/cuisineMap.ts`），按 osm id upsert。仅涩谷一区即 ~1048 家。
+- **菜系**：`FoodKind` 加 `other`（装韩/泰/印/越等外国餐厅）+ 图标/配色/筛选项。
+- **服务/接口**：`services/foodPoi.ts` + `GET /api/food?bbox`（按地图视野查询，限 800）。
+- **地图**：新增 `osmfood` 图层——按视野懒加载（zoom ≥ 13.5 才拉、≥14 才显示）、菜系图标 + 店名标签、点击弹简卡（菜系/营业/电话/官网/外带·无障碍 + 问 AI）；随美食筛选开关联动。无评分/照片（OSM 不含）。
+
+**涉及文件：** `prisma/schema.prisma`、`src/lib/{cuisineMap,foodSpots}.ts`、`scripts/import-osm-food.ts`、`src/services/foodPoi.ts`、`src/app/api/food/route.ts`、`src/components/Map/MapExplorer.tsx`
+
+---
+
 ### 地图视觉降噪优化
 
 地图同时有活动聚合/单点、百余美食点、景点、打卡，信息偏杂。优化：

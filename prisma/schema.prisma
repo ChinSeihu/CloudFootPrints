@@ -68,6 +68,31 @@ model Event {
   // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
 }
 
+// 美食 POI（来源 OpenStreetMap / Overpass）。常驻地点，按地图视野查询 + 聚合显示。
+// 与「精选名店 + Hot Pepper」(静态 foodSpots) 互补：OSM 提供全量底图，精选作亮点叠加。
+model FoodPoi {
+  id           String   @id @default(cuid())
+  osmType      String   // node / way / relation
+  osmId        String   // OSM 元素 id
+  name         String
+  nameEn       String?
+  kind         String   // FoodKind：japanese/chinese/western/cafe/dessert/other
+  cuisine      String?  // 原始 cuisine 标签（如 italian;pizza）
+  lat          Float
+  lng          Float
+  openingHours String?
+  phone        String?
+  website      String?
+  takeaway     Boolean  @default(false)
+  wheelchair   Boolean  @default(false)
+  address      String?
+  updatedAt    DateTime @updatedAt
+
+  @@unique([osmType, osmId])
+  @@index([lat, lng])
+  @@index([kind])
+}
+
 model CheckIn {
   id        String   @id @default(cuid())
   userId    String   @default("me") // v1 单用户，固定为本人；v2 接入真实用户

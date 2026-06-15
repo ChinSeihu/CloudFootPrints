@@ -2,9 +2,9 @@
 // 餐厅是常驻 POI（无开始/结束时间），用独立图层呈现（类似名胜），卡片展示评分 + 招牌菜单。
 import { FOOD_SPOTS_IMPORTED } from "./foodSpotsImported";
 
-export type FoodKind = "japanese" | "chinese" | "western" | "cafe" | "dessert";
+export type FoodKind = "japanese" | "chinese" | "western" | "cafe" | "dessert" | "other";
 
-export const FOOD_KINDS = ["japanese", "chinese", "western", "cafe", "dessert"] as const;
+export const FOOD_KINDS = ["japanese", "chinese", "western", "cafe", "dessert", "other"] as const;
 
 // 菜系元数据：图标徽章配色 + 中文标签 + 白色线性图形（24 viewBox，居中渲染）。
 export const FOOD_KIND_META: Record<FoodKind, { label: string; color: string; glyph: string }> = {
@@ -32,6 +32,11 @@ export const FOOD_KIND_META: Record<FoodKind, { label: string; color: string; gl
     label: "甜品",
     color: "#ec4899",
     glyph: '<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2M12 8v2M17 8v2"/>',
+  },
+  other: {
+    label: "其他",
+    color: "#64748b",
+    glyph: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/>',
   },
 };
 
