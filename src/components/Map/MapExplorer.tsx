@@ -172,11 +172,11 @@ function isExpired(ev: EventDTO, now: number): boolean {
   return end < now;
 }
 
-// 地图标签：把某字段截到 10 字以内（超出加省略号）作为图标下方的简介标签。
+// 地图标签：把某字段截到 max 字以内（超出加省略号）作为图标下方的一句摘要标签。
 // 用 MapLibre 表达式在渲染时截断，避免改数据。
-function shortLabelExpr(prop: string): unknown {
+function shortLabelExpr(prop: string, max = 12): unknown {
   const s: unknown = ["to-string", ["get", prop]];
-  return ["case", [">", ["length", s], 10], ["concat", ["slice", s, 0, 9], "…"], s];
+  return ["case", [">", ["length", s], max], ["concat", ["slice", s, 0, max - 1], "…"], s];
 }
 
 function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
@@ -188,6 +188,8 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
       properties: {
         id: ev.id,
         title: ev.title,
+        // 图标下方的一句摘要：优先用活动简介，缺省退回分类名（避免直接截标题）
+        summary: (ev.description?.trim() || CATEGORY_META[ev.category as keyof typeof CATEGORY_META]?.label || ev.title),
         category: ev.category,
         venueName: ev.venueName ?? "",
         address: ev.address ?? "",
@@ -557,19 +559,19 @@ export function MapExplorer() {
         "icon-size": 0.85,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
-        // 放大到一定尺度后，图标下方显示活动标题（截 10 字内）
-        "text-field": shortLabelExpr("title") as never,
+        // 放大到一定尺度后，图标下方显示一句活动摘要（截断加省略号）
+        "text-field": shortLabelExpr("summary") as never,
         "text-font": ["Open Sans Regular"],
-        "text-size": 11,
+        "text-size": 13,
         "text-anchor": "top",
         "text-offset": [0, 1.2],
         "text-optional": true,
-        "text-max-width": 10,
+        "text-max-width": 12,
       },
       paint: {
-        "text-color": "#5b5048",
+        "text-color": "#d6336c",
         "text-halo-color": "#ffffff",
-        "text-halo-width": 1.4,
+        "text-halo-width": 2,
         // 仅在放大后淡入，避免低缩放拥挤
         "text-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0, 14.6, 1],
       },
@@ -930,18 +932,18 @@ export function MapExplorer() {
         "icon-image": ["concat", "landmark-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.62, 14, 0.98],
         "icon-allow-overlap": false,
-        "text-field": shortLabelExpr("name") as never,
+        "text-field": shortLabelExpr("blurb") as never,
         "text-font": ["Open Sans Regular"],
-        "text-size": 11,
+        "text-size": 13,
         "text-anchor": "top",
         "text-offset": [0, 1.1],
         "text-optional": true,
-        "text-max-width": 10,
+        "text-max-width": 12,
       },
       paint: {
-        "text-color": "#7a6a5e",
-        "text-halo-color": "#fffaf6",
-        "text-halo-width": 1.4,
+        "text-color": "#d6336c",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 2,
         // 名称仅在放大后显示，避免低缩放拥挤
         "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
       },
@@ -1000,18 +1002,18 @@ export function MapExplorer() {
         "icon-image": ["concat", "food-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.95],
         "icon-allow-overlap": false,
-        "text-field": shortLabelExpr("name") as never,
+        "text-field": shortLabelExpr("blurb") as never,
         "text-font": ["Open Sans Regular"],
-        "text-size": 11,
+        "text-size": 13,
         "text-anchor": "top",
         "text-offset": [0, 1.1],
         "text-optional": true,
-        "text-max-width": 10,
+        "text-max-width": 12,
       },
       paint: {
-        "text-color": "#9b2c45",
-        "text-halo-color": "#fffaf6",
-        "text-halo-width": 1.4,
+        "text-color": "#d6336c",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 2,
         "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
       },
     });
