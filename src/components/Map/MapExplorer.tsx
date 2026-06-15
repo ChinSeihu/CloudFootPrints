@@ -358,8 +358,8 @@ export function MapExplorer() {
       type: "geojson",
       data: eventsToFC(filteredRef.current),
       cluster: true,
-      clusterRadius: 48,
-      clusterMaxZoom: 14,
+      clusterRadius: 36, // 收紧聚合范围，邻近但不同地点的活动更早分开
+      clusterMaxZoom: 15, // 放大到 15 级即全部散开为单点
     });
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
@@ -662,7 +662,7 @@ export function MapExplorer() {
       type: "geojson",
       data: checkinsToFC(checkinsRef.current),
       cluster: true,
-      clusterRadius: 46,
+      clusterRadius: 36,
       clusterMaxZoom: 15,
     });
 
