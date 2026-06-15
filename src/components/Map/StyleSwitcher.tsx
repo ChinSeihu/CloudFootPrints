@@ -7,10 +7,10 @@ type Props = {
   onChange: (t: MapTheme) => void;
 };
 
-// 底图风格切换：标准（Positron）/ 柔和（马卡龙水彩）。左下角小控件。
+// 底图风格切换：标准（Positron）/ 柔和（马卡龙水彩）。由父级定位。
 export function StyleSwitcher({ value, onChange }: Props) {
   return (
-    <div className="absolute bottom-24 left-3 z-10 pointer-events-auto">
+    <div className="pointer-events-auto">
       <div className="inline-flex rounded-full bg-white/95 backdrop-blur shadow-sm border border-black/10 overflow-hidden text-xs">
         {(["standard", "soft"] as const).map((t) => (
           <button

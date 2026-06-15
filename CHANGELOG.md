@@ -6,6 +6,14 @@
 
 ## 2026-06-14
 
+### 美食按菜系分图标 + 菜系筛选 + 左下控件下移
+
+- **菜系图标**：美食 POI 按 `kind`（日式/中餐/西餐/咖啡/甜品）用不同图标 + 配色（`FOOD_KIND_META`）；补齐中餐(茶禅華/麻布長江)、咖啡(Blue Bottle/猿田彦)、甜品(HIGASHIYA/資生堂)等，共 21 家。
+- **美食筛选**：左下「🍜 美食」点开下拉，可选 全部 / 各菜系 / 不显示（MapLibre `setFilter` 按 kind 过滤 + 显隐），选择持久化。
+- **左下控件下移 + 横排**：底图风格 / 景点 / 美食 从竖向堆叠（最高到 192px）改为底部一横排（`bottom-7`），更靠下、不挡地图中部。
+
+**涉及文件：** `lib/foodSpots.ts`、`components/Map/MapExplorer.tsx`、`components/Map/StyleSwitcher.tsx`
+
 ### 精选美食 POI 层（评分>4.0 + 招牌菜单）
 
 新增「美食」图层（类似名胜，**常驻 POI 非带时间活动**）：

@@ -13,7 +13,7 @@ import { StyleSwitcher } from "./StyleSwitcher";
 import { PopularCard } from "./PopularCard";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
-import { FOOD_SPOTS } from "@/lib/foodSpots";
+import { FOOD_SPOTS, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -114,25 +114,29 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   };
 }
 
-// ── 精选美食 POI 图标与数据 ──
-const FOOD_COLOR = "#e11d48"; // 玫红，区别于其他分类
-function foodIconSvg(): string {
-  // 叉勺图标（Lucide utensils）白色描边 + 玫红圆底
-  const glyph = '<path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M5 2v20"/><path d="M19 15V2a5 5 0 0 0-3 5v6c0 1.1.9 2 2 2h1Zm0 0v7"/>';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${FOOD_COLOR}" stroke="#fff" stroke-width="3"/><g transform="translate(13 11) scale(0.75)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
+// ── 精选美食 POI 图标与数据（按菜系不同图标/配色）──
+function foodIconSvg(kind: FoodKind): string {
+  const { color, glyph } = FOOD_KIND_META[kind];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(11.2 11.2) scale(0.9)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
 }
 
-async function loadFoodIcon(map: maplibregl.Map): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (map.hasImage("food-pin")) return resolve();
-    const img = new Image(44, 44);
-    img.onload = () => {
-      if (!map.hasImage("food-pin")) map.addImage("food-pin", img, { pixelRatio: 2 });
-      resolve();
-    };
-    img.onerror = () => resolve();
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(foodIconSvg());
-  });
+async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
+  await Promise.all(
+    FOOD_KINDS.map(
+      (kind) =>
+        new Promise<void>((resolve) => {
+          const name = `food-${kind}`;
+          if (map.hasImage(name)) return resolve();
+          const img = new Image(44, 44);
+          img.onload = () => {
+            if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 });
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(foodIconSvg(kind));
+        }),
+    ),
+  );
 }
 
 function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
@@ -144,6 +148,7 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
       properties: {
         id: f.id,
         name: f.name,
+        kind: f.kind,
         genre: f.genre,
         rating: f.rating,
         menu: f.menu.join("|"),
@@ -236,7 +241,9 @@ export function MapExplorer() {
   const [refreshing, setRefreshing] = useState(false);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
-  const [showFood, setShowFood] = useState(true);
+  // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
+  const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
+  const [foodMenuOpen, setFoodMenuOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
@@ -269,18 +276,21 @@ export function MapExplorer() {
     }
   }, [mapReady, showLandmarks]);
 
-  // 美食显隐（读取/持久化 + 切换图层 visibility）
+  // 美食筛选（读取/持久化 + 切换图层 visibility + 按菜系过滤）
   useEffect(() => {
-    const saved = localStorage.getItem("tem_show_food");
-    if (saved === "0") setShowFood(false);
+    const saved = localStorage.getItem("tem_food_filter");
+    if (saved) setFoodFilter(saved as "OFF" | "ALL" | FoodKind);
   }, []);
   useEffect(() => {
-    localStorage.setItem("tem_show_food", showFood ? "1" : "0");
+    localStorage.setItem("tem_food_filter", foodFilter);
     const map = mapRef.current;
-    if (mapReady && map && map.getLayer("food-icon")) {
-      map.setLayoutProperty("food-icon", "visibility", showFood ? "visible" : "none");
-    }
-  }, [mapReady, showFood]);
+    if (!mapReady || !map || !map.getLayer("food-icon")) return;
+    map.setLayoutProperty("food-icon", "visibility", foodFilter === "OFF" ? "none" : "visible");
+    map.setFilter(
+      "food-icon",
+      foodFilter === "OFF" || foodFilter === "ALL" ? null : ["==", ["get", "kind"], foodFilter],
+    );
+  }, [mapReady, foodFilter]);
 
   // 探索锚点：放置/移动/清除一个独立的玫红脉冲标记
   useEffect(() => {
@@ -921,14 +931,14 @@ export function MapExplorer() {
   // ── 精选美食 POI 图层：点击弹「美食卡」（评分 + 招牌菜单）──
   const setupFood = useCallback(async (map: maplibregl.Map) => {
     if (map.getSource("food")) return;
-    await loadFoodIcon(map);
+    await loadFoodIcons(map);
     map.addSource("food", { type: "geojson", data: foodToFC() });
     map.addLayer({
       id: "food-icon",
       type: "symbol",
       source: "food",
       layout: {
-        "icon-image": "food-pin",
+        "icon-image": ["concat", "food-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.95],
         "icon-allow-overlap": false,
         "text-field": ["get", "name"],
@@ -950,19 +960,20 @@ export function MapExplorer() {
     map.on("mouseleave", "food-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "food-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; genre?: string; rating?: number; menu?: string; blurb?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
+      const kind = (p.kind ?? "japanese") as FoodKind;
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
       const menuItems = (p.menu ?? "").split("|").filter(Boolean);
       const menuHtml = menuItems.map((m) => `<span class="tem-food-tag">${escapeHtml(m)}</span>`).join("");
       const html = `<div class="tem-food">
         <div class="tem-food-head">
-          <span class="tem-food-badge">${foodIconSvg()}</span>
+          <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
             <div class="tem-food-name">${escapeHtml(p.name)}</div>
-            <div class="tem-food-meta">${escapeHtml(p.genre ?? "")} · <span class="tem-food-rating">★ ${Number(p.rating ?? 0).toFixed(1)}</span></div>
+            <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")} · <span class="tem-food-rating">★ ${Number(p.rating ?? 0).toFixed(1)}</span></div>
           </div>
         </div>
         ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
@@ -1108,29 +1119,56 @@ export function MapExplorer() {
         refreshing={refreshing}
       />
       <WeatherPanel />
-      <StyleSwitcher value={theme} onChange={setTheme} />
-      <button
-        type="button"
-        onClick={() => setShowLandmarks((v) => !v)}
-        className={`absolute bottom-36 left-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-          showLandmarks
-            ? "bg-blue-600 text-white border-transparent"
-            : "bg-white/95 text-neutral-600 border-black/10"
-        }`}
-      >
-        🏯 景点
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowFood((v) => !v)}
-        className={`absolute bottom-48 left-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-          showFood
-            ? "bg-rose-600 text-white border-transparent"
-            : "bg-white/95 text-neutral-600 border-black/10"
-        }`}
-      >
-        🍜 美食
-      </button>
+
+      {/* 左下角控件行（横排、靠下）：底图风格 + 景点 + 美食(菜系筛选) */}
+      <div className="absolute bottom-7 left-3 z-20 flex items-end gap-2 pointer-events-none">
+        <StyleSwitcher value={theme} onChange={setTheme} />
+        <button
+          type="button"
+          onClick={() => setShowLandmarks((v) => !v)}
+          className={`pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+            showLandmarks ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
+          }`}
+        >
+          🏯 景点
+        </button>
+
+        {/* 美食：点开选菜系筛选 / 不显示 */}
+        <div className="relative pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setFoodMenuOpen((v) => !v)}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+              foodFilter === "OFF" ? "bg-white/95 text-neutral-600 border-black/10" : "bg-rose-600 text-white border-transparent"
+            }`}
+          >
+            🍜 {foodFilter === "OFF" || foodFilter === "ALL" ? "美食" : FOOD_KIND_META[foodFilter].label}
+            <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${foodMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          {foodMenuOpen && (
+            <div className="absolute bottom-full left-0 mb-1.5 w-28 rounded-xl bg-white shadow-xl border border-black/10 p-1.5 flex flex-col gap-1">
+              {([["ALL", "全部"], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", "不显示"]] as const).map(
+                ([val, label]) => {
+                  const active = foodFilter === val;
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => { setFoodFilter(val); setFoodMenuOpen(false); }}
+                      className={`text-left text-xs px-2.5 py-1.5 rounded-lg transition ${
+                        active ? "bg-rose-600 text-white" : "text-neutral-600 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <PopularCard
         events={filtered}
         center={exploreAnchor ?? center}
