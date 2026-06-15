@@ -15,6 +15,7 @@ enum EventCategory {
   LIVE       // live
   FESTIVAL   // 祭典
   TALK       // 讲座 / 技术活动（connpass 等）
+  SPORTS     // 体育 / 运动（马拉松、比赛、健身等）
   OTHER      // 其他 / 兜底
 }
 

@@ -35,7 +35,7 @@ const CATEGORY_LIST = EVENT_CATEGORIES.join(" | ");
 
 const SYSTEM_PROMPT = `你是一个活动信息抽取器。从给定的东京活动相关网页文本中，抽取所有"具体的活动"（展览/市集/live/祭典/讲座等）。
 规则：
-- category 只能是 ${CATEGORY_LIST}，选最贴近的一个（EXHIBITION=展览, MARKET=市集, LIVE=演出/现场, FESTIVAL=祭典, TALK=讲座/技术活动/勉强会, OTHER=其他）。
+- category 只能是 ${CATEGORY_LIST}，选最贴近的一个（EXHIBITION=展览, MARKET=市集, LIVE=演出/现场, FESTIVAL=祭典, TALK=讲座/技术活动/勉强会, SPORTS=体育/运动/比赛/马拉松/健身, OTHER=其他）。
 - 时间用 ISO 8601 字符串；若只有日期没有时间，补 T00:00:00。
 - imageUrl：活动主图/海报的**完整 http(s) 链接**（页面里有就带上，相对路径或不确定则填 null）。
 - 无法确定的字段填 null。
@@ -193,6 +193,7 @@ const CLASSIFY_SYSTEM = `你是东京活动分类器。给定一批活动（标�
 - LIVE：演唱会 / 音乐现场 / 演奏会 / 音乐节
 - FESTIVAL：祭典 / 庙会 / 花火大会 / 盆踊 / 季节性庆典
 - TALK：讲座 / 研讨会 / 工作坊 / 勉强会 / 演讲
+- SPORTS：体育 / 运动 / 比赛 / 马拉松 / 跑步 / 健身 / 球类 / 瑜伽
 - OTHER：明显不属于以上任何一类时才用
 尽量避免 OTHER：体验展 / 快闪 / IP 企划活动多归 EXHIBITION。`;
 

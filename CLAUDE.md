@@ -77,7 +77,7 @@ prisma/schema.prisma                # 数据模型：Event / CheckIn
 
 ## 分类枚举
 
-`EXHIBITION / MARKET / LIVE / FESTIVAL / TALK / OTHER`
+`EXHIBITION / MARKET / LIVE / FESTIVAL / TALK / SPORTS / OTHER`
 
 ## 已知取舍 / 待办
 

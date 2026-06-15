@@ -29,6 +29,7 @@ export function classifyByKeyword(text: string): EventCategory {
   if (/ライブ|コンサート|演奏|リサイタル|音楽フェス|フェス\b/.test(text)) return "LIVE";
   if (/祭|まつり|フェスティバル|盆踊|花火|縁日/.test(text)) return "FESTIVAL";
   if (/勉強会|セミナー|講座|ワークショップ|講演|トーク/.test(text)) return "TALK";
+  if (/スポーツ|マラソン|ランニング|駅伝|ウォーキング|野球|サッカー|フットサル|バスケ|テニス|ヨガ|フィットネス|相撲|試合|大会|サイクリング|ボルダリング|登山|水泳|スケート|柔道|剣道|eスポーツ/.test(text)) return "SPORTS";
   return "OTHER";
 }
 

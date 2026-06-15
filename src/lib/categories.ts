@@ -7,6 +7,7 @@ export const EVENT_CATEGORIES = [
   "LIVE",
   "FESTIVAL",
   "TALK",
+  "SPORTS",
   "OTHER",
 ] as const;
 
@@ -21,6 +22,7 @@ export const CATEGORY_META: Record<
   LIVE: { label: "Live", labelJa: "ライブ", color: "#db2777" },
   FESTIVAL: { label: "祭典", labelJa: "祭り", color: "#ea580c" },
   TALK: { label: "讲座", labelJa: "勉強会", color: "#7c3aed" },
+  SPORTS: { label: "体育", labelJa: "スポーツ", color: "#0d9488" },
   OTHER: { label: "其他", labelJa: "その他", color: "#6b7280" },
 };
 

@@ -6,6 +6,16 @@
 
 ## 2026-06-14
 
+### 新增体育（SPORTS）分类 + 体育数据源
+
+- **新增分类 SPORTS**（体育/スポーツ，色 `#0d9488` 青绿，奖杯图标）：贯通 Prisma 枚举、`lib/categories`、`categoryIcons`、地图色表、关键词分类器（マラソン/ラン/野球/サッカー/ヨガ/試合…）、LLM 抽取与重分类提示。地图筛选 / 推荐 / 日历的分类 chip 自动出现。
+- **体育数据源** `walkerplus-sports`：walkerplus 东京体育子分类 `ar0313/eg0108`（约 50+ 条）。把 walkerplus 抓取逻辑重构为工厂，复用同一套两步抓取；体育源分类**强制 SPORTS**。默认 6 页，可用 `WALKERPLUS_SPORTS_MAX_PAGES` 调整。
+- 跑 `npm run extract` 即拉入体育活动（dedup 防重复）。
+
+**涉及文件：** `prisma/schema.prisma`、`lib/categories.ts`、`lib/categoryIcons.ts`、`lib/llm.ts`、`components/Map/MapExplorer.tsx`、`services/extraction/sources/jsonLd.ts`、`services/extraction/sources/walkerplus.ts`、`services/extraction/sources/index.ts`
+
+---
+
 ### 个人页发帖可点进详情（含过期活动）
 
 个人页「发帖」卡片改为可点击 → 打开活动详情（图片+内容区为点击区，「在地图上查看/删除」独立成底部行，避免按钮嵌套）。详情用本地已加载的 DTO 直接打开，**过期活动同样可跳转**（`listUserEvents` 不做过期过滤）。

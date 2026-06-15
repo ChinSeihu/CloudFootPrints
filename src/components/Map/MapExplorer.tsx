@@ -31,6 +31,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   LIVE: "#db2777",
   FESTIVAL: "#ea580c",
   TALK: "#7c3aed",
+  SPORTS: "#0d9488",
   OTHER: "#6b7280",
 };
 
