@@ -58,6 +58,15 @@
 - **地理编码（GSI）**：地址规范化（"東京"→"東京都"，否则 GSI 把"東京X"误判到北海道札幌）+ **东京边界校验**（解析到框外一律判失败，宁缺毋滥）。含建筑名/设施名的地址 GSI 易落到区中心 → 可选 `GEOCODE_LLM_FALLBACK`：用 LLM 把地址规范成标准住所再编码（如「東京タワー」→「東京都港区芝公園」），东京边界校验兜底幻觉。
 - **分类**：JSON-LD 不带分类 → 先关键词（`classifyByKeyword`，"快闪/IP 体验展"等易误判 OTHER）；可选 `CLASSIFY_WITH_LLM=true` 用 LLM（DeepSeek/Claude）批量重判，关闭或缺 key 时零成本回退关键词。
 - **改了来源/坐标逻辑后用 `npm run extract -- --reset`**：先清掉抓取来的活动（保留发帖/打卡）再重抓，避免旧坏数据残留 + sourceUrl 变化导致重复。
+- **体育子分类源** `walkerplus-sports`（`ar0313/eg0108`）：复用 walkerplus 工厂逻辑，分类**强制 `SPORTS`**（整页都是体育，跳过关键词判定）。
+
+## 数据更新机制（每日定时，GitHub Actions）
+
+- **数据全用户共享、无需手动刷新**：已移除地图页手动「刷新」按钮，改为**每日凌晨自动抓取**。
+- **不用 Vercel Cron**：完整抓取要数分钟，超过 Vercel 函数超时（Hobby 60s / Pro 300s），Cron 触发会中途超时、留半截数据。
+- **用 GitHub Actions**：`.github/workflows/extract.yml`，`0 18 * * *`(UTC)=**03:00 JST**，直接 `npm run extract` 连 Neon 写库（无超时），也可手动 `workflow_dispatch`。网站(Vercel)与抓取解耦，只读库。
+- **所需 GitHub Secrets**：`DATABASE_URL`（必填，Neon 连接串）；`LLM_API_KEY`（可选，DeepSeek key → 启用 LLM 重分类，失败回退关键词）。workflow 内固定 `LLM_PROVIDER=deepseek`、`CLASSIFY_WITH_LLM=true`。
+- **`/api/extract`**：保留 GET/POST，受 `CRON_SECRET` 保护（设了才校验），供需要时手动 curl 触发；不再由 Vercel Cron 调用。
 
 ## 导航与页面
 

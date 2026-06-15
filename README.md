@@ -14,7 +14,8 @@
   - 同位置/极近的多个活动 → **堆叠卡片弹窗**（一个弹窗里上下排列多张卡片）
   - 按**分类 / 日期 / "我的"** 筛选；分类色图例
   - **天气面板**（Open-Meteo，免费无 key）：当前温度 + 近 7 天 + 地图上层天气动画
-  - 右上角 **🔄 刷新** 在线跑一次提取管线并把新活动写库
+  - **名胜 / 美食 POI 图层**：精选东京地标与高分餐厅，点击看介绍卡（美食含评分 + 招牌菜单）
+  - 数据**每日自动更新**（见下「数据更新机制」），全用户共享、无需手动刷新
 - **浮动操作按钮（FAB，两种动作）**
   - **打卡**："我来过这里"（个人足迹，文字/评分/照片）
   - **发帖**：在地图上落锚点标记"这里有个活动"（创建 `sourceType=USER` 的活动）
@@ -88,10 +89,33 @@ npm run extract   # 采集 → LLM 抽取 → 地理编码 → 入库
 npm run eval      # 提取质量评测：召回/精确率、分类/时间准确率
 ```
 
-- `extract` 默认跑全部已注册源：东京都开放数据、connpass、本地样例 fixtures。
+- `extract` 默认跑全部已注册源：**walkerplus（东京全域 + 体育子分类）/ jalan**（主力，解析页面 JSON-LD）、东京都开放数据、connpass、本地样例 fixtures。
   - **样例源**（`scripts/fixtures/*.txt`）无需任何 key 即可跑通端到端闭环。
   - 东京都开放数据 / connpass 需在 `.env` 配对应 id/key 才启用；未配置的源优雅跳过。
+  - 体育源（`walkerplus-sports`）分类强制 `SPORTS`；可用 `WALKERPLUS_SPORTS_MAX_PAGES` 调抓取页数。
 - `eval` 读取 `scripts/eval/dataset.json`（人工标注的真实页面），每次改 prompt/模型后重跑看指标变化。
+
+## 数据更新机制（每日自动）
+
+活动数据**全用户共享**、无需手动刷新：每天凌晨由 **GitHub Actions** 自动跑一次抓取入库。
+
+- **为什么不用 Vercel Cron**：完整抓取（walkerplus 全域 + 体育 + jalan，逐条抓详情页 + 地理编码 + 礼貌延迟）要数分钟，会超过 Vercel 函数超时（Hobby 60s / Pro 300s）。GitHub Actions 无此限制。
+- **工作流**：`.github/workflows/extract.yml`，定时 `0 18 * * *`（UTC）= **每日 03:00（JST）**；也支持在 **Actions 页 → Run workflow** 手动触发。它直接 `npm run extract` 连 Neon 写库。
+- **网站（Vercel）**只负责读数据展示，与抓取解耦。
+- **手动触发（可选）**：线上 `/api/extract`（GET/POST）受 `CRON_SECRET` 保护，可 `curl -H "Authorization: Bearer <CRON_SECRET>" https://<域名>/api/extract` 临时触发。
+
+### 所需 GitHub Secrets
+
+仓库 → **Settings → Secrets and variables → Actions** 添加：
+
+| Secret | 必填 | 说明 |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Neon 连接串（与 Vercel 上一致；workflow 写库用） |
+| `LLM_API_KEY` | 可选 | DeepSeek API key。配了则启用 **LLM 重分类**（把关键词判成 OTHER 的活动交 DeepSeek 重判，更准）；不配则用关键词分类、零成本 |
+
+> workflow 内已固定 `LLM_PROVIDER=deepseek`、`CLASSIFY_WITH_LLM=true`；DeepSeek 调用失败会**自动回退关键词分类**，不影响入库。
+>
+> 线上若要用 `/api/extract` 手动触发，另需在 **Vercel 环境变量**里设 `CRON_SECRET`（任意随机串）。
 
 ## 目录结构
 
@@ -116,7 +140,8 @@ src/
   services/                          # 领域逻辑（events/checkins/comments/weather/extraction）
   lib/                               # db / llm / categories / clipboard / types
 scripts/  run-extraction.ts  eval-extraction.ts  fixtures/  eval/
-prisma/schema.prisma                 # 数据模型：Event / CheckIn / Comment
+prisma/schema.prisma                 # 数据模型：Event / CheckIn / Comment / Reaction / User
+.github/workflows/extract.yml        # 每日定时抓取（GitHub Actions）
 ```
 
 ## 协作 / Git 工作流
