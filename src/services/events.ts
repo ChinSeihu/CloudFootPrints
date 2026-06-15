@@ -90,6 +90,7 @@ export type CreateUserEventInput = {
   description?: string | null;
   venueName?: string | null;
   imageUrl?: string | null;
+  imageUrls?: string[];
   startTime?: string | null; // ISO
   endTime?: string | null; // ISO
   tags?: string[];
@@ -108,13 +109,15 @@ export type CreateUserEventResult =
   | { ok: false; error: string };
 
 function createUserEventRow(input: CreateUserEventInput, userId: string) {
+  const imageUrls = (input.imageUrls ?? []).filter(Boolean);
   return prisma.event.create({
     data: {
       title: input.title.trim(),
       description: input.description?.trim() || null,
       category: input.category,
       venueName: input.venueName?.trim() || null,
-      imageUrl: input.imageUrl || null,
+      imageUrl: imageUrls[0] ?? input.imageUrl ?? null, // 封面 = 首图
+      imageUrls,
       address: null,
       lat: input.lat,
       lng: input.lng,

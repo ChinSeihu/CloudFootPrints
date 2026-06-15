@@ -8,6 +8,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { displayTags } from "@/lib/tags";
+import { Lightbox } from "@/components/common/Lightbox";
 import type { EventDTO, CommentDTO, UserBrief } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -68,6 +69,7 @@ export function EventDetail({
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
   // 按 id 索引，便于查回复目标
   const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
@@ -332,10 +334,36 @@ export function EventDetail({
           </div>
         )}
 
-        {event.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={event.imageUrl} alt="" className="w-full max-h-[60vh] object-contain rounded-lg bg-neutral-100" />
-        )}
+        {(() => {
+          const imgs = event.imageUrls?.length ? event.imageUrls : event.imageUrl ? [event.imageUrl] : [];
+          if (imgs.length === 0) return null;
+          if (imgs.length === 1) {
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imgs[0]}
+                alt=""
+                onClick={() => setLightbox({ images: imgs, index: 0 })}
+                className="w-full max-h-[60vh] object-contain rounded-lg bg-neutral-100 cursor-zoom-in"
+              />
+            );
+          }
+          return (
+            <div className="grid grid-cols-3 gap-1">
+              {imgs.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  onClick={() => setLightbox({ images: imgs, index: i })}
+                  className="w-full aspect-square object-cover rounded-lg bg-neutral-100 cursor-zoom-in"
+                />
+              ))}
+            </div>
+          );
+        })()}
         {event.description && (
           <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-wrap">
             {event.description}
@@ -441,6 +469,10 @@ export function EventDetail({
           )}
         </div>
       </div>
+
+      {lightbox && (
+        <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }

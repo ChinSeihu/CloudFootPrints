@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       description: typeof b.description === "string" ? b.description : null,
       venueName: typeof b.venueName === "string" ? b.venueName : null,
       imageUrl: typeof b.imageUrl === "string" ? b.imageUrl : null,
+      imageUrls: Array.isArray(b.imageUrls) ? b.imageUrls.filter((u): u is string => typeof u === "string") : [],
       startTime: typeof b.startTime === "string" ? b.startTime : null,
       endTime: typeof b.endTime === "string" ? b.endTime : null,
       tags: normalizeTags(b.tags),

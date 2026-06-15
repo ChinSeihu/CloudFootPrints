@@ -38,7 +38,8 @@ model Event {
   category    EventCategory
   venueName   String?
   address     String?
-  imageUrl    String?       // 活动主图 URL（LLM 抽取时尽量带上）
+  imageUrl    String?       // 封面图 URL（= imageUrls[0]；LLM 抽取/卡片/地图用）
+  imageUrls   String[]      @default([]) // 多图（用户发帖可传多张；抓取来源一般为空）
   lat         Float
   lng         Float
   startTime   DateTime?
@@ -72,7 +73,8 @@ model CheckIn {
   lat       Float
   lng       Float
   note      String?
-  photoUrl  String?
+  photoUrl  String?  // 封面照片（= photoUrls[0]，向后兼容）
+  photoUrls String[] @default([]) // 多张打卡照片
   rating    Int? // 1–5
   createdAt DateTime @default(now())
 

@@ -1058,7 +1058,7 @@ export function MapExplorer() {
     const res = await fetch("/api/checkins", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, photoUrl: draft.photoUrl || null, visitedAt: draft.visitedAt, eventId: draft.eventId ?? null }),
+      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, photoUrls: draft.photoUrls, visitedAt: draft.visitedAt, eventId: draft.eventId ?? null }),
     });
     clearPlacing();
     setDialogAt(null);
@@ -1075,7 +1075,7 @@ export function MapExplorer() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrl: draft.imageUrl || null, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, lat, lng }),
+      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, lat, lng }),
     });
     clearPlacing();
     setDialogAt(null);

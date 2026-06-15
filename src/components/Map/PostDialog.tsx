@@ -16,7 +16,7 @@ export type PostDraft = {
   category: EventCategory;
   description: string;
   venueName: string;
-  imageUrl: string | null;
+  imageUrls: string[];
   startTime: string | null; // ISO
   endTime: string | null; // ISO
   tags: string[];
@@ -42,25 +42,28 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   const [end, setEnd] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<"" | "uploading">("");
   const [error, setError] = useState<string | null>(null);
 
   const canUpload = cloudinaryConfigured();
+  const MAX_IMAGES = 6;
 
-  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+  function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+    const room = MAX_IMAGES - files.length;
+    const add = picked.slice(0, Math.max(0, room));
+    setFiles((prev) => [...prev, ...add]);
+    setPreviews((prev) => [...prev, ...add.map((f) => URL.createObjectURL(f))]);
+    e.target.value = ""; // 允许再次选同一文件
   }
-  function removeImage() {
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(null);
-    setPreview(null);
+  function removeImage(i: number) {
+    URL.revokeObjectURL(previews[i]);
+    setFiles((prev) => prev.filter((_, idx) => idx !== i));
+    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   function addTag() {
@@ -89,12 +92,13 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
     setError(null);
     setSubmitting(true);
     try {
-      let imageUrl: string | null = null;
-      if (file) {
+      let imageUrls: string[] = [];
+      if (files.length > 0) {
         setPhase("uploading");
         try {
-          const blob = await compressImage(file);
-          imageUrl = await uploadToCloudinary(blob);
+          imageUrls = await Promise.all(
+            files.map(async (f) => uploadToCloudinary(await compressImage(f))),
+          );
         } catch (err) {
           setError((err as Error).message || "图片上传失败");
           return;
@@ -109,7 +113,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         category,
         description,
         venueName,
-        imageUrl,
+        imageUrls,
         startTime: toISO(start),
         endTime: toISO(end),
         tags,
@@ -170,30 +174,33 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         </div>
       </div>
 
-      {/* 图片（可选，客户端压缩后上传图床） */}
+      {/* 图片（可选，可多张，客户端压缩后上传图床） */}
       <div className="mb-5">
-        <label className={labelCls}>图片（可选）</label>
+        <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
         {canUpload ? (
-          preview ? (
-            <div className="relative w-full">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={preview} alt="" className="w-full max-h-48 object-cover rounded-xl" />
-              <button
-                type="button"
-                onClick={removeImage}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/55 text-white text-base leading-none flex items-center justify-center backdrop-blur"
-                aria-label="移除图片"
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <label className="flex flex-col items-center justify-center gap-1.5 h-28 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
-              <IconPlus className="w-6 h-6" />
-              <span className="text-xs">选择图片</span>
-              <input type="file" accept="image/*" onChange={pickFile} className="hidden" />
-            </label>
-          )
+          <div className="grid grid-cols-3 gap-2">
+            {previews.map((src, i) => (
+              <div key={i} className="relative aspect-square">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur"
+                  aria-label="移除图片"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {files.length < MAX_IMAGES && (
+              <label className="aspect-square flex flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
+                <IconPlus className="w-6 h-6" />
+                <span className="text-[11px]">添加</span>
+                <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
+              </label>
+            )}
+          </div>
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
             未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。

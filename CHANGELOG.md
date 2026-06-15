@@ -6,6 +6,17 @@
 
 ## 2026-06-14
 
+### 多图上传 + 图片点击放大；AI 导游按类型给选项
+
+- **AI 导游分类型快捷问题**：`GuideTopic` 加 `kind`（event/landmark/food），快捷问题随类型变——餐厅问招牌/预算/周边、景区问看点/路线/周边、活动问看点/路线/类似推荐。名胜→landmark、美食→food、活动默认 event。
+- **多图上传**：`Event.imageUrls` / `CheckIn.photoUrls`（`String[]`，保留单值字段作封面=首图）。发帖/打卡表单改为**多图网格 + 添加格**（最多 6 张，客户端压缩后并行上传）。db push 到 Neon。
+- **图片点击放大**：新增 `Lightbox`（全屏查看、× / Esc 关闭、多图左右切换 + 序号）。详情页图片（单图大图 / 多图九宫格）与个人页打卡照片均可点开放大。
+- DTO（`EventDTO.imageUrls` / `CheckInDTO.photoUrls`）+ 各 service/route/page 贯通。
+
+**涉及文件：** `prisma/schema.prisma`、`lib/types.ts`、`components/common/Lightbox.tsx`、`components/Guide/*`、`components/Map/{PostDialog,CheckInDialog,MapExplorer}.tsx`、`components/Recommend/EventDetail.tsx`、`components/Me/MeView.tsx`、`services/{events,checkins}.ts`、相关 route/page
+
+---
+
 ### 去掉手动刷新（改每日定时更新）+ 修复时间筛选后顶栏错乱
 
 - **修复样式错乱**：选了日期范围后标签变长（如「6月1日 – 6月30日」），顶部行 flex 把「筛选/刷新」挤到换行、整行错乱。改为 `flex-wrap` + 各按钮 `shrink-0 whitespace-nowrap`：放不下时整块换行，不再挤乱。

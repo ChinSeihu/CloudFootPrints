@@ -8,6 +8,7 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
+import { Lightbox } from "@/components/common/Lightbox";
 import { ProfileHeader } from "./ProfileHeader";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
@@ -29,6 +30,7 @@ function MeContent() {
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
   const [selected, setSelected] = useState<EventDTO | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -189,10 +191,25 @@ function MeContent() {
                     </div>
                   )}
                   {c.note && <p className="text-sm mt-0.5">{c.note}</p>}
-                  {c.photoUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.photoUrl} alt="" className="mt-1 rounded-lg max-h-40 object-cover" />
-                  )}
+                  {(() => {
+                    const imgs = c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : [];
+                    if (imgs.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {imgs.map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={src}
+                            alt=""
+                            loading="lazy"
+                            onClick={() => setLightbox({ images: imgs, index: i })}
+                            className="w-20 h-20 rounded-lg object-cover cursor-zoom-in"
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </li>
               ))}
             </ol>
@@ -349,6 +366,10 @@ function MeContent() {
               .catch(() => {});
           }}
         />
+      )}
+
+      {lightbox && (
+        <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />
       )}
     </div>
   );

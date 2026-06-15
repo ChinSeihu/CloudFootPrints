@@ -19,6 +19,7 @@ export async function GET(_req: Request, ctx: Ctx) {
         venueName: e.venueName,
         address: e.address,
         imageUrl: e.imageUrl,
+        imageUrls: e.imageUrls ?? [],
         lat: e.lat,
         lng: e.lng,
         startTime: e.startTime ? e.startTime.toISOString() : null,

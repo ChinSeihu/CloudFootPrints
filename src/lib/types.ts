@@ -16,6 +16,7 @@ export type EventDTO = {
   venueName: string | null;
   address: string | null;
   imageUrl: string | null;
+  imageUrls: string[];
   lat: number;
   lng: number;
   startTime: string | null;
@@ -56,6 +57,7 @@ export type CheckInDTO = {
   lng: number;
   note: string | null;
   photoUrl: string | null;
+  photoUrls: string[];
   rating: number | null;
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;

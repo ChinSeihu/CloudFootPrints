@@ -21,6 +21,7 @@ export type CreateCheckinInput = {
   lng: number;
   note?: string | null;
   photoUrl?: string | null;
+  photoUrls?: string[];
   rating?: number | null;
   visitedAt?: string | null; // ISO；用户自选打卡时间，默认现在
   eventId?: string | null;
@@ -33,13 +34,15 @@ export type CreateCheckinResult =
 function createCheckinRow(data: CreateCheckinInput, userId: string) {
   // 用户指定了 visitedAt 则覆盖 createdAt（用于补录过去的打卡）；否则用默认 now。
   const visited = data.visitedAt ? new Date(data.visitedAt) : null;
+  const photoUrls = (data.photoUrls ?? []).filter(Boolean);
   return prisma.checkIn.create({
     data: {
       userId,
       lat: data.lat,
       lng: data.lng,
       note: data.note ?? null,
-      photoUrl: data.photoUrl ?? null,
+      photoUrl: photoUrls[0] ?? data.photoUrl ?? null,
+      photoUrls,
       rating: data.rating ?? null,
       eventId: data.eventId ?? null,
       ...(visited && !Number.isNaN(visited.getTime()) ? { createdAt: visited } : {}),
