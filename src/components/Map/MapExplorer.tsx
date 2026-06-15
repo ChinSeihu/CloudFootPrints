@@ -480,13 +480,13 @@ export function MapExplorer() {
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#88b0f2",
-        "circle-opacity": 0.16,
-        "circle-blur": 0.45,
+        "circle-color": "#9bbef5",
+        "circle-opacity": 0.14,
+        "circle-blur": 0.55,
         "circle-radius": haloRadius,
       },
     });
-    // 聚合主圆：柔和的渐变蓝（按数量从浅到深），半透明 + 柔白边
+    // 聚合主圆：柔和的渐变蓝（按数量从浅到深），半透明 + 轻薄柔白边
     map.addLayer({
       id: "event-clusters",
       type: "circle",
@@ -495,14 +495,14 @@ export function MapExplorer() {
       paint: {
         "circle-color": [
           "interpolate", ["linear"], ["get", "point_count"],
-          2, "#9cc0f7",
-          15, "#7aa0ec",
-          50, "#6b8ee0",
+          2, "#aacbf8",
+          15, "#88aaef",
+          50, "#7191e3",
         ],
-        "circle-opacity": 0.92,
+        "circle-opacity": 0.9,
         "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 2,
-        "circle-stroke-opacity": 0.85,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-opacity": 0.7,
         "circle-radius": mainRadius,
       },
     });
@@ -766,12 +766,16 @@ export function MapExplorer() {
     // 半径在「分散度」基础半径上乘随时间变化的系数（保留同点小/分散大）。
     const pulse = () => {
       if (!map.getLayer("event-cluster-halo")) return; // 已卸载
-      const s = 0.5 + 0.5 * Math.sin(Date.now() / 650); // 0..1（越小越快）
-      const o = 0.12 + 0.16 * s; // 透明度 0.12 → 0.28
-      const scale = 1 + 0.2 * s; // 半径 ×1.0 → ×1.2
+      const s = 0.5 + 0.5 * Math.sin(Date.now() / 1100); // 0..1（越大越慢、越柔和）
+      const o = 0.1 + 0.16 * s; // 光晕透明度 0.10 → 0.26
+      const haloScale = 1 + 0.18 * s; // 光晕半径 ×1.0 → ×1.18
+      const mainScale = 1 + 0.035 * s; // 主圆轻微呼吸 ×1.0 → ×1.035（更灵动）
       try {
         map.setPaintProperty("event-cluster-halo", "circle-opacity", o);
-        map.setPaintProperty("event-cluster-halo", "circle-radius", ["*", scale, haloRadius] as unknown as maplibregl.ExpressionSpecification);
+        map.setPaintProperty("event-cluster-halo", "circle-radius", ["*", haloScale, haloRadius] as unknown as maplibregl.ExpressionSpecification);
+        if (map.getLayer("event-clusters")) {
+          map.setPaintProperty("event-clusters", "circle-radius", ["*", mainScale, mainRadius] as unknown as maplibregl.ExpressionSpecification);
+        }
       } catch {
         return;
       }
@@ -929,24 +933,27 @@ export function MapExplorer() {
       id: "landmark-icon",
       type: "symbol",
       source: "landmarks",
+      minzoom: 11.5, // 缩小到一定程度隐藏景点，避免低缩放拥挤
       layout: {
         "icon-image": ["concat", "landmark-", ["get", "kind"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.62, 14, 0.98],
         "icon-allow-overlap": false,
         "text-field": shortLabelExpr("blurb") as never,
         "text-font": ["Open Sans Regular"],
-        "text-size": 13,
+        "text-size": 11.5,
         "text-anchor": "top",
-        "text-offset": [0, 1.1],
+        "text-offset": [0, 1.05],
         "text-optional": true,
         "text-max-width": 12,
+        "text-padding": 6,
       },
       paint: {
-        "text-color": "#d6336c",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 2,
-        // 名称仅在放大后显示，避免低缩放拥挤
-        "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
+        // 景点为辅助信息：柔和褐色，弱于活动的红色摘要
+        "text-color": "#8a7a6b",
+        "text-halo-color": "#fffaf6",
+        "text-halo-width": 1.5,
+        // 摘要更晚淡入，进一步降噪
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 13.6, 1],
       },
     });
     map.on("mouseenter", "landmark-icon", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -999,23 +1006,27 @@ export function MapExplorer() {
       id: "food-icon",
       type: "symbol",
       source: "food",
+      minzoom: 12.5, // 美食点密集（百余个），缩小时隐藏，放大才显示
       layout: {
         "icon-image": ["concat", "food-", ["get", "kind"]],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.95],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.62, 15, 0.95],
         "icon-allow-overlap": false,
         "text-field": shortLabelExpr("blurb") as never,
         "text-font": ["Open Sans Regular"],
-        "text-size": 13,
+        "text-size": 11.5,
         "text-anchor": "top",
-        "text-offset": [0, 1.1],
+        "text-offset": [0, 1.05],
         "text-optional": true,
         "text-max-width": 12,
+        "text-padding": 6,
       },
       paint: {
-        "text-color": "#d6336c",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 2,
-        "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
+        // 美食为辅助信息：柔和玫红，弱于活动的红色摘要
+        "text-color": "#a65a6e",
+        "text-halo-color": "#fffaf6",
+        "text-halo-width": 1.5,
+        // 摘要更晚淡入，避免一放大就满屏文字
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 13.5, 0, 14.2, 1],
       },
     });
     map.on("mouseenter", "food-icon", () => { map.getCanvas().style.cursor = "pointer"; });
