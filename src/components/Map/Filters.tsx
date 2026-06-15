@@ -83,6 +83,31 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
         <span className="whitespace-nowrap text-xs text-neutral-600 bg-white/85 rounded-full px-2 py-1 shadow-sm">
           {count}个活动中
         </span>
+
+        {/* 时间筛选：直接放在计数右边，更显眼 */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setDateOpen((v) => !v)}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+              isAllDates(value.dateRange)
+                ? "bg-white/95 text-neutral-700 border-black/10"
+                : "bg-blue-600 text-white border-transparent"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+            {dayRangeLabel(value.dateRange)}
+            <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${dateOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          {dateOpen && (
+            <div className="absolute right-0 top-full mt-1.5 rounded-2xl border border-black/5 bg-white shadow-xl p-3 z-30">
+              <CalendarRangePicker
+                value={value.dateRange}
+                onChange={(dr) => onChange({ ...value, dateRange: dr })}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 展开面板 */}
@@ -118,30 +143,8 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
             })}
           </div>
 
-          {/* 时间 —— 日历范围选择 */}
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] text-neutral-400">时间</span>
-            <button
-              type="button"
-              onClick={() => setDateOpen((v) => !v)}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
-                isAllDates(value.dateRange)
-                  ? "bg-white text-neutral-600 border-neutral-300"
-                  : "bg-blue-50 text-blue-700 border-blue-200"
-              }`}
-            >
-              {dayRangeLabel(value.dateRange)}
-              <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${dateOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-          </div>
-          {dateOpen && (
-            <div className="mb-2.5 rounded-xl border border-neutral-200 p-2.5">
-              <CalendarRangePicker
-                value={value.dateRange}
-                onChange={(dr) => onChange({ ...value, dateRange: dr })}
-              />
-            </div>
-          )}
+          {/* 时间（日历范围选择已移到顶部计数右侧）：此处只留「含过期」 */}
+          <div className="text-[11px] text-neutral-400 mb-1.5">时间</div>
           <div className="mb-3">
             <button
               type="button"
