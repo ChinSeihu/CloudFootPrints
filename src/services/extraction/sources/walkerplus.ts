@@ -123,3 +123,11 @@ export const walkerplusSportsSource = makeWalkerplusSource({
   maxPages: clampPages(process.env.WALKERPLUS_SPORTS_MAX_PAGES, 6),
   forceCategory: "SPORTS",
 });
+
+// 东京演唱会 / 音乐活动（eg0109 子分类；默认 6 页，分类强制 LIVE）。
+export const walkerplusLiveSource = makeWalkerplusSource({
+  name: "walkerplus-live",
+  listUrl: "https://www.walkerplus.com/event_list/ar0313/eg0109/",
+  maxPages: clampPages(process.env.WALKERPLUS_LIVE_MAX_PAGES, 6),
+  forceCategory: "LIVE",
+});

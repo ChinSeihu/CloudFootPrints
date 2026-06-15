@@ -6,6 +6,14 @@
 
 ## 2026-06-14
 
+### 新增演唱会数据源（walkerplus ライブ）
+
+接入 walkerplus 东京「ライブ・音楽イベント」子分类 `ar0313/eg0109`（复用 walkerplus 工厂，分类强制 `LIVE`，默认 6 页，可用 `WALKERPLUS_LIVE_MAX_PAGES` 调）。跑 `npm run extract` 拉入演唱会/音乐活动。
+
+**涉及文件：** `services/extraction/sources/walkerplus.ts`、`services/extraction/sources/index.ts`
+
+---
+
 ### 发帖报名模式
 
 - **数据库**：`Event.signupEnabled`（发帖可开启）；`ReactionType` 加 `SIGNUP`（复用 Reaction 系统，报名=一条 SIGNUP reaction）。db push 到 Neon。
