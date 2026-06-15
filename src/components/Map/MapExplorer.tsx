@@ -13,6 +13,7 @@ import { StyleSwitcher } from "./StyleSwitcher";
 import { PopularCard } from "./PopularCard";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
+import { FOOD_SPOTS } from "@/lib/foodSpots";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -113,6 +114,45 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   };
 }
 
+// ── 精选美食 POI 图标与数据 ──
+const FOOD_COLOR = "#e11d48"; // 玫红，区别于其他分类
+function foodIconSvg(): string {
+  // 叉勺图标（Lucide utensils）白色描边 + 玫红圆底
+  const glyph = '<path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2"/><path d="M5 2v20"/><path d="M19 15V2a5 5 0 0 0-3 5v6c0 1.1.9 2 2 2h1Zm0 0v7"/>';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${FOOD_COLOR}" stroke="#fff" stroke-width="3"/><g transform="translate(13 11) scale(0.75)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
+}
+
+async function loadFoodIcon(map: maplibregl.Map): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (map.hasImage("food-pin")) return resolve();
+    const img = new Image(44, 44);
+    img.onload = () => {
+      if (!map.hasImage("food-pin")) map.addImage("food-pin", img, { pixelRatio: 2 });
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(foodIconSvg());
+  });
+}
+
+function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: FOOD_SPOTS.map((f) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [f.lng, f.lat] },
+      properties: {
+        id: f.id,
+        name: f.name,
+        genre: f.genre,
+        rating: f.rating,
+        menu: f.menu.join("|"),
+        blurb: f.blurb,
+      },
+    })),
+  };
+}
+
 // 过期：活动结束时间（endTime，无则 startTime）早于现在。未定档（无 startTime）不算过期。
 function isExpired(ev: EventDTO, now: number): boolean {
   if (!ev.startTime) return false;
@@ -196,6 +236,7 @@ export function MapExplorer() {
   const [refreshing, setRefreshing] = useState(false);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
+  const [showFood, setShowFood] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
@@ -227,6 +268,19 @@ export function MapExplorer() {
       map.setLayoutProperty("landmark-icon", "visibility", showLandmarks ? "visible" : "none");
     }
   }, [mapReady, showLandmarks]);
+
+  // 美食显隐（读取/持久化 + 切换图层 visibility）
+  useEffect(() => {
+    const saved = localStorage.getItem("tem_show_food");
+    if (saved === "0") setShowFood(false);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("tem_show_food", showFood ? "1" : "0");
+    const map = mapRef.current;
+    if (mapReady && map && map.getLayer("food-icon")) {
+      map.setLayoutProperty("food-icon", "visibility", showFood ? "visible" : "none");
+    }
+  }, [mapReady, showFood]);
 
   // 探索锚点：放置/移动/清除一个独立的玫红脉冲标记
   useEffect(() => {
@@ -627,7 +681,7 @@ export function MapExplorer() {
 
     // 点击地图空白处 → 落「探索锚点」，人气活动改以锚点为基准
     map.on("click", (e) => {
-      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon"].filter(
+      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon"].filter(
         (l) => map.getLayer(l),
       );
       const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
@@ -864,12 +918,80 @@ export function MapExplorer() {
     });
   }, []);
 
+  // ── 精选美食 POI 图层：点击弹「美食卡」（评分 + 招牌菜单）──
+  const setupFood = useCallback(async (map: maplibregl.Map) => {
+    if (map.getSource("food")) return;
+    await loadFoodIcon(map);
+    map.addSource("food", { type: "geojson", data: foodToFC() });
+    map.addLayer({
+      id: "food-icon",
+      type: "symbol",
+      source: "food",
+      layout: {
+        "icon-image": "food-pin",
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 0.95],
+        "icon-allow-overlap": false,
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Regular"],
+        "text-size": 11,
+        "text-anchor": "top",
+        "text-offset": [0, 1.1],
+        "text-optional": true,
+        "text-max-width": 8,
+      },
+      paint: {
+        "text-color": "#9b2c45",
+        "text-halo-color": "#fffaf6",
+        "text-halo-width": 1.4,
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13, 1],
+      },
+    });
+    map.on("mouseenter", "food-icon", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "food-icon", () => { map.getCanvas().style.cursor = ""; });
+    map.on("click", "food-icon", (e) => {
+      const f = e.features?.[0];
+      const p = f?.properties as { name?: string; genre?: string; rating?: number; menu?: string; blurb?: string } | undefined;
+      if (!p?.name) return;
+      const mlg = maplibreRef.current;
+      if (!mlg) return;
+      const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      const menuItems = (p.menu ?? "").split("|").filter(Boolean);
+      const menuHtml = menuItems.map((m) => `<span class="tem-food-tag">${escapeHtml(m)}</span>`).join("");
+      const html = `<div class="tem-food">
+        <div class="tem-food-head">
+          <span class="tem-food-badge">${foodIconSvg()}</span>
+          <div class="tem-food-titles">
+            <div class="tem-food-name">${escapeHtml(p.name)}</div>
+            <div class="tem-food-meta">${escapeHtml(p.genre ?? "")} · <span class="tem-food-rating">★ ${Number(p.rating ?? 0).toFixed(1)}</span></div>
+          </div>
+        </div>
+        ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
+        ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
+        <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+      </div>`;
+      const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+      popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
+        popup.remove();
+        openGuideRef.current({
+          title: p.name!,
+          category: `美食 · ${p.genre ?? ""}`,
+          venueName: p.name!,
+          description: `东京美食：${p.name}（${p.genre ?? ""}，评分 ${p.rating}）。招牌：${menuItems.join("、")}。${p.blurb ?? ""}`,
+        });
+      });
+    });
+  }, []);
+
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
       mapRef.current = map;
       const mlg = (await import("maplibre-gl")).default;
       maplibreRef.current = mlg;
       await setupLandmarks(map); // 先加地标（在活动层之下）
+      await setupFood(map); // 美食 POI 层
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
@@ -881,7 +1003,7 @@ export function MapExplorer() {
         map.flyTo({ center: [lng, lat], zoom: 16 });
       }
     },
-    [setupLandmarks, setupEventClusters, setupCheckinClusters],
+    [setupLandmarks, setupFood, setupEventClusters, setupCheckinClusters],
   );
 
   async function handleRefresh() {
@@ -997,6 +1119,17 @@ export function MapExplorer() {
         }`}
       >
         🏯 景点
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowFood((v) => !v)}
+        className={`absolute bottom-48 left-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+          showFood
+            ? "bg-rose-600 text-white border-transparent"
+            : "bg-white/95 text-neutral-600 border-black/10"
+        }`}
+      >
+        🍜 美食
       </button>
       <PopularCard
         events={filtered}

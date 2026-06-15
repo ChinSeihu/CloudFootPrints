@@ -146,6 +146,65 @@ body {
   border-bottom-color: #fff7ef !important;
 }
 
+/* 美食卡：暖玫色，展示评分 + 招牌菜单 */
+.tem-food {
+  width: 232px;
+  padding: 14px 14px 13px;
+  background: linear-gradient(135deg, #fff5f6 0%, #fdeef0 100%);
+  border-radius: 16px;
+  font-family: inherit;
+}
+.tem-food-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.tem-food-badge {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.tem-food-badge svg { width: 40px; height: 40px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15)); }
+.tem-food-titles { min-width: 0; }
+.tem-food-name { font-size: 15px; font-weight: 600; color: #3f3a36; line-height: 1.25; }
+.tem-food-meta { font-size: 11px; margin-top: 2px; color: #8a7f79; }
+.tem-food-rating { color: #e11d48; font-weight: 600; }
+.tem-food-desc { font-size: 12.5px; line-height: 1.6; color: #6b625b; margin: 0 0 9px; }
+.tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
+.tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
+.tem-food-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+}
+.tem-food-ask {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.tem-food-ask:hover { filter: brightness(1.06); }
+.tem-food-popup .maplibregl-popup-content {
+  background: transparent;
+  box-shadow: 0 8px 28px rgba(190, 18, 60, 0.18);
+  border-radius: 16px;
+  padding: 0;
+}
+.tem-food-popup .maplibregl-popup-tip {
+  border-top-color: #fdeef0 !important;
+  border-bottom-color: #fff5f6 !important;
+}
+
 .tem-pop {
   max-width: 260px;
   max-height: 320px;
