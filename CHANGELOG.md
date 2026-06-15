@@ -10,7 +10,7 @@
 
 - **修复样式错乱**：选了日期范围后标签变长（如「6月1日 – 6月30日」），顶部行 flex 把「筛选/刷新」挤到换行、整行错乱。改为 `flex-wrap` + 各按钮 `shrink-0 whitespace-nowrap`：放不下时整块换行，不再挤乱。
 - **移除手动「刷新」按钮**：数据全用户共享、无需手动刷新。
-- **每日定时更新**：`vercel.json` 加 Cron（`0 18 * * *` UTC = 凌晨 3 点 JST）每日 GET `/api/extract`；该接口加 **GET + `CRON_SECRET` 鉴权**（Vercel Cron 自动带 `Authorization: Bearer`，防公网滥用；未配密钥则放行便于本地）。未部署 Vercel 时，可用系统计划任务定时跑 `npm run extract` 或带密钥 curl 该接口。
+- **每日定时更新（GitHub Actions）**：抓取全流程要几分钟，会超过 Vercel 函数超时（Hobby 60s / Pro 300s），故**不走 Vercel Cron**，改用 **GitHub Actions**（`.github/workflows/extract.yml`，每日 `0 18 * * *` UTC = 凌晨 3 点 JST）直接跑 `npm run extract` 连 Neon 入库，无超时、可手动触发。`/api/extract` 仍保留 **GET/POST + `CRON_SECRET` 鉴权**，供需要时手动触发。
 
 **涉及文件：** `components/Map/Filters.tsx`、`components/Map/MapExplorer.tsx`、`app/api/extract/route.ts`、`vercel.json`
 

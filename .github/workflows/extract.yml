@@ -1,0 +1,35 @@
+name: 每日活动数据更新
+
+# 数据全用户共享、无需手动刷新：每天凌晨在 GitHub Actions 里跑抓取脚本，
+# 直接连 Neon 写库（不走 Vercel 函数，避免几分钟的抓取被函数超时打断）。
+on:
+  schedule:
+    - cron: "0 18 * * *" # UTC 18:00 = JST 03:00（每日凌晨）
+  workflow_dispatch: {} # 支持在 Actions 页手动触发
+
+# 避免与上一次未结束的运行重叠
+concurrency:
+  group: daily-extract
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 安装依赖
+        run: npm install --no-audit --no-fund
+      - name: 生成 Prisma Client
+        run: npx prisma generate
+      - name: 跑抓取管线（采集 → 抽取 → 地理编码 → 入库）
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # 可选：开启 LLM 重分类（需 secret）；不设则用关键词分类，零成本
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          # 体育子分类抓几页（可调）
+          WALKERPLUS_SPORTS_MAX_PAGES: "6"
+        run: npm run extract
