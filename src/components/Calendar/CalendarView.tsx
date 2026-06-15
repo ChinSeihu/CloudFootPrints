@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CATEGORY_META } from "@/lib/categories";
+import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
@@ -39,6 +39,13 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   const [selected, setSelectedDate] = useState<string>(todayKey);
   const [detail, setDetail] = useState<EventDTO | null>(null);
   const [dayTab, setDayTab] = useState<"starting" | "ongoing">("starting");
+  const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
+
+  // 按分类筛选后的活动
+  const catEvents = useMemo(
+    () => (cat === "ALL" ? events : events.filter((e) => e.category === cat)),
+    [events, cat],
+  );
 
   // 按东京日期把活动分组。长期活动（startTime→endTime 跨多天）在展期每一天都出现。
   // 未定档（无 startTime）的活动不进日历格子。
@@ -49,7 +56,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
       if (list) list.push(ev);
       else m.set(key, [ev]);
     };
-    for (const ev of events) {
+    for (const ev of catEvents) {
       if (!ev.startTime) continue;
       const startKey = tokyoDateKey(ev.startTime);
       const endKey = ev.endTime ? tokyoDateKey(ev.endTime) : startKey;
@@ -64,7 +71,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
       }
     }
     return m;
-  }, [events]);
+  }, [catEvents]);
 
   // 当月网格：前面补上月空格，凑满整周。
   const cells = useMemo(() => {
@@ -204,8 +211,39 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
         })}
       </div>
 
+      {/* 分类筛选（影响日历计数与清单） */}
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <button
+          type="button"
+          onClick={() => setCat("ALL")}
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            cat === "ALL" ? "bg-blue-600 text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+          }`}
+        >
+          全部
+        </button>
+        {EVENT_CATEGORIES.map((c) => {
+          const meta = CATEGORY_META[c];
+          const active = cat === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCat(active ? "ALL" : c)}
+              className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                active ? "text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+              }`}
+              style={active ? { backgroundColor: meta.color } : undefined}
+            >
+              <CategoryIcon category={c} className="w-3.5 h-3.5" />
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* 选中日期的活动清单 */}
-      <div className="mt-4">
+      <div className="mt-3">
         <h2 className="text-sm font-medium text-neutral-700 mb-2 px-1 flex items-center gap-2 flex-wrap">
           <span>
             {Number(selected.slice(5, 7))} 月 {Number(selected.slice(8, 10))} 日
