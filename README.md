@@ -151,6 +151,15 @@ prisma/schema.prisma                 # 数据模型：Event / CheckIn / Comment 
 - 提交前跑 `npx tsc --noEmit`（`next dev` 的 Turbopack 不做严格类型检查）。
 - 详见 `CLAUDE.md` / `DECISIONS.md` / `CHANGELOG.md`。
 
+### 改了数据库 schema 后（重要）
+
+只要动了 `prisma/schema.prisma`（加字段/表/枚举），同步时按此处理，否则 `prisma.xxx` 为 undefined → 接口 500：
+
+1. 本机：`npx prisma db push`（同步到 Neon）→ `npx prisma generate` → **重启 dev server**（运行中的进程不会自动加载新 client）。
+2. 另一台机器：`git pull` 后 **`npx prisma generate` + 重启**（schema 文件已同步，无需再 push）。
+3. **Vercel**：build 时会自动 `prisma generate`（见 `package.json` 的 `postinstall`/`build`），**无需手动**；只要 schema 已 push 到 Neon 即可。
+4. 历史上已加的字段：`Event.tags/imageUrls`、`Reaction` 表、`Comment.parentId`、`User.coverUrl`、`EventCategory.SPORTS`、`CheckIn.photoUrls`。
+
 ## 路线图
 
 - **v1（当前）**：地图撒点 + 个人打卡/发帖，自己用顺手
