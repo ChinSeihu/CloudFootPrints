@@ -158,6 +158,7 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         station: f.station ?? "",
         open: f.open ?? "",
         amenities: (f.amenities ?? []).join("|"),
+        tips: f.tips ?? "",
         photo: f.photo ?? "",
         url: f.url ?? "",
       },
@@ -1021,7 +1022,7 @@ export function MapExplorer() {
     map.on("mouseleave", "food-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "food-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string; budget?: string; station?: string; open?: string; amenities?: string; photo?: string; url?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: FoodKind; genre?: string; rating?: number; menu?: string; blurb?: string; budget?: string; station?: string; open?: string; amenities?: string; tips?: string; photo?: string; url?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
@@ -1030,12 +1031,11 @@ export function MapExplorer() {
       const menuItems = (p.menu ?? "").split("|").filter(Boolean);
       const menuHtml = menuItems.map((m) => `<span class="tem-food-tag">${escapeHtml(m)}</span>`).join("");
       const rating = Number(p.rating ?? 0);
-      // 精选名店显示参考评分；Hot Pepper 导入店显示预算（无评分）。
-      const metaTail = rating > 0
-        ? `<span class="tem-food-rating">★ ${rating.toFixed(1)}</span>`
-        : (p.budget ? `<span class="tem-food-budget">${escapeHtml(p.budget)}</span>` : "");
-      // 信息行：最寄駅 / 营业时间（导入店有，精选名店通常无）。
+      // 评分（精选名店有）显示在标题行；预算移到信息行，精选/导入都能展示。
+      const metaTail = rating > 0 ? `<span class="tem-food-rating">★ ${rating.toFixed(1)}</span>` : "";
+      // 信息行：人均 / 最寄駅 / 营业时间。
       const infoRows = [
+        p.budget ? `<div class="tem-food-info"><span>💴</span>${escapeHtml(p.budget)}</div>` : "",
         p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(p.station)}站</div>` : "",
         p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
       ].filter(Boolean).join("");
@@ -1053,6 +1053,7 @@ export function MapExplorer() {
         ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
         ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
         ${amenityItems.length ? `<div class="tem-food-amenities">${amenityHtml}</div>` : ""}
+        ${p.tips ? `<div class="tem-food-tips"><span>💡</span>${escapeHtml(p.tips)}</div>` : ""}
         ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
         <div class="tem-food-actions">
           <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
@@ -1070,7 +1071,7 @@ export function MapExplorer() {
           kind: "food",
           category: `美食 · ${p.genre ?? ""}`,
           venueName: p.name!,
-          description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : p.budget ? `，预算 ${p.budget}` : ""}${p.station ? `，最近车站 ${p.station}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${amenityItems.length ? `设施：${amenityItems.join("、")}。` : ""}${p.blurb ?? ""}`,
+          description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : ""}${p.budget ? `，人均 ${p.budget}` : ""}${p.station ? `，最近车站 ${p.station}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${amenityItems.length ? `设施：${amenityItems.join("、")}。` : ""}${p.tips ? `提示：${p.tips}。` : ""}${p.blurb ?? ""}`,
         });
       });
     });
