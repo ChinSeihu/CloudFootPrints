@@ -6,6 +6,16 @@
 
 ## 2026-06-14
 
+### 去掉手动刷新（改每日定时更新）+ 修复时间筛选后顶栏错乱
+
+- **修复样式错乱**：选了日期范围后标签变长（如「6月1日 – 6月30日」），顶部行 flex 把「筛选/刷新」挤到换行、整行错乱。改为 `flex-wrap` + 各按钮 `shrink-0 whitespace-nowrap`：放不下时整块换行，不再挤乱。
+- **移除手动「刷新」按钮**：数据全用户共享、无需手动刷新。
+- **每日定时更新**：`vercel.json` 加 Cron（`0 18 * * *` UTC = 凌晨 3 点 JST）每日 GET `/api/extract`；该接口加 **GET + `CRON_SECRET` 鉴权**（Vercel Cron 自动带 `Authorization: Bearer`，防公网滥用；未配密钥则放行便于本地）。未部署 Vercel 时，可用系统计划任务定时跑 `npm run extract` 或带密钥 curl 该接口。
+
+**涉及文件：** `components/Map/Filters.tsx`、`components/Map/MapExplorer.tsx`、`app/api/extract/route.ts`、`vercel.json`
+
+---
+
 ### 美食按菜系分图标 + 菜系筛选 + 左下控件下移
 
 - **菜系图标**：美食 POI 按 `kind`（日式/中餐/西餐/咖啡/甜品）用不同图标 + 配色（`FOOD_KIND_META`）；补齐中餐(茶禅華/麻布長江)、咖啡(Blue Bottle/猿田彦)、甜品(HIGASHIYA/資生堂)等，共 21 家。

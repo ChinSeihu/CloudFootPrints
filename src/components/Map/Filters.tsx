@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
-import { CategoryIcon, IconRefresh } from "@/components/icons";
+import { CategoryIcon } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
 
@@ -17,8 +17,6 @@ type Props = {
   value: FilterState;
   onChange: (next: FilterState) => void;
   count: number;
-  onRefresh: () => void;
-  refreshing: boolean;
 };
 
 function IconFilter({ className }: { className?: string }) {
@@ -30,7 +28,7 @@ function IconFilter({ className }: { className?: string }) {
 }
 
 // 筛选：左上角一个「筛选」按钮，点开展开面板（分类/时间/我的）；收起时不挡地图。
-export function Filters({ value, onChange, count, onRefresh, refreshing }: Props) {
+export function Filters({ value, onChange, count }: Props) {
   const [open, setOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -49,12 +47,13 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
 
   return (
     <div className="absolute top-3 left-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
-      {/* 收起行：筛选按钮 + 刷新 + 计数 */}
-      <div className="flex items-center gap-2 pointer-events-auto">
+      {/* 收起行：筛选按钮 + 计数 + 时间（数据每日自动更新，去掉手动刷新）。
+          flex-wrap + shrink-0 + nowrap：日期范围标签变长时整块换行，不再挤乱其它按钮。 */}
+      <div className="flex flex-wrap items-center gap-2 pointer-events-auto max-w-[calc(100vw-1.5rem)]">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+          className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
             open || activeCount > 0
               ? "bg-blue-600 text-white border-transparent"
               : "bg-white/95 text-neutral-700 border-black/10"
@@ -69,27 +68,16 @@ export function Filters({ value, onChange, count, onRefresh, refreshing }: Props
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={refreshing}
-          title="重新抓取活动数据"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 text-neutral-700 text-xs shadow-sm border border-black/10 disabled:opacity-60"
-        >
-          <IconRefresh className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "刷新中…" : "刷新"}
-        </button>
-
-        <span className="whitespace-nowrap text-xs text-neutral-600 bg-white/85 rounded-full px-2 py-1 shadow-sm">
+        <span className="shrink-0 whitespace-nowrap text-xs text-neutral-600 bg-white/85 rounded-full px-2 py-1 shadow-sm">
           {count}个活动中
         </span>
 
-        {/* 时间筛选：直接放在计数右边，更显眼 */}
-        <div className="relative">
+        {/* 时间筛选：放在计数右边，更显眼 */}
+        <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => setDateOpen((v) => !v)}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
               isAllDates(value.dateRange)
                 ? "bg-white/95 text-neutral-700 border-black/10"
                 : "bg-blue-600 text-white border-transparent"

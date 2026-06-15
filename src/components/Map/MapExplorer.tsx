@@ -238,7 +238,6 @@ export function MapExplorer() {
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
   const [toast, setToast] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
@@ -1017,27 +1016,6 @@ export function MapExplorer() {
     [setupLandmarks, setupFood, setupEventClusters, setupCheckinClusters],
   );
 
-  async function handleRefresh() {
-    if (refreshing) return;
-    setRefreshing(true);
-    showToast("正在抓取活动数据…");
-    try {
-      const res = await fetch("/api/extract", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(`刷新失败：${data.error ?? res.status}`);
-        return;
-      }
-      const inserted = data.stats?.inserted ?? 0;
-      if (lastBboxRef.current) await fetchEvents(lastBboxRef.current);
-      showToast(inserted > 0 ? `新增 ${inserted} 个活动` : "已是最新，无新增");
-    } catch {
-      showToast("刷新失败：网络或服务器错误");
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   function openPlacement(m: Mode) {
     if (!user) {
       showToast("请先到「个人」页登录后再打卡 / 发帖");
@@ -1111,13 +1089,7 @@ export function MapExplorer() {
   return (
     <div className="absolute inset-0">
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
-      <Filters
-        value={filters}
-        onChange={setFilters}
-        count={filtered.length}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-      />
+      <Filters value={filters} onChange={setFilters} count={filtered.length} />
       <WeatherPanel />
 
       {/* 左下角控件行（横排、靠下）：底图风格 + 景点 + 美食(菜系筛选) */}
