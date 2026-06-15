@@ -63,6 +63,14 @@ async function attachAuthors<T extends { userId: string | null }>(events: T[]) {
   return events.map((e) => ({ ...e, author: e.userId ? map.get(e.userId) ?? null : null }));
 }
 
+// 按 id 取单个活动（带作者公开信息），不存在返回 null。
+export async function getEventById(id: string) {
+  const ev = await prisma.event.findUnique({ where: { id } });
+  if (!ev) return null;
+  const [withAuthor] = await attachAuthors([ev]);
+  return withAuthor;
+}
+
 // 我的发帖：列出当前用户发布的活动（sourceType=USER），按创建时间倒序。
 // v1 单用户，全部 USER 活动都属于本人；v2 接入认证后按 userId 过滤。
 export async function listUserEvents(userId: string) {

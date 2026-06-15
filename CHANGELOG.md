@@ -6,6 +6,17 @@
 
 ## 2026-06-14
 
+### 消息已读/未读 + 点击定位 + 背景图 url() 修复
+
+- **未读计数**：「消息」tab 徽章改为**未读数**（按 `localStorage` 记录的「最后已读时间」计），点开消息 tab 即标记已读 → 徽章归 0。
+- **红色徽章**：`CountBadge` 增加 `red` 常驻红色调，用于消息未读提示。
+- **点击定位**：消息条目可点击 → 拉取对应活动（新增 `GET /api/events/[id]` + `getEventById`）并打开详情。
+- **修复背景图不显示**：`encodeURIComponent` 不转义括号，稻草堆等带 `()` 的文件名让无引号 CSS `url()` 解析中断 → 资料卡背景图（含默认稻草堆）不显示。给 `url("...")` 加引号修复。
+
+**涉及文件：** `components/Me/MeView.tsx`、`components/Me/ProfileHeader.tsx`、`components/common/CountBadge.tsx`、`services/events.ts`、`app/api/events/[id]/route.ts`
+
+---
+
 ### 推荐页筛选样式优化（对齐个人页风格）
 
 分类 / 时间 chip 从描边样式改为**柔和灰底无边**（`bg-neutral-100`），激活态用实色填充 + 阴影（全部/时间=蓝，分类=分类色），与个人页分段控件一致；日历下拉改 `rounded-2xl` + 软阴影，更现代。

@@ -104,7 +104,7 @@ export function ProfileHeader() {
         className={`relative overflow-hidden rounded-2xl border border-black/5 shadow-sm p-4 ${
           hasCover ? "bg-neutral-800" : "bg-gradient-to-br from-blue-50 via-white to-rose-50/60"
         }`}
-        style={hasCover ? { backgroundImage: `url(${cover})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+        style={hasCover ? { backgroundImage: `url("${cover}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       >
         {/* 有背景图时压一层暗色遮罩保证文字可读；无背景时角落柔光 */}
         {hasCover ? (

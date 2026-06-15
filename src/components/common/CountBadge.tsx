@@ -7,8 +7,16 @@ export function CountBadge({
 }: {
   count: number;
   active?: boolean;
-  tone?: "blue" | "amber";
+  tone?: "blue" | "amber" | "red";
 }) {
+  // red tone 常驻红色（用于未读提示，无论是否选中）
+  if (tone === "red") {
+    return (
+      <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold leading-none tabular-nums bg-red-500 text-white">
+        {count}
+      </span>
+    );
+  }
   const activeCls =
     tone === "amber" ? "bg-amber-500 text-white" : "bg-blue-600 text-white";
   const idleCls = "bg-neutral-200/80 text-neutral-500";

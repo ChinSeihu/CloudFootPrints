@@ -21,6 +21,7 @@ function fmtDate(d: string | null): string {
 // 登录后的个人页内容：资料卡 + 打卡照片拼图 + 打卡/发帖/收藏/消息 tab。
 function MeContent() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("checkins");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
@@ -51,6 +52,34 @@ function MeContent() {
     () => checkins.map((c) => c.photoUrl).filter((u): u is string => !!u).slice(0, 9),
     [checkins],
   );
+
+  // 消息未读：以「最后已读时间」之后产生的消息计未读（localStorage 按用户存）
+  const readKey = user ? `tem_replies_read_${user.id}` : null;
+  const [lastRead, setLastRead] = useState(0);
+  useEffect(() => {
+    if (!readKey) return;
+    const v = localStorage.getItem(readKey);
+    setLastRead(v ? Number(v) : 0);
+  }, [readKey]);
+  const unreadCount = useMemo(
+    () => notices.filter((n) => new Date(n.createdAt).getTime() > lastRead).length,
+    [notices, lastRead],
+  );
+  function markMessagesRead() {
+    const now = Date.now();
+    setLastRead(now);
+    if (readKey) localStorage.setItem(readKey, String(now));
+  }
+
+  // 点消息 → 拉取对应活动详情并打开
+  async function openNoticeEvent(eventId: string) {
+    try {
+      const d = await fetch(`/api/events/${eventId}`).then((r) => (r.ok ? r.json() : null));
+      if (d?.event) setSelected(d.event);
+    } catch {
+      /* 忽略 */
+    }
+  }
 
   async function deletePost(id: string) {
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
@@ -101,18 +130,23 @@ function MeContent() {
             ["messages", "消息", notices.length, IconBell],
           ] as const).map(([key, label, count, Icon]) => {
             const active = tab === key;
+            const isMsg = key === "messages";
+            const badge = isMsg ? unreadCount : count;
             return (
               <button
                 key={key}
                 type="button"
-                onClick={() => setTab(key)}
+                onClick={() => {
+                  setTab(key);
+                  if (isMsg) markMessagesRead();
+                }}
                 className={`flex-1 inline-flex items-center justify-center gap-1 py-2 rounded-xl text-[13px] transition ${
                   active ? "bg-white text-blue-600 font-medium shadow-sm" : "text-neutral-500"
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {label}
-                {count > 0 && <CountBadge count={count} active={active} />}
+                {badge > 0 && <CountBadge count={badge} active={active} tone={isMsg ? "red" : "blue"} />}
               </button>
             );
           })}
@@ -268,26 +302,32 @@ function MeContent() {
             )}
             <ul className="space-y-2.5">
               {notices.map((n) => (
-                <li key={n.id} className="rounded-xl border border-black/10 bg-white p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold grid place-items-center shrink-0">
-                      {(n.author?.username ?? "用户").slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
-                    <span className="text-[11px] text-neutral-400 shrink-0">
-                      {n.type === "reply" ? "回复了你的评论" : "评论了你的帖子"}
-                    </span>
-                    <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
-                      {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>
-                  {n.type === "reply" && n.parentText && (
-                    <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
-                      你：{n.parentText}
-                    </p>
-                  )}
-                  <div className="text-[11px] text-neutral-400 mt-1.5 truncate">在《{n.eventTitle}》</div>
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => openNoticeEvent(n.eventId)}
+                    className="w-full text-left rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold grid place-items-center shrink-0">
+                        {(n.author?.username ?? "用户").slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
+                      <span className="text-[11px] text-neutral-400 shrink-0">
+                        {n.type === "reply" ? "回复了你的评论" : "评论了你的帖子"}
+                      </span>
+                      <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
+                        {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>
+                    {n.type === "reply" && n.parentText && (
+                      <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
+                        你：{n.parentText}
+                      </p>
+                    )}
+                    <div className="text-[11px] text-blue-500 mt-1.5 truncate">在《{n.eventTitle}》· 查看 ›</div>
+                  </button>
                 </li>
               ))}
             </ul>
