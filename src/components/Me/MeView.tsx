@@ -206,44 +206,46 @@ function MeContent() {
               {posts.map((p) => {
                 const meta = CATEGORY_META[p.category];
                 return (
-                  <li key={p.id} className="rounded-xl border border-black/10 overflow-hidden bg-white">
-                    {p.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
-                    )}
-                    <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-                    <div className="p-3">
-                      <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
-                        <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                        {meta.label} · {fmtDate(p.startTime)}
-                      </div>
-                      <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
-                      {p.venueName && (
-                        <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
-                          <IconPin className="w-3 h-3 shrink-0" />
-                          {p.venueName}
+                  <li key={p.id} className="rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow">
+                    <button type="button" onClick={() => setSelected(p)} className="block w-full text-left">
+                      {p.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                      )}
+                      <div className="h-1.5" style={{ backgroundColor: meta.color }} />
+                      <div className="px-3 pt-3">
+                        <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
+                          <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
+                          {meta.label} · {fmtDate(p.startTime)}
                         </div>
-                      )}
-                      {p.description && (
-                        <p className="text-xs text-neutral-600 mt-1 line-clamp-2">{p.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/?lat=${p.lat}&lng=${p.lng}`)}
-                          className="inline-flex items-center gap-1 text-xs text-blue-600"
-                        >
-                          <IconMap className="w-3.5 h-3.5" />
-                          在地图上查看
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deletePost(p.id)}
-                          className="text-xs text-red-500 ml-auto"
-                        >
-                          删除
-                        </button>
+                        <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
+                        {p.venueName && (
+                          <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">
+                            <IconPin className="w-3 h-3 shrink-0" />
+                            {p.venueName}
+                          </div>
+                        )}
+                        {p.description && (
+                          <p className="text-xs text-neutral-600 mt-1 line-clamp-2">{p.description}</p>
+                        )}
                       </div>
+                    </button>
+                    <div className="flex items-center gap-3 px-3 pb-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/?lat=${p.lat}&lng=${p.lng}`)}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600"
+                      >
+                        <IconMap className="w-3.5 h-3.5" />
+                        在地图上查看
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deletePost(p.id)}
+                        className="text-xs text-red-500 ml-auto"
+                      >
+                        删除
+                      </button>
                     </div>
                   </li>
                 );
