@@ -919,6 +919,7 @@ export function MapExplorer() {
         popup.remove();
         openGuideRef.current({
           title: p.name!,
+          kind: "landmark",
           category: kindLabel,
           venueName: p.name!,
           description: `东京名胜：${p.name}（${kindLabel}）。${p.blurb ?? ""}`,
@@ -987,6 +988,7 @@ export function MapExplorer() {
         popup.remove();
         openGuideRef.current({
           title: p.name!,
+          kind: "food",
           category: `美食 · ${p.genre ?? ""}`,
           venueName: p.name!,
           description: `东京美食：${p.name}（${p.genre ?? ""}，评分 ${p.rating}）。招牌：${menuItems.join("、")}。${p.blurb ?? ""}`,

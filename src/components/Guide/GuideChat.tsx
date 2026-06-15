@@ -13,11 +13,27 @@ const GENERAL_QUICK = [
 ];
 
 function topicQuick(t: GuideTopic): string[] {
-  return [
-    `讲讲「${t.title}」的看点和文化背景`,
-    `「${t.title}」怎么去？给我路线建议`,
-    `和「${t.title}」类似或周边还有什么推荐？`,
-  ];
+  const n = t.title;
+  switch (t.kind) {
+    case "food":
+      return [
+        `「${n}」必点 / 招牌菜是什么？`,
+        `「${n}」人均预算多少？需要预约吗？`,
+        `「${n}」怎么去？周边还有什么好吃的？`,
+      ];
+    case "landmark":
+      return [
+        `讲讲「${n}」的看点和历史`,
+        `「${n}」怎么去？最佳游览时间？`,
+        `「${n}」周边还有什么好玩的？`,
+      ];
+    default: // event
+      return [
+        `讲讲「${n}」的看点和文化背景`,
+        `「${n}」怎么去？给我路线建议`,
+        `和「${n}」类似或周边还有什么推荐？`,
+      ];
+  }
 }
 
 // 把活动信息作为上下文前缀注入第一条消息（UI 仍显示用户原话），让 AI 聚焦该活动。
