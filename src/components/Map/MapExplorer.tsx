@@ -106,8 +106,8 @@ async function loadLandmarkIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
-// OSM 全量美食信息不全（无评分/照片/营业等），暂隐藏，着重用 Hot Pepper。改 true 可恢复。
-const SHOW_OSM_FOOD = false;
+// 美食全量层（图层 id 仍叫 osmfood）：现承载 Hot Pepper 全量餐厅，按视野懒加载。
+const SHOW_OSM_FOOD = true;
 
 function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
@@ -188,14 +188,16 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   };
 }
 
-// OSM 美食 POI（按视野从 /api/food 拉取，常驻地点）。
-type FoodPoiDTO = {
-  id: string; name: string; nameEn: string | null; kind: string; cuisine: string | null;
-  lat: number; lng: number; openingHours: string | null; phone: string | null;
-  website: string | null; takeaway: boolean; wheelchair: boolean; address: string | null;
+// Hot Pepper 餐厅 POI（全量入库，按视野从 /api/hotpepper 懒加载）。
+// 复用原 OSM 美食的图层/懒加载机制（OSM 已隐藏），层 id 仍叫 "osmfood"。
+type HotPepperPoiDTO = {
+  id: string; name: string; kind: string; genre: string | null;
+  lat: number; lng: number; budget: string | null; station: string | null;
+  open: string | null; catchText: string | null; address: string | null;
+  photo: string | null; url: string | null; amenities: string[];
 };
 
-function osmFoodToFC(pois: FoodPoiDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+function hotpepperToFC(pois: HotPepperPoiDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
     features: pois.map((p) => ({
@@ -204,14 +206,15 @@ function osmFoodToFC(pois: FoodPoiDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poin
       properties: {
         id: p.id,
         name: p.name,
-        nameEn: p.nameEn ?? "",
         kind: (FOOD_KINDS as readonly string[]).includes(p.kind) ? p.kind : "other",
-        cuisine: p.cuisine ?? "",
-        openingHours: p.openingHours ?? "",
-        phone: p.phone ?? "",
-        website: p.website ?? "",
-        takeaway: p.takeaway ? "1" : "",
-        wheelchair: p.wheelchair ? "1" : "",
+        genre: p.genre ?? "",
+        budget: p.budget ?? "",
+        station: p.station ?? "",
+        open: p.open ?? "",
+        catchText: p.catchText ?? "",
+        photo: p.photo ?? "",
+        url: p.url ?? "",
+        amenities: (p.amenities ?? []).join("|"),
       },
     })),
   };
@@ -439,18 +442,18 @@ export function MapExplorer() {
       if (id === reqIdRef.current) setEvents(data.events);
     } catch { /* 静默 */ }
 
-    // OSM 全量美食：仅放大后按视野加载（避免大范围海量点）；缩小时清空。
+    // Hot Pepper 全量餐厅：仅放大后按视野加载（避免大范围海量点）；缩小时清空。
     const foodSrc = mapRef.current?.getSource("osmfood") as maplibregl.GeoJSONSource | undefined;
     if (foodSrc) {
       const z = mapRef.current?.getZoom() ?? 0;
       if (z < 13.5) {
-        foodSrc.setData(osmFoodToFC([]));
+        foodSrc.setData(hotpepperToFC([]));
       } else {
         try {
-          const fr = await fetch(`/api/food?${params}`);
+          const fr = await fetch(`/api/hotpepper?${params}`);
           if (fr.ok) {
-            const fd = (await fr.json()) as { pois: FoodPoiDTO[] };
-            foodSrc.setData(osmFoodToFC(fd.pois ?? []));
+            const fd = (await fr.json()) as { pois: HotPepperPoiDTO[] };
+            foodSrc.setData(hotpepperToFC(fd.pois ?? []));
           }
         } catch { /* 静默 */ }
       }
@@ -1184,7 +1187,7 @@ export function MapExplorer() {
   const setupOsmFood = useCallback(async (map: maplibregl.Map) => {
     if (map.getSource("osmfood")) return;
     await loadFoodIcons(map); // 复用菜系图标（含 other）
-    map.addSource("osmfood", { type: "geojson", data: osmFoodToFC([]) });
+    map.addSource("osmfood", { type: "geojson", data: hotpepperToFC([]) });
     map.addLayer({
       id: "osmfood-icon",
       type: "symbol",
@@ -1214,33 +1217,35 @@ export function MapExplorer() {
     map.on("mouseleave", "osmfood-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "osmfood-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; nameEn?: string; kind?: string; cuisine?: string; openingHours?: string; phone?: string; website?: string; takeaway?: string; wheelchair?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: string; genre?: string; budget?: string; station?: string; open?: string; catchText?: string; photo?: string; url?: string; amenities?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
       const kind = ((FOOD_KINDS as readonly string[]).includes(p.kind ?? "") ? p.kind : "other") as FoodKind;
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      const amenities = (p.amenities ?? "").split("|").filter(Boolean);
       const infoRows = [
-        p.openingHours ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.openingHours)}</div>` : "",
-        p.phone ? `<div class="tem-food-info"><span>📞</span>${escapeHtml(p.phone)}</div>` : "",
+        p.budget ? `<div class="tem-food-info"><span>💴</span>${escapeHtml(p.budget)}</div>` : "",
+        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(p.station)}站</div>` : "",
+        p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
       ].filter(Boolean).join("");
-      const chips = [p.takeaway ? "外带" : "", p.wheelchair ? "无障碍" : ""].filter(Boolean)
-        .map((a) => `<span class="tem-food-amenity">${a}</span>`).join("");
-      const subtitle = [FOOD_KIND_META[kind].label, p.cuisine].filter(Boolean).join(" · ");
+      const chips = amenities.map((a) => `<span class="tem-food-amenity">${escapeHtml(a)}</span>`).join("");
+      const subtitle = [FOOD_KIND_META[kind].label, p.genre].filter(Boolean).join(" · ");
       const html = `<div class="tem-food">
+        ${p.photo ? `<div class="tem-food-photo"><img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}" loading="lazy"/></div>` : ""}
         <div class="tem-food-head">
           <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
             <div class="tem-food-name">${escapeHtml(p.name)}</div>
-            ${p.nameEn ? `<div class="tem-food-meta">${escapeHtml(p.nameEn)}</div>` : ""}
             <div class="tem-food-meta">${escapeHtml(subtitle)}</div>
           </div>
         </div>
+        ${p.catchText ? `<p class="tem-food-desc">${escapeHtml(p.catchText)}</p>` : ""}
         ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
         ${chips ? `<div class="tem-food-amenities">${chips}</div>` : ""}
         <div class="tem-food-actions">
           <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
-          ${p.website ? `<a class="tem-food-link" href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">官网 ↗</a>` : ""}
+          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
@@ -1252,9 +1257,9 @@ export function MapExplorer() {
         openGuideRef.current({
           title: p.name!,
           kind: "food",
-          category: `美食 · ${p.cuisine || FOOD_KIND_META[kind].label}`,
+          category: `美食 · ${p.genre || FOOD_KIND_META[kind].label}`,
           venueName: p.name!,
-          description: `东京餐厅：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}，类型 ${subtitle}${p.openingHours ? `，营业 ${p.openingHours}` : ""}。`,
+          description: `东京餐厅：${p.name}，类型 ${subtitle}${p.budget ? `，人均 ${p.budget}` : ""}${p.station ? `，最寄 ${p.station}站` : ""}${p.open ? `，营业 ${p.open}` : ""}。`,
         });
       });
     });

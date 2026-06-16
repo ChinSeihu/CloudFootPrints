@@ -6,7 +6,18 @@
 
 ## 2026-06-16
 
-### Hot Pepper 全量入库（数据层；前端图层下一步）
+### Hot Pepper 全量上图（前端图层）
+
+- 新增 `services/hotPepperPoi`（`listHotPepperInBounds`）+ `GET /api/hotpepper?bbox`（薄 handler）。
+- **复用原 OSM 美食图层机制**（OSM 已隐藏、层 id 仍 `osmfood`）接到 Hot Pepper：按视野**懒加载**（zoom≥13.5 拉、≥14 显示），缩小清空；菜系图标 + 店名标签，随「美食」筛选联动。
+- **弹窗卡片**用 Hot Pepper 字段：照片 + 菜系/细分 + 招牌语 + 💴人均 / 📍最寄駅 / 🕒营业 + 设施标签（個室/禁煙/Wi-Fi/カード/ランチ）+ 详情链接 + 问 AI 导游。
+- 库内 6811 家，地图放大即按视野显示。**精选名店仍在独立层带「AI 精选」角标叠加**。
+
+**涉及文件：** `src/services/hotPepperPoi.ts`、`src/app/api/hotpepper/route.ts`、`src/components/Map/MapExplorer.tsx`
+
+---
+
+### Hot Pepper 全量入库（数据层）
 
 - **新表 `HotPepperPoi`**（`id`=Hot Pepper 店铺 id 天然去重；name/kind/genre/经纬度/budget/station/open/catch/address/photo/url/amenities），db push 到 Neon。
 - **入库脚本** `scripts/import-hotpepper-poi.ts`（`npm run import:hotpepper`，`--reset` 清空重灌）：按 8 个菜系分页拉东京 `large_area=Z011`，每菜系最多 `HOTPEPPER_MAX_PAGES` 页（默认 10），id 去重后批量 `createMany`。
