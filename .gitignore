@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Hot Pepper 候选池中间产物（由 npm run fetch:hotpepper 生成；精选结果在 src/lib/foodSpotsImported.ts）
 /scripts/hotpepper-candidates.json
+
+# 本项目用 yarn；不提交 npm 的 package-lock.json（避免与 yarn.lock 冲突）
+package-lock.json
