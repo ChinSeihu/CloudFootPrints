@@ -1,13 +1,17 @@
 import { prisma } from "@/lib/db";
 import { CATEGORY_META } from "@/lib/categories";
 
-// 为 AI 导游提供「本站数据库的近期真实活动」上下文，使其能据此回答“今天/近期有什么活动”
-// （数据每日抓取入库，比通用网搜更准、零成本）。返回拼好的纯文本块，路由注入到 system。
-export async function buildGuideEventsContext(limit = 40): Promise<string> {
+export type GuideEventRef = { token: string; id: string; title: string };
+export type GuideEventsContext = { context: string; refs: GuideEventRef[] };
+
+// 为 AI 导游提供「近期真实活动」上下文（每日抓取入库，比通用网搜更准、零成本）。
+// 每条带编号 token（E1、E2…），并返回 token→{id,title} 映射；导游回传它提到的 token，
+// 前端据此渲染可点击的活动卡片 → 打开详情。返回空 context 表示无数据。
+export async function buildGuideEventsContext(limit = 40): Promise<GuideEventsContext> {
   const now = new Date();
   const from = new Date(now.getTime() - 24 * 3600 * 1000); // 含昨天起、仍在进行的
   const to = new Date(now.getTime() + 21 * 24 * 3600 * 1000); // 未来约三周
-  const sel = { title: true, category: true, startTime: true, endTime: true, venueName: true, address: true, summary: true } as const;
+  const sel = { id: true, title: true, category: true, startTime: true, endTime: true, venueName: true, address: true, summary: true } as const;
 
   let rows;
   try {
@@ -35,23 +39,28 @@ export async function buildGuideEventsContext(limit = 40): Promise<string> {
       return true;
     });
   } catch {
-    return "";
+    return { context: "", refs: [] };
   }
-  if (rows.length === 0) return "";
+  if (rows.length === 0) return { context: "", refs: [] };
 
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("zh-CN", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", weekday: "short" }) : "时间未定";
 
-  const lines = rows.map((e) => {
+  const refs: GuideEventRef[] = [];
+  const lines = rows.map((e, i) => {
+    const token = `E${i + 1}`;
+    refs.push({ token, id: e.id, title: e.title });
     const cat = CATEGORY_META[e.category]?.label ?? e.category;
     const when = e.endTime && e.startTime && e.endTime > e.startTime ? `${fmt(e.startTime)}–${fmt(e.endTime)}` : fmt(e.startTime);
     const where = e.venueName || e.address || "";
     const desc = e.summary ? `（${e.summary}）` : "";
-    return `- ${when}｜${cat}｜${e.title}${desc}${where ? ` @ ${where}` : ""}`;
+    return `${token}) ${when}｜${cat}｜${e.title}${desc}${where ? ` @ ${where}` : ""}`;
   });
 
-  return `【你已掌握的近期/进行中活动（东京时区，仅供你参考，回答时当作自己的了解自然说出）】
+  const context = `【你已掌握的近期/进行中活动（东京时区，仅供你参考，回答时当作自己的了解自然说出）】
 回答“今天/本周/近期有什么活动”等问题时，优先依据下面这些真实活动；不要臆造未列出的活动。
+每条前面的编号（E1、E2…）仅用于标识：**回答正文里绝不能出现这些编号**；若你的回答提到了其中某些活动，请把它们的编号填进 referenced 字段。
 **重要：不要向用户提及这份清单的来源或形式**——不要出现“数据库/数据/清单/条目/系统”等字眼，像本地向导一样直接介绍即可；未列出的具体细节提示以官方信息为准。
 ${lines.join("\n")}`;
+  return { context, refs };
 }

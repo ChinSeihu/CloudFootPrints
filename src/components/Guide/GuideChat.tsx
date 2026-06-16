@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconSparkles } from "@/components/icons";
+import { IconSparkles, IconPin } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
+import { EventDetail } from "@/components/Recommend/EventDetail";
 import type { ChatMessage } from "@/lib/llm";
+import type { EventDTO } from "@/lib/types";
 
-// 聊天消息 + AI 推测的后续问题建议（仅 assistant 消息带）。
-type UIMessage = ChatMessage & { suggestions?: string[] };
+// 导游回答里提到的活动（可点击进入详情）。
+type GuideEventLink = { id: string; title: string };
+// 聊天消息 + AI 推测的后续问题建议 + 提到的活动（仅 assistant 消息带）。
+type UIMessage = ChatMessage & { suggestions?: string[]; events?: GuideEventLink[] };
 
 const GENERAL_QUICK = [
   "今天东京有什么值得去的活动？",
@@ -60,6 +64,7 @@ export function GuideChat() {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
   const endRef = useRef<HTMLDivElement>(null);
   const topicRef = useRef<GuideTopic | null>(null);
   topicRef.current = topic;
@@ -97,6 +102,7 @@ export function GuideChat() {
             role: "assistant",
             content: (typeof data.reply === "string" && data.reply.trim()) || "抱歉，刚才没答上来，请再问一次或换个问法。",
             suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+            events: Array.isArray(data.events) ? data.events : [],
           },
         ]);
       } else {
@@ -107,6 +113,14 @@ export function GuideChat() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // 点击导游提到的活动 → 拉取详情并打开 EventDetail（叠在聊天面板之上）。
+  async function openEventDetail(id: string) {
+    try {
+      const d = await fetch(`/api/events/${id}`).then((r) => (r.ok ? r.json() : null));
+      if (d?.event) setDetail(d.event);
+    } catch { /* 忽略 */ }
   }
 
   const quick = topic ? topicQuick(topic) : GENERAL_QUICK;
@@ -148,7 +162,7 @@ export function GuideChat() {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
             <div
               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                 m.role === "user" ? "bg-violet-600 text-white" : "bg-neutral-100 text-neutral-800"
@@ -156,6 +170,23 @@ export function GuideChat() {
             >
               {m.content}
             </div>
+            {/* 导游提到的活动：可点击进入详情 */}
+            {m.role === "assistant" && m.events && m.events.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1.5 max-w-[85%]">
+                {m.events.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => openEventDetail(ev.id)}
+                    className="inline-flex items-center gap-1.5 text-left text-sm px-3 py-2 rounded-xl border border-violet-200 bg-white text-violet-700 hover:bg-violet-50 transition"
+                  >
+                    <IconPin className="w-3.5 h-3.5 shrink-0 text-violet-500" />
+                    <span className="truncate">{ev.title}</span>
+                    <span className="ml-auto shrink-0 text-violet-400 text-xs">详情 ›</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (
@@ -219,6 +250,8 @@ export function GuideChat() {
           发送
         </button>
       </div>
+
+      {detail && <EventDetail event={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }

@@ -6,6 +6,18 @@
 
 ## 2026-06-16
 
+### AI 导游：回答里提到的活动可点击进详情
+
+- 注入的活动清单给每条加编号 token（E1…），`buildGuideEventsContext` 返回 `{context, refs}`（token→{id,title}）。
+- 导游结构化输出新增 `referenced` 字段（它回答中提到的活动编号；正文不出现编号）；`GuideReply` 加 `referenced`，工具 schema / JSON 指令 / 两端解析 + `cleanTokens` 清洗。
+- `/api/chat` 把 referenced 映射回 `events:[{id,title}]` 返回前端。
+- 前端在每条导游回答下渲染可点击活动卡片，点击 `GET /api/events/[id]` 拉详情并打开 `EventDetail`（叠在导游面板上）。
+- 实测：问“今天有什么活动”，回答提到山王祭等 → 下方出现对应可点击卡片，正文无编号、无系统术语。
+
+**涉及文件：** `src/services/guideEvents.ts`、`src/lib/llm.ts`、`src/app/api/chat/route.ts`、`src/components/Guide/GuideChat.tsx`
+
+---
+
 ### AI 导游：不暴露系统/IT 术语
 
 之前回答会说“数据库里有一条…”。修复：导游系统提示新增「绝不暴露数据库/数据/记录/系统/接口等术语，用本地向导口吻自然表达」；注入的活动上下文措辞也去掉“数据库/清单/条目”等字眼并明确「不要向用户提及这份清单的来源或形式」。实测同一问题回复已无系统术语。

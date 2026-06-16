@@ -493,7 +493,19 @@ function guideSystem(): string {
 
 const GUIDE_CHAT_MAX_TOKENS = 3000; // 提高上限，避免回答+建议被截断导致空白（尤其多轮追问）
 
-export type GuideReply = { reply: string; suggestions: string[] };
+export type GuideReply = { reply: string; suggestions: string[]; referenced: string[] };
+
+// 清洗活动编号（E1、E2…）：去空、去重、最多 8 个。
+function cleanTokens(arr: unknown): string[] {
+  if (!Array.isArray(arr)) return [];
+  const out: string[] = [];
+  for (const x of arr) {
+    if (typeof x !== "string") continue;
+    const m = x.trim().match(/E\d+/i);
+    if (m) { const t = m[0].toUpperCase(); if (!out.includes(t)) out.push(t); }
+  }
+  return out.slice(0, 8);
+}
 
 // 清洗后续问题建议：去前导编号/引号、去空、最多 4 条。
 function cleanSuggestions(arr: unknown): string[] {
@@ -518,6 +530,11 @@ const GUIDE_TOOL: Anthropic.Tool = {
         items: { type: "string" },
         minItems: 3,
       },
+      referenced: {
+        type: "array",
+        description: "你的回答中提到的、来自参考活动清单的活动编号（如 E1、E5）；没有提到则空数组。",
+        items: { type: "string" },
+      },
     },
     required: ["reply", "suggestions"],
     additionalProperties: false,
@@ -536,7 +553,7 @@ export async function chatWithGuide(messages: ChatMessage[], eventsContext?: str
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
     const toolUse = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-    const input = toolUse?.input as { reply?: string; suggestions?: string[] } | undefined;
+    const input = toolUse?.input as { reply?: string; suggestions?: string[]; referenced?: string[] } | undefined;
     let reply = (input?.reply ?? "").trim();
     // 工具输出被 max_tokens 截断时 input 可能解析不出 reply → 回退取文本块，避免空白。
     if (!reply) {
@@ -544,11 +561,13 @@ export async function chatWithGuide(messages: ChatMessage[], eventsContext?: str
       reply = (text?.text ?? "").trim();
     }
     if (!reply) reply = await plainAnthropicReply(system, messages); // 仍空 → 不带工具再答一次
-    return { reply, suggestions: cleanSuggestions(input?.suggestions) };
+    return { reply, suggestions: cleanSuggestions(input?.suggestions), referenced: cleanTokens(input?.referenced) };
   }
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-  const instruction = `只输出一个 JSON 对象：{"reply": "回答正文（纯文本，不要 Markdown 围栏/标记）", "suggestions": ["后续问题1","后续问题2","后续问题3"]}。
-suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一人称口吻、各不相同、紧扣当前话题，每条≤22字。不要任何解释或代码围栏。`;
+  const instruction = `只输出一个 JSON 对象：{"reply": "回答正文（纯文本，不要 Markdown 围栏/标记，正文里不要出现 E1 这类编号）", "suggestions": ["后续问题1","后续问题2","后续问题3"], "referenced": ["E1","E5"]}。
+suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一人称口吻、各不相同、紧扣当前话题，每条≤22字。
+referenced 是你回答中提到的、来自上方参考活动清单的活动编号（如 E1、E5）；没有提到就给空数组 []。
+不要任何解释或代码围栏。`;
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
@@ -563,13 +582,13 @@ suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一
   if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = data.choices?.[0]?.message?.content ?? "";
-  const parsed = safeJsonParse(content) as { reply?: string; suggestions?: string[] } | null;
+  const parsed = safeJsonParse(content) as { reply?: string; suggestions?: string[]; referenced?: string[] } | null;
   const reply = (parsed && typeof parsed.reply === "string" ? parsed.reply : content).trim();
   // 仍为空 → 不带 JSON 约束重答一次，保证不空白。
   if (!reply) {
-    return { reply: await plainOpenAIReply(baseUrl, system, messages), suggestions: [] };
+    return { reply: await plainOpenAIReply(baseUrl, system, messages), suggestions: [], referenced: [] };
   }
-  return { reply, suggestions: cleanSuggestions(parsed?.suggestions) };
+  return { reply, suggestions: cleanSuggestions(parsed?.suggestions), referenced: cleanTokens(parsed?.referenced) };
 }
 
 // 兜底：不带工具/JSON 约束，纯文本再答一次（仅在主流程拿到空回复时调用）。
