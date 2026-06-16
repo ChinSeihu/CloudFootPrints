@@ -523,8 +523,8 @@ const GUIDE_TOOL: Anthropic.Tool = {
   },
 };
 
-export async function chatWithGuide(messages: ChatMessage[]): Promise<GuideReply> {
-  const system = guideSystem();
+export async function chatWithGuide(messages: ChatMessage[], eventsContext?: string): Promise<GuideReply> {
+  const system = eventsContext ? `${guideSystem()}\n\n${eventsContext}` : guideSystem();
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
