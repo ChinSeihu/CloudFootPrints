@@ -460,7 +460,7 @@ export async function summarizeEvents(items: SummarizeItem[]): Promise<(string |
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-const GUIDE_SYSTEM = `你是「东京活动地图」内置的 AI 导游——一位在东京生活多年、资深的专业导游兼文化讲解员。
+const GUIDE_SYSTEM_BASE = `你是「东京活动地图」内置的 AI 导游——一位在东京生活多年、资深的专业导游兼文化讲解员。
 你的专长：东京的展览、市集、live、祭典等各类活动，以及它们背后的历史、文化与渊源。
 
 回答时请：
@@ -476,6 +476,21 @@ const GUIDE_SYSTEM = `你是「东京活动地图」内置的 AI 导游——一
 - 站在用户第一人称口吻（如「附近有适合午餐的店吗？」「怎么买票最划算？」）。
 - 紧扣当前话题与你刚才的回答，各不相同、具体可执行，每条尽量 ≤22 字。
 - 至少 3 个。`;
+
+// 系统提示注入「东京当前时间」，避免 LLM 凭过期训练知识臆断「今天/最近/本周」。
+function guideSystem(): string {
+  const now = new Date().toLocaleString("zh-CN", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric", month: "long", day: "numeric", weekday: "long", hour: "2-digit", minute: "2-digit",
+  });
+  return `${GUIDE_SYSTEM_BASE}
+
+【当前时间（东京）】${now}。
+- 凡涉及「今天/明天/本周/最近/现在还能不能去」等时间判断，一律以此时间为准。
+- 你的训练知识可能滞后，**不要凭记忆臆断当前正在举办的活动或其档期**；不确定的具体日程，提示用户以官方信息为准。`;
+}
+
+const GUIDE_CHAT_MAX_TOKENS = 3000; // 提高上限，避免回答+建议被截断导致空白（尤其多轮追问）
 
 export type GuideReply = { reply: string; suggestions: string[] };
 
@@ -509,18 +524,26 @@ const GUIDE_TOOL: Anthropic.Tool = {
 };
 
 export async function chatWithGuide(messages: ChatMessage[]): Promise<GuideReply> {
+  const system = guideSystem();
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: 1280,
-      system: GUIDE_SYSTEM,
+      max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      system,
       tools: [GUIDE_TOOL],
       tool_choice: { type: "tool", name: "emit_guide_reply" },
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
     const toolUse = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
     const input = toolUse?.input as { reply?: string; suggestions?: string[] } | undefined;
-    return { reply: (input?.reply ?? "").trim(), suggestions: cleanSuggestions(input?.suggestions) };
+    let reply = (input?.reply ?? "").trim();
+    // 工具输出被 max_tokens 截断时 input 可能解析不出 reply → 回退取文本块，避免空白。
+    if (!reply) {
+      const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+      reply = (text?.text ?? "").trim();
+    }
+    if (!reply) reply = await plainAnthropicReply(system, messages); // 仍空 → 不带工具再答一次
+    return { reply, suggestions: cleanSuggestions(input?.suggestions) };
   }
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
   const instruction = `只输出一个 JSON 对象：{"reply": "回答正文（纯文本，不要 Markdown 围栏/标记）", "suggestions": ["后续问题1","后续问题2","后续问题3"]}。
@@ -530,19 +553,56 @@ suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
-      messages: [{ role: "system", content: `${GUIDE_SYSTEM}\n\n${instruction}` }, ...messages],
+      messages: [{ role: "system", content: `${system}\n\n${instruction}` }, ...messages],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1280,
+      max_tokens: GUIDE_CHAT_MAX_TOKENS,
     }),
   });
   if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = data.choices?.[0]?.message?.content ?? "";
   const parsed = safeJsonParse(content) as { reply?: string; suggestions?: string[] } | null;
-  // 解析失败兜底：把原文当回答，建议留空。
-  if (!parsed || typeof parsed.reply !== "string") {
-    return { reply: content.trim(), suggestions: [] };
+  const reply = (parsed && typeof parsed.reply === "string" ? parsed.reply : content).trim();
+  // 仍为空 → 不带 JSON 约束重答一次，保证不空白。
+  if (!reply) {
+    return { reply: await plainOpenAIReply(baseUrl, system, messages), suggestions: [] };
   }
-  return { reply: parsed.reply.trim(), suggestions: cleanSuggestions(parsed.suggestions) };
+  return { reply, suggestions: cleanSuggestions(parsed?.suggestions) };
+}
+
+// 兜底：不带工具/JSON 约束，纯文本再答一次（仅在主流程拿到空回复时调用）。
+async function plainAnthropicReply(system: string, messages: ChatMessage[]): Promise<string> {
+  try {
+    const res = await getAnthropic().messages.create({
+      model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+      max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      system,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    });
+    const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    return (text?.text ?? "").trim() || "抱歉，刚才没答上来，请再问一次或换个问法。";
+  } catch {
+    return "抱歉，刚才没答上来，请再问一次或换个问法。";
+  }
+}
+
+async function plainOpenAIReply(baseUrl: string, system: string, messages: ChatMessage[]): Promise<string> {
+  try {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+      body: JSON.stringify({
+        model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+        messages: [{ role: "system", content: system }, ...messages],
+        temperature: 0.7,
+        max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      }),
+    });
+    if (!res.ok) return "抱歉，刚才没答上来，请再问一次或换个问法。";
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    return (data.choices?.[0]?.message?.content ?? "").trim() || "抱歉，刚才没答上来，请再问一次或换个问法。";
+  } catch {
+    return "抱歉，刚才没答上来，请再问一次或换个问法。";
+  }
 }

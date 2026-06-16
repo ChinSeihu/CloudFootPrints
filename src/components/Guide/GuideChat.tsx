@@ -93,7 +93,11 @@ export function GuideChat() {
       if (res.ok) {
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: data.reply, suggestions: Array.isArray(data.suggestions) ? data.suggestions : [] },
+          {
+            role: "assistant",
+            content: (typeof data.reply === "string" && data.reply.trim()) || "抱歉，刚才没答上来，请再问一次或换个问法。",
+            suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+          },
         ]);
       } else {
         setMessages((m) => [...m, { role: "assistant", content: data.error || "出错了" }]);
