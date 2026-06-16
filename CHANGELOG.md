@@ -6,6 +6,16 @@
 
 ## 2026-06-16
 
+### 景点卡片配图（真实维基图 + Lightbox 左右滑）
+
+- **拉图脚本** `scripts/fetch-landmark-images.mjs`：从日文维基 `media-list` API 为 26 个景点拉**真实**图片（Wikimedia 缩略图，过滤掉图标/地图/svg/徽标，带限速退避重试），生成 `src/lib/landmarkImages.ts`（25/26 有图，共 119 张；仅 teamLab Planets 未命中）。绝不编造 URL，已验证可加载（HTTP 200）。
+- **景点弹窗**顶部加封面图（多图显示「N 张」角标），点击 → **Lightbox 全屏左右滑**（复用 `components/common/Lightbox`）。原生地图弹窗的图通过 `openLightboxRef` 桥接到 React 状态。
+- `landmarksToFC` 的 properties 补 `cover`/`images`。
+
+**涉及文件：** `scripts/fetch-landmark-images.mjs`、`src/lib/landmarkImages.ts`（新）、`src/components/Map/MapExplorer.tsx`
+
+---
+
 ### 隐藏 OSM 美食层 + 精选店「AI 精选」标识
 
 - **隐藏 OSM 美食**：OSM 全量美食信息不全（无评分/照片/营业时间），用开关 `SHOW_OSM_FOOD=false` 暂隐藏，着重 Hot Pepper；筛选联动/视野懒加载代码本就有 `getLayer`/`getSource` 守卫，自动跳过，不再请求 `/api/food`。

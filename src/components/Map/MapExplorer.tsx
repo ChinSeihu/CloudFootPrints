@@ -14,6 +14,8 @@ import { PopularCard } from "./PopularCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
+import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
+import { Lightbox } from "@/components/common/Lightbox";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
@@ -110,11 +112,14 @@ const SHOW_OSM_FOOD = false;
 function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
-    features: LANDMARKS.map((l) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [l.lng, l.lat] },
-      properties: { id: l.id, name: l.name, kind: l.kind, blurb: l.blurb },
-    })),
+    features: LANDMARKS.map((l) => {
+      const imgs = LANDMARK_IMAGES[l.id] ?? [];
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [l.lng, l.lat] },
+        properties: { id: l.id, name: l.name, kind: l.kind, blurb: l.blurb, cover: imgs[0] ?? "", images: imgs.join("|") },
+      };
+    }),
   };
 }
 
@@ -284,6 +289,11 @@ export function MapExplorer() {
   const { openGuide } = useGuide();
   const openGuideRef = useRef(openGuide);
   useEffect(() => { openGuideRef.current = openGuide; });
+
+  // 图片放大（Lightbox）：原生地图弹窗里的图通过 ref 回调触发 React 状态。
+  const [lightbox, setLightbox] = useState<string[] | null>(null);
+  const openLightboxRef = useRef<(imgs: string[]) => void>(() => {});
+  useEffect(() => { openLightboxRef.current = (imgs) => setLightbox(imgs.length ? imgs : null); });
 
   const { user } = useAuth();
 
@@ -1028,7 +1038,7 @@ export function MapExplorer() {
     // 点击景点 → 先弹「名胜介绍卡」（与活动卡区分），由用户确认再咨询 AI
     map.on("click", "landmark-icon", (e) => {
       const f = e.features?.[0];
-      const p = f?.properties as { name?: string; kind?: LandmarkKind; blurb?: string } | undefined;
+      const p = f?.properties as { name?: string; kind?: LandmarkKind; blurb?: string; cover?: string; images?: string } | undefined;
       if (!p?.name) return;
       const mlg = maplibreRef.current;
       if (!mlg) return;
@@ -1036,7 +1046,13 @@ export function MapExplorer() {
       const kindLabel = LANDMARK_KIND_META[kind].label;
       const color = LANDMARK_KIND_META[kind].color;
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      const images = (p.images ?? "").split("|").filter(Boolean);
+      const cover = p.cover ?? "";
+      const coverHtml = cover
+        ? `<div data-action="lightbox" style="position:relative;cursor:zoom-in;border-radius:10px;overflow:hidden;margin-bottom:8px"><img src="${escapeHtml(cover)}" alt="" loading="lazy" style="display:block;width:100%;height:128px;object-fit:cover"/>${images.length > 1 ? `<span style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;border-radius:6px;padding:1px 6px">${images.length} 张</span>` : ""}</div>`
+        : "";
       const html = `<div class="tem-lm">
+        ${coverHtml}
         <div class="tem-lm-head">
           <span class="tem-lm-badge">${landmarkIconSvg(kind)}</span>
           <div class="tem-lm-titles">
@@ -1061,6 +1077,11 @@ export function MapExplorer() {
           description: `东京名胜：${p.name}（${kindLabel}）。${p.blurb ?? ""}`,
         });
       });
+      if (cover) {
+        popup.getElement()?.querySelector('[data-action="lightbox"]')?.addEventListener("click", () => {
+          openLightboxRef.current(images.length ? images : [cover]);
+        });
+      }
     });
   }, []);
 
@@ -1418,6 +1439,8 @@ export function MapExplorer() {
         onConfirm={() => { confirmBox?.onOk(); setConfirmBox(null); }}
         onCancel={() => setConfirmBox(null)}
       />
+
+      {lightbox && <Lightbox images={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
