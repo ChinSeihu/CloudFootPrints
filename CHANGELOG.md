@@ -6,6 +6,17 @@
 
 ## 2026-06-16
 
+### AI 导游：每次回答推测用户意图，给出 ≥3 个后续追问选项
+
+- `chatWithGuide` 返回值 `string` → `{ reply, suggestions }`：每次回答后，模型额外推测用户接下来最想了解的方向，产出 3~4 个第一人称、紧扣上下文的后续问题。
+- Anthropic 走 tool use（`emit_guide_reply`，`suggestions` minItems 3）；DeepSeek 走 `json_object`；`cleanSuggestions` 去编号/引号、限 4 条；解析失败兜底原文、建议留空。
+- `/api/chat` 透传 `suggestions`；`GuideChat` 在最新回复下渲染「猜你接下来想问 · 点选继续」可点选项，点击即作为新问题追问（会话上下文连续）。
+- 实测：问「今天东京有什么值得去的活动」→ 回复后给出「浅草三社祭有什么必看的看点？」「森美术馆的夜场票需要预约吗？」「代官山市集附近有推荐的咖啡店吗？」「这三个地方怎么坐电车最顺路？」4 条，顺着回复内容推测。
+
+**涉及文件：** `src/lib/llm.ts`、`src/app/api/chat/route.ts`、`src/components/Guide/GuideChat.tsx`
+
+---
+
 ### 数据扩充至首都圈四县（东京 / 神奈川 / 埼玉 / 千叶）
 
 **店铺（Hot Pepper）**

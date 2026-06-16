@@ -14,8 +14,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "缺少消息" }, { status: 400 });
   }
   try {
-    const reply = await chatWithGuide(messages.slice(-12));
-    return NextResponse.json({ reply });
+    const { reply, suggestions } = await chatWithGuide(messages.slice(-12));
+    return NextResponse.json({ reply, suggestions });
   } catch {
     return NextResponse.json({ error: "AI 导游暂时不可用（可能未配置 LLM_API_KEY），请稍后再试。" }, { status: 502 });
   }

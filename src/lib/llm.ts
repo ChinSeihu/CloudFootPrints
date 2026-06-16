@@ -470,31 +470,79 @@ const GUIDE_SYSTEM = `你是「东京活动地图」内置的 AI 导游——一
 - 需要时提供路线 / 交通 / 游览顺序建议，结合东京的地理与电车线路（如山手线、地铁），给出顺路、省时的安排。
 - 用中文回答，条理清晰，篇幅适中，不啰嗦。
 - **用纯文本，不要 Markdown 标记**（不要出现 **、##、\` 等符号）；分点用「・」开头，标题用普通文字即可。
-- 对不确定的具体信息（确切票价、当日营业时间、是否需预约等）提醒用户以官方信息为准，绝不编造。`;
+- 对不确定的具体信息（确切票价、当日营业时间、是否需预约等）提醒用户以官方信息为准，绝不编造。
 
-export async function chatWithGuide(messages: ChatMessage[]): Promise<string> {
+每次回答后，你还要**推测用户接下来最可能想了解的方向**，给出 3~4 个后续问题建议（suggestions）：
+- 站在用户第一人称口吻（如「附近有适合午餐的店吗？」「怎么买票最划算？」）。
+- 紧扣当前话题与你刚才的回答，各不相同、具体可执行，每条尽量 ≤22 字。
+- 至少 3 个。`;
+
+export type GuideReply = { reply: string; suggestions: string[] };
+
+// 清洗后续问题建议：去前导编号/引号、去空、最多 4 条。
+function cleanSuggestions(arr: unknown): string[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((s): s is string => typeof s === "string")
+    .map((s) => s.trim().replace(/^\s*\d+[.、)]\s*/, "").replace(/^[「『"']|[」』"']$/g, "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+const GUIDE_TOOL: Anthropic.Tool = {
+  name: "emit_guide_reply",
+  description: "输出导游的回答，以及推测用户接下来最可能想问的后续问题建议。",
+  input_schema: {
+    type: "object",
+    properties: {
+      reply: { type: "string", description: "给用户的完整回答（纯文本，不要 Markdown 标记）。" },
+      suggestions: {
+        type: "array",
+        description: "推测用户接下来最可能想问的后续问题，3~4 条，第一人称口吻，各不相同，每条≤22字。",
+        items: { type: "string" },
+        minItems: 3,
+      },
+    },
+    required: ["reply", "suggestions"],
+    additionalProperties: false,
+  },
+};
+
+export async function chatWithGuide(messages: ChatMessage[]): Promise<GuideReply> {
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: 1024,
+      max_tokens: 1280,
       system: GUIDE_SYSTEM,
+      tools: [GUIDE_TOOL],
+      tool_choice: { type: "tool", name: "emit_guide_reply" },
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
-    const block = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
-    return block ? block.text : "";
+    const toolUse = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+    const input = toolUse?.input as { reply?: string; suggestions?: string[] } | undefined;
+    return { reply: (input?.reply ?? "").trim(), suggestions: cleanSuggestions(input?.suggestions) };
   }
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const instruction = `只输出一个 JSON 对象：{"reply": "回答正文（纯文本，不要 Markdown 围栏/标记）", "suggestions": ["后续问题1","后续问题2","后续问题3"]}。
+suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一人称口吻、各不相同、紧扣当前话题，每条≤22字。不要任何解释或代码围栏。`;
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
-      messages: [{ role: "system", content: GUIDE_SYSTEM }, ...messages],
+      messages: [{ role: "system", content: `${GUIDE_SYSTEM}\n\n${instruction}` }, ...messages],
+      response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1024,
+      max_tokens: 1280,
     }),
   });
   if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content ?? "";
+  const content = data.choices?.[0]?.message?.content ?? "";
+  const parsed = safeJsonParse(content) as { reply?: string; suggestions?: string[] } | null;
+  // 解析失败兜底：把原文当回答，建议留空。
+  if (!parsed || typeof parsed.reply !== "string") {
+    return { reply: content.trim(), suggestions: [] };
+  }
+  return { reply: parsed.reply.trim(), suggestions: cleanSuggestions(parsed.suggestions) };
 }

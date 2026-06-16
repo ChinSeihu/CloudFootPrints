@@ -5,6 +5,9 @@ import { IconSparkles } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
 import type { ChatMessage } from "@/lib/llm";
 
+// 聊天消息 + AI 推测的后续问题建议（仅 assistant 消息带）。
+type UIMessage = ChatMessage & { suggestions?: string[] };
+
 const GENERAL_QUICK = [
   "今天东京有什么值得去的活动？",
   "推荐适合周末的展览或市集",
@@ -54,7 +57,7 @@ function topicInfo(t: GuideTopic): string {
 // 全局 AI 导游聊天面板（受 GuideContext 控制）。可带活动话题聚焦对话。
 export function GuideChat() {
   const { open, topic, closeGuide } = useGuide();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -70,15 +73,15 @@ export function GuideChat() {
   async function send(text: string) {
     const t = text.trim();
     if (!t || loading) return;
-    const next: ChatMessage[] = [...messages, { role: "user", content: t }];
+    const next: UIMessage[] = [...messages, { role: "user", content: t }];
     setMessages(next);
     setInput("");
     setLoading(true);
-    // 第一条带活动上下文（仅发给 API，UI 显示原话）
+    // 第一条带活动上下文（仅发给 API，UI 显示原话）；只发 role/content，不带 suggestions。
     const apiMessages = next.map((m, i) =>
       i === 0 && topicRef.current && m.role === "user"
-        ? { ...m, content: `${topicInfo(topicRef.current)}\n\n${m.content}` }
-        : m,
+        ? { role: m.role, content: `${topicInfo(topicRef.current)}\n\n${m.content}` }
+        : { role: m.role, content: m.content },
     );
     try {
       const res = await fetch("/api/chat", {
@@ -87,8 +90,14 @@ export function GuideChat() {
         body: JSON.stringify({ messages: apiMessages }),
       });
       const data = await res.json();
-      const reply = res.ok ? data.reply : data.error || "出错了";
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      if (res.ok) {
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", content: data.reply, suggestions: Array.isArray(data.suggestions) ? data.suggestions : [] },
+        ]);
+      } else {
+        setMessages((m) => [...m, { role: "assistant", content: data.error || "出错了" }]);
+      }
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "网络错误，请稍后再试。" }]);
     } finally {
@@ -97,6 +106,9 @@ export function GuideChat() {
   }
 
   const quick = topic ? topicQuick(topic) : GENERAL_QUICK;
+  // 最新一条 assistant 回复附带的「后续问题」建议（推测用户意图，≥3 个）
+  const last = messages[messages.length - 1];
+  const lastSuggestions = last?.role === "assistant" ? last.suggestions ?? [] : [];
 
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col bg-white">
@@ -147,6 +159,22 @@ export function GuideChat() {
             <div className="bg-neutral-100 rounded-2xl px-3.5 py-2.5 text-sm text-neutral-400">
               导游思考中…
             </div>
+          </div>
+        )}
+        {/* 每次回答后，展示 AI 推测用户意图给出的后续问题，点击即追问 */}
+        {!loading && lastSuggestions.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1">
+            <p className="text-xs text-neutral-400 px-1">猜你接下来想问 · 点选继续</p>
+            {lastSuggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => send(s)}
+                className="text-left text-sm px-3 py-2 rounded-xl border border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100"
+              >
+                {s}
+              </button>
+            ))}
           </div>
         )}
         <div ref={endRef} />
