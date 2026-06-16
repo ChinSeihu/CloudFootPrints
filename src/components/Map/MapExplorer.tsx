@@ -191,6 +191,9 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
 
 // Hot Pepper 餐厅 POI（全量入库，按视野从 /api/hotpepper 懒加载）。
 // 复用原 OSM 美食的图层/懒加载机制（OSM 已隐藏），层 id 仍叫 "osmfood"。
+const FOOD_MIN_ZOOM = 13.5; // 低于此级清空餐厅（与 osmfood-icon 层 minzoom 14 配合）
+const FOOD_PAD = 0.8;       // 向外预取的缓冲倍数（按视野尺寸），平移进缓冲区内不重新请求
+const FOOD_CAP = 2000;      // 与后端 take 上限对应：返回达上限说明被截断，缓存只记原视野以免漏点
 type HotPepperPoiDTO = {
   id: string; name: string; kind: string; genre: string | null;
   lat: number; lng: number; budget: string | null; station: string | null;
@@ -305,6 +308,8 @@ export function MapExplorer() {
   const maplibreRef = useRef<typeof maplibregl | null>(null);
   const reqIdRef = useRef(0);
   const lastBboxRef = useRef<BBox | null>(null);
+  // 美食懒加载已覆盖区域（含向外扩展的预取缓冲）：视野仍在其内则跳过请求，平移不卡顿。
+  const foodAreaRef = useRef<BBox | null>(null);
   const placingRef = useRef<maplibregl.Marker | null>(null);
   const checkinsRef = useRef<CheckInDTO[]>([]);
 
@@ -443,20 +448,42 @@ export function MapExplorer() {
       if (id === reqIdRef.current) setEvents(data.events);
     } catch { /* 静默 */ }
 
-    // Hot Pepper 全量餐厅：仅放大后按视野加载（避免大范围海量点）；缩小时清空。
+    // Hot Pepper 全量餐厅：放大后按视野加载，并向外扩展预取一圈缓冲；
+    // 平移仍落在已加载缓冲区内则跳过请求与重渲染，消除明显卡顿。
     const foodSrc = mapRef.current?.getSource("osmfood") as maplibregl.GeoJSONSource | undefined;
     if (foodSrc) {
       const z = mapRef.current?.getZoom() ?? 0;
-      if (z < 13.5) {
-        foodSrc.setData(hotpepperToFC([]));
+      if (z < FOOD_MIN_ZOOM) {
+        if (foodAreaRef.current) { foodSrc.setData(hotpepperToFC([])); foodAreaRef.current = null; }
       } else {
-        try {
-          const fr = await fetch(`/api/hotpepper?${params}`);
-          if (fr.ok) {
-            const fd = (await fr.json()) as { pois: HotPepperPoiDTO[] };
-            foodSrc.setData(hotpepperToFC(fd.pois ?? []));
-          }
-        } catch { /* 静默 */ }
+        const loaded = foodAreaRef.current;
+        const covered = !!loaded
+          && bbox.minLat >= loaded.minLat && bbox.maxLat <= loaded.maxLat
+          && bbox.minLng >= loaded.minLng && bbox.maxLng <= loaded.maxLng;
+        if (!covered) {
+          const padLat = (bbox.maxLat - bbox.minLat) * FOOD_PAD;
+          const padLng = (bbox.maxLng - bbox.minLng) * FOOD_PAD;
+          const area: BBox = {
+            minLat: bbox.minLat - padLat, maxLat: bbox.maxLat + padLat,
+            minLng: bbox.minLng - padLng, maxLng: bbox.maxLng + padLng,
+          };
+          const fparams = new URLSearchParams({
+            minLat: String(area.minLat), maxLat: String(area.maxLat),
+            minLng: String(area.minLng), maxLng: String(area.maxLng),
+          });
+          try {
+            const fr = await fetch(`/api/hotpepper?${fparams}`);
+            if (fr.ok) {
+              const fd = (await fr.json()) as { pois: HotPepperPoiDTO[] };
+              const pois = fd.pois ?? [];
+              if (id === reqIdRef.current) { // 丢弃过期响应，避免旧数据覆盖新视野
+                foodSrc.setData(hotpepperToFC(pois));
+                // 达上限说明被截断（密集区），只把原视野记为已覆盖，避免缓冲区漏点
+                foodAreaRef.current = pois.length >= FOOD_CAP ? bbox : area;
+              }
+            }
+          } catch { /* 静默 */ }
+        }
       }
     }
   }, []);

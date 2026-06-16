@@ -9,7 +9,7 @@ export async function listHotPepperInBounds(b: BBox) {
       lat: { gte: b.minLat, lte: b.maxLat },
       lng: { gte: b.minLng, lte: b.maxLng },
     },
-    take: 800, // 安全上限，避免一次返回过多
+    take: 2000, // 安全上限（与前端 FOOD_CAP 对应）：扩大预取范围，平移更少触发请求
   });
 }
 

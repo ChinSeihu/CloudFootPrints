@@ -6,6 +6,17 @@
 
 ## 2026-06-16
 
+### 美食懒加载优化：扩大预取范围，消除平移卡顿
+
+- 请求 Hot Pepper 餐厅时按视野尺寸向外扩 **0.8 倍**预取一圈缓冲（`FOOD_PAD`）；平移只要仍落在已加载缓冲区内（`foodAreaRef`）就**跳过请求与重渲染**，不再每次 `moveend` 都打 API。
+- 后端 `take` 800 → **2000**（与前端 `FOOD_CAP` 对应）；返回达上限（密集区被截断）时缓存只记原视野 bbox，避免缓冲区漏点。
+- 过期响应用 `reqIdRef` 守卫丢弃，快速平移不会被旧数据覆盖。
+- 实测：缓冲区内平移 **0 请求**；移出缓冲热查询约 300ms（约 1500 点）。
+
+**涉及文件：** `src/components/Map/MapExplorer.tsx`、`src/services/hotPepperPoi.ts`
+
+---
+
 ### 精选名店补图（官网 og:image 优先，无则不显示）
 
 - 脚本 `scripts/fetch-foodspot-images.mts`（`npm run images:foodspots`）给人工精选名店补图，优先级 **官网 og:image → Hot Pepper 就近匹配 → 维基 media-list**；只用真实抓到、HTTP 200 的 URL，抓不到的**不显示**（不编造）。
