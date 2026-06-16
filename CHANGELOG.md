@@ -6,6 +6,17 @@
 
 ## 2026-06-16
 
+### Hot Pepper 全量入库（数据层；前端图层下一步）
+
+- **新表 `HotPepperPoi`**（`id`=Hot Pepper 店铺 id 天然去重；name/kind/genre/经纬度/budget/station/open/catch/address/photo/url/amenities），db push 到 Neon。
+- **入库脚本** `scripts/import-hotpepper-poi.ts`（`npm run import:hotpepper`，`--reset` 清空重灌）：按 8 个菜系分页拉东京 `large_area=Z011`，每菜系最多 `HOTPEPPER_MAX_PAGES` 页（默认 10），id 去重后批量 `createMany`。
+- **实测**：拉入 **6811 家**真实东京餐厅。
+- **下一步（前端）**：`services/hotPepperPoi` + `GET /api/hotpepper?bbox` + 地图按视野懒加载图层 + 卡片（接替已隐藏的 OSM 全量层），人工精选叠加 AI 精选角标。
+
+**涉及文件：** `prisma/schema.prisma`、`scripts/import-hotpepper-poi.ts`、`package.json`
+
+---
+
 ### 景点卡片配图（真实维基图 + Lightbox 左右滑）
 
 - **拉图脚本** `scripts/fetch-landmark-images.mjs`：从日文维基 `media-list` API 为 26 个景点拉**真实**图片（Wikimedia 缩略图，过滤掉图标/地图/svg/徽标，带限速退避重试），生成 `src/lib/landmarkImages.ts`（25/26 有图，共 119 张；仅 teamLab Planets 未命中）。绝不编造 URL，已验证可加载（HTTP 200）。

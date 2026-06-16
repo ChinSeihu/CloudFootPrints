@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",
-    "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts"
+    "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
+    "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",

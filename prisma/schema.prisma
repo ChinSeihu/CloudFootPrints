@@ -93,6 +93,28 @@ model FoodPoi {
   @@index([kind])
 }
 
+// Hot Pepper Gourmet API 全量东京餐厅（按视野懒加载展示）。id 用 Hot Pepper 店铺 id 天然去重。
+model HotPepperPoi {
+  id        String   @id // Hot Pepper shop id
+  name      String
+  kind      String // FoodKind：japanese/chinese/western/cafe/dessert/other
+  genre     String? // 细分菜系名
+  lat       Float
+  lng       Float
+  budget    String? // 参考人均
+  station   String? // 最寄駅
+  open      String? // 营业时间
+  catchText String? // 招牌语（catch）
+  address   String?
+  photo     String? // 店铺照片
+  url       String? // Hot Pepper 店铺页
+  amenities String[] @default([]) // 個室/禁煙席/Wi-Fi/カード可/ランチ
+  updatedAt DateTime @updatedAt
+
+  @@index([lat, lng])
+  @@index([kind])
+}
+
 model CheckIn {
   id        String   @id @default(cuid())
   userId    String   @default("me") // v1 单用户，固定为本人；v2 接入真实用户
