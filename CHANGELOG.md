@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-06-16
+
+### 隐藏 OSM 美食层 + 精选店「AI 精选」标识
+
+- **隐藏 OSM 美食**：OSM 全量美食信息不全（无评分/照片/营业时间），用开关 `SHOW_OSM_FOOD=false` 暂隐藏，着重 Hot Pepper；筛选联动/视野懒加载代码本就有 `getLayer`/`getSource` 守卫，自动跳过，不再请求 `/api/food`。
+- **AI 精选标识**：人工/AI 精选店（有评分 `rating`）→ 地图图标右上角**紫色星角标**（`foodpick-<kind>` 变体，与 Hot Pepper「有照片」的相机角标区分）；点击卡片标题加**「✨AI精选」紫色徽章**。
+
+**涉及文件：** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ## 2026-06-15
 
 ### 美食铺开全 23 区 + Hot Pepper(有照片)相机角标

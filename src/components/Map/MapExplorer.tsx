@@ -104,6 +104,9 @@ async function loadLandmarkIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
+// OSM 全量美食信息不全（无评分/照片/营业等），暂隐藏，着重用 Hot Pepper。改 true 可恢复。
+const SHOW_OSM_FOOD = false;
+
 function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
@@ -119,16 +122,21 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
 // 右上角相机角标：标记「有照片」的店（Hot Pepper 导入数据），与普通点区分。
 const PHOTO_BADGE = `<g transform="translate(29 8)"><circle cx="6" cy="6" r="7.6" fill="#f59e0b" stroke="#fff" stroke-width="1.7"/><g fill="none" stroke="#fff" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round"><rect x="2.3" y="4.4" width="7.4" height="5" rx="1.3"/><circle cx="6" cy="6.9" r="1.5"/><path d="M4.3 4.4l.6-1h2.2l.6 1"/></g></g>`;
 
-function foodIconSvg(kind: FoodKind, withPhoto = false): string {
+// AI 精选角标：紫色圆 + 白星，标记人工/AI 精选名店（与相机角标区分）。
+const PICK_BADGE = `<g transform="translate(29 8)"><circle cx="6" cy="6" r="7.6" fill="#7c3aed" stroke="#fff" stroke-width="1.7"/><path d="M6 2.1l1.18 2.56 2.78.36-2.06 1.9.53 2.78L6 10.35 3.57 9.7l.53-2.78L2.04 5l2.78-.36Z" fill="#fff"/></g>`;
+
+function foodIconSvg(kind: FoodKind, badge?: "photo" | "pick"): string {
   const { color, glyph } = FOOD_KIND_META[kind];
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(11.2 11.2) scale(0.9)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g>${withPhoto ? PHOTO_BADGE : ""}</svg>`;
+  const b = badge === "photo" ? PHOTO_BADGE : badge === "pick" ? PICK_BADGE : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="14.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(11.2 11.2) scale(0.9)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${glyph}</g>${b}</svg>`;
 }
 
 async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
   const variants: { name: string; svg: string }[] = [];
   for (const kind of FOOD_KINDS) {
     variants.push({ name: `food-${kind}`, svg: foodIconSvg(kind) });
-    variants.push({ name: `foodfeat-${kind}`, svg: foodIconSvg(kind, true) }); // 带相机角标
+    variants.push({ name: `foodfeat-${kind}`, svg: foodIconSvg(kind, "photo") }); // 相机角标(Hot Pepper)
+    variants.push({ name: `foodpick-${kind}`, svg: foodIconSvg(kind, "pick") }); // AI 精选角标
   }
   await Promise.all(
     variants.map(
@@ -168,7 +176,8 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         tips: f.tips ?? "",
         photo: f.photo ?? "",
         url: f.url ?? "",
-        featured: f.photo ? 1 : 0, // 有照片（Hot Pepper）→ 角标突出
+        featured: f.photo ? 1 : 0, // 有照片（Hot Pepper）→ 相机角标
+        picked: f.rating ? 1 : 0, // 人工/AI 精选（有评分）→ AI精选角标
       },
     })),
   };
@@ -1067,7 +1076,10 @@ export function MapExplorer() {
       minzoom: 12.5, // 美食点密集（百余个），缩小时隐藏，放大才显示
       layout: {
         // 有照片（Hot Pepper）用带相机角标的图标，与普通点区分
-        "icon-image": ["case", ["==", ["get", "featured"], 1], ["concat", "foodfeat-", ["get", "kind"]], ["concat", "food-", ["get", "kind"]]],
+        "icon-image": ["case",
+          ["==", ["get", "picked"], 1], ["concat", "foodpick-", ["get", "kind"]],
+          ["==", ["get", "featured"], 1], ["concat", "foodfeat-", ["get", "kind"]],
+          ["concat", "food-", ["get", "kind"]]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 12.5, 0.62, 15, 0.95],
         "icon-allow-overlap": false,
         "text-field": shortLabelExpr("blurb") as never,
@@ -1116,7 +1128,7 @@ export function MapExplorer() {
         <div class="tem-food-head">
           <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
-            <div class="tem-food-name">${escapeHtml(p.name)}</div>
+            <div class="tem-food-name">${escapeHtml(p.name)}${rating > 0 ? ` <span style="display:inline-block;vertical-align:middle;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:600;margin-left:4px">✨AI精选</span>` : ""}</div>
             <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")}${metaTail ? " · " + metaTail : ""}</div>
           </div>
         </div>
@@ -1234,7 +1246,7 @@ export function MapExplorer() {
       maplibreRef.current = mlg;
       await setupLandmarks(map); // 先加地标（在活动层之下）
       await setupFood(map); // 精选美食 POI 层
-      await setupOsmFood(map); // OSM 全量美食 POI 层（按视野懒加载）
+      if (SHOW_OSM_FOOD) await setupOsmFood(map); // OSM 全量美食层暂隐藏
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
