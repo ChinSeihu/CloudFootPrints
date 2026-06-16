@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { CATEGORY_META } from "@/lib/categories";
+import { dedupeEvents } from "@/lib/eventDedup";
 
 export type GuideEventRef = { token: string; id: string; title: string };
 export type GuideEventsContext = { context: string; refs: GuideEventRef[] };
@@ -11,7 +12,7 @@ export async function buildGuideEventsContext(limit = 40): Promise<GuideEventsCo
   const now = new Date();
   const from = new Date(now.getTime() - 24 * 3600 * 1000); // 含昨天起、仍在进行的
   const to = new Date(now.getTime() + 21 * 24 * 3600 * 1000); // 未来约三周
-  const sel = { id: true, title: true, category: true, startTime: true, endTime: true, venueName: true, address: true, summary: true } as const;
+  const sel = { id: true, title: true, category: true, startTime: true, endTime: true, venueName: true, address: true, summary: true, description: true } as const;
 
   let rows;
   try {
@@ -31,12 +32,20 @@ export async function buildGuideEventsContext(limit = 40): Promise<GuideEventsCo
         select: sel,
       }),
     ]);
+    // 先按 (标题,开始时间) 精确去重，再跨源去重（同一天 + 标题包含关系）；保留信息更全的一条。
     const seen = new Set<string>();
-    rows = [...upcoming, ...ongoing].filter((e) => {
+    const merged = [...upcoming, ...ongoing].filter((e) => {
       const k = `${e.title}|${e.startTime?.toISOString() ?? ""}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
+    });
+    rows = dedupeEvents(merged, (a, b) => {
+      // 保留更“值得点”的：有摘要 > 描述更长 > 标题更短（更像规范名）。
+      const score = (e: typeof a) => (e.summary ? 2 : 0) + Math.min((e.description?.length ?? 0) / 200, 1);
+      if (score(b) > score(a)) return b;
+      if (score(a) > score(b)) return a;
+      return a.title.length <= b.title.length ? a : b;
     });
   } catch {
     return { context: "", refs: [] };

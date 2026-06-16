@@ -6,6 +6,19 @@
 
 ## 2026-06-16
 
+### 跨源活动去重 + 导游防重复
+
+同一活动常被多源以不同标题收录（如「山王祭」/「日枝神社 山王祭」、全/半角空格差异）。
+
+- **去重工具** `lib/eventDedup.ts`：判同规则=同一天（东京时区）+ 标题规范化(NFKC/去空白标点)后相等或互为子串(核心≥3)；无开始时间不判同。
+- **入库拦截** `ingest.ts`：除原 (title,sourceUrl) 外，新增「同一天 + 标题包含」跨源查重，命中即跳过，防止新重复。
+- **清库脚本** `scripts/dedupe-events.ts`：清理已存在重复，每组保留信息更全/带打卡的一条（带打卡者必留，避免外键问题）。本次清掉 14 组。
+- **导游防重复**：导游看到的活动清单先 `dedupeEvents`（保留有摘要/描述更全的一条）；系统提示也加「同一活动可能不同名重复出现，合并视为一个，不要重复推荐」。
+
+**涉及文件：** `src/lib/eventDedup.ts`、`src/services/extraction/ingest.ts`、`src/services/guideEvents.ts`、`src/lib/llm.ts`、`scripts/dedupe-events.ts`
+
+---
+
 ### AI 导游：回答里提到的活动可点击进详情
 
 - 注入的活动清单给每条加编号 token（E1…），`buildGuideEventsContext` 返回 `{context, refs}`（token→{id,title}）。

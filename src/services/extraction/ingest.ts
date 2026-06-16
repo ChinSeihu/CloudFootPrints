@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { geocode } from "./geocode";
 import { normalizeAddressForGeocode } from "@/lib/llm";
+import { isSameEvent } from "@/lib/eventDedup";
 import type { ExtractedEvent, RawDocument } from "./types";
 
 // 开关：用 LLM 把含建筑名/设施名的地址规范成标准住所，再交 GSI 地理编码（需 LLM key）。
@@ -83,6 +84,20 @@ export async function ingestEvents(
     if (existing) {
       stats.duplicates++;
       continue;
+    }
+
+    // 跨源去重：同一活动可能被另一源以不同标题收录（如「山王祭」/「日枝神社 山王祭」）。
+    // 用「同一天 + 标题包含关系」判同：命中则视为重复，跳过（保留先入库的那条）。
+    if (startTime) {
+      const dayMs = 18 * 3600 * 1000;
+      const sameDay = await prisma.event.findMany({
+        where: { startTime: { gte: new Date(startTime.getTime() - dayMs), lte: new Date(startTime.getTime() + dayMs) } },
+        select: { title: true, startTime: true },
+      });
+      if (sameDay.some((c) => isSameEvent(c, { title: ev.title, startTime }))) {
+        stats.duplicates++;
+        continue;
+      }
     }
 
     await prisma.event.create({
