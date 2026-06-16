@@ -46,3 +46,6 @@ next-env.d.ts
 
 # 本项目用 yarn；不提交 npm 的 package-lock.json（避免与 yarn.lock 冲突）
 package-lock.json
+
+# 导入/抓取脚本的运行日志（由 import:hotpepper / extract 经 Tee-Object 生成）
+*.log
