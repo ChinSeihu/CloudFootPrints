@@ -6,6 +6,14 @@
 
 ## 2026-06-16
 
+### 修复千叶活动缺失 + 定时抓取加固
+
+- **问题**：库内千叶(Chiba)活动为 0，但 jalan/walkerplus 千叶源实测都能正常抓到（jalan 30、walkerplus 80）。根因是四县扩充后数据源增至 ~16 个，单次 cron 30 分钟超时、跑到后面的源被截断 → 千叶（尤其排最后的 jalan）丢失。`geocode` 边界已是首都圈 `KANTO_BOUNDS`，非边界误丢。
+- **数据修复**：手动跑千叶四源入库（jalan-120000 / walkerplus-ar0312 / -sports / -live），共 ~141 条，含 LLM 分类与摘要。
+- **长效加固**：`.github/workflows/extract.yml` 超时 30→120 分钟，确保单次能跑完四县全部源；安装命令对齐为 yarn（项目已弃用 npm，见 cea23b6）。
+
+**涉及文件：** `.github/workflows/extract.yml`
+
 ### AI 导游：每次回答推测用户意图，给出 ≥3 个后续追问选项
 
 - `chatWithGuide` 返回值 `string` → `{ reply, suggestions }`：每次回答后，模型额外推测用户接下来最想了解的方向，产出 3~4 个第一人称、紧扣上下文的后续问题。

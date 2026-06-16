@@ -15,16 +15,17 @@ concurrency:
 jobs:
   extract:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 四县扩充后数据源 ~16 个，单次抓取较久；调高超时避免跑到后面的源（如千叶/jalan）被截断丢数据。
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - name: 安装依赖
-        run: npm install --no-audit --no-fund
+        run: yarn install --frozen-lockfile
       - name: 生成 Prisma Client
-        run: npx prisma generate
+        run: yarn prisma generate
       - name: 跑抓取管线（采集 → 抽取 → 地理编码 → 入库）
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -37,4 +38,4 @@ jobs:
           SUMMARIZE_WITH_LLM: "true"
           # 体育子分类抓几页（可调）
           WALKERPLUS_SPORTS_MAX_PAGES: "6"
-        run: npm run extract
+        run: yarn extract
