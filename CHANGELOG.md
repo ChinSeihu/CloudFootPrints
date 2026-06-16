@@ -6,6 +6,16 @@
 
 ## 2026-06-16
 
+### 精选名店补图（官网 og:image 优先，无则不显示）
+
+- 脚本 `scripts/fetch-foodspot-images.mts`（`npm run images:foodspots`）给人工精选名店补图，优先级 **官网 og:image → Hot Pepper 就近匹配 → 维基 media-list**；只用真实抓到、HTTP 200 的 URL，抓不到的**不显示**（不编造）。
+- 命中 **6/21**：茶禅華 / NARISAWA / Blue Bottle / HIGASHIYA（官网）+ 龍吟（维基）+ 银座小十（Hot Pepper）。次郎/さいとう 等高级寿司怀石无可靠官方图源 → 无图。
+- `foodToFC` 精选店 `photo` 取 `FOOD_SPOT_IMAGES` 补充，弹窗卡片展示。
+
+**涉及文件：** `scripts/fetch-foodspot-images.mts`、`src/lib/foodSpotImages.ts`（新）、`src/components/Map/MapExplorer.tsx`、`package.json`
+
+---
+
 ### Hot Pepper 全量上图（前端图层）
 
 - 新增 `services/hotPepperPoi`（`listHotPepperInBounds`）+ `GET /api/hotpepper?bbox`（薄 handler）。

@@ -17,6 +17,7 @@ import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
+import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -179,7 +180,7 @@ function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
         open: f.open ?? "",
         amenities: (f.amenities ?? []).join("|"),
         tips: f.tips ?? "",
-        photo: f.photo ?? "",
+        photo: f.photo || FOOD_SPOT_IMAGES[f.id] || "",
         url: f.url ?? "",
         featured: f.photo ? 1 : 0, // 有照片（Hot Pepper）→ 相机角标
         picked: f.rating ? 1 : 0, // 人工/AI 精选（有评分）→ AI精选角标

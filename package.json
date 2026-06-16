@@ -15,7 +15,8 @@
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",
     "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
-    "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts"
+    "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts",
+    "images:foodspots": "tsx scripts/fetch-foodspot-images.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.102.0",
