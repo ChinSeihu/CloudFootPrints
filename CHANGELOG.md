@@ -6,6 +6,24 @@
 
 ## 2026-06-16
 
+### 数据扩充至首都圈四县（东京 / 神奈川 / 埼玉 / 千叶）
+
+**店铺（Hot Pepper）**
+
+- `scripts/import-hotpepper-poi.ts`：`large_area` 单 `Z011` → 四县数组（`Z011 东京 / Z012 神奈川 / Z013 埼玉 / Z014 千叶`），按 县×菜系 嵌套分页。
+- 运行结果：收集 18157 家，新入库 **12141 家**（三县新增约 11377）。
+
+**活动（Walkerplus / じゃらん）**
+
+- Walkerplus：`ar0313`(东京) → 四县（`ar0313/ar0314/ar0311/ar0312`），综合 + 体育(eg0108) + 演唱会(eg0109) 各县生成；详情 URL 正则放宽 `ar\d{4}e\d+`。
+- じゃらん：地域码 `130000`(东京) → 四县（`130000/140000/110000/120000`），`makeJalanSource` 工厂化。
+- 数据源注册表 `sources/index.ts` 改为 spread 四县源数组。
+- **geocode 边界 `TOKYO_BOUNDS` → `KANTO_BOUNDS`**（lat 34.9–36.3 / lng 138.9–140.9）：原边界会把三县活动坐标全判失败丢弃，扩成首都圈后才能入库。
+
+**涉及文件：** `scripts/import-hotpepper-poi.ts`、`src/services/extraction/sources/{walkerplus,jalan,index}.ts`、`src/services/extraction/geocode.ts`
+
+---
+
 ### 美食懒加载优化：扩大预取范围，消除平移卡顿
 
 - 请求 Hot Pepper 餐厅时按视野尺寸向外扩 **0.8 倍**预取一圈缓冲（`FOOD_PAD`）；平移只要仍落在已加载缓冲区内（`foodAreaRef`）就**跳过请求与重渲染**，不再每次 `moveend` 都打 API。

@@ -1,14 +1,20 @@
-// Hot Pepper Gourmet API → HotPepperPoi 表（东京全量餐厅，按视野懒加载展示）。
+// Hot Pepper Gourmet API → HotPepperPoi 表（首都圈四县全量餐厅，按视野懒加载展示）。
 // 用法：
 //   npm run import:hotpepper            分页拉取并入库（已存在的跳过）
 //   npm run import:hotpepper -- --reset 先清空 HotPepperPoi 再重灌
-// 每菜系最多拉 HOTPEPPER_MAX_PAGES 页（默认 10 页 = 1000 家），可调。
+// 每个 县×菜系 最多拉 HOTPEPPER_MAX_PAGES 页（默认 10 页 = 1000 家），可调。
 import "./loadEnv"; // 先加载 .env
 import { prisma } from "@/lib/db";
 
 const KEY = process.env.HOTPEPPER_API_KEY;
 const ENDPOINT = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
-const LARGE_AREA = "Z011"; // 東京
+// 覆盖东京 + 神奈川 + 埼玉 + 千叶（large_area master 代码）。
+const AREAS = [
+  { code: "Z011", label: "東京" },
+  { code: "Z012", label: "神奈川" },
+  { code: "Z013", label: "埼玉" },
+  { code: "Z014", label: "千葉" },
+];
 const PER_PAGE = 100; // API 单次上限
 const MAX_PAGES = Number(process.env.HOTPEPPER_MAX_PAGES ?? 10);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -36,10 +42,10 @@ function amenitiesOf(s: any): string[] {
   return a;
 }
 
-async function fetchPage(code: string, start: number): Promise<{ shops: any[]; total: number }> {
+async function fetchPage(area: string, code: string, start: number): Promise<{ shops: any[]; total: number }> {
   const url = new URL(ENDPOINT);
   url.searchParams.set("key", KEY!);
-  url.searchParams.set("large_area", LARGE_AREA);
+  url.searchParams.set("large_area", area);
   url.searchParams.set("genre", code);
   url.searchParams.set("count", String(PER_PAGE));
   url.searchParams.set("start", String(start));
@@ -68,29 +74,34 @@ async function main() {
 
   const seen = new Set<string>();
   const rows: Row[] = [];
-  for (const g of GENRE_MAP) {
-    let start = 1, total = Infinity, page = 0, added = 0;
-    while (start <= total && page < MAX_PAGES) {
-      const { shops, total: t } = await fetchPage(g.code, start);
-      total = t || 0;
-      for (const s of shops) {
-        if (!s.lat || !s.lng || seen.has(s.id)) continue;
-        seen.add(s.id);
-        rows.push({
-          id: s.id, name: s.name, kind: g.kind,
-          genre: s.sub_genre?.name || s.genre?.name || null,
-          lat: Number(s.lat), lng: Number(s.lng),
-          budget: s.budget?.name || null, station: s.station_name || null,
-          open: s.open || null, catchText: s.catch || null, address: s.address || null,
-          photo: s.photo?.pc?.l || s.photo?.pc?.m || null, url: s.urls?.pc || null,
-          amenities: amenitiesOf(s),
-        });
-        added++;
+  for (const a of AREAS) {
+    let areaAdded = 0;
+    for (const g of GENRE_MAP) {
+      let start = 1, total = Infinity, page = 0, added = 0;
+      while (start <= total && page < MAX_PAGES) {
+        const { shops, total: t } = await fetchPage(a.code, g.code, start);
+        total = t || 0;
+        for (const s of shops) {
+          if (!s.lat || !s.lng || seen.has(s.id)) continue;
+          seen.add(s.id);
+          rows.push({
+            id: s.id, name: s.name, kind: g.kind,
+            genre: s.sub_genre?.name || s.genre?.name || null,
+            lat: Number(s.lat), lng: Number(s.lng),
+            budget: s.budget?.name || null, station: s.station_name || null,
+            open: s.open || null, catchText: s.catch || null, address: s.address || null,
+            photo: s.photo?.pc?.l || s.photo?.pc?.m || null, url: s.urls?.pc || null,
+            amenities: amenitiesOf(s),
+          });
+          added++;
+        }
+        start += PER_PAGE; page++;
+        await sleep(350);
       }
-      start += PER_PAGE; page++;
-      await sleep(350);
+      areaAdded += added;
+      console.log(`  ▶ ${a.label}/${g.label.padEnd(12)} 总计约 ${total}，新增 ${added}`);
     }
-    console.log(`▶ ${g.label.padEnd(14)} 总计约 ${total}，本次新增 ${added}`);
+    console.log(`▶ ${a.label} 小计新增 ${areaAdded}`);
   }
 
   // 批量入库（已存在按 id 跳过；要更新用 --reset 重灌）。

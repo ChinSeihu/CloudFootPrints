@@ -27,10 +27,10 @@ async function fetchText(url: string): Promise<string | null> {
   return res.text(); // walkerplus 是 UTF-8
 }
 
-// 从列表页 HTML 提取站内活动详情页 URL（/event/ar0313eXXXXXX/）。
+// 从列表页 HTML 提取站内活动详情页 URL（/event/ar{県码}eXXXXXX/，県码随地区变）。
 function extractDetailUrls(html: string): string[] {
   const set = new Set<string>();
-  for (const m of html.matchAll(/\/event\/(ar0313e\d+)\//g)) {
+  for (const m of html.matchAll(/\/event\/(ar\d{4}e\d+)\//g)) {
     set.add(`https://www.walkerplus.com/event/${m[1]}/`);
   }
   return [...set];
@@ -109,25 +109,39 @@ function makeWalkerplusSource({ name, listUrl, maxPages, forceCategory }: Walker
   };
 }
 
-// 东京全域综合活动（默认 8 页，每页约 10 个）。
-export const walkerplusSource = makeWalkerplusSource({
-  name: "walkerplus",
-  listUrl: "https://www.walkerplus.com/event_list/ar0313/",
-  maxPages: clampPages(process.env.WALKERPLUS_MAX_PAGES, 8),
-});
+// 首都圈四县（walkerplus ar 区域码）：东京 + 神奈川 + 埼玉 + 千叶。
+const WP_AREAS = [
+  { code: "ar0313", label: "東京" },
+  { code: "ar0314", label: "神奈川" },
+  { code: "ar0311", label: "埼玉" },
+  { code: "ar0312", label: "千葉" },
+];
 
-// 东京体育活动（eg0108 子分类，约 50+ 条；默认 6 页，分类强制 SPORTS）。
-export const walkerplusSportsSource = makeWalkerplusSource({
-  name: "walkerplus-sports",
-  listUrl: "https://www.walkerplus.com/event_list/ar0313/eg0108/",
-  maxPages: clampPages(process.env.WALKERPLUS_SPORTS_MAX_PAGES, 6),
-  forceCategory: "SPORTS",
-});
+// 各县综合活动（默认 8 页，每页约 10 个）。
+export const walkerplusSources: Source[] = WP_AREAS.map((a) =>
+  makeWalkerplusSource({
+    name: `walkerplus-${a.code}`,
+    listUrl: `https://www.walkerplus.com/event_list/${a.code}/`,
+    maxPages: clampPages(process.env.WALKERPLUS_MAX_PAGES, 8),
+  }),
+);
 
-// 东京演唱会 / 音乐活动（eg0109 子分类；默认 6 页，分类强制 LIVE）。
-export const walkerplusLiveSource = makeWalkerplusSource({
-  name: "walkerplus-live",
-  listUrl: "https://www.walkerplus.com/event_list/ar0313/eg0109/",
-  maxPages: clampPages(process.env.WALKERPLUS_LIVE_MAX_PAGES, 6),
-  forceCategory: "LIVE",
-});
+// 各县体育活动（eg0108 子分类；默认 6 页，分类强制 SPORTS）。
+export const walkerplusSportsSources: Source[] = WP_AREAS.map((a) =>
+  makeWalkerplusSource({
+    name: `walkerplus-sports-${a.code}`,
+    listUrl: `https://www.walkerplus.com/event_list/${a.code}/eg0108/`,
+    maxPages: clampPages(process.env.WALKERPLUS_SPORTS_MAX_PAGES, 6),
+    forceCategory: "SPORTS",
+  }),
+);
+
+// 各县演唱会 / 音乐活动（eg0109 子分类；默认 6 页，分类强制 LIVE）。
+export const walkerplusLiveSources: Source[] = WP_AREAS.map((a) =>
+  makeWalkerplusSource({
+    name: `walkerplus-live-${a.code}`,
+    listUrl: `https://www.walkerplus.com/event_list/${a.code}/eg0109/`,
+    maxPages: clampPages(process.env.WALKERPLUS_LIVE_MAX_PAGES, 6),
+    forceCategory: "LIVE",
+  }),
+);

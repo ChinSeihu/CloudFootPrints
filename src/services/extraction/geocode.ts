@@ -4,9 +4,9 @@
 
 const GSI_ENDPOINT = "https://msearch.gsi.go.jp/address-search/AddressSearch";
 
-// 东京大致边界（23 区 + 多摩；排除岛屿）。GSI 对不规范地址会误判到外地，
-// 比如 "東京X" 会被解析成北海道札幌市東区——超出该框的结果一律视为失败。
-const TOKYO_BOUNDS = { minLat: 35.5, maxLat: 35.95, minLng: 138.9, maxLng: 139.95 };
+// 首都圈四县大致边界（东京23区+多摩 / 神奈川 / 埼玉 / 千叶；排除东京离岛与外地误判）。
+// GSI 对不规范地址会误判到外地（如 "東京X" → 北海道札幌「東区」）——超出该框一律视为失败。
+const KANTO_BOUNDS = { minLat: 34.9, maxLat: 36.3, minLng: 138.9, maxLng: 140.9 };
 
 // 地址规范化：把开头的 "東京"（非 "東京都"）补成 "東京都"，
 // 避免 GSI 把 "東京永田町" 之类误判到札幌「東区」。
@@ -44,10 +44,10 @@ export async function geocode(
       return null;
     }
     const [lng, lat] = coords;
-    // 东京边界校验：超框（多为 GSI 把不规范地址误判到外地）一律判失败，宁缺毋滥。
+    // 首都圈边界校验：超框（多为 GSI 把不规范地址误判到外地）一律判失败，宁缺毋滥。
     if (
-      lat < TOKYO_BOUNDS.minLat || lat > TOKYO_BOUNDS.maxLat ||
-      lng < TOKYO_BOUNDS.minLng || lng > TOKYO_BOUNDS.maxLng
+      lat < KANTO_BOUNDS.minLat || lat > KANTO_BOUNDS.maxLat ||
+      lng < KANTO_BOUNDS.minLng || lng > KANTO_BOUNDS.maxLng
     ) {
       cache.set(key, null);
       return null;
