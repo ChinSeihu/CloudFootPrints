@@ -23,11 +23,18 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const dateBoxRef = useRef<HTMLDivElement | null>(null);
 
   // 从地图弹窗"查看详情"跳转过来时（/recommend?event=<id>），直接打开对应详情。
+  // 列表是子集（过期/超出 bbox/ISR 缓存未含），命中不了时按 id 直接拉取该活动，保证一定能打开。
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("event");
     if (!id) return;
     const ev = events.find((e) => e.id === id);
-    if (ev) setSelected(ev);
+    if (ev) { setSelected(ev); return; }
+    let cancelled = false;
+    fetch(`/api/events/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.event) setSelected(d.event); })
+      .catch(() => { /* 忽略：拉取失败则停在推荐页 */ });
+    return () => { cancelled = true; };
   }, [events]);
 
   // 点击日历面板外部时收起。

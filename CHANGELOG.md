@@ -6,6 +6,16 @@
 
 ## 2026-06-17
 
+### 修复：地图点活动详情有时只到推荐页、不打开详情
+
+- **现象**：从地图弹窗点「查看详情」跳 `/recommend?event=<id>`，部分活动只停在推荐页、详情抽屉不弹。
+- **根因**：推荐页给 `RecommendList` 的 `events` 是**子集**——过滤掉已过期活动、限定固定 `TOKYO_BBOX`、ISR 缓存 1h。地图能点任意活动，一旦不在子集里 `events.find` 命中不了 → 不打开。
+- **修复**：`RecommendList` 读 `?event=` 时若列表里找不到，**直接 `GET /api/events/[id]` 按 id 拉取该活动**再打开抽屉，不再依赖它是否已在列表中。已用过期活动验证（之前打不开、现可正常弹详情）。
+
+**涉及文件：** `src/components/Recommend/RecommendList.tsx`
+
+---
+
 ### 车站卡片样式修复 + 点击线路看全站点/方向
 
 - **卡片样式**：车站弹窗之前用 `tem-food-popup` 类导致容器透明、内容散乱。新增独立 `.tem-st` 容器（浅天蓝渐变底 + padding + 圆角 + 固定宽）与 `tem-station-popup` 弹窗类（透明外壳 + 阴影 + 尖角配色）；AI 按钮改用天蓝渐变 `.tem-st-ask`。
