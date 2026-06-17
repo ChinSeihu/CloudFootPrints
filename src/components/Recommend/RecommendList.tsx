@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
@@ -14,28 +14,47 @@ function fmt(d: string | null): string {
   return new Date(d).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
 }
 
+// 客户端用 layout effect（绘制前同步跑、不闪列表），SSR 退回 useEffect（避免 server 警告）。
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 // 推荐瀑布流：卡片可点击 → 打开详情（详情+评论+跳到地图）。
 export function RecommendList({ events }: { events: EventDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const targetId = useRef<string | null>(null);
+  const resolvedRef = useRef(false); // 仅在进页时解析一次 ?event=
   const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
   const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
   const [dateOpen, setDateOpen] = useState(false);
   const dateBoxRef = useRef<HTMLDivElement | null>(null);
 
-  // 从地图弹窗"查看详情"跳转过来时（/recommend?event=<id>），直接打开对应详情。
-  // 列表是子集（过期/超出 bbox/ISR 缓存未含），命中不了时按 id 直接拉取该活动，保证一定能打开。
-  useEffect(() => {
+  // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
+  // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
+  // 全屏遮罩/详情会在列表绘制前就盖上，不会先闪一下推荐列表。
+  useIsoLayoutEffect(() => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
     const id = new URLSearchParams(window.location.search).get("event");
     if (!id) return;
+    targetId.current = id;
     const ev = events.find((e) => e.id === id);
-    if (ev) { setSelected(ev); return; }
+    if (ev) setSelected(ev); // 列表已含 → 直接开
+    else setLoadingDetail(true); // 列表未含（过期/超 bbox/缓存未含）→ 遮罩 + 按 id 拉取
+  }, []);
+
+  // loadingDetail 期间按 id 拉取该活动，期间由全屏遮罩盖住列表。
+  useEffect(() => {
+    if (!loadingDetail) return;
+    const id = targetId.current;
+    if (!id) { setLoadingDetail(false); return; }
     let cancelled = false;
     fetch(`/api/events/${id}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancelled && d?.event) setSelected(d.event); })
-      .catch(() => { /* 忽略：拉取失败则停在推荐页 */ });
+      .catch(() => { /* 忽略：拉取失败则回到推荐页 */ })
+      .finally(() => { if (!cancelled) setLoadingDetail(false); });
     return () => { cancelled = true; };
-  }, [events]);
+  }, [loadingDetail]);
 
   // 点击日历面板外部时收起。
   useEffect(() => {
@@ -184,6 +203,18 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
       {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
 
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
+
+      {/* 按 id 拉取详情期间，全屏遮罩盖住列表，避免闪一下推荐页再进详情 */}
+      {loadingDetail && !selected && (
+        <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
+          <div className="flex items-center gap-2 text-sm text-neutral-400">
+            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+            </svg>
+            加载详情…
+          </div>
+        </div>
+      )}
     </>
   );
 }

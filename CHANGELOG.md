@@ -11,6 +11,7 @@
 - **现象**：从地图弹窗点「查看详情」跳 `/recommend?event=<id>`，部分活动只停在推荐页、详情抽屉不弹。
 - **根因**：推荐页给 `RecommendList` 的 `events` 是**子集**——过滤掉已过期活动、限定固定 `TOKYO_BBOX`、ISR 缓存 1h。地图能点任意活动，一旦不在子集里 `events.find` 命中不了 → 不打开。
 - **修复**：`RecommendList` 读 `?event=` 时若列表里找不到，**直接 `GET /api/events/[id]` 按 id 拉取该活动**再打开抽屉，不再依赖它是否已在列表中。已用过期活动验证（之前打不开、现可正常弹详情）。
+- **去除闪烁**：拉取期间会先闪一下推荐列表再进详情。改用 **isomorphic layout effect** 在浏览器绘制前同步解析 `?event=`——从地图点详情（客户端导航）时，全屏「加载详情…」遮罩在列表绘制前就盖上，拉到后直接换成详情抽屉，不再闪列表。用 layout/`useEffect` 分环境避免 SSR 警告，无 hydration 不一致。
 
 **涉及文件：** `src/components/Recommend/RecommendList.tsx`
 
