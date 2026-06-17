@@ -26,6 +26,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
   const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
   const [dateOpen, setDateOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const dateBoxRef = useRef<HTMLDivElement | null>(null);
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
@@ -66,18 +67,32 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [dateOpen]);
 
-  const filtered = useMemo(
-    () =>
-      events.filter(
-        (e) => (cat === "ALL" || e.category === cat) && eventInDayRange(e, dateRange),
-      ),
-    [events, cat, dateRange],
-  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return events.filter((e) => {
+      if (cat !== "ALL" && e.category !== cat) return false;
+      if (!eventInDayRange(e, dateRange)) return false;
+      if (!q) return true;
+      // 搜索匹配：标题/场馆/地址/简介/描述/分类名/标签
+      const hay = [e.title, e.venueName, e.address, e.summary, e.description, CATEGORY_META[e.category]?.label, ...(e.tags ?? [])]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [events, cat, dateRange, query]);
+
+  // 推荐搜索词：按出现频次取数据里最常见的展示标签（数据驱动、贴合实际内容）。
+  const suggestions = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const e of events) for (const t of displayTags(e)) count.set(t, (count.get(t) ?? 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
+  }, [events]);
 
   // 懒加载：先渲染一批，触底再加载更多（减少首屏 DOM、加快渲染）
   const PAGE = 12;
   const [visibleCount, setVisibleCount] = useState(PAGE);
-  useEffect(() => { setVisibleCount(PAGE); }, [cat, dateRange]);
+  useEffect(() => { setVisibleCount(PAGE); }, [cat, dateRange, query]);
   const shown = filtered.slice(0, visibleCount);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -95,6 +110,45 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
 
   return (
     <>
+      {/* 搜索框 + 推荐搜索词 */}
+      <div className="mb-3">
+        <div className="relative">
+          <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索活动、场馆、标签…"
+            className="w-full pl-9 pr-9 py-2.5 rounded-full border border-black/10 bg-white text-sm placeholder:text-neutral-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="清空"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-base leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {/* 推荐搜索词：仅在未输入时展示，点选即填入 */}
+        {query.trim() === "" && suggestions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <span className="text-xs text-neutral-400">猜你想搜：</span>
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setQuery(s)}
+                className="px-2.5 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* 分类筛选 + 时间筛选 */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <button
@@ -148,7 +202,9 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
       </div>
 
       {filtered.length === 0 && (
-        <p className="text-sm text-neutral-400 py-8 text-center">该分类下暂无活动。</p>
+        <p className="text-sm text-neutral-400 py-8 text-center">
+          {query.trim() ? `没有匹配「${query.trim()}」的活动。` : "该分类下暂无活动。"}
+        </p>
       )}
 
       <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
