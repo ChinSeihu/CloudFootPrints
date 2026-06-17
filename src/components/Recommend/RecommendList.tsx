@@ -27,6 +27,8 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
   const [dateOpen, setDateOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [showAllSug, setShowAllSug] = useState(false);
+  const [colCount, setColCount] = useState(2); // 瀑布流列数：手机 2、≥sm 3
   const dateBoxRef = useRef<HTMLDivElement | null>(null);
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
@@ -89,11 +91,27 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
   }, [events]);
 
+  // 响应式列数：手机 2 列、≥640px 3 列
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const update = () => setColCount(mq.matches ? 3 : 2);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   // 懒加载：先渲染一批，触底再加载更多（减少首屏 DOM、加快渲染）
   const PAGE = 12;
   const [visibleCount, setVisibleCount] = useState(PAGE);
   useEffect(() => { setVisibleCount(PAGE); }, [cat, dateRange, query]);
   const shown = filtered.slice(0, visibleCount);
+
+  // 瀑布流分列：轮询分配（item i → 第 i%列），少量条目也能左右铺开、不挤一列。
+  const columns = useMemo(() => {
+    const cols: EventDTO[][] = Array.from({ length: colCount }, () => []);
+    shown.forEach((ev, i) => cols[i % colCount].push(ev));
+    return cols;
+  }, [shown, colCount]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinelRef.current;
@@ -131,20 +149,29 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
             </button>
           )}
         </div>
-        {/* 推荐搜索词：仅在未输入时展示，点选即填入 */}
+        {/* 推荐搜索词：仅在未输入时展示，点选即填入。默认单行（前 4 个），「更多」可展开。 */}
         {query.trim() === "" && suggestions.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-xs text-neutral-400">猜你想搜：</span>
-            {suggestions.map((s) => (
+          <div className={`flex items-center gap-1.5 mt-2 ${showAllSug ? "flex-wrap" : "flex-nowrap overflow-hidden"}`}>
+            <span className="text-xs text-neutral-400 shrink-0">猜你想搜：</span>
+            {(showAllSug ? suggestions : suggestions.slice(0, 4)).map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setQuery(s)}
-                className="px-2.5 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition"
+                className="shrink-0 px-2.5 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition"
               >
                 {s}
               </button>
             ))}
+            {suggestions.length > 4 && (
+              <button
+                type="button"
+                onClick={() => setShowAllSug((v) => !v)}
+                className="shrink-0 px-1.5 py-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                {showAllSug ? "收起" : "更多"}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -207,53 +234,57 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
         </p>
       )}
 
-      <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
-        {shown.map((ev) => {
-          const meta = CATEGORY_META[ev.category];
-          return (
-            <button
-              key={ev.id}
-              type="button"
-              onClick={() => setSelected(ev)}
-              className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
-            >
-              {ev.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ev.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
-              )}
-              <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-              <div className="p-3">
-                <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
-                  <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
-                  {meta.label} · {fmt(ev.startTime)}
-                </div>
-                <h2 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{ev.title}</h2>
-                {ev.venueName && (
-                  <div className="flex items-center gap-1 text-xs text-neutral-500">
-                    <IconPin className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{ev.venueName}</span>
-                  </div>
-                )}
-                {(() => {
-                  const tags = displayTags(ev);
-                  if (tags.length === 0) return null;
-                  return (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {tags.map((t) => (
-                        <span
-                          key={t}
-                          className="px-1.5 py-0.5 rounded-md text-[10px] bg-neutral-100 text-neutral-600"
-                        >
-                          #{t}
-                        </span>
-                      ))}
+      <div className="flex gap-3 items-start">
+        {columns.map((col, ci) => (
+          <div key={ci} className="flex-1 min-w-0 flex flex-col gap-3">
+            {col.map((ev) => {
+              const meta = CATEGORY_META[ev.category];
+              return (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => setSelected(ev)}
+                  className="w-full text-left rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
+                >
+                  {ev.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={ev.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                  )}
+                  <div className="h-1.5" style={{ backgroundColor: meta.color }} />
+                  <div className="p-3">
+                    <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
+                      <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
+                      {meta.label} · {fmt(ev.startTime)}
                     </div>
-                  );
-                })()}
-              </div>
-            </button>
-          );
-        })}
+                    <h2 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{ev.title}</h2>
+                    {ev.venueName && (
+                      <div className="flex items-center gap-1 text-xs text-neutral-500">
+                        <IconPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{ev.venueName}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      const tags = displayTags(ev);
+                      if (tags.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {tags.map((t) => (
+                            <span
+                              key={t}
+                              className="px-1.5 py-0.5 rounded-md text-[10px] bg-neutral-100 text-neutral-600"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
       {/* 触底加载更多 */}
       {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
