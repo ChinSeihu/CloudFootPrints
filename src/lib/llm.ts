@@ -563,11 +563,13 @@ export async function chatWithGuide(messages: ChatMessage[], eventsContext?: str
       reply = (text?.text ?? "").trim();
     }
     if (!reply) reply = await plainAnthropicReply(system, messages); // 仍空 → 不带工具再答一次
-    return { reply, suggestions: cleanSuggestions(input?.suggestions), referenced: cleanTokens(input?.referenced) };
+    const suggestions = await ensureSuggestions(messages, reply, cleanSuggestions(input?.suggestions));
+    return { reply, suggestions, referenced: cleanTokens(input?.referenced) };
   }
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
   const instruction = `只输出一个 JSON 对象：{"reply": "回答正文（纯文本，不要 Markdown 围栏/标记，正文里不要出现 E1 这类编号）", "suggestions": ["后续问题1","后续问题2","后续问题3"], "referenced": ["E1","E5"]}。
 suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一人称口吻、各不相同、紧扣当前话题，每条≤22字。
+**无论是首次提问还是多轮追问，每一轮回答都必须给出至少 3 条 suggestions，绝不能省略或返回空数组。**
 referenced 是你回答中提到的、来自上方参考活动清单的活动编号（如 E1、E5）；没有提到就给空数组 []。
 不要任何解释或代码围栏。`;
   const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -588,9 +590,57 @@ referenced 是你回答中提到的、来自上方参考活动清单的活动编
   const reply = (parsed && typeof parsed.reply === "string" ? parsed.reply : content).trim();
   // 仍为空 → 不带 JSON 约束重答一次，保证不空白。
   if (!reply) {
-    return { reply: await plainOpenAIReply(baseUrl, system, messages), suggestions: [], referenced: [] };
+    const r = await plainOpenAIReply(baseUrl, system, messages);
+    return { reply: r, suggestions: await ensureSuggestions(messages, r, []), referenced: [] };
   }
-  return { reply, suggestions: cleanSuggestions(parsed?.suggestions), referenced: cleanTokens(parsed?.referenced) };
+  const suggestions = await ensureSuggestions(messages, reply, cleanSuggestions(parsed?.suggestions));
+  return { reply, suggestions, referenced: cleanTokens(parsed?.referenced) };
+}
+
+// 保证每轮都有后续问题：主流程已给 ≥3 条则直接用；否则用一次轻量调用补足
+// （DeepSeek 多轮时常漏掉 suggestions，这里兜底，确保每条回答都带「猜你接下来想问」）。
+async function ensureSuggestions(messages: ChatMessage[], reply: string, current: string[]): Promise<string[]> {
+  if (current.length >= 3) return current;
+  try {
+    const got = await generateSuggestions(messages, reply);
+    const merged = [...current];
+    for (const s of got) if (!merged.includes(s)) merged.push(s);
+    return merged.slice(0, 4);
+  } catch {
+    return current;
+  }
+}
+
+async function generateSuggestions(messages: ChatMessage[], reply: string): Promise<string[]> {
+  const ask = `基于上面的对话和你刚才的回答，列出用户接下来最可能想问的 3~4 个问题。第一人称口吻、各不相同、紧扣回答、每条≤22字。只输出 JSON：{"suggestions":["问题1","问题2","问题3"]}，不要解释或代码围栏。`;
+  const convo: ChatMessage[] = [...messages, { role: "assistant", content: reply }, { role: "user", content: ask }];
+  if (getProvider() === "anthropic") {
+    const res = await getAnthropic().messages.create({
+      model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+      max_tokens: 400,
+      system: "你是东京活动导游助手，只产出后续问题建议。",
+      messages: convo.map((m) => ({ role: m.role, content: m.content })),
+    });
+    const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    const parsed = safeJsonParse(text?.text ?? "") as { suggestions?: string[] } | null;
+    return cleanSuggestions(parsed?.suggestions);
+  }
+  const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+    body: JSON.stringify({
+      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      messages: convo,
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 400,
+    }),
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const parsed = safeJsonParse(data.choices?.[0]?.message?.content ?? "") as { suggestions?: string[] } | null;
+  return cleanSuggestions(parsed?.suggestions);
 }
 
 // 兜底：不带工具/JSON 约束，纯文本再答一次（仅在主流程拿到空回复时调用）。
