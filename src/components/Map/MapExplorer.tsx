@@ -163,8 +163,8 @@ async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
 
 // ── 电车 / 地铁站图标与数据（来源 public/stations.json，OSM 导出）──
 function stationIconSvg(subway: boolean): string {
-  const color = subway ? "#4f46e5" : "#64748b"; // 地铁靛蓝 / 普通铁路 石板灰
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="10.5" fill="${color}" stroke="#fff" stroke-width="2.5"/><g transform="translate(18 18)" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="-5" y="-6" width="10" height="9.5" rx="2.5"/><path d="M-5 -1.2H5"/><path d="M-3.2 3.5 -5 6.5M3.2 3.5 5 6.5"/></g></svg>`;
+  const color = subway ? "#4f46e5" : "#16a34a"; // 地铁 靛蓝 / 普通铁路 JR 绿（更显眼）
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="11.5" fill="${color}" stroke="#fff" stroke-width="3"/><g transform="translate(18 18)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="-5" y="-6" width="10" height="9.5" rx="2.5"/><path d="M-5 -1.2H5"/><path d="M-3.2 3.5 -5 6.5M3.2 3.5 5 6.5"/></g></svg>`;
 }
 
 async function loadStationIcons(map: maplibregl.Map): Promise<void> {
@@ -1101,7 +1101,7 @@ export function MapExplorer() {
       minzoom: 13, // 放大到一定级别才显示，避免低缩放拥挤
       layout: {
         "icon-image": ["case", ["get", "subway"], "station-subway", "station-rail"],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.45, 16, 0.72],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.52, 16, 0.85],
         // 车站是定位锚点：图标始终显示（不被美食/景点挤掉）；文字可选，挤不下时省略。
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -1482,8 +1482,9 @@ export function MapExplorer() {
       <Filters value={filters} onChange={setFilters} count={filtered.length} />
       <WeatherPanel />
 
-      {/* 左下角控件行（横排、靠下）：底图风格 + 景点 + 美食(菜系筛选) */}
-      <div className="absolute bottom-7 left-3 z-20 flex items-end gap-2 pointer-events-none">
+      {/* 左下角控件行：底图风格 + 景点 + 车站 + 美食(菜系筛选)。
+          右侧留出 FAB 空间(right-20)并允许换行，避免控件被发帖按钮遮住。 */}
+      <div className="absolute bottom-7 left-3 right-20 z-20 flex flex-wrap items-end gap-2 pointer-events-none">
         <StyleSwitcher value={theme} onChange={setTheme} />
         <button
           type="button"

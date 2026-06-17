@@ -6,6 +6,15 @@
 
 ## 2026-06-16
 
+### 车站配色更显眼 + 修复底部控件被 FAB 遮挡
+
+- **车站配色**：普通铁路由石板灰改为 JR 绿 `#16a34a`、地铁靛蓝 `#4f46e5`，图标加大（icon-size 0.52→0.85、半径 11.5）。
+- **底部控件**：左下控件行加了「车站」后变长，被右下发帖 FAB 遮住「美食」。改为 `right-20` 留出 FAB 空间 + `flex-wrap` 换行，控件不再被遮（浏览器实测美食按钮恢复可见）。
+
+**涉及文件：** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### 地图新增电车 / 地铁站层
 
 - **数据**：`scripts/import-stations.ts` 从 OSM(Overpass) 抓首都圈 `railway=station` → `public/stations.json`（1361 站，含 266 地铁；按名+~500m 去重）。静态文件前端一次性加载，无需数据库/分视野。
