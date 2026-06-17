@@ -4,7 +4,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 
 // 一个话题：从活动详情 / 名胜 / 美食 带进 AI 导游，让对话聚焦。
 // kind 决定快捷问题的方向（活动 / 景区 / 餐厅）。
-export type GuideKind = "event" | "landmark" | "food";
+export type GuideKind = "event" | "landmark" | "food" | "station";
 
 export type GuideTopic = {
   title: string;

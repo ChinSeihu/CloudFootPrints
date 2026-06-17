@@ -186,14 +186,20 @@ async function loadStationIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
-type StationRow = { name: string; nameEn?: string; lat: number; lng: number; subway?: boolean };
+type StationLine = { name: string; colour?: string; ref?: string };
+type StationRow = { name: string; nameEn?: string; lat: number; lng: number; subway?: boolean; lines?: StationLine[] };
 function stationsToFC(list: StationRow[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
     features: list.map((s) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [s.lng, s.lat] },
-      properties: { name: s.name, subway: !!s.subway },
+      properties: {
+        name: s.name,
+        nameEn: s.nameEn ?? "",
+        subway: !!s.subway,
+        lines: JSON.stringify(s.lines ?? []), // GeoJSON 属性存字符串，点击时解析
+      },
     })),
   };
 }
@@ -912,7 +918,7 @@ export function MapExplorer() {
 
     // 点击地图空白处 → 落「探索锚点」，人气活动改以锚点为基准
     map.on("click", (e) => {
-      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon", "osmfood-icon"].filter(
+      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon", "osmfood-icon", "station-icon"].filter(
         (l) => map.getLayer(l),
       );
       const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
@@ -1120,6 +1126,48 @@ export function MapExplorer() {
         "text-halo-width": 1.6,
         "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.2, 1],
       },
+    });
+
+    map.on("mouseenter", "station-icon", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "station-icon", () => { map.getCanvas().style.cursor = ""; });
+    map.on("click", "station-icon", (e) => {
+      const f = e.features?.[0];
+      const p = f?.properties as { name?: string; nameEn?: string; subway?: boolean; lines?: string } | undefined;
+      if (!p?.name) return;
+      const mlg = maplibreRef.current;
+      if (!mlg) return;
+      const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
+      let lines: { name: string; colour?: string; ref?: string }[] = [];
+      try { lines = JSON.parse(p.lines || "[]"); } catch { /* ignore */ }
+      const typeLabel = p.subway ? "地铁站" : "电车站";
+      const lineChips = lines.length
+        ? `<div class="tem-st-lines">${lines.map((l) => `<span class="tem-st-line"><i style="background:${escapeHtml(l.colour || "#888")}"></i>${escapeHtml(l.name)}</span>`).join("")}</div>`
+        : `<p class="tem-st-none">暂无线路信息</p>`;
+      // 简单说明：N 条线路经过 + 前几条线名。
+      const desc = lines.length
+        ? `${typeLabel}，${lines.length} 条线路经过${lines.length > 3 ? `（含 ${lines.slice(0, 3).map((l) => l.name).join("、")} 等）` : ""}。`
+        : `${typeLabel}。`;
+      const html = `<div class="tem-st">
+        <div class="tem-st-name">${escapeHtml(p.name)}${p.nameEn ? `<span class="tem-st-en">${escapeHtml(p.nameEn)}</span>` : ""}</div>
+        <div class="tem-st-type">${typeLabel}</div>
+        <p class="tem-st-desc">${escapeHtml(desc)}</p>
+        ${lineChips}
+        <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+      </div>`;
+      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-food-popup" })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+      popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
+        popup.remove();
+        openGuideRef.current({
+          title: `${p.name}站`,
+          kind: "station",
+          category: typeLabel,
+          venueName: `${p.name}站`,
+          description: `东京${typeLabel}：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}。${lines.length ? `经过线路：${lines.map((l) => l.name).join("、")}。` : ""}`,
+        });
+      });
     });
   }, []);
 

@@ -6,6 +6,16 @@
 
 ## 2026-06-16
 
+### 车站点击详情：线路 + 简介
+
+- **线路数据**：`scripts/enrich-station-lines.ts` 从 OSM route 关系取线路名+品牌色，补进 `public/stations.json`（按线路代码 JY/M/OH 过滤真线路、清方向/服务/「列車」前缀、按代码+名双重去重）。1188/1361 站带线路。
+- **点击弹窗**：点车站弹卡片——站名(中/EN) + 类型(地铁/电车站) + 一句简介(N 条线路经过…) + 各线路彩色圆点+名称 + 「问 AI 导游」。
+- **AI 导游**：新增 `station` kind，快捷问题（换乘去景点 / 周边吃喝 / 附近活动），上下文带上经过线路。
+
+**涉及文件：** `scripts/enrich-station-lines.ts`、`public/stations.json`、`src/components/Map/MapExplorer.tsx`、`src/components/Guide/{GuideContext,GuideChat}.tsx`、`src/app/globals.css`
+
+---
+
 ### 地图控件布局调整 + 图标替换 emoji
 
 - 左下控件改为两层：上=底图风格（标准/柔和），下=美食 / 景点 / 车站 一排。

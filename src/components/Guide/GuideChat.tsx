@@ -35,6 +35,12 @@ function topicQuick(t: GuideTopic): string[] {
         `「${n}」怎么去？最佳游览时间？`,
         `「${n}」周边还有什么好玩的？`,
       ];
+    case "station":
+      return [
+        `从「${n}」怎么换乘去主要景点？`,
+        `「${n}」周边有什么好吃好玩的？`,
+        `「${n}」附近近期有什么活动？`,
+      ];
     default: // event
       return [
         `讲讲「${n}」的看点和文化背景`,
@@ -54,7 +60,7 @@ function topicInfo(t: GuideTopic): string {
       `时间：${new Date(t.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" })}`,
     t.description && `资料：${t.description}`,
   ].filter(Boolean);
-  const label = t.kind === "food" ? "用户正在查看的餐厅" : t.kind === "landmark" ? "用户正在查看的景点" : "用户正在查看的活动";
+  const label = t.kind === "food" ? "用户正在查看的餐厅" : t.kind === "landmark" ? "用户正在查看的景点" : t.kind === "station" ? "用户正在查看的车站" : "用户正在查看的活动";
   return `【${label}】${parts.join("；")}`;
 }
 

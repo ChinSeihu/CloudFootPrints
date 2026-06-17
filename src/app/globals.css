@@ -204,6 +204,16 @@ body {
   margin-bottom: 11px;
 }
 .tem-food-tips span { flex: none; }
+
+/* 车站弹窗 */
+.tem-st-name { font-size: 15px; font-weight: 600; color: #1f2937; line-height: 1.2; }
+.tem-st-en { font-size: 11px; font-weight: 400; color: #9ca3af; margin-left: 6px; }
+.tem-st-type { font-size: 11px; color: #6b7280; margin-top: 2px; }
+.tem-st-desc { font-size: 12.5px; line-height: 1.5; color: #4b5563; margin: 8px 0 8px; }
+.tem-st-lines { display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px; }
+.tem-st-line { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #374151; }
+.tem-st-line i { width: 10px; height: 10px; border-radius: 9999px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.08); }
+.tem-st-none { font-size: 12px; color: #9ca3af; margin: 0 0 10px; }
 .tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
 .tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
 .tem-food-tag {
