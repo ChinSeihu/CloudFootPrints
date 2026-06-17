@@ -1482,62 +1482,66 @@ export function MapExplorer() {
       <Filters value={filters} onChange={setFilters} count={filtered.length} />
       <WeatherPanel />
 
-      {/* 左下角控件行：底图风格 + 景点 + 车站 + 美食(菜系筛选)。
-          右侧留出 FAB 空间(right-20)并允许换行，避免控件被发帖按钮遮住。 */}
-      <div className="absolute bottom-7 left-3 right-20 z-20 flex flex-wrap items-end gap-2 pointer-events-none">
+      {/* 左下角控件：上=底图风格，下=美食/景点/车站（线性图标，非 emoji）。
+          右侧留出 FAB 空间(right-20)，允许换行，避免被发帖按钮遮住。 */}
+      <div className="absolute bottom-7 left-3 right-20 z-20 flex flex-col items-start gap-2 pointer-events-none">
         <StyleSwitcher value={theme} onChange={setTheme} />
-        <button
-          type="button"
-          onClick={() => setShowLandmarks((v) => !v)}
-          className={`pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-            showLandmarks ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
-          }`}
-        >
-          🏯 景点
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowStations((v) => !v)}
-          className={`pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-            showStations ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
-          }`}
-        >
-          🚉 车站
-        </button>
-
-        {/* 美食：点开选菜系筛选 / 不显示 */}
-        <div className="relative pointer-events-auto">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 美食：点开选菜系筛选 / 不显示 */}
+          <div className="relative pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => setFoodMenuOpen((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+                foodFilter === "OFF" ? "bg-white/95 text-neutral-600 border-black/10" : "bg-rose-600 text-white border-transparent"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 3v6a2 2 0 0 0 4 0V3" /><path d="M6 9v12" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9" /></svg>
+              {foodFilter === "OFF" || foodFilter === "ALL" ? "美食" : FOOD_KIND_META[foodFilter].label}
+              <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${foodMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            {foodMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-1.5 w-28 rounded-xl bg-white shadow-xl border border-black/10 p-1.5 flex flex-col gap-1">
+                {([["ALL", "全部"], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", "不显示"]] as const).map(
+                  ([val, label]) => {
+                    const active = foodFilter === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => { setFoodFilter(val); setFoodMenuOpen(false); }}
+                        className={`text-left text-xs px-2.5 py-1.5 rounded-lg transition ${
+                          active ? "bg-rose-600 text-white" : "text-neutral-600 hover:bg-neutral-100"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            )}
+          </div>
           <button
             type="button"
-            onClick={() => setFoodMenuOpen((v) => !v)}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-              foodFilter === "OFF" ? "bg-white/95 text-neutral-600 border-black/10" : "bg-rose-600 text-white border-transparent"
+            onClick={() => setShowLandmarks((v) => !v)}
+            className={`pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+              showLandmarks ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
             }`}
           >
-            🍜 {foodFilter === "OFF" || foodFilter === "ALL" ? "美食" : FOOD_KIND_META[foodFilter].label}
-            <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${foodMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18" /><path d="M5 10h14" /><path d="M7 10v11" /><path d="M17 10v11" /><path d="M5 21h14" /></svg>
+            景点
           </button>
-          {foodMenuOpen && (
-            <div className="absolute bottom-full left-0 mb-1.5 w-28 rounded-xl bg-white shadow-xl border border-black/10 p-1.5 flex flex-col gap-1">
-              {([["ALL", "全部"], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", "不显示"]] as const).map(
-                ([val, label]) => {
-                  const active = foodFilter === val;
-                  return (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => { setFoodFilter(val); setFoodMenuOpen(false); }}
-                      className={`text-left text-xs px-2.5 py-1.5 rounded-lg transition ${
-                        active ? "bg-rose-600 text-white" : "text-neutral-600 hover:bg-neutral-100"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowStations((v) => !v)}
+            className={`pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+              showStations ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
+            车站
+          </button>
         </div>
       </div>
 
