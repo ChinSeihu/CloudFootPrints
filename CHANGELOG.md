@@ -6,6 +6,17 @@
 
 ## 2026-06-16
 
+### 地图新增电车 / 地铁站层
+
+- **数据**：`scripts/import-stations.ts` 从 OSM(Overpass) 抓首都圈 `railway=station` → `public/stations.json`（1361 站，含 266 地铁；按名+~500m 去重）。静态文件前端一次性加载，无需数据库/分视野。
+- **地图层**：`setupStations` 加 `station-icon` 符号层——地铁靛蓝/普通铁路石板灰图标 + 站名标签，`minzoom 13`；图标 `allow-overlap` 始终显示（定位锚点），层级置于景点/美食之上、活动之下，避免被密集 POI 盖住。
+- **开关**：左下角新增「🚉 车站」按钮（持久化 `tem_show_stations`，默认开）。
+- 浏览器实测：缩放到 13+，有楽町/銀座/東銀座/銀座一丁目 等站正常显示。
+
+**涉及文件：** `scripts/import-stations.ts`、`public/stations.json`、`src/components/Map/MapExplorer.tsx`
+
+---
+
 ### AI 导游：每轮回答都带「猜你接下来想问」
 
 之前只有首轮回答带后续问题建议，多轮追问后 suggestions 变空（复现确认：第1轮4条、第2/3轮0条——DeepSeek 多轮时常漏掉该字段）。

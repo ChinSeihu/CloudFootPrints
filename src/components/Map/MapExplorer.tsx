@@ -161,6 +161,43 @@ async function loadFoodIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
+// ── 电车 / 地铁站图标与数据（来源 public/stations.json，OSM 导出）──
+function stationIconSvg(subway: boolean): string {
+  const color = subway ? "#4f46e5" : "#64748b"; // 地铁靛蓝 / 普通铁路 石板灰
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="10.5" fill="${color}" stroke="#fff" stroke-width="2.5"/><g transform="translate(18 18)" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="-5" y="-6" width="10" height="9.5" rx="2.5"/><path d="M-5 -1.2H5"/><path d="M-3.2 3.5 -5 6.5M3.2 3.5 5 6.5"/></g></svg>`;
+}
+
+async function loadStationIcons(map: maplibregl.Map): Promise<void> {
+  const variants = [
+    { name: "station-rail", svg: stationIconSvg(false) },
+    { name: "station-subway", svg: stationIconSvg(true) },
+  ];
+  await Promise.all(
+    variants.map(
+      ({ name, svg }) =>
+        new Promise<void>((resolve) => {
+          if (map.hasImage(name)) return resolve();
+          const img = new Image(36, 36);
+          img.onload = () => { if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 }); resolve(); };
+          img.onerror = () => resolve();
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+        }),
+    ),
+  );
+}
+
+type StationRow = { name: string; nameEn?: string; lat: number; lng: number; subway?: boolean };
+function stationsToFC(list: StationRow[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: list.map((s) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [s.lng, s.lat] },
+      properties: { name: s.name, subway: !!s.subway },
+    })),
+  };
+}
+
 function foodToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
@@ -326,6 +363,7 @@ export function MapExplorer() {
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
+  const [showStations, setShowStations] = useState(true);
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
   const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
   const [foodMenuOpen, setFoodMenuOpen] = useState(false);
@@ -360,6 +398,19 @@ export function MapExplorer() {
       map.setLayoutProperty("landmark-icon", "visibility", showLandmarks ? "visible" : "none");
     }
   }, [mapReady, showLandmarks]);
+
+  // 车站显隐（读取/持久化 + 切换图层 visibility）
+  useEffect(() => {
+    const saved = localStorage.getItem("tem_show_stations");
+    if (saved === "0") setShowStations(false);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("tem_show_stations", showStations ? "1" : "0");
+    const map = mapRef.current;
+    if (mapReady && map && map.getLayer("station-icon")) {
+      map.setLayoutProperty("station-icon", "visibility", showStations ? "visible" : "none");
+    }
+  }, [mapReady, showStations]);
 
   // 美食筛选（读取/持久化 + 切换图层 visibility + 按菜系过滤）
   useEffect(() => {
@@ -1033,6 +1084,45 @@ export function MapExplorer() {
   }, []);
 
   // ── 地标（名胜/公园）图层：自定义图标 symbol + 名称标注，放在活动层之下 ──
+  // 电车 / 地铁站层（静态 public/stations.json，一次性加载；放在最底，让活动/景点/美食覆盖其上）
+  const setupStations = useCallback(async (map: maplibregl.Map) => {
+    if (map.getSource("stations")) return;
+    await loadStationIcons(map);
+    let fc: GeoJSON.FeatureCollection<GeoJSON.Point> = { type: "FeatureCollection", features: [] };
+    try {
+      const data = (await fetch("/stations.json").then((r) => (r.ok ? r.json() : []))) as StationRow[];
+      fc = stationsToFC(data);
+    } catch { /* 静默：无站点数据则空层 */ }
+    map.addSource("stations", { type: "geojson", data: fc });
+    map.addLayer({
+      id: "station-icon",
+      type: "symbol",
+      source: "stations",
+      minzoom: 13, // 放大到一定级别才显示，避免低缩放拥挤
+      layout: {
+        "icon-image": ["case", ["get", "subway"], "station-subway", "station-rail"],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.45, 16, 0.72],
+        // 车站是定位锚点：图标始终显示（不被美食/景点挤掉）；文字可选，挤不下时省略。
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Regular"],
+        "text-size": 10.5,
+        "text-anchor": "top",
+        "text-offset": [0, 0.85],
+        "text-optional": true,
+        "text-max-width": 8,
+        "text-padding": 4,
+      },
+      paint: {
+        "text-color": "#475569",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.6,
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.2, 1],
+      },
+    });
+  }, []);
+
   const setupLandmarks = useCallback(async (map: maplibregl.Map) => {
     if (map.getSource("landmarks")) return;
     await loadLandmarkIcons(map);
@@ -1301,6 +1391,7 @@ export function MapExplorer() {
       await setupLandmarks(map); // 先加地标（在活动层之下）
       await setupFood(map); // 精选美食 POI 层
       if (SHOW_OSM_FOOD) await setupOsmFood(map); // OSM 全量美食层暂隐藏
+      await setupStations(map); // 车站层：在景点/美食之上、活动之下，作为定位锚点
       await setupEventClusters(map, mlg);
       setupCheckinClusters(map, mlg);
       setMapReady(true); // 标记就绪，主题由 effect 应用（避免闭包捕获旧 theme）
@@ -1312,7 +1403,7 @@ export function MapExplorer() {
         map.flyTo({ center: [lng, lat], zoom: 16 });
       }
     },
-    [setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
+    [setupStations, setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
   );
 
   function openPlacement(m: Mode) {
@@ -1402,6 +1493,15 @@ export function MapExplorer() {
           }`}
         >
           🏯 景点
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowStations((v) => !v)}
+          className={`pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+            showStations ? "bg-blue-600 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
+          }`}
+        >
+          🚉 车站
         </button>
 
         {/* 美食：点开选菜系筛选 / 不显示 */}
