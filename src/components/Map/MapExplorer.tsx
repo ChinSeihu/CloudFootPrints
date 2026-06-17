@@ -16,6 +16,7 @@ import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
+import { LinePanel, type LineDetail } from "./LinePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
@@ -344,6 +345,13 @@ export function MapExplorer() {
   const [lightbox, setLightbox] = useState<string[] | null>(null);
   const openLightboxRef = useRef<(imgs: string[]) => void>(() => {});
   useEffect(() => { openLightboxRef.current = (imgs) => setLightbox(imgs.length ? imgs : null); });
+
+  // 线路详情面板：车站弹窗里点击线路 chip → 展示该线全部站点+方向。
+  const [linePanel, setLinePanel] = useState<LineDetail | null>(null);
+  const openLinePanelRef = useRef<(l: LineDetail) => void>(() => {});
+  useEffect(() => { openLinePanelRef.current = (l) => setLinePanel(l); });
+  const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
+  const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
 
   const { user } = useAuth();
 
@@ -1098,7 +1106,13 @@ export function MapExplorer() {
     try {
       const data = (await fetch("/stations.json").then((r) => (r.ok ? r.json() : []))) as StationRow[];
       fc = stationsToFC(data);
+      for (const s of data) stationCoordRef.current.set(s.name, [s.lng, s.lat]); // 供线路面板飞行定位
     } catch { /* 静默：无站点数据则空层 */ }
+    // 线路详情（有序站点）：一次性加载，供点击线路 chip 展开
+    try {
+      const ld = (await fetch("/lines.json").then((r) => (r.ok ? r.json() : []))) as LineDetail[];
+      for (const l of ld) linesRef.current.set(l.name, l);
+    } catch { /* 静默：无线路数据则 chip 不可点 */ }
     map.addSource("stations", { type: "geojson", data: fc });
     map.addLayer({
       id: "station-icon",
@@ -1141,7 +1155,13 @@ export function MapExplorer() {
       try { lines = JSON.parse(p.lines || "[]"); } catch { /* ignore */ }
       const typeLabel = p.subway ? "地铁站" : "电车站";
       const lineChips = lines.length
-        ? `<div class="tem-st-lines">${lines.map((l) => `<span class="tem-st-line"><i style="background:${escapeHtml(l.colour || "#888")}"></i>${escapeHtml(l.name)}</span>`).join("")}</div>`
+        ? `<div class="tem-st-lines">${lines.map((l) => {
+            const dot = `<i style="background:${escapeHtml(l.colour || "#888")}"></i>`;
+            // 有有序站点数据的线路 → 可点击展开；否则纯展示。
+            return linesRef.current.has(l.name)
+              ? `<button class="tem-st-line tem-st-line-btn" data-line="${escapeHtml(l.name)}">${dot}<span>${escapeHtml(l.name)}</span><span class="tem-st-go">›</span></button>`
+              : `<span class="tem-st-line">${dot}<span>${escapeHtml(l.name)}</span></span>`;
+          }).join("")}</div>`
         : `<p class="tem-st-none">暂无线路信息</p>`;
       // 简单说明：N 条线路经过 + 前几条线名。
       const desc = lines.length
@@ -1152,9 +1172,9 @@ export function MapExplorer() {
         <div class="tem-st-type">${typeLabel}</div>
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
-        <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
+        <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
       </div>`;
-      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-food-popup" })
+      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
@@ -1166,6 +1186,14 @@ export function MapExplorer() {
           category: typeLabel,
           venueName: `${p.name}站`,
           description: `东京${typeLabel}：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}。${lines.length ? `经过线路：${lines.map((l) => l.name).join("、")}。` : ""}`,
+        });
+      });
+      // 点击线路 chip → 打开线路详情面板（全站点 + 方向）
+      popup.getElement()?.querySelectorAll<HTMLElement>("[data-line]").forEach((el) => {
+        el.addEventListener("click", () => {
+          const nm = el.getAttribute("data-line");
+          const detail = nm ? linesRef.current.get(nm) : null;
+          if (detail) { popup.remove(); openLinePanelRef.current(detail); }
         });
       });
     });
@@ -1627,6 +1655,21 @@ export function MapExplorer() {
       />
 
       {lightbox && <Lightbox images={lightbox} onClose={() => setLightbox(null)} />}
+
+      {linePanel && (
+        <LinePanel
+          line={linePanel}
+          onClose={() => setLinePanel(null)}
+          onStation={(name) => {
+            const c = stationCoordRef.current.get(name);
+            const map = mapRef.current;
+            if (c && map) {
+              map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 15) });
+              setLinePanel(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

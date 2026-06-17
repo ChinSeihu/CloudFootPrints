@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-06-17
+
+### 车站卡片样式修复 + 点击线路看全站点/方向
+
+- **卡片样式**：车站弹窗之前用 `tem-food-popup` 类导致容器透明、内容散乱。新增独立 `.tem-st` 容器（浅天蓝渐变底 + padding + 圆角 + 固定宽）与 `tem-station-popup` 弹窗类（透明外壳 + 阴影 + 尖角配色）；AI 按钮改用天蓝渐变 `.tem-st-ask`。
+- **线路详情数据**：`scripts/enrich-station-lines.ts` 复用同一批 OSM route 关系，额外生成 `public/lines.json`——每条线路保留**有序站点序列**（取最长方向变体），含名称/代码/品牌色/是否地铁。139 条线路。
+- **点击线路**：车站卡片里有详情的线路 chip 变为可点按钮（右侧 `›`）。点击弹出底部 `LinePanel`：彩色时间轴列出全部站点、可一键切换方向（正/反序，标注「往 X 方面」）、点站点地图飞行定位并标起点/终点。
+- **时刻表**：OSM 无时刻表数据，留待后续接入 ODPT（公共交通开放数据中心，需人工注册 API key）——见 DECISIONS。
+
+**涉及文件：** `scripts/enrich-station-lines.ts`、`public/lines.json`(新)、`src/components/Map/LinePanel.tsx`(新)、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`
+
+---
+
 ## 2026-06-16
 
 ### 车站点击详情：线路 + 简介

@@ -206,14 +206,57 @@ body {
 .tem-food-tips span { flex: none; }
 
 /* 车站弹窗 */
-.tem-st-name { font-size: 15px; font-weight: 600; color: #1f2937; line-height: 1.2; }
-.tem-st-en { font-size: 11px; font-weight: 400; color: #9ca3af; margin-left: 6px; }
-.tem-st-type { font-size: 11px; color: #6b7280; margin-top: 2px; }
-.tem-st-desc { font-size: 12.5px; line-height: 1.5; color: #4b5563; margin: 8px 0 8px; }
+.tem-st {
+  width: 230px;
+  padding: 14px 14px 13px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 16px;
+  font-family: inherit;
+}
+.tem-station-popup .maplibregl-popup-content {
+  background: transparent;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+  border-radius: 16px;
+  padding: 0;
+}
+.tem-station-popup .maplibregl-popup-tip {
+  border-top-color: #e0f2fe !important;
+  border-bottom-color: #f0f9ff !important;
+}
+.tem-st-name { font-size: 15px; font-weight: 600; color: #0c4a6e; line-height: 1.2; }
+.tem-st-en { font-size: 11px; font-weight: 400; color: #7dd3fc; margin-left: 6px; }
+.tem-st-type { font-size: 11px; color: #0369a1; margin-top: 2px; }
+.tem-st-desc { font-size: 12.5px; line-height: 1.5; color: #1e40af; margin: 8px 0 8px; }
 .tem-st-lines { display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px; }
-.tem-st-line { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #374151; }
-.tem-st-line i { width: 10px; height: 10px; border-radius: 9999px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.08); }
-.tem-st-none { font-size: 12px; color: #9ca3af; margin: 0 0 10px; }
+.tem-st-line { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #1e3a5f; }
+.tem-st-line i { width: 10px; height: 10px; border-radius: 9999px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.12); }
+.tem-st-line-btn {
+  width: 100%;
+  border: none;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  padding: 5px 8px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.12s;
+}
+.tem-st-line-btn:hover { background: #fff; }
+.tem-st-go { margin-left: auto; color: #0284c7; font-weight: 700; font-size: 14px; line-height: 1; }
+.tem-st-none { font-size: 12px; color: #7dd3fc; margin: 0 0 10px; }
+.tem-st-ask {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.tem-st-ask:hover { filter: brightness(1.06); }
 .tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
 .tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
 .tem-food-tag {

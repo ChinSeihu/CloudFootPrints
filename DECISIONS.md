@@ -29,6 +29,9 @@
 - **聚合/单点配色**：聚合主圆按 point_count 渐变柔和蓝 + 半透明 + 柔白边 + blur 光晕「呼吸」动效（rAF 改 halo 透明度，卸载 cancel）；单点加分类色柔光垫底。目的：与马卡龙底图协调、不突兀。
 - **地标可点击**：点击 `landmark-icon` → 先弹**名胜介绍卡**（`.tem-lm*`，暖色渐变 + 类型徽章 + 一句话简介 `Landmark.blurb`，与白色活动卡区分），卡内「问 AI 导游」按钮才 `openGuide` 锁定该名胜。不直接跳 AI。
 - **精选美食 POI**：`lib/foodSpots.ts` 人工精选东京评分>4.0 名店（餐厅是常驻 POI，不进带时间的活动模型）。独立 `food` 图层（玫红叉勺图标），点击弹 `.tem-food` 卡（评分 + 招牌菜单 + 问 AI）。**不实时抓取**：食べログ禁爬/ToS、Google Places 付费+存储受限、Hot Pepper 无评分；故走精选（评分/菜单为人工标注）。左下角「美食」开关 + localStorage。
+- **车站 / 铁路线数据 = OpenStreetMap（Overpass API）**：`scripts/enrich-station-lines.ts` 拉东京 bbox 内 `route`(subway/train/light_rail/monorail) 关系，**离线生成两个静态文件**——`public/stations.json`(站点点位+经过线路) 与 `public/lines.json`(每条线**有序站点序列**，取最长方向变体)。过滤无品牌色的特急/观光列车、只保留有线路代码(JY/M/OH…)的真线路、清方向/服务后缀、按代码+名去重。前端一次性加载，不走服务端/DB。
+  - **方向**：OSM 关系成员有序但每方向常是独立关系；为稳定起见只存一条规范顺序，UI(`LinePanel`)用正/反序呈现两个方向（标「往 X 方面」），点站点 `flyTo` 定位。
+  - **时刻表不接 OSM**（OSM 无此数据）。后续若要时刻表/全站点权威顺序/实时延误 → **ODPT（公共交通开放数据中心 odpt.org）**，免费但需**人工注册 API key**；备选 GTFS-JP。当前阶段未接（待人工确认 key）。
 - **锚点针（拖拽放置）保留 DOM SVG marker**，现代扁平蓝色水滴造型
 - **同位置/极近活动 → 堆叠卡片弹窗**：
   - 点击单点时 `queryRenderedFeatures` 取点击像素 ±14px 内的所有点；点击聚合时取 `getClusterLeaves`，若叶子坐标包围盒 < 0.0006°（约 60m）判定为"挤在一起"，直接弹堆叠卡片，否则 `easeTo` 放大展开
