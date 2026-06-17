@@ -45,7 +45,12 @@
 
 ## 数据模型
 
-- `Event.sourceType` + `Event.trustLevel`：来源无关设计，为多源/社交接入预留，v1 不做去重
+- **官方活动(`Event`)与用户发帖(`Post`)分表**：`Event` = 抓取的官方活动（只读、带 `sourceType`/`sourceUrl`/`trustLevel`/`rawText` 来源元数据）；`Post` = 用户发帖（可编辑/删除、带 `userId` 作者、可多图 `imageUrls`、可 `signupEnabled`）。两表 **id 全局唯一**（迁移时 Post 复用了原 Event.id），故可凭一个 id 反查归属表。
+  - **互动多态**：`Comment`/`Reaction`/`CheckIn` 用 `eventId` 与 `postId` 二选一（各自 `onDelete: Cascade`）；`Reaction` 双唯一 `@@unique([userId,eventId,type])` + `@@unique([userId,postId,type])`（Postgres 多 NULL 不冲突）。service 层 `resolveTarget(id)` 先查 Event 再查 Post 决定写哪列；前端只传一个 id、不感知分表。
+  - **读路径合并**：`getEventsInBounds`/`getEventById`/收藏/报名 把两表并起来统一成 `NormalizedEvent`（`normalizeOfficial`/`normalizePost`，Post 映射 `sourceType="USER"`/`trustLevel=10`/`address=null`/`summary=null`）。**DTO 形状不变**，前端按 `sourceType==="USER"` 判断发帖（mineOnly 过滤、删除按钮）照旧。
+  - **AI 导游**（`guideEvents`）只读官方 `Event`（不把用户发帖当权威活动推荐）。
+  - 迁移脚本：`scripts/split-posts.ts`（一次性，已执行）。
+- `Event.sourceType` + `Event.trustLevel`：来源无关设计，为多源/社交接入预留
 - 时间统一 UTC 存储，展示转东京时区
 - v1 只用普通 lat/lng + 矩形范围查询，不启用 PostGIS/pgvector
 

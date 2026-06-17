@@ -7,13 +7,16 @@ import { prisma } from "@/lib/db";
 export const CURRENT_USER_ID = "me";
 
 export async function listCheckins(userId: string = CURRENT_USER_ID) {
-  return prisma.checkIn.findMany({
+  const rows = await prisma.checkIn.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
       event: { select: { id: true, title: true, category: true } },
+      post: { select: { id: true, title: true, category: true } },
     },
   });
+  // 关联目标可能是官方活动或用户发帖；统一暴露为 event 字段（前端不区分），并去掉 post。
+  return rows.map(({ post, ...c }) => ({ ...c, event: c.event ?? post ?? null }));
 }
 
 export type CreateCheckinInput = {
@@ -31,10 +34,21 @@ export type CreateCheckinResult =
   | { ok: true; checkin: Awaited<ReturnType<typeof createCheckinRow>> }
   | { ok: false; error: string };
 
-function createCheckinRow(data: CreateCheckinInput, userId: string) {
+// 关联目标 id 可能是官方活动或用户发帖（两表 id 全局唯一），解析后写对应列。
+async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
+  const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
+  if (e) return { eventId: id };
+  const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+  if (p) return { postId: id };
+  return null;
+}
+
+async function createCheckinRow(data: CreateCheckinInput, userId: string) {
   // 用户指定了 visitedAt 则覆盖 createdAt（用于补录过去的打卡）；否则用默认 now。
   const visited = data.visitedAt ? new Date(data.visitedAt) : null;
   const photoUrls = (data.photoUrls ?? []).filter(Boolean);
+  // 关联目标（可选）：解析是官方活动还是用户发帖；解析不到则不关联。
+  const target = data.eventId ? await resolveTarget(data.eventId) : null;
   return prisma.checkIn.create({
     data: {
       userId,
@@ -44,7 +58,7 @@ function createCheckinRow(data: CreateCheckinInput, userId: string) {
       photoUrl: photoUrls[0] ?? data.photoUrl ?? null,
       photoUrls,
       rating: data.rating ?? null,
-      eventId: data.eventId ?? null,
+      ...(target ?? {}),
       ...(visited && !Number.isNaN(visited.getTime()) ? { createdAt: visited } : {}),
     },
   });

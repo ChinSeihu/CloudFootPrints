@@ -15,24 +15,29 @@ async function withAuthors<T extends { userId: string }>(rows: T[]) {
   return rows.map((r) => ({ ...r, author: map.get(r.userId) ?? null }));
 }
 
-export async function listComments(eventId: string) {
+// 解析评论目标 id 属于官方活动还是用户发帖（两表 id 全局唯一）。
+async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
+  const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
+  if (e) return { eventId: id };
+  const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+  if (p) return { postId: id };
+  return null;
+}
+
+export async function listComments(targetId: string) {
   const comments = await prisma.comment.findMany({
-    where: { eventId },
+    where: { OR: [{ eventId: targetId }, { postId: targetId }] },
     orderBy: { createdAt: "asc" },
   });
   return withAuthors(comments);
 }
 
 export type CreateCommentResult =
-  | { ok: true; comment: Awaited<ReturnType<typeof createCommentRow>> & { author: CommentAuthor | null } }
+  | { ok: true; comment: Awaited<ReturnType<typeof prisma.comment.create>> & { author: CommentAuthor | null } }
   | { ok: false; error: string };
 
-function createCommentRow(eventId: string, text: string, userId: string, parentId: string | null) {
-  return prisma.comment.create({ data: { eventId, text, userId, parentId } });
-}
-
 export async function createComment(
-  eventId: string,
+  targetId: string,
   text: string,
   userId: string,
   parentId?: string | null,
@@ -41,21 +46,22 @@ export async function createComment(
   if (!trimmed) return { ok: false, error: "评论内容不能为空" };
   if (trimmed.length > 1000) return { ok: false, error: "评论过长" };
 
-  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
-  if (!event) return { ok: false, error: "活动不存在" };
+  const target = await resolveTarget(targetId);
+  if (!target) return { ok: false, error: "活动不存在" };
 
-  // 校验回复目标存在且属于同一活动
+  // 校验回复目标存在且属于同一活动/发帖
   let pid: string | null = null;
   if (parentId) {
     const parent = await prisma.comment.findUnique({
       where: { id: parentId },
-      select: { id: true, eventId: true },
+      select: { id: true, eventId: true, postId: true },
     });
-    if (!parent || parent.eventId !== eventId) return { ok: false, error: "回复的评论不存在" };
+    const parentTargetId = parent?.eventId ?? parent?.postId;
+    if (!parent || parentTargetId !== targetId) return { ok: false, error: "回复的评论不存在" };
     pid = parent.id;
   }
 
-  const comment = await createCommentRow(eventId, trimmed, userId, pid);
+  const comment = await prisma.comment.create({ data: { ...target, text: trimmed, userId, parentId: pid } });
   const author = await prisma.user.findUnique({ where: { id: userId }, select: AUTHOR_SELECT });
   return { ok: true, comment: { ...comment, author } };
 }

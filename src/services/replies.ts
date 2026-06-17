@@ -25,12 +25,9 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
   const myCommentText = new Map(myComments.map((c) => [c.id, c.text]));
   const myCommentIds = myComments.map((c) => c.id);
 
-  // 我的帖子（USER 发布）
-  const myEvents = await prisma.event.findMany({
-    where: { userId, sourceType: "USER" },
-    select: { id: true },
-  });
-  const myEventIds = myEvents.map((e) => e.id);
+  // 我的发帖（Post 表）
+  const myPosts = await prisma.post.findMany({ where: { userId }, select: { id: true } });
+  const myPostIds = myPosts.map((p) => p.id);
 
   // ① 别人回复了我的评论
   const replies = myCommentIds.length
@@ -41,24 +38,28 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
       })
     : [];
 
-  // ② 别人评论了我的帖子（顶层评论，避免与①重复）
-  const onPosts = myEventIds.length
+  // ② 别人评论了我的发帖（顶层评论，避免与①重复）
+  const onPosts = myPostIds.length
     ? await prisma.comment.findMany({
-        where: { eventId: { in: myEventIds }, parentId: null, userId: { not: userId } },
+        where: { postId: { in: myPostIds }, parentId: null, userId: { not: userId } },
         orderBy: { createdAt: "desc" },
         take: 100,
       })
     : [];
 
-  // 批量取作者 + 活动标题
+  // 评论目标 id = eventId（官方活动）或 postId（用户发帖）
+  const targetId = (c: { eventId: string | null; postId: string | null }) => c.eventId ?? c.postId ?? "";
+
+  // 批量取作者 + 目标标题（标题可能来自 Event 或 Post）
   const userIds = [...new Set([...replies, ...onPosts].map((c) => c.userId))];
-  const eventIds = [...new Set([...replies, ...onPosts].map((c) => c.eventId))];
-  const [users, events] = await Promise.all([
+  const tIds = [...new Set([...replies, ...onPosts].map(targetId).filter(Boolean))];
+  const [users, events, posts] = await Promise.all([
     userIds.length ? prisma.user.findMany({ where: { id: { in: userIds } }, select: AUTHOR_SELECT }) : [],
-    eventIds.length ? prisma.event.findMany({ where: { id: { in: eventIds } }, select: { id: true, title: true } }) : [],
+    tIds.length ? prisma.event.findMany({ where: { id: { in: tIds } }, select: { id: true, title: true } }) : [],
+    tIds.length ? prisma.post.findMany({ where: { id: { in: tIds } }, select: { id: true, title: true } }) : [],
   ]);
   const userMap = new Map(users.map((u) => [u.id, u]));
-  const titleMap = new Map(events.map((e) => [e.id, e.title]));
+  const titleMap = new Map([...events, ...posts].map((e) => [e.id, e.title]));
 
   const notices: ReplyNotice[] = [
     ...replies.map((c) => ({
@@ -66,8 +67,8 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
       type: "reply" as const,
       text: c.text,
       author: userMap.get(c.userId) ?? null,
-      eventId: c.eventId,
-      eventTitle: titleMap.get(c.eventId) ?? "活动",
+      eventId: targetId(c),
+      eventTitle: titleMap.get(targetId(c)) ?? "活动",
       parentText: c.parentId ? myCommentText.get(c.parentId) ?? null : null,
       createdAt: c.createdAt.toISOString(),
     })),
@@ -76,8 +77,8 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
       type: "post" as const,
       text: c.text,
       author: userMap.get(c.userId) ?? null,
-      eventId: c.eventId,
-      eventTitle: titleMap.get(c.eventId) ?? "活动",
+      eventId: targetId(c),
+      eventTitle: titleMap.get(targetId(c)) ?? "活动",
       parentText: null,
       createdAt: c.createdAt.toISOString(),
     })),

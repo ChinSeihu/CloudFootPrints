@@ -6,6 +6,19 @@
 
 ## 2026-06-17
 
+### 用户发帖与官方活动分表（Post / Event）
+
+- **动机**：抓取的官方活动（只读、带来源元数据）与用户发帖（可编辑/删除、带作者、可多图/报名）混在一张 `Event` 表里，职责不清。拆成两表。
+- **Schema**：新增 `Post` 表（用户发帖：title/description/category/venueName/imageUrl(s)/lat/lng/起止时间/tags/signupEnabled/userId）。`Event` 去掉发帖专属列（userId/tags/signupEnabled/imageUrls），只留官方抓取字段。
+- **互动多态**：`Comment`/`Reaction`/`CheckIn` 改为 `eventId` 与 `postId` 二选一（各自级联删除）；`Reaction` 新增 `@@unique([userId, postId, type])`。service 用 `resolveTarget(id)` 判 id 属哪张表（两表 id 全局唯一），前端仍只传一个 id、无需区分。
+- **读路径合并**：`getEventsInBounds`/`getEventById`/收藏/报名列表把 Event + Post 并起来统一成 `NormalizedEvent`（Post 映射 `sourceType="USER"`、`trustLevel=10`），DTO 形状不变 → **前端零改动**（地图 mineOnly 过滤、删除按钮等仍按 sourceType 判断）。
+- **数据迁移**：`scripts/split-posts.ts` 把现有 `Event(sourceType=USER)` 行搬到 `Post`（复用同一 id，旧深链/外键无缝），评论/点赞/打卡改指 `postId`，再删旧行。已迁移 1 条发帖（作者「美咲」、报名状态保留）。
+- **验证**：350=349 官方+1 发帖；按 id 取发帖详情、两类目标的评论/点赞 GET 与登录后 POST 均正常，无报错。
+
+**涉及文件：** `prisma/schema.prisma`、`scripts/split-posts.ts`(新)、`src/services/{events,reactions,comments,checkins,replies}.ts`
+
+---
+
 ### 推荐页加搜索框 + 推荐搜索词
 
 - **搜索框**：推荐页顶部新增搜索框（放大镜 + 占位 + 清空按钮），客户端实时过滤——匹配 标题/场馆/地址/简介/描述/分类名/标签。改类别/日期/搜索词都重置懒加载分页。

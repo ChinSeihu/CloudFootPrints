@@ -1,7 +1,18 @@
 import { prisma } from "@/lib/db";
 import { ReactionType } from "@prisma/client";
+import { normalizeOfficial, normalizePost, type NormalizedEvent } from "./events";
 
 // 领域逻辑：点赞 / 收藏。route 取 getCurrentUserId() 后传入，service 不读 cookie。
+// 目标可为官方活动(Event)或用户发帖(Post)，前端只传一个 id；这里解析其归属表。
+
+// 解析 id 属于官方活动还是用户发帖（id 在两表间全局唯一）。不存在返回 null。
+async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
+  const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
+  if (e) return { eventId: id };
+  const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+  if (p) return { postId: id };
+  return null;
+}
 
 export type ReactionState = {
   likeCount: number;
@@ -14,15 +25,17 @@ export type ReactionState = {
 
 // 某活动的点赞/收藏/报名汇总 + 当前用户是否已操作（未登录则 byMe 恒 false）。
 export async function getReactionState(
-  eventId: string,
+  targetId: string,
   userId: string | null,
 ): Promise<ReactionState> {
+  // 目标 id 可能是 Event 或 Post，统一用 OR 匹配两列。
+  const target = { OR: [{ eventId: targetId }, { postId: targetId }] };
   const [likeCount, favoriteCount, signupCount, mine] = await Promise.all([
-    prisma.reaction.count({ where: { eventId, type: ReactionType.LIKE } }),
-    prisma.reaction.count({ where: { eventId, type: ReactionType.FAVORITE } }),
-    prisma.reaction.count({ where: { eventId, type: ReactionType.SIGNUP } }),
+    prisma.reaction.count({ where: { ...target, type: ReactionType.LIKE } }),
+    prisma.reaction.count({ where: { ...target, type: ReactionType.FAVORITE } }),
+    prisma.reaction.count({ where: { ...target, type: ReactionType.SIGNUP } }),
     userId
-      ? prisma.reaction.findMany({ where: { eventId, userId }, select: { type: true } })
+      ? prisma.reaction.findMany({ where: { ...target, userId }, select: { type: true } })
       : Promise.resolve([] as { type: ReactionType }[]),
   ]);
   return {
@@ -39,33 +52,34 @@ export type ToggleResult = { active: boolean; count: number };
 
 // 切换点赞/收藏：已存在则取消，否则新增。返回新状态 + 该类型最新计数。
 export async function toggleReaction(
-  eventId: string,
+  targetId: string,
   userId: string,
   type: ReactionType,
 ): Promise<ToggleResult> {
-  const existing = await prisma.reaction.findUnique({
-    where: { userId_eventId_type: { userId, eventId, type } },
-  });
+  // 目标不存在则给干净错误（否则外键失败）。同时确定写哪一列。
+  const target = await resolveTarget(targetId);
+  if (!target) throw new Error("活动不存在");
+
+  const existing = await prisma.reaction.findFirst({ where: { ...target, userId, type } });
   if (existing) {
     await prisma.reaction.delete({ where: { id: existing.id } });
   } else {
-    // 活动不存在时 create 会因外键失败 —— 先校验，给出干净错误。
-    const ev = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
-    if (!ev) throw new Error("活动不存在");
-    await prisma.reaction.create({ data: { eventId, userId, type } });
+    await prisma.reaction.create({ data: { ...target, userId, type } });
   }
-  const count = await prisma.reaction.count({ where: { eventId, type } });
+  const count = await prisma.reaction.count({ where: { ...target, type } });
   return { active: !existing, count };
 }
 
-// 当前用户某类型 reaction 关联的活动（按操作时间倒序）。返回活动 + 作者公开信息。
+// 当前用户某类型 reaction 关联的活动（按操作时间倒序）。官方活动/用户发帖统一形状 + 作者信息。
 async function listEventsByReaction(userId: string, type: ReactionType) {
   const rows = await prisma.reaction.findMany({
     where: { userId, type },
     orderBy: { createdAt: "desc" },
-    include: { event: true },
+    include: { event: true, post: true },
   });
-  const events = rows.map((r) => r.event);
+  const events = rows
+    .map((r) => (r.event ? normalizeOfficial(r.event) : r.post ? normalizePost(r.post) : null))
+    .filter((e): e is NormalizedEvent => e !== null);
   const authorIds = [...new Set(events.map((e) => e.userId).filter((x): x is string => !!x))];
   const users = authorIds.length
     ? await prisma.user.findMany({

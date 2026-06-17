@@ -32,6 +32,7 @@ enum ReactionType {
   SIGNUP   // 报名（仅当 Event.signupEnabled 时有意义）
 }
 
+// 抓取的官方活动（只读）。用户发帖见 Post。userId/tags/signupEnabled/多图 是发帖专属，已迁出。
 model Event {
   id          String        @id @default(cuid())
   title       String
@@ -40,8 +41,7 @@ model Event {
   category    EventCategory
   venueName   String?
   address     String?
-  imageUrl    String?       // 封面图 URL（= imageUrls[0]；LLM 抽取/卡片/地图用）
-  imageUrls   String[]      @default([]) // 多图（用户发帖可传多张；抓取来源一般为空）
+  imageUrl    String?       // 封面图 URL（LLM 抽取/卡片/地图用）
   lat         Float
   lng         Float
   startTime   DateTime?
@@ -49,11 +49,8 @@ model Event {
 
   sourceType  SourceType
   sourceUrl   String?
-  trustLevel  Int           @default(0) // 官方高、用户/社交低
+  trustLevel  Int           @default(0) // 官方高、社交低
   rawText     String?       // 保留原始文本，便于以后重新解析
-  userId      String?       // USER 发帖的作者（User.id）；抓取来源为 null
-  tags        String[]      @default([]) // 活动标签（用户发帖填写；抓取来源为空，展示时按关键词派生）
-  signupEnabled Boolean     @default(false) // 是否开启报名（用户发帖可选）
 
   checkIns    CheckIn[]
   comments    Comment[]
@@ -66,6 +63,37 @@ model Event {
   @@index([startTime])
   @@index([category])
   // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
+}
+
+// 用户发帖（"这里有个活动"）。与抓取的官方活动 Event 分表存储：
+// Post = 用户生产内容（可编辑/删除、带作者、可多图、可报名）；Event = 官方抓取（只读、带来源元数据）。
+// 地图/推荐读路径把两表并起来统一成 EventDTO（Post 映射为 sourceType="USER"）。
+model Post {
+  id            String        @id @default(cuid())
+  title         String
+  description   String?
+  category      EventCategory
+  venueName     String?
+  imageUrl      String?       // 封面图（= imageUrls[0]）
+  imageUrls     String[]      @default([]) // 多图
+  lat           Float
+  lng           Float
+  startTime     DateTime?
+  endTime       DateTime?
+  tags          String[]      @default([])
+  signupEnabled Boolean       @default(false)
+  userId        String        // 作者（User.id）。发帖必有作者。
+
+  checkIns      CheckIn[]
+  comments      Comment[]
+  reactions     Reaction[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([lat, lng])
+  @@index([userId, createdAt])
+  @@index([startTime])
+  @@index([category])
 }
 
 // 美食 POI（来源 OpenStreetMap / Overpass）。常驻地点，按地图视野查询 + 聚合显示。
@@ -118,8 +146,11 @@ model HotPepperPoi {
 model CheckIn {
   id        String   @id @default(cuid())
   userId    String   @default("me") // v1 单用户，固定为本人；v2 接入真实用户
-  eventId   String? // 可选：关联到地图上已有的活动
+  // 可选关联到地图上已有的目标：官方活动 eventId 或用户发帖 postId（二选一）
+  eventId   String?
   event     Event?   @relation(fields: [eventId], references: [id])
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id])
   lat       Float
   lng       Float
   note      String?
@@ -133,8 +164,11 @@ model CheckIn {
 
 model Comment {
   id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // 评论目标：官方活动 eventId 或用户发帖 postId（二选一），各自级联删除。
+  eventId   String?
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String   @default("me") // v1 单用户；v2 接入真实用户
   text      String
   parentId  String? // 回复的目标评论（顶层评论为 null）
@@ -143,6 +177,7 @@ model Comment {
   createdAt DateTime @default(now())
 
   @@index([eventId, createdAt])
+  @@index([postId, createdAt])
   @@index([parentId])
 }
 
@@ -151,13 +186,18 @@ model Comment {
 model Reaction {
   id        String       @id @default(cuid())
   userId    String
-  eventId   String
-  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // 目标：官方活动 eventId 或用户发帖 postId（二选一），各自级联删除。
+  eventId   String?
+  event     Event?       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
   type      ReactionType
   createdAt DateTime     @default(now())
 
   @@unique([userId, eventId, type])
+  @@unique([userId, postId, type])
   @@index([eventId, type])
+  @@index([postId, type])
   @@index([userId, type])
 }
 

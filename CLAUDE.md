@@ -72,7 +72,7 @@ scripts/
   eval-extraction.ts
   fixtures/   # 样例页面（无需 key 即可跑端到端）
   eval/       # 人工标注评测集 dataset.json
-prisma/schema.prisma                # 数据模型：Event / CheckIn
+prisma/schema.prisma                # 数据模型：Event(官方抓取) / Post(用户发帖) / CheckIn / Comment / Reaction
 ```
 
 ## 分类枚举
