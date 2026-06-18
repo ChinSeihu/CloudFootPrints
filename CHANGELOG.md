@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-06-18
+
+### 修复 GitHub Actions 每日抓取 yarn install 失败（Node 20 → 22）
+
+- **现象**：`每日活动数据更新` workflow 的 `yarn install --frozen-lockfile` 报错 `@prisma/streams-local@0.1.2: The engine "node" is incompatible with this module. Expected version ">=22.0.0". Got "20.20.2"`，job 退出码 1。
+- **原因**：升级到 Prisma 7 后，其传递依赖 `@prisma/streams-local` 要求 Node ≥22；而 workflow 的 `setup-node@v4` 仍固定 `node-version: "20"`。
+- **修复**：`extract.yml` 的 Node 版本 `20` → `22`。
+
+**涉及文件：** `.github/workflows/extract.yml`
+
+---
+
 ## 2026-06-17
 
 ### 用户发帖与官方活动分表（Post / Event）

@@ -21,7 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Prisma 7 的依赖 @prisma/streams-local 要求 node >=22，node 20 会让
+          # yarn install --frozen-lockfile 因 engines 不兼容直接失败。
+          node-version: "22"
       - name: 安装依赖
         run: yarn install --frozen-lockfile
       - name: 生成 Prisma Client
