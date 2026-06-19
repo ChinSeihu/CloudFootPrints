@@ -134,7 +134,7 @@ export function LinePanel({
   const stops = trainData?.stops ?? [];
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[1000] flex flex-col justify-end">
       <button type="button" className="absolute inset-0 bg-black/30" aria-label="关闭" onClick={onClose} />
       <div className="relative bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
         {/* 头部：站名 + 线路名 + 刷新 + 关闭 */}
