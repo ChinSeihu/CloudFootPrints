@@ -6,6 +6,16 @@
 
 ## 2026-06-19
 
+### 时刻表增强：逐站时刻 + 运行情况 + 去 emoji
+
+- **点某班车看逐站时刻**：时刻表里每个发车时间可点 → 弹 `TrainTimetablePanel`，显示该班车停靠的全部站点及各站到/发时刻（ODPT `odpt:TrainTimetable`，真实排点而非估算），并标出【当前】站、滚动到它。`StationTimetable` 的发车带 `odpt:train`，据此拉 `odpt:TrainTimetable`；逐站站名按线路缓存 `odpt:Station` 解析（含直通别线）。新增 `/api/train-timetable`。
+- **运行情况**：每条线路显示 ODPT `odpt:TrainInformation`（運行情報）——正常显示绿点「运行正常」，异常显示橙点 + 原文（如延误/见合わせ）。各社「正常」措辞不同（Metro「平常どおり」/都营「遅延はありません」）做了归一。运行情报缓存 90s（实时）。
+- **去 emoji**：车站卡片「时刻表」按钮的 🕑 换成线性 SVG 时钟图标。
+
+**涉及文件：** `src/services/odpt.ts`、`src/app/api/train-timetable/route.ts`(新)、`src/components/Map/TrainTimetablePanel.tsx`(新)、`src/components/Map/{TimetablePanel,MapExplorer}.tsx`
+
+---
+
 ### 车站时刻表（ODPT 接入）
 
 - 点车站卡片新增「🕑 时刻表」按钮 → 底部 `TimetablePanel` 展示该站各线路/方向的**下一班发车时刻**（实时按当前东京时间算，最近一班高亮）。

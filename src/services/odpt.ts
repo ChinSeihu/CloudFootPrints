@@ -48,11 +48,13 @@ type OdptStation = {
   "geo:lat"?: number;
   "geo:long"?: number;
   "odpt:railway"?: string;
+  "odpt:operator"?: string;
   "odpt:stationCode"?: string;
 };
 type OdptStationTimetableObject = {
   "odpt:departureTime"?: string;
   "odpt:trainType"?: string;
+  "odpt:train"?: string;
   "odpt:destinationStation"?: string[];
 };
 type OdptStationTimetable = {
@@ -63,9 +65,10 @@ type OdptStationTimetable = {
   "odpt:stationTimetableObject"?: OdptStationTimetableObject[];
 };
 
-export type Departure = { time: string; type?: string };
+export type Departure = { time: string; type?: string; train?: string };
 export type DirectionGroup = { direction: string; departures: Departure[] };
-export type RailwayGroup = { railway: string; stationCode?: string; directions: DirectionGroup[] };
+export type OperationStatus = { text: string; normal: boolean };
+export type RailwayGroup = { railway: string; railwayId: string; stationCode?: string; status?: OperationStatus; directions: DirectionGroup[] };
 export type StationTimetableResult = {
   station: string;
   calendar: "weekday" | "holiday";
@@ -97,6 +100,38 @@ async function timetablesForStation(stationId: string): Promise<OdptStationTimet
   return data;
 }
 
+// ── 运行情报（实时，缓存 90s）。 ──
+type OdptTrainInformation = {
+  "odpt:railway"?: string;
+  "odpt:trainInformationText"?: { ja?: string };
+};
+const tiCache = new Map<string, { at: number; data: OdptTrainInformation[] }>();
+const TI_TTL = 90 * 1000;
+
+async function trainInfoForOperator(operatorId: string): Promise<OdptTrainInformation[]> {
+  const hit = tiCache.get(operatorId);
+  if (hit && Date.now() - hit.at < TI_TTL) return hit.data;
+  const data = await odptGet<OdptTrainInformation[]>("odpt:TrainInformation", { "odpt:operator": operatorId });
+  tiCache.set(operatorId, { at: Date.now(), data });
+  return data;
+}
+
+// 收集若干运营商的运行情报，建 railwayId → 状态（只标到具体线路，整体通知忽略）。
+async function operationStatusMap(operatorIds: string[]): Promise<Map<string, OperationStatus>> {
+  const map = new Map<string, OperationStatus>();
+  const results = await Promise.all(operatorIds.map((op) => trainInfoForOperator(op).catch(() => [])));
+  for (const list of results) {
+    for (const ti of list) {
+      const rw = ti["odpt:railway"];
+      const text = ti["odpt:trainInformationText"]?.ja?.trim();
+      if (!rw || !text) continue;
+      // 各社「正常」措辞不同：Metro「平常どおり」、都営「遅延はありません」等。
+      map.set(rw, { text, normal: /平常|遅延はありません|遅れはありません|遅延は発生していません/.test(text) });
+    }
+  }
+  return map;
+}
+
 // 主入口：给定站名 + 坐标，返回该站各线路/方向的「下一班」时刻。无 key 或无数据则 groups 为空。
 export async function getStationTimetable(
   name: string,
@@ -117,10 +152,12 @@ export async function getStationTimetable(
   });
   if (near.length === 0) return base;
 
-  const [railwayTitles, dirTitles, typeTitles] = await Promise.all([
+  const operatorIds = [...new Set(near.map((s) => s["odpt:operator"]).filter((x): x is string => !!x))];
+  const [railwayTitles, dirTitles, typeTitles, statusMap] = await Promise.all([
     vocab("odpt:Railway"),
     vocab("odpt:RailDirection"),
     vocab("odpt:TrainType"),
+    operationStatusMap(operatorIds),
   ]);
 
   const groups: RailwayGroup[] = [];
@@ -150,6 +187,7 @@ export async function getStationTimetable(
         .map<Departure>((o) => ({
           time: o["odpt:departureTime"]!,
           type: o["odpt:trainType"] ? typeTitles.get(o["odpt:trainType"]) : undefined,
+          train: o["odpt:train"],
         }));
       if (upcoming.length === 0) continue;
       const dirId = t["odpt:railDirection"];
@@ -158,11 +196,102 @@ export async function getStationTimetable(
     if (directions.length === 0) continue;
     groups.push({
       railway: railwayTitles.get(railwayId) || railwayId.split(".").pop() || "线路",
+      railwayId,
       stationCode: st["odpt:stationCode"],
+      status: statusMap.get(railwayId),
       directions,
     });
   }
 
   base.groups = groups;
   return base;
+}
+
+// ── 单列车逐站时刻（点击某班车 → 看它停哪些站、各站到/发时刻）。 ──
+type OdptTrainTimetableObject = {
+  "odpt:departureTime"?: string;
+  "odpt:departureStation"?: string;
+  "odpt:arrivalTime"?: string;
+  "odpt:arrivalStation"?: string;
+};
+type OdptTrainTimetable = {
+  "odpt:calendar"?: string;
+  "odpt:railway"?: string;
+  "odpt:railDirection"?: string;
+  "odpt:trainType"?: string;
+  "odpt:trainNumber"?: string;
+  "odpt:destinationStation"?: string[];
+  "odpt:trainTimetableObject"?: OdptTrainTimetableObject[];
+};
+
+export type TrainStop = { name: string; arrival?: string; departure?: string };
+export type TrainTimetableResult = {
+  trainNumber?: string;
+  type?: string;
+  railway: string;
+  direction?: string;
+  destination?: string;
+  stops: TrainStop[];
+};
+
+// 站名按线路缓存（一次取该线全部站点 dc:title），24h。
+const stationTitleCache = new Map<string, { at: number; map: TitleMap }>();
+async function stationTitlesForRailway(railwayId: string): Promise<TitleMap> {
+  const hit = stationTitleCache.get(railwayId);
+  if (hit && Date.now() - hit.at < VOCAB_TTL) return hit.map;
+  const rows = await odptGet<OdptStation[]>("odpt:Station", { "odpt:railway": railwayId });
+  const map: TitleMap = new Map();
+  for (const r of rows) { const id = r["owl:sameAs"]; const t = r["dc:title"]; if (id && t) map.set(id, t); }
+  stationTitleCache.set(railwayId, { at: Date.now(), map });
+  return map;
+}
+
+// 站 id（odpt.Station:Operator.Railway.Station）→ 线路 id（odpt.Railway:Operator.Railway）。
+function railwayOfStation(sid: string, fallback: string): string {
+  const parts = sid.replace(/^odpt\.Station:/, "").split(".");
+  return parts.length >= 3 ? `odpt.Railway:${parts[0]}.${parts[1]}` : fallback;
+}
+
+// 给定 odpt:train id，返回该班车今日的逐站时刻（按顺序）。无 key/无数据返回 null。
+export async function getTrainTimetable(trainId: string): Promise<TrainTimetableResult | null> {
+  if (!key()) return null;
+  const now = tokyoNow();
+  const tables = await odptGet<OdptTrainTimetable[]>("odpt:TrainTimetable", { "odpt:train": trainId });
+  if (!tables.length) return null;
+  const pick =
+    tables.find((t) => {
+      const c = t["odpt:calendar"] ?? "";
+      return now.calendar === "weekday" ? c.includes("Weekday") : /SaturdayHoliday|Holiday|Saturday|Sunday/.test(c);
+    }) ?? tables[0];
+
+  const objs = pick["odpt:trainTimetableObject"] ?? [];
+  const railway = pick["odpt:railway"] ?? "";
+  // 收集涉及线路（含直通别线），各取站名表
+  const railways = new Set<string>([railway]);
+  for (const o of objs) {
+    const sid = o["odpt:departureStation"] ?? o["odpt:arrivalStation"];
+    if (sid) railways.add(railwayOfStation(sid, railway));
+  }
+  const [titleMaps, railwayTitles, dirTitles, typeTitles] = await Promise.all([
+    Promise.all([...railways].map((rw) => stationTitlesForRailway(rw).catch(() => new Map() as TitleMap))),
+    vocab("odpt:Railway"),
+    vocab("odpt:RailDirection"),
+    vocab("odpt:TrainType"),
+  ]);
+  const titles: TitleMap = new Map();
+  for (const m of titleMaps) for (const [k, v] of m) titles.set(k, v);
+
+  const stops: TrainStop[] = objs.map((o) => {
+    const sid = o["odpt:departureStation"] ?? o["odpt:arrivalStation"] ?? "";
+    return { name: titles.get(sid) || sid.split(".").pop() || "—", arrival: o["odpt:arrivalTime"], departure: o["odpt:departureTime"] };
+  });
+  const destId = pick["odpt:destinationStation"]?.[0];
+  return {
+    trainNumber: pick["odpt:trainNumber"],
+    type: pick["odpt:trainType"] ? typeTitles.get(pick["odpt:trainType"]) : undefined,
+    railway: (railway && railwayTitles.get(railway)) || railway.split(".").pop() || "线路",
+    direction: pick["odpt:railDirection"] ? dirTitles.get(pick["odpt:railDirection"]) : undefined,
+    destination: destId ? titles.get(destId) || destId.split(".").pop() : undefined,
+    stops,
+  };
 }

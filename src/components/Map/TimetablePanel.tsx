@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TrainTimetablePanel } from "./TrainTimetablePanel";
 
-type Departure = { time: string; type?: string };
+type Departure = { time: string; type?: string; train?: string };
 type DirectionGroup = { direction: string; departures: Departure[] };
-type RailwayGroup = { railway: string; stationCode?: string; directions: DirectionGroup[] };
+type OperationStatus = { text: string; normal: boolean };
+type RailwayGroup = { railway: string; railwayId: string; stationCode?: string; status?: OperationStatus; directions: DirectionGroup[] };
 type Result = { station: string; calendar: "weekday" | "holiday"; nowHHMM: string; groups: RailwayGroup[]; error?: string };
 
 // 车站时刻表底部面板：拉 /api/station-timetable（ODPT 实时下一班），按线路/方向展示。
@@ -22,6 +24,7 @@ export function TimetablePanel({
   const [data, setData] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [train, setTrain] = useState<string | null>(null); // 点某班车 → 看其逐站时刻
 
   useEffect(() => {
     let cancelled = false;
@@ -69,30 +72,44 @@ export function TimetablePanel({
           )}
           {data && data.groups.map((g) => (
             <div key={g.railway + (g.stationCode ?? "")} className="mb-4 last:mb-0">
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="font-medium text-sm text-neutral-800">{g.railway}</span>
                 {g.stationCode && (
                   <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">{g.stationCode}</span>
                 )}
               </div>
+              {/* 运行情况 */}
+              {g.status && (
+                <div className={`flex items-start gap-1.5 mb-1.5 text-xs ${g.status.normal ? "text-emerald-600" : "text-amber-600"}`}>
+                  <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.status.normal ? "#10b981" : "#f59e0b" }} />
+                  <span className="leading-snug">{g.status.normal ? "运行正常" : g.status.text}</span>
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 {g.directions.map((d) => (
                   <div key={d.direction} className="rounded-xl border border-black/5 bg-neutral-50 px-3 py-2">
                     <div className="text-xs text-neutral-500 mb-1">往 {d.direction}</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {d.departures.map((p, i) => (
-                        <span
-                          key={p.time + i}
-                          className={`inline-flex items-baseline gap-1 px-2 py-1 rounded-lg text-sm ${
-                            i === 0 ? "bg-sky-600 text-white font-semibold" : "bg-white border border-black/10 text-neutral-700"
-                          }`}
-                        >
-                          {p.time}
-                          {p.type && p.type !== "普通" && (
-                            <span className={`text-[10px] ${i === 0 ? "text-sky-100" : "text-neutral-400"}`}>{p.type}</span>
-                          )}
-                        </span>
-                      ))}
+                      {d.departures.map((p, i) => {
+                        const cls = `inline-flex items-baseline gap-1 px-2 py-1 rounded-lg text-sm ${
+                          i === 0 ? "bg-sky-600 text-white font-semibold" : "bg-white border border-black/10 text-neutral-700"
+                        } ${p.train ? "cursor-pointer hover:brightness-105" : ""}`;
+                        const inner = (
+                          <>
+                            {p.time}
+                            {p.type && p.type !== "普通" && (
+                              <span className={`text-[10px] ${i === 0 ? "text-sky-100" : "text-neutral-400"}`}>{p.type}</span>
+                            )}
+                          </>
+                        );
+                        return p.train ? (
+                          <button key={p.time + i} type="button" onClick={() => setTrain(p.train!)} className={cls} title="查看该班车逐站时刻">
+                            {inner}
+                          </button>
+                        ) : (
+                          <span key={p.time + i} className={cls}>{inner}</span>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -101,6 +118,10 @@ export function TimetablePanel({
           ))}
         </div>
       </div>
+
+      {train && (
+        <TrainTimetablePanel train={train} currentStation={name} onClose={() => setTrain(null)} />
+      )}
     </div>
   );
 }

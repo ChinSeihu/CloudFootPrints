@@ -1179,7 +1179,7 @@ export function MapExplorer() {
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
         <div class="tem-st-actions">
-          <button class="tem-st-time" data-action="timetable">🕑 时刻表</button>
+          <button class="tem-st-time" data-action="timetable"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>时刻表</button>
           <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
         </div>
       </div>`;
