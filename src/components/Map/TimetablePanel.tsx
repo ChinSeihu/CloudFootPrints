@@ -80,7 +80,7 @@ export function TimetablePanel({
           {empty && !loading && (
             <p className="text-sm text-neutral-400 py-6 text-center leading-relaxed">
               该站暂无可显示的时刻表。<br />
-              （JR 东日本等部分运营商的时刻表需在 ODPT 单独申请数据权限后才会返回。）
+              （ODPT 时刻表目前仅覆盖 东京Metro·都营·临海线·海鸥线·多摩单轨；JR 及多数大私铁未在 ODPT 公开时刻表数据。）
             </p>
           )}
           {data && data.groups.map((g) => (
