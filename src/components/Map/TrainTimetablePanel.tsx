@@ -74,7 +74,7 @@ export function TrainTimetablePanel({
           {loading && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
           {err && !loading && <p className="text-sm text-neutral-400 py-6 text-center">{err}</p>}
           {data && (
-            <div className="relative border-l-2 border-sky-400 ml-10">
+            <div className="relative border-l-2 border-sky-400 ml-1.5">
               {data.stops.map((s, i) => {
                 const time = s.departure || s.arrival || "";
                 const isCurrent = !!currentStation && s.name === currentStation;
@@ -82,12 +82,8 @@ export function TrainTimetablePanel({
                   <div
                     key={`${s.name}-${i}`}
                     ref={isCurrent ? currentRef : undefined}
-                    className={`relative flex items-center gap-2 py-2 pl-4 pr-2 rounded-r-lg ${isCurrent ? "bg-sky-50" : ""}`}
+                    className={`relative flex items-center gap-2 py-2 pl-5 pr-2 rounded-r-lg ${isCurrent ? "bg-sky-50" : ""}`}
                   >
-                    {/* 时间（在轨道左侧） */}
-                    <span className={`absolute -left-10 w-9 text-right text-xs tabular-nums ${isCurrent ? "font-semibold text-sky-700" : "text-neutral-500"}`}>
-                      {time}
-                    </span>
                     {/* 轨道圆点 */}
                     <span
                       className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
@@ -96,6 +92,10 @@ export function TrainTimetablePanel({
                     <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s.name}</span>
                     {isCurrent && <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded bg-sky-600 shrink-0">当前</span>}
                     {i === data.stops.length - 1 && <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 rounded bg-neutral-100 shrink-0">终点</span>}
+                    {/* 到达/发车时间（右侧） */}
+                    <span className={`ml-auto pl-2 text-sm tabular-nums shrink-0 ${isCurrent ? "font-semibold text-sky-700" : "text-neutral-600"}`}>
+                      {time}
+                    </span>
                   </div>
                 );
               })}

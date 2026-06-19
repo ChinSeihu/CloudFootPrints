@@ -6,6 +6,14 @@
 
 ## 2026-06-19
 
+### 时刻表小调整：逐站时间右置 + 修按钮样式
+
+- 逐站时刻表里**到达/发车时间移到每行右侧**（原来挤在轨道左侧），轨道+站名在左、时间在右，更清晰。
+- 修车站卡片「时刻表」按钮样式（图标与文字未对齐/换行显得崩）：两个按钮统一 `inline-flex` 居中 + `line-height:1` + `nowrap`，SVG 固定尺寸。
+- 确认 **JR 时刻表 ODPT 完全没有**：`TrainTimetable?operator=JR-East` 与 `?railway=JR-East.Yamanote` 均为 0 条（换 TrainTimetable 也拿不到，非接口问题）。
+
+---
+
 ### 时刻表增强：逐站时刻 + 运行情况 + 去 emoji
 
 - **点某班车看逐站时刻**：时刻表里每个发车时间可点 → 弹 `TrainTimetablePanel`，显示该班车停靠的全部站点及各站到/发时刻（ODPT `odpt:TrainTimetable`，真实排点而非估算），并标出【当前】站、滚动到它。`StationTimetable` 的发车带 `odpt:train`，据此拉 `odpt:TrainTimetable`；逐站站名按线路缓存 `odpt:Station` 解析（含直通别线）。新增 `/api/train-timetable`。

@@ -145,11 +145,22 @@ export async function getStationTimetable(
 
   // 1) 按站名查 ODPT 车站，按坐标就近过滤（同名站可能在别处，~1.3km 内才算同一物理站）。
   const stations = await odptGet<OdptStation[]>("odpt:Station", { "dc:title": name });
+  console.log("ODPT stations for", name, ":", stations);
   const near = stations.filter((s) => {
-    const sl = s["geo:lat"], sg = s["geo:long"];
-    if (typeof sl !== "number" || typeof sg !== "number") return false;
-    return Math.abs(sl - lat) < 0.012 && Math.abs(sg - lng) < 0.012;
+    const sl = s["geo:lat"];
+    const sg = s["geo:long"];
+    // 没有坐标的站也保留
+    if (typeof sl !== "number" || typeof sg !== "number") {
+      return true;
+    }
+    
+    console.log("ODPT candidate:", s["owl:sameAs"], s["dc:title"], sl, sg);
+    return (
+      Math.abs(sl - lat) < 0.012 &&
+      Math.abs(sg - lng) < 0.012
+    );
   });
+  
   if (near.length === 0) return base;
 
   const operatorIds = [...new Set(near.map((s) => s["odpt:operator"]).filter((x): x is string => !!x))];
