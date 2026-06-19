@@ -16,8 +16,7 @@ import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
-import { LinePanel, type LineDetail } from "./LinePanel";
-import { TimetablePanel } from "./TimetablePanel";
+import { LinePanel, type LineDetail, type PanelLine } from "./LinePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
@@ -348,14 +347,11 @@ export function MapExplorer() {
   useEffect(() => { openLightboxRef.current = (imgs) => setLightbox(imgs.length ? imgs : null); });
 
   // 线路详情面板：车站弹窗里点击线路 chip → 展示该线全部站点+方向。
-  const [linePanel, setLinePanel] = useState<{ line: LineDetail; current?: string } | null>(null);
-  const openLinePanelRef = useRef<(l: LineDetail, current?: string) => void>(() => {});
-  useEffect(() => { openLinePanelRef.current = (l, current) => setLinePanel({ line: l, current }); });
-
-  // 车站时刻表面板（点车站卡片「时刻表」打开，拉 ODPT 下一班）。
-  const [timetable, setTimetable] = useState<{ name: string; lat: number; lng: number } | null>(null);
-  const openTimetableRef = useRef<(t: { name: string; lat: number; lng: number }) => void>(() => {});
-  useEffect(() => { openTimetableRef.current = (t) => setTimetable(t); });
+  // 车站线路整合面板（点线路 chip 打开：时刻表 + 全程，顶部切换本站其它线路）。
+  type LinePanelState = { station: { name: string; lat: number; lng: number }; lines: PanelLine[]; initial: string };
+  const [linePanel, setLinePanel] = useState<LinePanelState | null>(null);
+  const openLinePanelRef = useRef<(p: LinePanelState) => void>(() => {});
+  useEffect(() => { openLinePanelRef.current = (p) => setLinePanel(p); });
   const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
 
@@ -1160,14 +1156,11 @@ export function MapExplorer() {
       let lines: { name: string; colour?: string; ref?: string }[] = [];
       try { lines = JSON.parse(p.lines || "[]"); } catch { /* ignore */ }
       const typeLabel = p.subway ? "地铁站" : "电车站";
+      // 每条线路都可点 → 打开整合面板（默认看该线下一班时刻 + 顶部切换其它线路 + 全程）。
       const lineChips = lines.length
-        ? `<div class="tem-st-lines">${lines.map((l) => {
-            const dot = `<i style="background:${escapeHtml(l.colour || "#888")}"></i>`;
-            // 有有序站点数据的线路 → 可点击展开；否则纯展示。
-            return linesRef.current.has(l.name)
-              ? `<button class="tem-st-line tem-st-line-btn" data-line="${escapeHtml(l.name)}">${dot}<span>${escapeHtml(l.name)}</span><span class="tem-st-go">›</span></button>`
-              : `<span class="tem-st-line">${dot}<span>${escapeHtml(l.name)}</span></span>`;
-          }).join("")}</div>`
+        ? `<div class="tem-st-lines">${lines.map((l) =>
+            `<button class="tem-st-line tem-st-line-btn" data-line="${escapeHtml(l.name)}"><i style="background:${escapeHtml(l.colour || "#888")}"></i><span>${escapeHtml(l.name)}</span><span class="tem-st-go">›</span></button>`
+          ).join("")}</div>`
         : `<p class="tem-st-none">暂无线路信息</p>`;
       // 简单说明：N 条线路经过 + 前几条线名。
       const desc = lines.length
@@ -1178,20 +1171,12 @@ export function MapExplorer() {
         <div class="tem-st-type">${typeLabel}</div>
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
-        <div class="tem-st-actions">
-          <button class="tem-st-time" data-action="timetable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>时刻表</span></button>
-          <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
-        </div>
+        <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
       </div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
-      // 点击「时刻表」→ 打开 ODPT 下一班面板
-      popup.getElement()?.querySelector('[data-action="timetable"]')?.addEventListener("click", () => {
-        popup.remove();
-        openTimetableRef.current({ name: p.name!, lat: coords[1], lng: coords[0] });
-      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1202,12 +1187,14 @@ export function MapExplorer() {
           description: `东京${typeLabel}：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}。${lines.length ? `经过线路：${lines.map((l) => l.name).join("、")}。` : ""}`,
         });
       });
-      // 点击线路 chip → 打开线路详情面板（全站点 + 方向）
+      // 点击线路 chip → 打开整合面板（时刻表 + 线路全程），默认选中该线。
       popup.getElement()?.querySelectorAll<HTMLElement>("[data-line]").forEach((el) => {
         el.addEventListener("click", () => {
           const nm = el.getAttribute("data-line");
-          const detail = nm ? linesRef.current.get(nm) : null;
-          if (detail) { popup.remove(); openLinePanelRef.current(detail, p.name); }
+          if (!nm) return;
+          popup.remove();
+          const panelLines: PanelLine[] = lines.map((l) => ({ name: l.name, colour: l.colour, ref: l.ref, route: linesRef.current.get(l.name) }));
+          openLinePanelRef.current({ station: { name: p.name!, lat: coords[1], lng: coords[0] }, lines: panelLines, initial: nm });
         });
       });
     });
@@ -1672,8 +1659,9 @@ export function MapExplorer() {
 
       {linePanel && (
         <LinePanel
-          line={linePanel.line}
-          currentStation={linePanel.current}
+          station={linePanel.station}
+          lines={linePanel.lines}
+          initial={linePanel.initial}
           onClose={() => setLinePanel(null)}
           onStation={(name) => {
             const c = stationCoordRef.current.get(name);
@@ -1683,15 +1671,6 @@ export function MapExplorer() {
               setLinePanel(null);
             }
           }}
-        />
-      )}
-
-      {timetable && (
-        <TimetablePanel
-          name={timetable.name}
-          lat={timetable.lat}
-          lng={timetable.lng}
-          onClose={() => setTimetable(null)}
         />
       )}
     </div>
