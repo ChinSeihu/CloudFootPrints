@@ -23,7 +23,6 @@ type Timetable = { calendar: "weekday" | "holiday"; nowHHMM: string; groups: Rai
 type TrainStop = { name: string; arrival?: string; departure?: string };
 type TrainResult = { trainNumber?: string; type?: string; railway: string; direction?: string; destination?: string; stops: TrainStop[] };
 type Position = { trainNumber?: string; fromName?: string; toName?: string; delayMin: number; direction?: string; destination?: string };
-type FlatDep = Departure & { direction: string };
 
 // ODPT 线路标题与 OSM 线名互相包含即视为同一条（如「丸ノ内線」⊂「東京メトロ丸ノ内線」）。
 function matchGroup(groups: RailwayGroup[], lineName: string): RailwayGroup | undefined {
@@ -52,6 +51,7 @@ export function LinePanel({
   const [trainData, setTrainData] = useState<TrainResult | null>(null);
   const [loadingTrain, setLoadingTrain] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [dirIdx, setDirIdx] = useState(0); // 当前行进方向
   const color = line.colour || "#0ea5e9";
   const currentRef = useRef<HTMLDivElement>(null);
 
@@ -59,25 +59,32 @@ export function LinePanel({
   useEffect(() => {
     let cancelled = false;
     setLoadingTt(true);
-    fetch(`/api/station-timetable?name=${encodeURIComponent(station.name)}&lat=${station.lat}&lng=${station.lng}&n=8`)
+    fetch(`/api/station-timetable?name=${encodeURIComponent(station.name)}&lat=${station.lat}&lng=${station.lng}&n=8&line=${encodeURIComponent(line.name)}`)
       .then((r) => r.json())
       .then((d) => { if (!cancelled && !d.error) setTt(d); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingTt(false); });
     return () => { cancelled = true; };
-  }, [station.name, station.lat, station.lng, tick]);
+  }, [station.name, station.lat, station.lng, line.name, tick]);
 
   const group = useMemo(() => (tt ? matchGroup(tt.groups, line.name) : undefined), [tt, line.name]);
 
-  // 该线所有方向的发车，合并按时间排序（顶部时刻可选）
-  const departures = useMemo<FlatDep[]>(() => {
-    if (!group) return [];
-    return group.directions
-      .flatMap((d) => d.departures.filter((p) => p.train).map((p) => ({ ...p, direction: d.direction })))
-      .sort((a, b) => a.time.localeCompare(b.time));
+  // 行进方向：点击切换（返回原做法）。默认选「最近一班所在的方向」。
+  useEffect(() => {
+    if (!group || group.directions.length === 0) return;
+    let best = 0, bestTime = "99:99";
+    group.directions.forEach((d, i) => {
+      const first = d.departures.find((p) => p.train);
+      if (first && first.time < bestTime) { bestTime = first.time; best = i; }
+    });
+    setDirIdx(best);
   }, [group]);
 
-  // 默认选最近一班；刷新后若所选已发车则重选最近
+  const selectedDir = group ? group.directions[Math.min(dirIdx, group.directions.length - 1)] : undefined;
+  // 只显示当前方向的发车
+  const departures = useMemo<Departure[]>(() => selectedDir?.departures.filter((p) => p.train) ?? [], [selectedDir]);
+
+  // 默认选当前方向最近一班；切方向/刷新后若所选不在则重选最近
   useEffect(() => {
     if (!departures.length) { setSelTrain(null); return; }
     setSelTrain((cur) => (cur && departures.some((d) => d.train === cur) ? cur : departures[0].train!));
@@ -152,7 +159,21 @@ export function LinePanel({
           </div>
         )}
 
-        {/* 顶部：发车时刻（可切换，默认最近一班） */}
+        {/* 方向切换（点击在各方向间切换，时刻只显示当前方向） */}
+        {group && group.directions.length > 0 && (
+          <div className="shrink-0 px-4 pb-1.5">
+            <button
+              type="button"
+              onClick={() => setDirIdx((i) => (i + 1) % group.directions.length)}
+              className="inline-flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-full px-3 py-1.5 transition"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+              往 {selectedDir?.direction} 方面{group.directions.length > 1 ? " · 点击切换方向" : ""}
+            </button>
+          </div>
+        )}
+
+        {/* 顶部：当前方向发车时刻（默认最近一班） */}
         {departures.length > 0 && (
           <div className="shrink-0 px-4 pb-2 flex gap-1.5 overflow-x-auto">
             {departures.map((d, i) => {
@@ -166,7 +187,9 @@ export function LinePanel({
                   style={on ? { background: color } : undefined}
                 >
                   <span className="text-sm font-semibold tabular-nums leading-tight">{d.time}</span>
-                  <span className={`text-[10px] leading-tight ${on ? "text-white/80" : "text-neutral-400"}`}>往{d.direction}{d.type && d.type !== "普通" ? ` · ${d.type}` : ""}</span>
+                  {d.type && d.type !== "普通" && (
+                    <span className={`text-[10px] leading-tight ${on ? "text-white/80" : "text-neutral-400"}`}>{d.type}</span>
+                  )}
                 </button>
               );
             })}
@@ -192,10 +215,12 @@ export function LinePanel({
                   const next = stops[i + 1];
                   const seg = next ? posBySeg.get([s.name, next.name].sort().join("|")) : undefined;
                   return (
-                    <div key={`${s.name}-${i}`}>
-                      <div
-                        ref={isCurrent ? currentRef : undefined}
-                        className={`relative flex items-center gap-2 py-2 pl-5 pr-2 rounded-r-lg ${isCurrent ? "bg-sky-50" : ""}`}
+                    <div key={`${s.name}-${i}`} ref={isCurrent ? currentRef : undefined}>
+                      <button
+                        type="button"
+                        onClick={() => onStation(s.name)}
+                        title="在地图上定位该站"
+                        className={`relative flex items-center gap-2 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isCurrent ? "bg-sky-50" : "hover:bg-neutral-50"}`}
                       >
                         <span className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" style={{ width: isCurrent ? 13 : 9, height: isCurrent ? 13 : 9, background: isCurrent ? color : "#fff", boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}` }} />
                         <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s.name}</span>
@@ -211,7 +236,7 @@ export function LinePanel({
                           ) : null;
                         })()}
                         <span className={`ml-auto pl-2 text-sm tabular-nums shrink-0 ${isCurrent ? "font-semibold text-sky-700" : "text-neutral-600"}`}>{time}</span>
-                      </div>
+                      </button>
                       {/* 实时列车位置：在此区段的列车 */}
                       {seg && seg.length > 0 && (
                         <div className="relative pl-5 py-0.5">

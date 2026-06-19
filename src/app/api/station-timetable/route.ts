@@ -14,8 +14,9 @@ export async function GET(request: Request) {
   }
   const nRaw = Number(searchParams.get("n"));
   const perDirection = Number.isFinite(nRaw) && nRaw > 0 ? Math.min(nRaw, 12) : 3;
+  const lineName = searchParams.get("line")?.trim() || undefined;
   try {
-    const data = await getStationTimetable(name, lat, lng, perDirection);
+    const data = await getStationTimetable(name, lat, lng, perDirection, lineName);
     return NextResponse.json(data);
   } catch (err) {
     console.error("GET /api/station-timetable failed:", err);

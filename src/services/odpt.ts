@@ -138,6 +138,7 @@ export async function getStationTimetable(
   lat: number,
   lng: number,
   perDirection = 3,
+  lineName?: string,
 ): Promise<StationTimetableResult> {
   const now = tokyoNow();
   const base: StationTimetableResult = { station: name, calendar: now.calendar, nowHHMM: now.hhmm, groups: [] };
@@ -145,44 +146,38 @@ export async function getStationTimetable(
 
   // 1) 按站名查 ODPT 车站，按坐标就近过滤（同名站可能在别处，~1.3km 内才算同一物理站）。
   const stations = await odptGet<OdptStation[]>("odpt:Station", { "dc:title": name });
-  console.log("ODPT stations for", name, ":", stations);
-  const near = stations.filter((s) => {
-    const sl = s["geo:lat"];
-    const sg = s["geo:long"];
-    // 没有坐标的站也保留
-    if (typeof sl !== "number" || typeof sg !== "number") {
-      return true;
-    }
-    
-    console.log("ODPT candidate:", s["owl:sameAs"], s["dc:title"], sl, sg);
-    return (
-      Math.abs(sl - lat) < 0.012 &&
-      Math.abs(sg - lng) < 0.012
-    );
+  let near = stations.filter((s) => {
+    const sl = s["geo:lat"], sg = s["geo:long"];
+    if (typeof sl !== "number" || typeof sg !== "number") return false;
+    return Math.abs(sl - lat) < 0.012 && Math.abs(sg - lng) < 0.012;
   });
-  
   if (near.length === 0) return base;
 
-  const operatorIds = [...new Set(near.map((s) => s["odpt:operator"]).filter((x): x is string => !!x))];
-  const [railwayTitles, dirTitles, typeTitles, statusMap] = await Promise.all([
+  const [railwayTitles, dirTitles, typeTitles] = await Promise.all([
     vocab("odpt:Railway"),
     vocab("odpt:RailDirection"),
     vocab("odpt:TrainType"),
+  ]);
+
+  // 指定线路时只查该线对应的车站（大幅减少请求数/体积：如 11 家运营商 → 1 家）。
+  if (lineName) {
+    near = near.filter((s) => {
+      const t = railwayTitles.get(s["odpt:railway"] ?? "");
+      return !!t && (lineName.includes(t) || t.includes(lineName));
+    });
+    if (near.length === 0) return base; // 该线无 ODPT 时刻表 → 直接空，省去所有时刻表请求
+  }
+
+  // 并行取各站时刻表 + 运行情报（原来是串行 for-await，多运营商站很慢）。
+  const operatorIds = [...new Set(near.map((s) => s["odpt:operator"]).filter((x): x is string => !!x))];
+  const [statusMap, perStation] = await Promise.all([
     operationStatusMap(operatorIds),
+    Promise.all(near.map((s) => (s["owl:sameAs"] ? timetablesForStation(s["owl:sameAs"]).catch(() => [] as OdptStationTimetable[]) : Promise.resolve([] as OdptStationTimetable[])))),
   ]);
 
   const groups: RailwayGroup[] = [];
-  for (const st of near) {
-    const stationId = st["owl:sameAs"];
-    if (!stationId) continue;
-    let tables: OdptStationTimetable[] = [];
-    try {
-      tables = await timetablesForStation(stationId);
-    } catch {
-      continue; // 该站无时刻表（部分私铁未提供）→ 跳过
-    }
-    // 选今天日历的表
-    const todays = tables.filter((t) => {
+  near.forEach((st, idx) => {
+    const todays = perStation[idx].filter((t) => {
       const c = t["odpt:calendar"] ?? "";
       return now.calendar === "weekday" ? c.includes("Weekday") : /SaturdayHoliday|Holiday|Saturday|Sunday/.test(c);
     });
@@ -204,7 +199,7 @@ export async function getStationTimetable(
       const dirId = t["odpt:railDirection"];
       directions.push({ direction: (dirId && dirTitles.get(dirId)) || "—", departures: upcoming });
     }
-    if (directions.length === 0) continue;
+    if (directions.length === 0) return;
     groups.push({
       railway: railwayTitles.get(railwayId) || railwayId.split(".").pop() || "线路",
       railwayId,
@@ -212,7 +207,7 @@ export async function getStationTimetable(
       status: statusMap.get(railwayId),
       directions,
     });
-  }
+  });
 
   base.groups = groups;
   return base;

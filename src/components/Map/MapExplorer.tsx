@@ -1664,12 +1664,10 @@ export function MapExplorer() {
           line={linePanel.line}
           onClose={() => setLinePanel(null)}
           onStation={(name) => {
+            // 在地图上定位该站，但不关闭线路详情页（面板是底部 sheet，地图在上方可见）。
             const c = stationCoordRef.current.get(name);
             const map = mapRef.current;
-            if (c && map) {
-              map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 15) });
-              setLinePanel(null);
-            }
+            if (c && map) map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 15) });
           }}
         />
       )}
