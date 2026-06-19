@@ -263,6 +263,47 @@ function railwayOfStation(sid: string, fallback: string): string {
   return parts.length >= 3 ? `odpt.Railway:${parts[0]}.${parts[1]}` : fallback;
 }
 
+// ── 实时列车位置（仅部分运营商有，如都营；Metro/JR 无）。缓存 20s。 ──
+type OdptTrain = {
+  "odpt:trainNumber"?: string;
+  "odpt:fromStation"?: string;
+  "odpt:toStation"?: string;
+  "odpt:delay"?: number; // 秒
+  "odpt:railDirection"?: string;
+  "odpt:destinationStation"?: string[];
+};
+export type TrainPosition = {
+  trainNumber?: string;
+  fromName?: string;
+  toName?: string;
+  delayMin: number;
+  direction?: string;
+  destination?: string;
+};
+const posCache = new Map<string, { at: number; data: TrainPosition[] }>();
+const POS_TTL = 20 * 1000;
+
+// 给定线路 id，返回该线当前在跑的列车位置（在 from→to 区间）。无数据返回空数组。
+export async function getTrainPositions(railwayId: string): Promise<TrainPosition[]> {
+  if (!key()) return [];
+  const hit = posCache.get(railwayId);
+  if (hit && Date.now() - hit.at < POS_TTL) return hit.data;
+  const trains = await odptGet<OdptTrain[]>("odpt:Train", { "odpt:railway": railwayId });
+  if (!trains.length) { posCache.set(railwayId, { at: Date.now(), data: [] }); return []; }
+  const [titles, dirTitles] = await Promise.all([stationTitlesForRailway(railwayId), vocab("odpt:RailDirection")]);
+  const name = (sid?: string) => (sid ? titles.get(sid) || sid.split(".").pop() : undefined);
+  const data = trains.map<TrainPosition>((t) => ({
+    trainNumber: t["odpt:trainNumber"],
+    fromName: name(t["odpt:fromStation"]),
+    toName: name(t["odpt:toStation"]),
+    delayMin: Math.round((t["odpt:delay"] ?? 0) / 60),
+    direction: t["odpt:railDirection"] ? dirTitles.get(t["odpt:railDirection"]) : undefined,
+    destination: name(t["odpt:destinationStation"]?.[0]),
+  }));
+  posCache.set(railwayId, { at: Date.now(), data });
+  return data;
+}
+
 // 给定 odpt:train id，返回该班车今日的逐站时刻（按顺序）。无 key/无数据返回 null。
 export async function getTrainTimetable(trainId: string): Promise<TrainTimetableResult | null> {
   if (!key()) return null;

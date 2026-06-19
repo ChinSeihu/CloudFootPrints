@@ -12,8 +12,10 @@ export async function GET(request: Request) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json({ error: "缺少或非法的坐标" }, { status: 400 });
   }
+  const nRaw = Number(searchParams.get("n"));
+  const perDirection = Number.isFinite(nRaw) && nRaw > 0 ? Math.min(nRaw, 12) : 3;
   try {
-    const data = await getStationTimetable(name, lat, lng);
+    const data = await getStationTimetable(name, lat, lng, perDirection);
     return NextResponse.json(data);
   } catch (err) {
     console.error("GET /api/station-timetable failed:", err);

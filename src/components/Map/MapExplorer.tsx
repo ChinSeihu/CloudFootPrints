@@ -347,8 +347,8 @@ export function MapExplorer() {
   useEffect(() => { openLightboxRef.current = (imgs) => setLightbox(imgs.length ? imgs : null); });
 
   // 线路详情面板：车站弹窗里点击线路 chip → 展示该线全部站点+方向。
-  // 车站线路整合面板（点线路 chip 打开：时刻表 + 全程，顶部切换本站其它线路）。
-  type LinePanelState = { station: { name: string; lat: number; lng: number }; lines: PanelLine[]; initial: string };
+  // 车站线路面板（点线路 chip 打开：顶部选发车时刻、主体看该线逐站时刻 + 实时列车位置）。
+  type LinePanelState = { station: { name: string; lat: number; lng: number }; line: PanelLine };
   const [linePanel, setLinePanel] = useState<LinePanelState | null>(null);
   const openLinePanelRef = useRef<(p: LinePanelState) => void>(() => {});
   useEffect(() => { openLinePanelRef.current = (p) => setLinePanel(p); });
@@ -1193,8 +1193,9 @@ export function MapExplorer() {
           const nm = el.getAttribute("data-line");
           if (!nm) return;
           popup.remove();
-          const panelLines: PanelLine[] = lines.map((l) => ({ name: l.name, colour: l.colour, ref: l.ref, route: linesRef.current.get(l.name) }));
-          openLinePanelRef.current({ station: { name: p.name!, lat: coords[1], lng: coords[0] }, lines: panelLines, initial: nm });
+          const l = lines.find((x) => x.name === nm);
+          const line: PanelLine = { name: nm, colour: l?.colour, ref: l?.ref, route: linesRef.current.get(nm) };
+          openLinePanelRef.current({ station: { name: p.name!, lat: coords[1], lng: coords[0] }, line });
         });
       });
     });
@@ -1660,8 +1661,7 @@ export function MapExplorer() {
       {linePanel && (
         <LinePanel
           station={linePanel.station}
-          lines={linePanel.lines}
-          initial={linePanel.initial}
+          line={linePanel.line}
           onClose={() => setLinePanel(null)}
           onStation={(name) => {
             const c = stationCoordRef.current.get(name);
