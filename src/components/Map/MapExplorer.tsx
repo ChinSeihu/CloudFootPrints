@@ -17,6 +17,7 @@ import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
 import { LinePanel, type LineDetail } from "./LinePanel";
+import { TimetablePanel } from "./TimetablePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
@@ -350,6 +351,11 @@ export function MapExplorer() {
   const [linePanel, setLinePanel] = useState<{ line: LineDetail; current?: string } | null>(null);
   const openLinePanelRef = useRef<(l: LineDetail, current?: string) => void>(() => {});
   useEffect(() => { openLinePanelRef.current = (l, current) => setLinePanel({ line: l, current }); });
+
+  // 车站时刻表面板（点车站卡片「时刻表」打开，拉 ODPT 下一班）。
+  const [timetable, setTimetable] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  const openTimetableRef = useRef<(t: { name: string; lat: number; lng: number }) => void>(() => {});
+  useEffect(() => { openTimetableRef.current = (t) => setTimetable(t); });
   const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
 
@@ -1172,12 +1178,20 @@ export function MapExplorer() {
         <div class="tem-st-type">${typeLabel}</div>
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
-        <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
+        <div class="tem-st-actions">
+          <button class="tem-st-time" data-action="timetable">🕑 时刻表</button>
+          <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
+        </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      // 点击「时刻表」→ 打开 ODPT 下一班面板
+      popup.getElement()?.querySelector('[data-action="timetable"]')?.addEventListener("click", () => {
+        popup.remove();
+        openTimetableRef.current({ name: p.name!, lat: coords[1], lng: coords[0] });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1669,6 +1683,15 @@ export function MapExplorer() {
               setLinePanel(null);
             }
           }}
+        />
+      )}
+
+      {timetable && (
+        <TimetablePanel
+          name={timetable.name}
+          lat={timetable.lat}
+          lng={timetable.lng}
+          onClose={() => setTimetable(null)}
         />
       )}
     </div>

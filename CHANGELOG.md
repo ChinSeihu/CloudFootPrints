@@ -6,6 +6,16 @@
 
 ## 2026-06-19
 
+### 车站时刻表（ODPT 接入）
+
+- 点车站卡片新增「🕑 时刻表」按钮 → 底部 `TimetablePanel` 展示该站各线路/方向的**下一班发车时刻**（实时按当前东京时间算，最近一班高亮）。
+- 数据源 **ODPT 公共交通开放数据中心**（`ODPT_API_KEY` 存 `.env`，不提交）：`services/odpt.ts` 按站名查 `odpt:Station`（坐标就近过滤同名站）→ `odpt:StationTimetable` → 按今天运行日历(平日/周末)挑方向算下一班 → 按线路/方向分组。方向/种别/线路名用 ODPT 小词表 `dc:title`，进程内缓存（词表 24h、时刻表按站 6h）。
+- 覆盖 JR东日本/东京 Metro/都营及多家私铁；未接入 ODPT 的私铁站返回空并提示。节假日精确判定（目前按周末近似）、实时延误留待后续。
+
+**涉及文件：** `src/services/odpt.ts`(新)、`src/app/api/station-timetable/route.ts`(新)、`src/components/Map/TimetablePanel.tsx`(新)、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`、`.env.example`
+
+---
+
 ### 线路详情面板标记【当前】车站
 
 - 点开车站卡片里的线路 chip 看线路全站点时，把**你点进来的那个车站**标出来：站点行加【当前】徽标、圆点放大填色、文字加粗 + 浅色底，并自动滚动到它居中。

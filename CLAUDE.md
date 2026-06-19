@@ -43,6 +43,7 @@ DATABASE_URL          # Neon / Supabase 连接串（必填）
 LLM_API_KEY           # Anthropic API key（extract/eval 才需要）
 TOKYO_OPENDATA_RESOURCE_ID  # 可选，东京都开放数据 CKAN resource id
 CONNPASS_API_KEY      # 可选，connpass API
+ODPT_API_KEY          # 可选，ODPT 公共交通开放数据中心（车站时刻表）
 ```
 
 ## 目录结构

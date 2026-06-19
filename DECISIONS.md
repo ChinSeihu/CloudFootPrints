@@ -31,7 +31,7 @@
 - **精选美食 POI**：`lib/foodSpots.ts` 人工精选东京评分>4.0 名店（餐厅是常驻 POI，不进带时间的活动模型）。独立 `food` 图层（玫红叉勺图标），点击弹 `.tem-food` 卡（评分 + 招牌菜单 + 问 AI）。**不实时抓取**：食べログ禁爬/ToS、Google Places 付费+存储受限、Hot Pepper 无评分；故走精选（评分/菜单为人工标注）。左下角「美食」开关 + localStorage。
 - **车站 / 铁路线数据 = OpenStreetMap（Overpass API）**：`scripts/enrich-station-lines.ts` 拉东京 bbox 内 `route`(subway/train/light_rail/monorail) 关系，**离线生成两个静态文件**——`public/stations.json`(站点点位+经过线路) 与 `public/lines.json`(每条线**有序站点序列**，取最长方向变体)。过滤无品牌色的特急/观光列车、只保留有线路代码(JY/M/OH…)的真线路、清方向/服务后缀、按代码+名去重。前端一次性加载，不走服务端/DB。
   - **方向**：OSM 关系成员有序但每方向常是独立关系；为稳定起见只存一条规范顺序，UI(`LinePanel`)用正/反序呈现两个方向（标「往 X 方面」），点站点 `flyTo` 定位。
-  - **时刻表不接 OSM**（OSM 无此数据）。后续若要时刻表/全站点权威顺序/实时延误 → **ODPT（公共交通开放数据中心 odpt.org）**，免费但需**人工注册 API key**；备选 GTFS-JP。当前阶段未接（待人工确认 key）。
+  - **时刻表不接 OSM**（OSM 无此数据），改接 **ODPT（公共交通开放数据中心 odpt.org）**：`ODPT_API_KEY`（人工注册的 Access Token，存 `.env` 不提交）。`services/odpt.ts` 按站名查 `odpt:Station`（坐标就近 ~1.3km 过滤同名站）→ 取 `odpt:StationTimetable` → 按今天日历(平日/周末节假日，**节日精确判定留待后续**)挑当前方向算「下一班」→ 按线路/方向分组。方向/种别/线路名用小型词表(RailDirection/TrainType/Railway)的 `dc:title`，**进程内缓存** 24h；时刻表按站缓存 6h。点车站卡片「🕑 时刻表」打开 `TimetablePanel`（`/api/station-timetable`）。私铁未接入 ODPT 的站返回空。实时延误/列车位置（`odpt:Train`）留待后续。
 - **锚点针（拖拽放置）保留 DOM SVG marker**，现代扁平蓝色水滴造型
 - **同位置/极近活动 → 堆叠卡片弹窗**：
   - 点击单点时 `queryRenderedFeatures` 取点击像素 ±14px 内的所有点；点击聚合时取 `getClusterLeaves`，若叶子坐标包围盒 < 0.0006°（约 60m）判定为"挤在一起"，直接弹堆叠卡片，否则 `easeTo` 放大展开
