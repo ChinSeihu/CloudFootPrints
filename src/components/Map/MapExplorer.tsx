@@ -347,9 +347,9 @@ export function MapExplorer() {
   useEffect(() => { openLightboxRef.current = (imgs) => setLightbox(imgs.length ? imgs : null); });
 
   // 线路详情面板：车站弹窗里点击线路 chip → 展示该线全部站点+方向。
-  const [linePanel, setLinePanel] = useState<LineDetail | null>(null);
-  const openLinePanelRef = useRef<(l: LineDetail) => void>(() => {});
-  useEffect(() => { openLinePanelRef.current = (l) => setLinePanel(l); });
+  const [linePanel, setLinePanel] = useState<{ line: LineDetail; current?: string } | null>(null);
+  const openLinePanelRef = useRef<(l: LineDetail, current?: string) => void>(() => {});
+  useEffect(() => { openLinePanelRef.current = (l, current) => setLinePanel({ line: l, current }); });
   const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
 
@@ -1142,23 +1142,6 @@ export function MapExplorer() {
       },
     });
 
-    // 当前点击的车站高亮：一个琥珀色光晕环，垫在车站图标之下（点击时填充坐标，关闭弹窗清空）。
-    map.addSource("station-selected", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    map.addLayer(
-      {
-        id: "station-selected-halo",
-        type: "circle",
-        source: "station-selected",
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 16, 16, 24],
-          "circle-color": "rgba(245, 158, 11, 0.18)",
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#f59e0b",
-        },
-      },
-      "station-icon", // 插在图标层之下，让图标清晰浮在光晕上
-    );
-
     map.on("mouseenter", "station-icon", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "station-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "station-icon", (e) => {
@@ -1191,17 +1174,10 @@ export function MapExplorer() {
         ${lineChips}
         <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
       </div>`;
-      // 标记当前点击的车站（琥珀光晕），关闭弹窗时清除。
-      const selected = map.getSource("station-selected") as maplibregl.GeoJSONSource | undefined;
-      selected?.setData({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: {} }] });
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
-      popup.on("close", () => {
-        (map.getSource("station-selected") as maplibregl.GeoJSONSource | undefined)
-          ?.setData({ type: "FeatureCollection", features: [] });
-      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1217,7 +1193,7 @@ export function MapExplorer() {
         el.addEventListener("click", () => {
           const nm = el.getAttribute("data-line");
           const detail = nm ? linesRef.current.get(nm) : null;
-          if (detail) { popup.remove(); openLinePanelRef.current(detail); }
+          if (detail) { popup.remove(); openLinePanelRef.current(detail, p.name); }
         });
       });
     });
@@ -1682,7 +1658,8 @@ export function MapExplorer() {
 
       {linePanel && (
         <LinePanel
-          line={linePanel}
+          line={linePanel.line}
+          currentStation={linePanel.current}
           onClose={() => setLinePanel(null)}
           onStation={(name) => {
             const c = stationCoordRef.current.get(name);

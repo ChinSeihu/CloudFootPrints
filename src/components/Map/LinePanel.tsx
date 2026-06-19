@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // 一条线路的详情（来自 public/lines.json）：有序站点 + 颜色 + 代码。
 export type LineDetail = {
@@ -13,12 +13,15 @@ export type LineDetail = {
 
 // 点击车站卡片里的线路 chip 后弹出的底部面板：
 // 展示该线全部站点（按顺序），可切换方向（正/反序），点击站点 → 地图飞到该站。
+// currentStation：从哪个车站点进来的，在列表里标【当前】并自动滚动到它。
 export function LinePanel({
   line,
+  currentStation,
   onClose,
   onStation,
 }: {
   line: LineDetail;
+  currentStation?: string;
   onClose: () => void;
   onStation: (name: string) => void;
 }) {
@@ -26,6 +29,12 @@ export function LinePanel({
   const stations = rev ? [...line.stations].reverse() : line.stations;
   const color = line.colour || "#0ea5e9";
   const terminus = stations[stations.length - 1];
+
+  // 打开 / 切换方向后，自动滚到「当前」车站。
+  const currentRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: "center" });
+  }, [rev]);
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col justify-end">
@@ -65,20 +74,35 @@ export function LinePanel({
           <div className="relative border-l-2 ml-1.5" style={{ borderColor: color }}>
             {stations.map((s, i) => {
               const edge = i === 0 ? "起点" : i === stations.length - 1 ? "终点" : "";
+              const isCurrent = !!currentStation && s === currentStation;
               return (
                 <button
                   key={`${s}-${i}`}
+                  ref={isCurrent ? currentRef : undefined}
                   type="button"
                   onClick={() => onStation(s)}
-                  className="relative flex items-center gap-3 w-full text-left py-2 pl-5 pr-2 rounded-r-lg hover:bg-neutral-50 transition"
+                  className={`relative flex items-center gap-2.5 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${
+                    isCurrent ? "" : "hover:bg-neutral-50"
+                  }`}
+                  style={isCurrent ? { background: `${color}1f` } : undefined}
                 >
                   <span
-                    className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white"
-                    style={{ boxShadow: `0 0 0 2px ${color}` }}
+                    className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                    style={{
+                      width: isCurrent ? 14 : 10,
+                      height: isCurrent ? 14 : 10,
+                      background: isCurrent ? color : "#fff",
+                      boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}`,
+                    }}
                   />
-                  <span className="text-sm text-neutral-700">{s}</span>
+                  <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s}</span>
+                  {isCurrent && (
+                    <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>
+                      当前
+                    </span>
+                  )}
                   {edge && (
-                    <span className="text-[10px] text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>
+                    <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 rounded shrink-0 bg-neutral-100">
                       {edge}
                     </span>
                   )}
