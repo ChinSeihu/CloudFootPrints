@@ -52,6 +52,7 @@ export function LinePanel({
   const [loadingTrain, setLoadingTrain] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
   const [dirIdx, setDirIdx] = useState(0); // 当前行进方向
+  const [activeStation, setActiveStation] = useState<string | null>(null); // 点击定位的站（高亮）
   const color = line.colour || "#0ea5e9";
   const currentRef = useRef<HTMLDivElement>(null);
 
@@ -212,15 +213,17 @@ export function LinePanel({
                 {stops.map((s, i) => {
                   const time = s.departure || s.arrival || "";
                   const isCurrent = s.name === station.name;
+                  const isActive = s.name === activeStation;
                   const next = stops[i + 1];
                   const seg = next ? posBySeg.get([s.name, next.name].sort().join("|")) : undefined;
                   return (
                     <div key={`${s.name}-${i}`} ref={isCurrent ? currentRef : undefined}>
                       <button
                         type="button"
-                        onClick={() => onStation(s.name)}
+                        onClick={() => { setActiveStation(s.name); onStation(s.name); }}
                         title="在地图上定位该站"
-                        className={`relative flex items-center gap-2 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isCurrent ? "bg-sky-50" : "hover:bg-neutral-50"}`}
+                        className={`relative flex items-center gap-2 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isActive ? "" : isCurrent ? "bg-sky-50" : "hover:bg-neutral-50"}`}
+                        style={isActive ? { background: `${color}2e` } : undefined}
                       >
                         <span className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" style={{ width: isCurrent ? 13 : 9, height: isCurrent ? 13 : 9, background: isCurrent ? color : "#fff", boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}` }} />
                         <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s.name}</span>
@@ -277,6 +280,7 @@ export function LinePanel({
 // 线路全程站点列表（无时刻表线路的退路）：可切方向、标当前站、点击飞到该站。
 function RouteList({ route, currentStation, onStation }: { route: LineDetail; currentStation: string; onStation: (name: string) => void }) {
   const [rev, setRev] = useState(false);
+  const [activeStation, setActiveStation] = useState<string | null>(null);
   const stations = rev ? [...route.stations].reverse() : route.stations;
   const color = route.colour || "#0ea5e9";
   const terminus = stations[stations.length - 1];
@@ -293,14 +297,15 @@ function RouteList({ route, currentStation, onStation }: { route: LineDetail; cu
         {stations.map((s, i) => {
           const edge = i === 0 ? "起点" : i === stations.length - 1 ? "终点" : "";
           const isCurrent = s === currentStation;
+          const isActive = s === activeStation;
           return (
             <button
               key={`${s}-${i}`}
               ref={isCurrent ? currentRef : undefined}
               type="button"
-              onClick={() => onStation(s)}
-              className={`relative flex items-center gap-2.5 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isCurrent ? "" : "hover:bg-neutral-50"}`}
-              style={isCurrent ? { background: `${color}1f` } : undefined}
+              onClick={() => { setActiveStation(s); onStation(s); }}
+              className={`relative flex items-center gap-2.5 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isActive || isCurrent ? "" : "hover:bg-neutral-50"}`}
+              style={isActive ? { background: `${color}3d` } : isCurrent ? { background: `${color}1f` } : undefined}
             >
               <span className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" style={{ width: isCurrent ? 14 : 10, height: isCurrent ? 14 : 10, background: isCurrent ? color : "#fff", boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}` }} />
               <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s}</span>
