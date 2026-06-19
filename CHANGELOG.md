@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-06-19
+
+### 点击车站时高亮标记当前车站
+
+- 点击地图上的电车/地铁站，在该站位置叠一个**琥珀色光晕环**（独立 `station-selected` 源 + circle 图层，垫在 `station-icon` 之下让图标清晰浮于其上）标出"当前选中"。
+- 点击时把该源数据设为点击坐标；关闭弹窗（含点"问 AI 导游"/线路 chip 触发的 `popup.remove()`）时清空，光晕随之消失。
+
+**涉及文件：** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ## 2026-06-18
 
 ### 修复 GitHub Actions 每日抓取 yarn install 失败（Node 20 → 22）

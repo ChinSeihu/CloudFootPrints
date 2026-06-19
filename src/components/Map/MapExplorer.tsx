@@ -1142,6 +1142,23 @@ export function MapExplorer() {
       },
     });
 
+    // 当前点击的车站高亮：一个琥珀色光晕环，垫在车站图标之下（点击时填充坐标，关闭弹窗清空）。
+    map.addSource("station-selected", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer(
+      {
+        id: "station-selected-halo",
+        type: "circle",
+        source: "station-selected",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 16, 16, 24],
+          "circle-color": "rgba(245, 158, 11, 0.18)",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#f59e0b",
+        },
+      },
+      "station-icon", // 插在图标层之下，让图标清晰浮在光晕上
+    );
+
     map.on("mouseenter", "station-icon", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "station-icon", () => { map.getCanvas().style.cursor = ""; });
     map.on("click", "station-icon", (e) => {
@@ -1174,10 +1191,17 @@ export function MapExplorer() {
         ${lineChips}
         <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
       </div>`;
+      // 标记当前点击的车站（琥珀光晕），关闭弹窗时清除。
+      const selected = map.getSource("station-selected") as maplibregl.GeoJSONSource | undefined;
+      selected?.setData({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: {} }] });
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.on("close", () => {
+        (map.getSource("station-selected") as maplibregl.GeoJSONSource | undefined)
+          ?.setData({ type: "FeatureCollection", features: [] });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
