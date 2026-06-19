@@ -62,7 +62,10 @@ export function TimetablePanel({
           {loading && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
           {err && !loading && <p className="text-sm text-neutral-400 py-6 text-center">{err}</p>}
           {empty && !loading && (
-            <p className="text-sm text-neutral-400 py-6 text-center">该站暂无开放的时刻表数据（部分私铁未接入 ODPT）。</p>
+            <p className="text-sm text-neutral-400 py-6 text-center leading-relaxed">
+              该站暂无可显示的时刻表。<br />
+              （JR 东日本等部分运营商的时刻表需在 ODPT 单独申请数据权限后才会返回。）
+            </p>
           )}
           {data && data.groups.map((g) => (
             <div key={g.railway + (g.stationCode ?? "")} className="mb-4 last:mb-0">
