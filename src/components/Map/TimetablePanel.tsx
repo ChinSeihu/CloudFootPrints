@@ -25,6 +25,7 @@ export function TimetablePanel({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [train, setTrain] = useState<string | null>(null); // 点某班车 → 看其逐站时刻
+  const [tick, setTick] = useState(0); // 刷新计数
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +36,7 @@ export function TimetablePanel({
       .catch(() => { if (!cancelled) setErr("加载失败，请稍后再试"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [name, lat, lng]);
+  }, [name, lat, lng, tick]);
 
   const empty = data && data.groups.length === 0;
 
@@ -53,16 +54,28 @@ export function TimetablePanel({
           )}
           <button
             type="button"
+            onClick={() => setTick((t) => t + 1)}
+            disabled={loading}
+            aria-label="刷新"
+            title="刷新"
+            className="ml-auto w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-sky-600 disabled:opacity-50 shrink-0"
+          >
+            <svg viewBox="0 0 24 24" className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+            </svg>
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             aria-label="关闭"
-            className="ml-auto w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0"
+            className="w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0"
           >
             ×
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          {loading && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
+          {loading && !data && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
           {err && !loading && <p className="text-sm text-neutral-400 py-6 text-center">{err}</p>}
           {empty && !loading && (
             <p className="text-sm text-neutral-400 py-6 text-center leading-relaxed">

@@ -27,6 +27,7 @@ export function TrainTimetablePanel({
   const [data, setData] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [tick, setTick] = useState(0); // 刷新计数
   const currentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export function TrainTimetablePanel({
       .catch((e) => { if (!cancelled) setErr(e?.error || "加载失败"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [train]);
+  }, [train, tick]);
 
   useEffect(() => {
     if (data) currentRef.current?.scrollIntoView({ block: "center" });
@@ -56,9 +57,21 @@ export function TrainTimetablePanel({
             {data?.type && <span className="text-[11px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 shrink-0">{data.type}</span>}
             <button
               type="button"
+              onClick={() => setTick((t) => t + 1)}
+              disabled={loading}
+              aria-label="刷新"
+              title="刷新"
+              className="ml-auto w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-sky-600 disabled:opacity-50 shrink-0"
+            >
+              <svg viewBox="0 0 24 24" className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               aria-label="关闭"
-              className="ml-auto w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0"
+              className="w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0"
             >
               ×
             </button>
@@ -71,7 +84,7 @@ export function TrainTimetablePanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          {loading && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
+          {loading && !data && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
           {err && !loading && <p className="text-sm text-neutral-400 py-6 text-center">{err}</p>}
           {data && (
             <div className="relative border-l-2 border-sky-400 ml-1.5">
