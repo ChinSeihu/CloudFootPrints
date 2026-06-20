@@ -6,6 +6,17 @@
 
 ## 2026-06-20
 
+### 换乘导航（连通图路由）
+
+- 车站卡片新增「从这导航」→ `RoutePanel`：搜目的车站 → 给出**换乘方案**（推荐 / 少换乘），含**总耗时估算 + 换乘次数 + 逐段线路**（乘哪条线、从哪到哪几站、何处换乘/步行换乘）。
+- **路由引擎** `services/routePlanner.ts`：用 `public/lines.json`(139 线有序站点) + `public/stations.json`(坐标) 建图——节点=(线,站)，同线相邻站连乘车边（**按相邻站实距算耗时**，避免特急少站被低估）、同名站连换乘边、<320m 不同站连**步行换乘**边；跑 Dijkstra（二叉堆），出最优 + 高换乘惩罚的少换乘两套，去重。图进程内缓存（首次 ~0.5s，之后 <20ms）。`/api/route?from=&to=`。
+- **地图画折线**：选中方案在地图上按线路色画出全程折线（白色描边垫底）并缩放到全程。
+- **叠加 ODPT 下一班**：方案首段若是有时刻表的线（Metro/都营等），显示该线在起点站的下一班发车。
+
+**涉及文件：** `src/services/routePlanner.ts`(新)、`src/app/api/route/route.ts`(新)、`src/components/Map/RoutePanel.tsx`(新)、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`
+
+---
+
 ### 测试用户头像（日系动漫）
 
 - 给 5 个测试账号配头像。先尝试 DiceBear（欧美卡通，不符合需求），改为用户提供的**日系动漫整图**裁成 5 张方形头像（按人设分配：さくら=知性长发 / ケンジ=冷感乱发 / ゆい=短发鲍勃 / たけし=沉稳 / 美咲=暖笑长棕发），存 `public/avatars/*.png`（256×256，已删除旧 DiceBear svg 与源整图）。

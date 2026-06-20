@@ -36,6 +36,7 @@
   - **逐站时刻**：StationTimetable 的发车带 `odpt:train` → 拉 `odpt:TrainTimetable` 得该班车逐站到/发时刻（真实排点）；站名按线路缓存 `odpt:Station` 解析（含直通别线）。`/api/train-timetable` + `TrainTimetablePanel`。
   - **运行情况**：`odpt:TrainInformation`（缓存 90s）→ 每线路状态文本；「正常」措辞各社不同做归一（平常どおり/遅延はありません…）。
   - 实时延误分钟数/列车位置（`odpt:Train`）留待后续。
+- **换乘导航 = 连通图路由（非时刻表路由）**：`services/routePlanner.ts` 用 `lines.json`+`stations.json` 建图（节点=(线,站)；乘车边**按相邻站实距**算耗时，同名站换乘边，<320m 步行换乘边）跑 Dijkstra，出推荐/少换乘两套。**不做时刻表级 RAPTOR**——JR/大私铁时刻表 ODPT 没有，做不了；连通图覆盖全网（拓扑来自 OSM）、耗时为估算。图进程内缓存。`/api/route` + `RoutePanel`（车站卡片「从这导航」），选中方案在地图画线路色折线，首段叠 ODPT 下一班。**为何不用 LLM**：拓扑数据本地已有，确定性图路由更准更省。
 - **锚点针（拖拽放置）保留 DOM SVG marker**，现代扁平蓝色水滴造型
 - **同位置/极近活动 → 堆叠卡片弹窗**：
   - 点击单点时 `queryRenderedFeatures` 取点击像素 ±14px 内的所有点；点击聚合时取 `getClusterLeaves`，若叶子坐标包围盒 < 0.0006°（约 60m）判定为"挤在一起"，直接弹堆叠卡片，否则 `easeTo` 放大展开

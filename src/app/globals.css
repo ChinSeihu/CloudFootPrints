@@ -244,8 +244,9 @@ body {
 .tem-st-line-btn:hover { background: #fff; }
 .tem-st-go { margin-left: auto; color: #0284c7; font-weight: 700; font-size: 14px; line-height: 1; }
 .tem-st-none { font-size: 12px; color: #7dd3fc; margin: 0 0 10px; }
+.tem-st-actions { display: flex; gap: 7px; }
 .tem-st-ask {
-  width: 100%;
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -262,6 +263,26 @@ body {
   transition: filter 0.15s;
 }
 .tem-st-ask:hover { filter: brightness(1.06); }
+.tem-st-nav {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 11px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tem-st-nav:hover { background: rgba(37, 99, 235, 0.2); }
+.tem-st-nav svg { display: block; }
 .tem-food-menu-label { font-size: 11px; color: #b08; color: #9b2c45; margin-bottom: 5px; }
 .tem-food-menu { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 11px; }
 .tem-food-tag {

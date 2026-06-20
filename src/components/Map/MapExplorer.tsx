@@ -17,6 +17,7 @@ import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
 import { LinePanel, type LineDetail, type PanelLine } from "./LinePanel";
+import { RoutePanel, type RoutePlan } from "./RoutePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
@@ -354,6 +355,12 @@ export function MapExplorer() {
   useEffect(() => { openLinePanelRef.current = (p) => setLinePanel(p); });
   const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
+  const stationNamesRef = useRef<string[]>([]); // 全部站名（换乘导航搜目的站用）
+
+  // 换乘导航面板（从车站卡片「导航」打开）。
+  const [routePanel, setRoutePanel] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  const openRouteRef = useRef<(s: { name: string; lat: number; lng: number }) => void>(() => {});
+  useEffect(() => { openRouteRef.current = (s) => setRoutePanel(s); });
 
   const { user } = useAuth();
 
@@ -1109,6 +1116,7 @@ export function MapExplorer() {
       const data = (await fetch("/stations.json").then((r) => (r.ok ? r.json() : []))) as StationRow[];
       fc = stationsToFC(data);
       for (const s of data) stationCoordRef.current.set(s.name, [s.lng, s.lat]); // 供线路面板飞行定位
+      stationNamesRef.current = [...new Set(data.map((s) => s.name))]; // 换乘导航搜目的站
     } catch { /* 静默：无站点数据则空层 */ }
     // 线路详情（有序站点）：一次性加载，供点击线路 chip 展开
     try {
@@ -1171,12 +1179,19 @@ export function MapExplorer() {
         <div class="tem-st-type">${typeLabel}</div>
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
-        <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
+        <div class="tem-st-actions">
+          <button class="tem-st-nav" data-action="route"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>从这导航</button>
+          <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
+        </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
+        popup.remove();
+        openRouteRef.current({ name: p.name!, lat: coords[1], lng: coords[0] });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1554,6 +1569,40 @@ export function MapExplorer() {
     }
   }
 
+  // 换乘导航：把方案各段在地图上画成彩色折线（按线路色），并缩放到全程。
+  function showRouteLine(plan: RoutePlan) {
+    const map = mapRef.current;
+    if (!map) return;
+    const features = plan.legs
+      .map((leg) => {
+        const coordinates = leg.stations
+          .map((n) => stationCoordRef.current.get(n))
+          .filter((c): c is [number, number] => !!c);
+        return { type: "Feature" as const, geometry: { type: "LineString" as const, coordinates }, properties: { colour: leg.colour || "#2563eb" } };
+      })
+      .filter((f) => f.geometry.coordinates.length >= 2);
+    const fc: GeoJSON.FeatureCollection = { type: "FeatureCollection", features };
+    const src = map.getSource("route") as maplibregl.GeoJSONSource | undefined;
+    if (src) src.setData(fc);
+    else {
+      map.addSource("route", { type: "geojson", data: fc });
+      map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.95 } });
+      map.addLayer({ id: "route-line", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "colour"], "line-width": 5, "line-opacity": 0.95 } });
+    }
+    const all = features.flatMap((f) => f.geometry.coordinates);
+    if (all.length) {
+      const lngs = all.map((c) => c[0]), lats = all.map((c) => c[1]);
+      map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], {
+        padding: { top: 70, left: 40, right: 40, bottom: Math.round(window.innerHeight * 0.5) },
+        duration: 600,
+      });
+    }
+  }
+  function clearRouteLine() {
+    const src = mapRef.current?.getSource("route") as maplibregl.GeoJSONSource | undefined;
+    src?.setData({ type: "FeatureCollection", features: [] });
+  }
+
   return (
     <div className="absolute inset-0">
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
@@ -1669,6 +1718,16 @@ export function MapExplorer() {
             const map = mapRef.current;
             if (c && map) map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 15) });
           }}
+        />
+      )}
+
+      {routePanel && (
+        <RoutePanel
+          from={routePanel}
+          stationNames={stationNamesRef.current}
+          onClose={() => { clearRouteLine(); setRoutePanel(null); }}
+          onShowRoute={(plan) => showRouteLine(plan)}
+          onClearRoute={() => clearRouteLine()}
         />
       )}
     </div>
