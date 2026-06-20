@@ -6,9 +6,9 @@
 
 ## 2026-06-20
 
-### 测试用户头像
+### 测试用户头像（日系动漫）
 
-- 给 5 个测试账号生成头像（DiceBear `adventurer` 风格，按人设配不同柔色背景），下载存本地 `public/avatars/*.svg`（不依赖运行时外部请求）。
+- 给 5 个测试账号配头像。先尝试 DiceBear（欧美卡通，不符合需求），改为用户提供的**日系动漫整图**裁成 5 张方形头像（按人设分配：さくら=知性长发 / ケンジ=冷感乱发 / ゆい=短发鲍勃 / たけし=沉稳 / 美咲=暖笑长棕发），存 `public/avatars/*.png`（256×256，已删除旧 DiceBear svg 与源整图）。
 - `DemoUser` 加 `avatarUrl`，`ensureDemoUser` 在创建时设置、对已存在账号同步（与 coverUrl 同样的"固定形象"逻辑）。已对现有 5 个 demo 行回填。
 
 **涉及文件：** `public/avatars/{sakura,kenji,yui,takeshi,misaki}.svg`(新)、`src/lib/demoUsers.ts`、`src/services/users.ts`
