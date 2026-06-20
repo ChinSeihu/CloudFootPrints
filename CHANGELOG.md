@@ -6,6 +6,17 @@
 
 ## 2026-06-20
 
+### 换乘导航扩展到活动/店铺/景点（坐标端点接驳）
+
+- 导航不再限于车站到车站：**活动卡片、美食弹窗、名胜弹窗都加了「导航」**入口，把该地点作为终点（也可作起点）。
+- 路由引擎支持**坐标端点**：任意地点(POI)自动**就近接驳最近车站 + 步行段**(`accessWalk`/`egressWalk`)，再跑图路由；起/终点任意组合(站↔站 / 站↔POI / POI↔POI)。
+- `RoutePanel` 端点可为车站(搜名)或地点(POI 芯片，可清除改为搜站)；详情时间线含首尾步行段(距离/分钟/钟点)。
+- `/api/route` 兼容车站名(`fromStation`/`toStation`)与坐标(`fromLat/Lng/Name`…)。
+
+**涉及文件：** `src/services/routePlanner.ts`、`src/app/api/route/route.ts`、`src/components/Map/{RoutePanel,MapExplorer}.tsx`、`src/app/globals.css`
+
+---
+
 ### 换乘导航增强：起点可改 + 可收起 + 每站时刻 + 导航时隐藏活动
 
 - **起/终点都可改**：面板里起点也成了搜索框（原来固定为点进来的站），加「互换」按钮。

@@ -17,7 +17,7 @@ import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from
 import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
 import { LinePanel, type LineDetail, type PanelLine } from "./LinePanel";
-import { RoutePanel, type RoutePlan } from "./RoutePanel";
+import { RoutePanel, type RoutePlan, type RoutePlace } from "./RoutePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { GuideFab } from "@/components/Guide/GuideFab";
@@ -357,10 +357,11 @@ export function MapExplorer() {
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
   const stationNamesRef = useRef<string[]>([]); // 全部站名（换乘导航搜目的站用）
 
-  // 换乘导航面板（从车站卡片「导航」打开）。
-  const [routePanel, setRoutePanel] = useState<{ name: string; lat: number; lng: number } | null>(null);
-  const openRouteRef = useRef<(s: { name: string; lat: number; lng: number }) => void>(() => {});
-  useEffect(() => { openRouteRef.current = (s) => setRoutePanel(s); });
+  // 换乘导航面板：端点可为车站或地点(POI)。从车站卡片→起点；从活动/美食/景点→终点。
+  type RouteInit = { from?: RoutePlace; to?: RoutePlace };
+  const [routePanel, setRoutePanel] = useState<RouteInit | null>(null);
+  const openRouteRef = useRef<(init: RouteInit) => void>(() => {});
+  useEffect(() => { openRouteRef.current = (init) => setRoutePanel(init); });
 
   // 导航时隐藏活动图层（聚合/单点/标注），避免画面太乱；关闭后恢复。
   useEffect(() => {
@@ -821,6 +822,7 @@ export function MapExplorer() {
           ${venueRow}
           <div class="tem-card-foot">
             <span class="tem-card-open">查看详情 ›</span>
+            <button class="tem-card-nav" data-action="route">导航</button>
             <button class="tem-card-guide" data-action="guide">问导游</button>
             ${source}${del}
           </div>
@@ -863,6 +865,13 @@ export function MapExplorer() {
           if (action === "delete") {
             popup.remove();
             handleDeleteEventRef.current(id);
+            return;
+          }
+          if (action === "route") {
+            ev.stopPropagation();
+            popup.remove();
+            const pe = evs.find((e) => e.id === id);
+            if (pe) openRouteRef.current({ to: { name: pe.title, lat: coords[1], lng: coords[0], station: false } });
             return;
           }
           if (action === "guide") {
@@ -1200,7 +1209,7 @@ export function MapExplorer() {
         .addTo(map);
       popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
         popup.remove();
-        openRouteRef.current({ name: p.name!, lat: coords[1], lng: coords[0] });
+        openRouteRef.current({ from: { name: p.name!, lat: coords[1], lng: coords[0], station: true } });
       });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
@@ -1285,12 +1294,19 @@ export function MapExplorer() {
           </div>
         </div>
         <p class="tem-lm-desc">${escapeHtml(p.blurb ?? "")}</p>
-        <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+        <div class="tem-lm-actions">
+          <button class="tem-lm-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+          <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+        </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-lm-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
+        popup.remove();
+        openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1383,6 +1399,7 @@ export function MapExplorer() {
         ${p.tips ? `<div class="tem-food-tips"><span>💡</span>${escapeHtml(p.tips)}</div>` : ""}
         ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
         <div class="tem-food-actions">
+          <button class="tem-food-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
           <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
           ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
         </div>
@@ -1391,6 +1408,10 @@ export function MapExplorer() {
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
+        popup.remove();
+        openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1465,6 +1486,7 @@ export function MapExplorer() {
         ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
         ${chips ? `<div class="tem-food-amenities">${chips}</div>` : ""}
         <div class="tem-food-actions">
+          <button class="tem-food-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
           <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
           ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
         </div>
@@ -1473,6 +1495,10 @@ export function MapExplorer() {
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
+        popup.remove();
+        openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
+      });
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
@@ -1733,7 +1759,7 @@ export function MapExplorer() {
 
       {routePanel && (
         <RoutePanel
-          from={routePanel}
+          initial={routePanel}
           stationNames={stationNamesRef.current}
           coordOf={(name) => stationCoordRef.current.get(name)}
           onClose={() => { clearRouteLine(); setRoutePanel(null); }}
