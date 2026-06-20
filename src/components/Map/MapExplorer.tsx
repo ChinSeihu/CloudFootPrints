@@ -362,6 +362,16 @@ export function MapExplorer() {
   const openRouteRef = useRef<(s: { name: string; lat: number; lng: number }) => void>(() => {});
   useEffect(() => { openRouteRef.current = (s) => setRoutePanel(s); });
 
+  // 导航时隐藏活动图层（聚合/单点/标注），避免画面太乱；关闭后恢复。
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const vis = routePanel ? "none" : "visible";
+    for (const id of ["event-cluster-halo", "event-clusters", "event-cluster-count", "event-point-halo", "event-point", "event-glyph"]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
+    }
+  }, [routePanel]);
+
   const { user } = useAuth();
 
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -1725,6 +1735,7 @@ export function MapExplorer() {
         <RoutePanel
           from={routePanel}
           stationNames={stationNamesRef.current}
+          coordOf={(name) => stationCoordRef.current.get(name)}
           onClose={() => { clearRouteLine(); setRoutePanel(null); }}
           onShowRoute={(plan) => showRouteLine(plan)}
           onClearRoute={() => clearRouteLine()}
