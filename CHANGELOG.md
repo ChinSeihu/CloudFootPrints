@@ -6,6 +6,15 @@
 
 ## 2026-06-20
 
+### 测试用户头像
+
+- 给 5 个测试账号生成头像（DiceBear `adventurer` 风格，按人设配不同柔色背景），下载存本地 `public/avatars/*.svg`（不依赖运行时外部请求）。
+- `DemoUser` 加 `avatarUrl`，`ensureDemoUser` 在创建时设置、对已存在账号同步（与 coverUrl 同样的"固定形象"逻辑）。已对现有 5 个 demo 行回填。
+
+**涉及文件：** `public/avatars/{sakura,kenji,yui,takeshi,misaki}.svg`(新)、`src/lib/demoUsers.ts`、`src/services/users.ts`
+
+---
+
 ### 用户最后登录时间
 
 - `User` 表加 `lastLoginAt`（可空），在 `createSession` 里更新（登录 / 快速登录 / 注册建立会话时都记录，失败不影响登录）。

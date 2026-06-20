@@ -10,11 +10,11 @@ const DEMO_PASSWORD = "demo-pass-1234";
 export async function ensureDemoUser(username: string): Promise<string | null> {
   const demo = DEMO_USERS.find((d) => d.username === username);
   if (!demo) return null;
-  const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, coverUrl: true } });
+  const existing = await prisma.user.findUnique({ where: { username }, select: { id: true, coverUrl: true, avatarUrl: true } });
   if (existing) {
-    // 测试账号背景同步为当前预设（demo 账号是展示用的固定形象）
-    if (existing.coverUrl !== demo.coverUrl) {
-      await prisma.user.update({ where: { id: existing.id }, data: { coverUrl: demo.coverUrl } });
+    // 测试账号背景/头像同步为当前预设（demo 账号是展示用的固定形象）
+    if (existing.coverUrl !== demo.coverUrl || existing.avatarUrl !== demo.avatarUrl) {
+      await prisma.user.update({ where: { id: existing.id }, data: { coverUrl: demo.coverUrl, avatarUrl: demo.avatarUrl } });
     }
     return existing.id;
   }
@@ -26,6 +26,7 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
       hometown: demo.hometown,
       status: demo.status,
       coverUrl: demo.coverUrl,
+      avatarUrl: demo.avatarUrl,
     },
     select: { id: true },
   });

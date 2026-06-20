@@ -8,12 +8,13 @@ export type DemoUser = {
   hometown: string;
   status: string;
   coverUrl: string; // 资料卡背景（莫奈预设）
+  avatarUrl: string; // 头像（DiceBear 生成，存在 public/avatars/）
 };
 
 export const DEMO_USERS: DemoUser[] = [
-  { username: "さくら", signature: "展览爱好者，周末都泡在美术馆", hometown: "渋谷区", status: "在看草间弥生展 🎨", coverUrl: PRESET_COVERS[0].url },
-  { username: "ケンジ", signature: "live house 常客，摇滚不死", hometown: "下北沢", status: "求周末的好演出 🎸", coverUrl: PRESET_COVERS[1].url },
-  { username: "小林ゆい", signature: "市集与古着控", hometown: "吉祥寺", status: "周末去逛骨董市 🛍️", coverUrl: PRESET_COVERS[2].url },
-  { username: "たけし", signature: "祭典摄影爱好者", hometown: "浅草", status: "准备拍三社祭 📷", coverUrl: PRESET_COVERS[3].url },
-  { username: "美咲", signature: "咖啡与小店探店", hometown: "中目黒", status: "新店打卡进行中 ☕", coverUrl: PRESET_COVERS[4].url },
+  { username: "さくら", signature: "展览爱好者，周末都泡在美术馆", hometown: "渋谷区", status: "在看草间弥生展 🎨", coverUrl: PRESET_COVERS[0].url, avatarUrl: "/avatars/sakura.svg" },
+  { username: "ケンジ", signature: "live house 常客，摇滚不死", hometown: "下北沢", status: "求周末的好演出 🎸", coverUrl: PRESET_COVERS[1].url, avatarUrl: "/avatars/kenji.svg" },
+  { username: "小林ゆい", signature: "市集与古着控", hometown: "吉祥寺", status: "周末去逛骨董市 🛍️", coverUrl: PRESET_COVERS[2].url, avatarUrl: "/avatars/yui.svg" },
+  { username: "たけし", signature: "祭典摄影爱好者", hometown: "浅草", status: "准备拍三社祭 📷", coverUrl: PRESET_COVERS[3].url, avatarUrl: "/avatars/takeshi.svg" },
+  { username: "美咲", signature: "咖啡与小店探店", hometown: "中目黒", status: "新店打卡进行中 ☕", coverUrl: PRESET_COVERS[4].url, avatarUrl: "/avatars/misaki.svg" },
 ];
