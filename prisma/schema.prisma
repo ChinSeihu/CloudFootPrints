@@ -211,6 +211,7 @@ model User {
   coverUrl     String? // 资料卡背景图（Cloudinary URL）
   hometown     String? // 常住地（可选）
   status       String? // 状态 / 心情
+  lastLoginAt  DateTime? // 最后登录时间（每次建立会话时更新）
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { hashPassword, verifyPassword, type PublicUser } from "@/lib/auth";
+import { hashPassword, verifyPassword, toPublicUser, PUBLIC_SELECT, type PublicUser } from "@/lib/auth";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import { DEFAULT_COVER } from "@/lib/covers";
 
@@ -33,16 +33,7 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
 }
 
 // 领域逻辑：账号注册 / 登录 / 资料更新。route handler 只调用这里。
-
-const PUBLIC_SELECT = {
-  id: true,
-  username: true,
-  signature: true,
-  avatarUrl: true,
-  coverUrl: true,
-  hometown: true,
-  status: true,
-} as const;
+// 公开资料字段 PUBLIC_SELECT + toPublicUser 复用 lib/auth（统一含 lastLoginAt 序列化）。
 
 export type AuthResult = { ok: true; userId: string } | { ok: false; error: string };
 
@@ -76,7 +67,7 @@ export type ProfileUpdate = {
 };
 
 export async function updateProfile(userId: string, data: ProfileUpdate): Promise<PublicUser> {
-  return prisma.user.update({
+  const u = await prisma.user.update({
     where: { id: userId },
     data: {
       signature: data.signature ?? null,
@@ -87,4 +78,5 @@ export async function updateProfile(userId: string, data: ProfileUpdate): Promis
     },
     select: PUBLIC_SELECT,
   });
+  return toPublicUser(u);
 }

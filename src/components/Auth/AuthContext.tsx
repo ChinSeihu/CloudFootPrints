@@ -17,6 +17,7 @@ export type AuthUser = {
   coverUrl: string | null;
   hometown: string | null;
   status: string | null;
+  lastLoginAt: string | null;
 };
 
 type AuthContextValue = {

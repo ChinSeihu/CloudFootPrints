@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-06-20
+
+### 用户最后登录时间
+
+- `User` 表加 `lastLoginAt`（可空），在 `createSession` 里更新（登录 / 快速登录 / 注册建立会话时都记录，失败不影响登录）。
+- `PublicUser`/`PUBLIC_SELECT`/`toPublicUser` 统一加该字段并序列化为 ISO 字符串（lib/auth 单一来源，`services/users` 复用，去掉重复 select）；`AuthUser` 同步加字段。
+- 个人页资料卡（`ProfileHeader`）展示「最后登录 · X」（东京时区到分钟；从未登录显示「首次登录」）。
+
+**涉及文件：** `prisma/schema.prisma`、`src/lib/auth.ts`、`src/services/users.ts`、`src/components/Auth/AuthContext.tsx`、`src/components/Me/ProfileHeader.tsx`
+
+---
+
 ## 2026-06-19
 
 ### 线路详情：点击站点高亮所选站

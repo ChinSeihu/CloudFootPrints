@@ -20,6 +20,10 @@ export async function verifyPassword(pw: string, hash: string): Promise<boolean>
 }
 
 export async function createSession(userId: string): Promise<void> {
+  // 记录最后登录时间（登录/快速登录/注册都经此处）。失败不影响登录。
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
+  } catch { /* 忽略 */ }
   const token = await new SignJWT({ uid: userId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -61,9 +65,10 @@ export type PublicUser = {
   coverUrl: string | null;
   hometown: string | null;
   status: string | null;
+  lastLoginAt: string | null; // ISO 字符串（序列化给前端）
 };
 
-const PUBLIC_SELECT = {
+export const PUBLIC_SELECT = {
   id: true,
   username: true,
   signature: true,
@@ -71,11 +76,18 @@ const PUBLIC_SELECT = {
   coverUrl: true,
   hometown: true,
   status: true,
+  lastLoginAt: true,
 } as const;
+
+// 把 Prisma 行（lastLoginAt 为 Date）转成 PublicUser（ISO 字符串）。
+export function toPublicUser<T extends { lastLoginAt: Date | null }>(u: T): Omit<T, "lastLoginAt"> & { lastLoginAt: string | null } {
+  return { ...u, lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null };
+}
 
 // 当前登录用户的公开资料（无口令哈希），未登录返回 null。
 export async function getCurrentUser(): Promise<PublicUser | null> {
   const uid = await getCurrentUserId();
   if (!uid) return null;
-  return prisma.user.findUnique({ where: { id: uid }, select: PUBLIC_SELECT });
+  const u = await prisma.user.findUnique({ where: { id: uid }, select: PUBLIC_SELECT });
+  return u ? toPublicUser(u) : null;
 }

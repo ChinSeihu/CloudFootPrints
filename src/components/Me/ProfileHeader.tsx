@@ -8,6 +8,12 @@ import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 
+// 最后登录时间（东京时区，含到分钟）。
+function fmtLastLogin(iso: string | null): string {
+  if (!iso) return "首次登录";
+  return new Date(iso).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function Avatar({ url, name, size = 56 }: { url: string | null; name: string; size?: number }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -152,6 +158,12 @@ export function ProfileHeader() {
                 常住地 · {user.hometown}
               </span>
             )}
+          </div>
+        )}
+
+        {!editing && (
+          <div className={`relative mt-2 text-[11px] ${hasCover ? "text-white/70 drop-shadow" : "text-neutral-400"}`}>
+            最后登录 · {fmtLastLogin(user.lastLoginAt)}
           </div>
         )}
 
