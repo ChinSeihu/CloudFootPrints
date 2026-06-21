@@ -821,9 +821,9 @@ export function MapExplorer() {
           <div class="tem-card-title">${escapeHtml(ev.title)}</div>
           ${venueRow}
           <div class="tem-card-foot">
-            <span class="tem-card-open">查看详情 ›</span>
-            <button class="tem-card-nav" data-action="route">导航</button>
-            <button class="tem-card-guide" data-action="guide">问导游</button>
+            <button class="tem-card-act act-detail"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button>
+            <button class="tem-card-act act-nav" data-action="route"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>导航</button>
+            <button class="tem-card-act act-guide" data-action="guide"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8z"/></svg>问导游</button>
             ${source}${del}
           </div>
         </div>

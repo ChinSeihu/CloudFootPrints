@@ -426,42 +426,40 @@ body {
 }
 .tem-card-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  margin-top: 7px;
 }
-.tem-card-open {
+/* 操作 pill：图标 + 文字，分色辨识 */
+.tem-card-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 9px;
+  border: none;
+  border-radius: 9999px;
   font-size: 11px;
-  color: #2563eb;
   font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: filter 0.12s, background 0.12s;
 }
+.tem-card-act svg { display: block; }
+.tem-card-act.act-detail { background: #2563eb; color: #fff; }
+.tem-card-act.act-detail:hover { filter: brightness(1.08); }
+.tem-card-act.act-nav { background: rgba(37, 99, 235, 0.1); color: #1d4ed8; }
+.tem-card-act.act-nav:hover { background: rgba(37, 99, 235, 0.18); }
+.tem-card-act.act-guide { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
+.tem-card-act.act-guide:hover { background: rgba(124, 58, 237, 0.18); }
+/* 来源：保持低调文字链 */
 .tem-card-link {
   font-size: 11px;
   color: #64748b;
   text-decoration: none;
+  padding: 4px 4px;
 }
 .tem-card-link:hover {
-  text-decoration: underline;
-}
-.tem-card-guide {
-  font-size: 11px;
-  color: #7c3aed;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.tem-card-guide:hover {
-  text-decoration: underline;
-}
-.tem-card-nav {
-  font-size: 11px;
-  color: #2563eb;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.tem-card-nav:hover {
   text-decoration: underline;
 }
 .tem-card-del {
@@ -469,7 +467,7 @@ body {
   color: #ef4444;
   background: none;
   border: none;
-  padding: 0;
+  padding: 4px 4px;
   cursor: pointer;
   margin-left: auto;
 }
