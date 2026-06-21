@@ -6,6 +6,17 @@
 
 ## 2026-06-20
 
+### 头像统一 + 活动分享 + 「打卡」改「足迹」(梅花脚印)
+
+- **头像统一**：抽出共享 `components/common/Avatar`（有图显图、否则首字母圆底）。修复**消息回复页**只显示首字母不显示头像的问题；`EventDetail` 改用共享组件去重。
+- **分享功能**：`EventDetail` 加「分享」按钮（`components/common/ShareButton`）——优先系统分享面板(`navigator.share`，手机可直接分享到 LINE/X 等)，不支持则弹回退菜单(X / LINE / Facebook / 复制链接)。分享链接为活动深链 `/recommend?event=<id>`。
+- **「打卡」改「足迹」**：全站用户可见文案 打卡→足迹（FAB、个人页 tab、足迹弹窗、对话框、提示等；「打卡时间」→「到访时间」「打卡」按钮→「留下足迹」）；保留代码标识 `CheckIn`。
+- **地图图标换梅花脚印**：足迹点的白色对勾(√)换成**小猫梅花脚印**(大肉垫 + 四脚趾，canvas 绘制)。
+
+**涉及文件：** `src/components/common/{Avatar,ShareButton}.tsx`(新)、`src/components/Me/{MeView,EditDialogs}.tsx`、`src/components/Recommend/EventDetail.tsx`、`src/components/Map/{MapExplorer,ActionFab,CheckInDialog}.tsx`、`src/components/Auth/AuthForm.tsx`
+
+---
+
 ### 换乘导航扩展到活动/店铺/景点（坐标端点接驳）
 
 - 导航不再限于车站到车站：**活动卡片、美食弹窗、名胜弹窗都加了「导航」**入口，把该地点作为终点（也可作起点）。

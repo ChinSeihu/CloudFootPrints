@@ -604,11 +604,11 @@ export function MapExplorer() {
 
   const handleDeleteCheckin = useCallback((id: string) => {
     setConfirmBox({
-      message: "确定删除这条打卡吗？",
+      message: "确定删除这条足迹吗？",
       onOk: async () => {
         const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
         if (res.ok) {
-          showToast("打卡已删除");
+          showToast("足迹已删除");
           await fetchCheckinsRef.current();
         } else {
           showToast("删除失败");
@@ -996,25 +996,29 @@ export function MapExplorer() {
       clusterMaxZoom: 15,
     });
 
-    // 打卡专属图标：白色对勾（√）。canvas 画一个，注册成地图图标，
-    // 叠在单个打卡的琥珀圆上 → 与活动点（无对勾）一眼区分。
-    if (!map.hasImage("checkin-tick")) {
+    // 足迹专属图标：白色小猫梅花脚印（大肉垫 + 四脚趾）。canvas 画一个注册成地图图标，
+    // 叠在单个足迹的琥珀圆上 → 与活动点一眼区分。
+    if (!map.hasImage("checkin-paw")) {
       const s = 44;
       const cv = document.createElement("canvas");
       cv.width = s;
       cv.height = s;
       const cx = cv.getContext("2d");
       if (cx) {
-        cx.strokeStyle = "#fff";
-        cx.lineWidth = s * 0.13;
-        cx.lineCap = "round";
-        cx.lineJoin = "round";
+        cx.fillStyle = "#fff";
+        // 大肉垫
         cx.beginPath();
-        cx.moveTo(s * 0.28, s * 0.52);
-        cx.lineTo(s * 0.44, s * 0.68);
-        cx.lineTo(s * 0.74, s * 0.34);
-        cx.stroke();
-        map.addImage("checkin-tick", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
+        cx.ellipse(s * 0.5, s * 0.64, s * 0.2, s * 0.165, 0, 0, Math.PI * 2);
+        cx.fill();
+        // 四个脚趾（梅花瓣）
+        const toes: [number, number, number][] = [
+          [0.30, 0.45, 0.088],
+          [0.42, 0.30, 0.094],
+          [0.58, 0.30, 0.094],
+          [0.70, 0.45, 0.088],
+        ];
+        for (const [tx, ty, tr] of toes) { cx.beginPath(); cx.arc(s * tx, s * ty, s * tr, 0, Math.PI * 2); cx.fill(); }
+        map.addImage("checkin-paw", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
       }
     }
 
@@ -1065,15 +1069,15 @@ export function MapExplorer() {
         "circle-radius": 9,
       },
     });
-    // 白色对勾叠在打卡圆上
+    // 白色梅花脚印叠在足迹圆上
     map.addLayer({
       id: "checkin-tick-icon",
       type: "symbol",
       source: "checkins",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": "checkin-tick",
-        "icon-size": 0.6,
+        "icon-image": "checkin-paw",
+        "icon-size": 0.72,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -1098,12 +1102,12 @@ export function MapExplorer() {
       if (!f) return;
       const p = f.properties ?? {};
       const html = `<div style="font-size:13px;max-width:200px;line-height:1.5;padding:10px 12px">
-        <div style="font-weight:600;margin-bottom:2px">我的打卡</div>
+        <div style="font-weight:600;margin-bottom:2px">我的足迹</div>
         <div style="color:#888;font-size:11px;margin-bottom:3px">${escapeHtml(String(p.when ?? ""))}</div>
         ${p.title ? `<div style="color:#666;margin-bottom:2px">${escapeHtml(String(p.title))}</div>` : ""}
         ${p.rating ? `<div style="color:#f59e0b;margin-bottom:2px">评分 ${Number(p.rating)}/5</div>` : ""}
         ${p.note ? `<div style="color:#444;margin-bottom:4px">${escapeHtml(String(p.note))}</div>` : ""}
-        <button data-action="delete-checkin" data-id="${escapeHtml(String(p.id))}" style="color:#ef4444;font-size:11px;background:none;border:none;cursor:pointer;padding:0">删除打卡</button>
+        <button data-action="delete-checkin" data-id="${escapeHtml(String(p.id))}" style="color:#ef4444;font-size:11px;background:none;border:none;cursor:pointer;padding:0">删除足迹</button>
       </div>`;
 
       const popup = new mlg.Popup({ offset: 12, closeButton: false })
@@ -1537,7 +1541,7 @@ export function MapExplorer() {
 
   function openPlacement(m: Mode) {
     if (!user) {
-      showToast("请先到「个人」页登录后再打卡 / 发帖");
+      showToast("请先到「个人」页登录后再记录足迹 / 发帖");
       return;
     }
     const map = mapRef.current;
@@ -1580,10 +1584,10 @@ export function MapExplorer() {
     clearPlacing();
     setDialogAt(null);
     if (res.ok) {
-      showToast("已打卡");
+      showToast("已留下足迹");
       await fetchCheckins();
     } else {
-      showToast("打卡失败（数据库可能未配置）");
+      showToast("记录失败（数据库可能未配置）");
     }
   }
 

@@ -268,9 +268,9 @@ export function EditCheckInDialog({
   }
 
   return (
-    <Modal title="编辑打卡" onClose={onClose}>
+    <Modal title="编辑足迹" onClose={onClose}>
       <div className="mb-5">
-        <label className={labelCls}>打卡时间</label>
+        <label className={labelCls}>到访时间</label>
         <DateTimeField value={visitedAt} onChange={setVisitedAt} placeholder="默认现在" />
       </div>
 

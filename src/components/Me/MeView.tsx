@@ -9,6 +9,7 @@ import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
+import { Avatar } from "@/components/common/Avatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
@@ -104,7 +105,7 @@ function MeContent() {
 
   function deleteCheckin(id: string) {
     setConfirmBox({
-      message: "确定删除这条打卡吗？",
+      message: "确定删除这条足迹吗？",
       onOk: async () => {
         const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
         if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
@@ -124,7 +125,7 @@ function MeContent() {
           <div className="h-28 rounded-2xl bg-neutral-100 grid place-items-center text-neutral-400">
             <div className="text-center px-4">
               <IconStar className="w-6 h-6 mx-auto mb-1 opacity-50" />
-              <p className="text-xs">打卡时上传照片，这里会拼成你的足迹相册</p>
+              <p className="text-xs">记录足迹时上传照片，这里会拼成你的足迹相册</p>
             </div>
           </div>
         ) : (
@@ -146,7 +147,7 @@ function MeContent() {
       <div className="px-4 pt-3 pb-1">
         <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">
           {([
-            ["checkins", "打卡", checkins.length, IconStar],
+            ["checkins", "足迹", checkins.length, IconStar],
             ["posts", "发帖", posts.length, IconPin],
             ["favorites", "收藏", favorites.length, IconBookmark],
             ["messages", "消息", notices.length, IconBell],
@@ -185,7 +186,7 @@ function MeContent() {
         ) : tab === "checkins" ? (
           <>{/* 打卡 */}
             {loaded && checkins.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有打卡。回到地图页，用右下角的 ＋ 打卡。</p>
+              <p className="text-sm text-neutral-500">还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</p>
             )}
             <ol className="relative border-l border-neutral-200 ml-2">
               {checkins.map((c) => (
@@ -401,9 +402,7 @@ function MeContent() {
                     className="w-full text-left rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold grid place-items-center shrink-0">
-                        {(n.author?.username ?? "用户").slice(0, 1).toUpperCase()}
-                      </span>
+                      <Avatar user={n.author} size={28} />
                       <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
                       <span className="text-[11px] text-neutral-400 shrink-0">
                         {n.type === "reply" ? "回复了你的评论" : "评论了你的帖子"}

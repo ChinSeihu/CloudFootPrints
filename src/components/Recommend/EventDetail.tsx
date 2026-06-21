@@ -9,7 +9,9 @@ import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
-import type { EventDTO, CommentDTO, UserBrief } from "@/lib/types";
+import { Avatar } from "@/components/common/Avatar";
+import { ShareButton } from "@/components/common/ShareButton";
+import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
 function fmtRange(start: string | null, end: string | null): string {
@@ -23,30 +25,6 @@ function fmtRange(start: string | null, end: string | null): string {
   const s = new Date(start).toLocaleString("zh-CN", opt);
   if (!end) return s;
   return `${s} — ${new Date(end).toLocaleString("zh-CN", opt)}`;
-}
-
-// 用户头像：有图用图，否则首字母圆形兜底。
-function Avatar({ user, size = 32 }: { user: UserBrief | null | undefined; size?: number }) {
-  const name = user?.username ?? "用户";
-  if (user?.avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={user.avatarUrl}
-        alt={name}
-        className="rounded-full object-cover shrink-0"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <div
-      className="rounded-full bg-blue-100 text-blue-600 font-semibold grid place-items-center shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.42 }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </div>
-  );
 }
 
 // 活动详情：全屏铺满（同发帖 form）；下滑时头部（分类/标题/日期）固定，其余滚动。
@@ -482,6 +460,11 @@ export function EventDetail({
             <IconMap className="w-4 h-4" />
             看地图
           </button>
+          <ShareButton
+            title={event.title}
+            url={`${typeof window !== "undefined" ? window.location.origin : ""}/recommend?event=${event.id}`}
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg border border-neutral-300 text-neutral-700"
+          />
           {event.sourceUrl && (
             <a
               href={event.sourceUrl}

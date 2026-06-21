@@ -92,14 +92,14 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
   }
 
   return (
-    <BottomSheet title="打卡 · 我来过" hint="拖动地图上的蓝色锚点定位" onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet title="足迹 · 我来过" hint="拖动地图上的蓝色锚点定位" onClose={onCancel} onSnapChange={onSnapChange}>
       <div className="inline-flex items-center gap-1 text-[11px] text-neutral-500 bg-neutral-100 rounded-full px-2.5 py-1 mb-5">
         <IconPin className="w-3 h-3" />
         {lat.toFixed(5)}, {lng.toFixed(5)}
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>打卡时间</label>
+        <label className={labelCls}>到访时间</label>
         <DateTimeField value={visitedAt} onChange={setVisitedAt} placeholder="默认现在" />
       </div>
 
@@ -182,7 +182,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
           disabled={submitting}
           className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
         >
-          {phase === "uploading" ? "上传图片…" : submitting ? "保存中…" : "打卡"}
+          {phase === "uploading" ? "上传图片…" : submitting ? "保存中…" : "留下足迹"}
         </button>
       </div>
     </BottomSheet>

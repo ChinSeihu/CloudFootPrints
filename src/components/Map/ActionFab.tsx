@@ -38,14 +38,14 @@ export function ActionFab({
             className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-full bg-white text-neutral-800 text-sm shadow-lg border border-black/5"
           >
             <IconStar className="w-4 h-4 text-amber-500" />
-            打卡 · 我来过
+            足迹 · 我来过
           </button>
         </>
       )}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="打卡或发帖"
+        aria-label="记录足迹或发帖"
         className="h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center active:scale-95 transition"
       >
         <IconPlus className={`w-7 h-7 transition-transform ${open ? "rotate-45" : ""}`} />
