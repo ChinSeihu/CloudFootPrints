@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "./AuthContext";
 import { fieldCls } from "@/components/Map/formStyles";
+import { Avatar } from "@/components/common/Avatar";
 import { DEMO_USERS } from "@/lib/demoUsers";
 
 // 登录 / 注册表单（本地账号）。成功后写入全局登录态。
@@ -118,9 +119,7 @@ export function AuthForm() {
               disabled={submitting}
               className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl border border-neutral-200 transition hover:bg-neutral-50 disabled:opacity-50"
             >
-              <span className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 font-semibold grid place-items-center shrink-0">
-                {d.username.slice(0, 1)}
-              </span>
+              <Avatar user={{ username: d.username, avatarUrl: d.avatarUrl }} size={36} />
               <span className="min-w-0">
                 <span className="block text-sm font-medium text-neutral-800">{d.username}</span>
                 <span className="block text-xs text-neutral-400 truncate">{d.status}</span>
