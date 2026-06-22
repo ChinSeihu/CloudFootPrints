@@ -198,8 +198,16 @@ function MeContent() {
                     </time>
                     <button
                       type="button"
+                      onClick={() => router.push(`/?lat=${c.lat}&lng=${c.lng}`)}
+                      className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-neutral-400 hover:text-blue-500 transition"
+                    >
+                      <IconMap className="w-3.5 h-3.5" />
+                      在地图
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setEditingCheckin(c)}
-                      className="ml-auto text-[11px] text-neutral-400 hover:text-blue-500 transition"
+                      className="text-[11px] text-neutral-400 hover:text-blue-500 transition"
                     >
                       编辑
                     </button>
