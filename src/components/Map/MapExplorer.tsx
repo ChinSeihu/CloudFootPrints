@@ -1121,7 +1121,6 @@ export function MapExplorer() {
           ${p.title ? `<div class="tem-ci-event">${escapeHtml(String(p.title))}</div>` : ""}
           ${stars}
           ${p.note ? `<div class="tem-ci-note">${escapeHtml(String(p.note))}</div>` : ""}
-          <button class="tem-ci-del" data-action="delete-checkin" data-id="${escapeHtml(String(p.id))}">删除足迹</button>
         </div>
       </div>`;
 
@@ -1131,10 +1130,6 @@ export function MapExplorer() {
         .addTo(map);
 
       const root = popup.getElement();
-      root?.querySelector('[data-action="delete-checkin"]')?.addEventListener("click", () => {
-        popup.remove();
-        handleDeleteCheckinRef.current(p.id as string);
-      });
       // 多图：滑动更新「N/总数」，点图开大图
       const gal = root?.querySelector<HTMLElement>(".tem-ci-gallery");
       const cnt = root?.querySelector<HTMLElement>(".tem-ci-count");
