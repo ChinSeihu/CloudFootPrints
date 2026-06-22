@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "请先登录后再打卡" }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "请先登录后再记录足迹" }, { status: 401 });
 
   const b = (body ?? {}) as Record<string, unknown>;
   const result = await createCheckin(

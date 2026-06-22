@@ -320,6 +320,8 @@ function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poi
         title: c.event?.title ?? "",
         note: c.note ?? "",
         rating: c.rating ?? 0,
+        // GeoJSON 属性存字符串，点击时解析
+        photos: JSON.stringify(c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : []),
         when: new Date(c.createdAt).toLocaleString("zh-CN", {
           month: "numeric",
           day: "numeric",
@@ -1101,26 +1103,48 @@ export function MapExplorer() {
       const f = e.features?.[0];
       if (!f) return;
       const p = f.properties ?? {};
-      const html = `<div style="font-size:13px;max-width:200px;line-height:1.5;padding:10px 12px">
-        <div style="font-weight:600;margin-bottom:2px">我的足迹</div>
-        <div style="color:#888;font-size:11px;margin-bottom:3px">${escapeHtml(String(p.when ?? ""))}</div>
-        ${p.title ? `<div style="color:#666;margin-bottom:2px">${escapeHtml(String(p.title))}</div>` : ""}
-        ${p.rating ? `<div style="color:#f59e0b;margin-bottom:2px">评分 ${Number(p.rating)}/5</div>` : ""}
-        ${p.note ? `<div style="color:#444;margin-bottom:4px">${escapeHtml(String(p.note))}</div>` : ""}
-        <button data-action="delete-checkin" data-id="${escapeHtml(String(p.id))}" style="color:#ef4444;font-size:11px;background:none;border:none;cursor:pointer;padding:0">删除足迹</button>
+      let photos: string[] = [];
+      try { photos = JSON.parse((p.photos as string) || "[]"); } catch { /* ignore */ }
+      const rating = Number(p.rating ?? 0);
+      const stars = rating ? `<div class="tem-ci-rating">${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}</div>` : "";
+      const gallery = photos.length
+        ? `<div class="tem-ci-galwrap">
+            <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>
+            ${photos.length > 1 ? `<div class="tem-ci-count">1/${photos.length}</div>` : ""}
+          </div>`
+        : "";
+      const html = `<div class="tem-ci">
+        ${gallery}
+        <div class="tem-ci-body">
+          <div class="tem-ci-title">我的足迹</div>
+          <div class="tem-ci-when">${escapeHtml(String(p.when ?? ""))}</div>
+          ${p.title ? `<div class="tem-ci-event">${escapeHtml(String(p.title))}</div>` : ""}
+          ${stars}
+          ${p.note ? `<div class="tem-ci-note">${escapeHtml(String(p.note))}</div>` : ""}
+          <button class="tem-ci-del" data-action="delete-checkin" data-id="${escapeHtml(String(p.id))}">删除足迹</button>
+        </div>
       </div>`;
 
-      const popup = new mlg.Popup({ offset: 12, closeButton: false })
+      const popup = new mlg.Popup({ offset: 12, closeButton: true, maxWidth: "240px", className: "tem-checkin-popup" })
         .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
         .setHTML(html)
         .addTo(map);
 
-      popup.getElement()
-        ?.querySelector('[data-action="delete-checkin"]')
-        ?.addEventListener("click", () => {
-          popup.remove();
-          handleDeleteCheckinRef.current(p.id as string);
+      const root = popup.getElement();
+      root?.querySelector('[data-action="delete-checkin"]')?.addEventListener("click", () => {
+        popup.remove();
+        handleDeleteCheckinRef.current(p.id as string);
+      });
+      // 多图：滑动更新「N/总数」，点图开大图
+      const gal = root?.querySelector<HTMLElement>(".tem-ci-gallery");
+      const cnt = root?.querySelector<HTMLElement>(".tem-ci-count");
+      if (gal) {
+        if (cnt) gal.addEventListener("scroll", () => {
+          const idx = Math.min(photos.length, Math.round(gal.scrollLeft / gal.clientWidth) + 1);
+          cnt.textContent = `${idx}/${photos.length}`;
         });
+        gal.addEventListener("click", () => openLightboxRef.current(photos));
+      }
     });
 
     for (const layer of ["checkin-clusters", "checkin-point"]) {
