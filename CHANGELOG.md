@@ -12,8 +12,8 @@
   - 新增共享组件 `src/components/common/EventSource.tsx`（来源徽标 `SourceBadge` + 来源筛选 `SourceFilter`）。
   - **推荐页 / 日历页**：新增「全部来源 / 官方 / 个人」筛选；卡片/清单加来源徽标（官方=天蓝✓、个人=琥珀👤）。
   - **地图**：活动弹窗加来源徽标；个人发帖的标记改用**琥珀色粗描边**（官方仍为白边）以区分。
-- **测试数据配图修复**：原 `picsum.photos` 外链被网络拦截、加载不出。改为把按分类挑选的真实活动图（walkerplus/jalan）通过 **Cloudinary unsigned upload（远程 URL 抓取）** 托管；若 upload preset 无效则降级直接用源图 URL（列表/弹窗仍可显示）。
-  - ⚠️ 发现 `.env` 的 `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` 当前值像是 API Key 而非有效的 unsigned 预设名（Cloudinary 报 "Upload preset not found"）——这同样会导致真人打卡/发帖上传失败，需在 Cloudinary 后台创建 unsigned 预设并填入其名字，之后重跑 `scripts/seed-demo.ts` 即可迁入 Cloudinary。
+- **测试数据配图修复**：原 `picsum.photos` 外链被网络拦截、加载不出。改为把按分类挑选的真实活动图（walkerplus/jalan）通过 **Cloudinary unsigned upload（远程 URL 抓取）** 托管，得到自带 CORS 的 `res.cloudinary.com` 链接（列表/弹窗/个人页/地图缩略图均可显示）。脚本含降级：upload 失败时直接用源图 URL。
+  - 🐞 **修正本地 `.env` 的 Cloudinary 配置**：原值 cloud=`Root`、preset=`825924217519448`（后者实为 API Key），均不可用，导致本地打卡/发帖上传与种子脚本上传全部失败（线上 Vercel 配置正常，故仅本地受影响）。已更正为正确的 cloud name 与 unsigned 预设名；种子图已全部迁入 Cloudinary。（`.env` 不入库，值不在此记录。）
 
 **涉及文件：** `src/components/common/EventSource.tsx`、`src/components/Recommend/RecommendList.tsx`、`src/components/Calendar/CalendarView.tsx`、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`、`scripts/seed-demo.ts`
 
