@@ -309,28 +309,77 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
   };
 }
 
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  // 按时间正序编号「第 N 个足迹」
+  const seqOf = new Map(
+    [...list].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)).map((c, i) => [c.id, i + 1]),
+  );
   return {
     type: "FeatureCollection",
-    features: list.map((c) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [c.lng, c.lat] },
-      properties: {
-        id: c.id,
-        title: c.event?.title ?? "",
-        note: c.note ?? "",
-        rating: c.rating ?? 0,
-        // GeoJSON 属性存字符串，点击时解析
-        photos: JSON.stringify(c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : []),
-        when: new Date(c.createdAt).toLocaleString("zh-CN", {
-          month: "numeric",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      },
-    })),
+    features: list.map((c) => {
+      const d = new Date(c.createdAt);
+      const photos = c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : [];
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [c.lng, c.lat] },
+        properties: {
+          id: c.id,
+          title: c.event?.title ?? "",
+          note: c.note ?? "",
+          rating: c.rating ?? 0,
+          seq: seqOf.get(c.id) ?? 0,
+          hasPhoto: photos.length ? 1 : 0,
+          photo: photos[0] ?? "", // 缩略图标记用
+          // GeoJSON 属性存字符串，点击时解析
+          photos: JSON.stringify(photos),
+          when: `${d.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 周${WEEKDAYS[d.getDay()]}`,
+        },
+      };
+    }),
   };
+}
+
+// 足迹轨迹线：按时间正序连点（≥2 点才成线）。
+function checkinTrailToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection {
+  const pts = [...list]
+    .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+    .map((c) => [c.lng, c.lat] as [number, number]);
+  return {
+    type: "FeatureCollection",
+    features: pts.length >= 2 ? [{ type: "Feature", geometry: { type: "LineString", coordinates: pts }, properties: {} }] : [],
+  };
+}
+
+// 给有照片的足迹注册圆形缩略图地图图标（ci-photo-<id>）。跨域失败则跳过（回退脚印）。
+function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
+  if (!map) return;
+  for (const c of list) {
+    const url = c.photoUrls?.[0] ?? c.photoUrl;
+    const key = `ci-photo-${c.id}`;
+    if (!url || map.hasImage(key)) continue;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (map.hasImage(key)) return;
+      const s = 96;
+      const cv = document.createElement("canvas");
+      cv.width = s; cv.height = s;
+      const cx = cv.getContext("2d");
+      if (!cx) return;
+      cx.save();
+      cx.beginPath(); cx.arc(s / 2, s / 2, s / 2 - 4, 0, Math.PI * 2); cx.clip();
+      const r = Math.max(s / img.width, s / img.height);
+      const w = img.width * r, h = img.height * r;
+      cx.drawImage(img, (s - w) / 2, (s - h) / 2, w, h);
+      cx.restore();
+      cx.lineWidth = 5; cx.strokeStyle = "#fff";
+      cx.beginPath(); cx.arc(s / 2, s / 2, s / 2 - 3, 0, Math.PI * 2); cx.stroke();
+      try { if (!map.hasImage(key)) { map.addImage(key, cx.getImageData(0, 0, s, s), { pixelRatio: 3 }); map.triggerRepaint(); } } catch { /* CORS 失败 → 回退脚印 */ }
+    };
+    img.onerror = () => { /* 失败 → 回退脚印 */ };
+    img.src = url;
+  }
 }
 
 type Mode = "checkin" | "post";
@@ -400,6 +449,7 @@ export function MapExplorer() {
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [showStations, setShowStations] = useState(true);
+  const [showTrail, setShowTrail] = useState(false); // 足迹轨迹线
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
   const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
   const [foodMenuOpen, setFoodMenuOpen] = useState(false);
@@ -447,6 +497,13 @@ export function MapExplorer() {
       map.setLayoutProperty("station-icon", "visibility", showStations ? "visible" : "none");
     }
   }, [mapReady, showStations]);
+  // 足迹轨迹线开关
+  useEffect(() => {
+    const map = mapRef.current;
+    if (mapReady && map && map.getLayer("checkin-trail")) {
+      map.setLayoutProperty("checkin-trail", "visibility", showTrail ? "visible" : "none");
+    }
+  }, [mapReady, showTrail]);
 
   // 美食筛选（读取/持久化 + 切换图层 visibility + 按菜系过滤）
   useEffect(() => {
@@ -584,6 +641,9 @@ export function MapExplorer() {
   const updateCheckinSource = useCallback(() => {
     const src = mapRef.current?.getSource("checkins") as maplibregl.GeoJSONSource | undefined;
     src?.setData(checkinsToFC(checkinsRef.current));
+    const trail = mapRef.current?.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
+    trail?.setData(checkinTrailToFC(checkinsRef.current));
+    loadCheckinPhotos(mapRef.current, checkinsRef.current);
   }, []);
 
   const fetchCheckins = useCallback(async () => {
@@ -998,6 +1058,16 @@ export function MapExplorer() {
       clusterMaxZoom: 15,
     });
 
+    // 足迹轨迹线（按时间连点），垫在所有足迹点之下；默认隐藏，由「足迹路线」开关控制。
+    map.addSource("checkin-trail", { type: "geojson", data: checkinTrailToFC(checkinsRef.current) });
+    map.addLayer({
+      id: "checkin-trail",
+      type: "line",
+      source: "checkin-trail",
+      layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
+      paint: { "line-color": "#f59e0b", "line-width": 2.5, "line-opacity": 0.65, "line-dasharray": [1.5, 1.5] },
+    });
+
     // 足迹专属图标：白色小猫梅花脚印（大肉垫 + 四脚趾）。canvas 画一个注册成地图图标，
     // 叠在单个足迹的琥珀圆上 → 与活动点一眼区分。
     if (!map.hasImage("checkin-paw")) {
@@ -1023,6 +1093,7 @@ export function MapExplorer() {
         map.addImage("checkin-paw", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
       }
     }
+    loadCheckinPhotos(map, checkinsRef.current); // 注册有照片足迹的缩略图标
 
     map.addLayer({
       id: "checkin-cluster-halo",
@@ -1059,6 +1130,7 @@ export function MapExplorer() {
       },
       paint: { "text-color": "#fff" },
     });
+    // 琥珀圆（所有单个足迹的底）：无照片显脚印、有照片则被缩略图盖住
     map.addLayer({
       id: "checkin-point",
       type: "circle",
@@ -1071,14 +1143,14 @@ export function MapExplorer() {
         "circle-radius": 9,
       },
     });
-    // 白色梅花脚印叠在足迹圆上
+    // 叠加图标：有照片缩略图(ci-photo-id，较大盖住圆)→ 否则白色梅花脚印
     map.addLayer({
       id: "checkin-tick-icon",
       type: "symbol",
       source: "checkins",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": "checkin-paw",
+        "icon-image": ["coalesce", ["image", ["concat", "ci-photo-", ["get", "id"]]], ["image", "checkin-paw"]],
         "icon-size": 0.72,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -1116,7 +1188,10 @@ export function MapExplorer() {
       const html = `<div class="tem-ci">
         ${gallery}
         <div class="tem-ci-body">
-          <div class="tem-ci-title">我的足迹</div>
+          <div class="tem-ci-titlerow">
+            <span class="tem-ci-title">我的足迹</span>
+            ${p.seq ? `<span class="tem-ci-seq">第 ${Number(p.seq)} 个</span>` : ""}
+          </div>
           <div class="tem-ci-when">${escapeHtml(String(p.when ?? ""))}</div>
           ${p.title ? `<div class="tem-ci-event">${escapeHtml(String(p.title))}</div>` : ""}
           ${stars}
@@ -1727,6 +1802,16 @@ export function MapExplorer() {
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
             车站
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTrail((v) => !v)}
+            className={`pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
+              showTrail ? "bg-amber-500 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 19c2 0 2-3 4-3s2 3 4 3 2-4 4-4" /><circle cx="5" cy="19" r="1.4" /><circle cx="19" cy="15" r="1.4" /></svg>
+            足迹路线
           </button>
         </div>
       </div>

@@ -65,6 +65,24 @@ function MeContent() {
     [checkins],
   );
 
+  // 足迹统计：总数 / 照片数 / 活跃天数
+  const footStats = useMemo(() => {
+    const photoCount = checkins.reduce((n, c) => n + (c.photoUrls?.length || (c.photoUrl ? 1 : 0)), 0);
+    const days = new Set(checkins.map((c) => new Date(c.createdAt).toLocaleDateString("zh-CN")));
+    return { total: checkins.length, photos: photoCount, days: days.size };
+  }, [checkins]);
+
+  // 足迹按「年-月」分组（checkins 已按时间倒序），保留顺序
+  const footGroups = useMemo(() => {
+    const m = new Map<string, CheckInDTO[]>();
+    for (const c of checkins) {
+      const d = new Date(c.createdAt);
+      const k = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+      (m.get(k) ?? m.set(k, []).get(k)!).push(c);
+    }
+    return [...m.entries()];
+  }, [checkins]);
+
   // 消息未读：以「最后已读时间」之后产生的消息计未读（localStorage 按用户存）
   const readKey = user ? `tem_replies_read_${user.id}` : null;
   const [lastRead, setLastRead] = useState(0);
@@ -184,12 +202,25 @@ function MeContent() {
             ))}
           </div>
         ) : tab === "checkins" ? (
-          <>{/* 打卡 */}
+          <>{/* 足迹 */}
             {loaded && checkins.length === 0 && (
               <p className="text-sm text-neutral-500">还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</p>
             )}
-            <ol className="relative border-l border-neutral-200 ml-2">
-              {checkins.map((c) => (
+            {checkins.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                {([["足迹", footStats.total], ["照片", footStats.photos], ["活跃天", footStats.days]] as const).map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-neutral-50 px-3 py-2.5 text-center">
+                    <div className="text-xl font-semibold text-neutral-800 tabular-nums">{value}</div>
+                    <div className="text-[11px] text-neutral-400 mt-0.5">{label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {footGroups.map(([month, items]) => (
+            <div key={month} className="mb-5">
+              <div className="text-xs font-medium text-neutral-400 mb-2">{month} · {items.length} 处</div>
+              <ol className="relative border-l border-neutral-200 ml-2">
+              {items.map((c) => (
                 <li key={c.id} className="mb-5 ml-4">
                   <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-blue-600 border border-white" />
                   <div className="flex items-center gap-2">
@@ -246,7 +277,7 @@ function MeContent() {
                             alt=""
                             loading="lazy"
                             onClick={() => setLightbox({ images: imgs, index: i })}
-                            className="w-20 h-20 rounded-lg object-cover cursor-zoom-in"
+                            className="w-24 h-24 rounded-lg object-cover cursor-zoom-in"
                           />
                         ))}
                       </div>
@@ -254,7 +285,9 @@ function MeContent() {
                   })()}
                 </li>
               ))}
-            </ol>
+              </ol>
+            </div>
+            ))}
           </>
         ) : tab === "posts" ? (
           <>{/* 发帖 */}
