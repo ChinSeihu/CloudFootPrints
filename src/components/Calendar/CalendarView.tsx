@@ -5,6 +5,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { CategoryIcon, IconPin, IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
+import { SourceBadge, SourceFilter, matchSource, type SourceSel } from "@/components/common/EventSource";
 import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
 
@@ -40,11 +41,12 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   const [detail, setDetail] = useState<EventDTO | null>(null);
   const [dayTab, setDayTab] = useState<"starting" | "ongoing">("starting");
   const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
+  const [source, setSource] = useState<SourceSel>("ALL");
 
-  // 按分类筛选后的活动
+  // 按分类 + 来源筛选后的活动
   const catEvents = useMemo(
-    () => (cat === "ALL" ? events : events.filter((e) => e.category === cat)),
-    [events, cat],
+    () => events.filter((e) => (cat === "ALL" || e.category === cat) && matchSource(source, e.sourceType)),
+    [events, cat, source],
   );
 
   // 按东京日期把活动分组。长期活动（startTime→endTime 跨多天）在展期每一天都出现。
@@ -242,6 +244,11 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
         })}
       </div>
 
+      {/* 来源筛选：官方抓取 vs 个人发帖 */}
+      <div className="mt-2">
+        <SourceFilter value={source} onChange={setSource} />
+      </div>
+
       {/* 选中日期的活动清单 */}
       <div className="mt-3">
         <h2 className="text-sm font-medium text-neutral-700 mb-2 px-1 flex items-center gap-2 flex-wrap">
@@ -300,7 +307,10 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
                       <CategoryIcon category={ev.category} className="w-4 h-4 mt-1 text-neutral-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[11px] text-neutral-500 mb-0.5">{meta.label}</div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-neutral-500 mb-0.5">
+                        <span>{meta.label}</span>
+                        <SourceBadge sourceType={ev.sourceType} />
+                      </div>
                       <h3 className="text-sm font-medium leading-snug">{ev.title}</h3>
                       {ev.venueName && (
                         <div className="flex items-center gap-1 text-xs text-neutral-500 mt-0.5">

@@ -6,6 +6,19 @@
 
 ## 2026-06-22
 
+### 官方/个人来源区分 + 测试数据配图改用 Cloudinary
+
+- **官方活动 vs 个人发帖区分**（仅 UI，无需改数据结构；约定 `sourceType === "USER"` 为个人发帖）：
+  - 新增共享组件 `src/components/common/EventSource.tsx`（来源徽标 `SourceBadge` + 来源筛选 `SourceFilter`）。
+  - **推荐页 / 日历页**：新增「全部来源 / 官方 / 个人」筛选；卡片/清单加来源徽标（官方=天蓝✓、个人=琥珀👤）。
+  - **地图**：活动弹窗加来源徽标；个人发帖的标记改用**琥珀色粗描边**（官方仍为白边）以区分。
+- **测试数据配图修复**：原 `picsum.photos` 外链被网络拦截、加载不出。改为把按分类挑选的真实活动图（walkerplus/jalan）通过 **Cloudinary unsigned upload（远程 URL 抓取）** 托管；若 upload preset 无效则降级直接用源图 URL（列表/弹窗仍可显示）。
+  - ⚠️ 发现 `.env` 的 `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` 当前值像是 API Key 而非有效的 unsigned 预设名（Cloudinary 报 "Upload preset not found"）——这同样会导致真人打卡/发帖上传失败，需在 Cloudinary 后台创建 unsigned 预设并填入其名字，之后重跑 `scripts/seed-demo.ts` 即可迁入 Cloudinary。
+
+**涉及文件：** `src/components/common/EventSource.tsx`、`src/components/Recommend/RecommendList.tsx`、`src/components/Calendar/CalendarView.tsx`、`src/components/Map/MapExplorer.tsx`、`src/app/globals.css`、`scripts/seed-demo.ts`
+
+---
+
 ### 测试账号真人化数据 + 筛选整理 + 地图照片放大
 
 - **测试账号填充**：给 5 个 demo 账号（さくら/ケンジ/小林ゆい/たけし/美咲）按各自人设灌入日记式足迹（22 条，真实地点坐标、跨多周时间线、部分配图）+ 在地图的发帖（5 条，含封面）。脚本 `scripts/seed-demo.ts` 可重复执行（每次先清旧再重灌）。

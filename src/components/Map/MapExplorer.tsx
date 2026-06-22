@@ -797,9 +797,10 @@ export function MapExplorer() {
         "circle-color": CATEGORY_COLOR_EXPR,
         "circle-opacity": 0.92,
         "circle-radius": 14,
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2.5,
-        "circle-stroke-opacity": 0.9,
+        // 个人发帖：琥珀色描边 + 更粗，与官方活动（白边）区分
+        "circle-stroke-color": ["case", ["==", ["get", "sourceType"], "USER"], "#f59e0b", "#fff"],
+        "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 3.5, 2.5],
+        "circle-stroke-opacity": 0.95,
       },
     });
 
@@ -876,10 +877,13 @@ export function MapExplorer() {
       const del = ev.sourceType === "USER"
         ? `<button class="tem-card-del" data-action="delete">删除</button>`
         : "";
+      const srcBadge = ev.sourceType === "USER"
+        ? `<span class="tem-card-src tem-src-user">个人</span>`
+        : `<span class="tem-card-src tem-src-official">官方</span>`;
       return `<div class="tem-card" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
         <span class="tem-card-bar" style="background:${color}"></span>
         <div class="tem-card-body">
-          <div class="tem-card-cat" style="color:${color}">${escapeHtml(label)} · ${when}</div>
+          <div class="tem-card-cat" style="color:${color}">${srcBadge}${escapeHtml(label)} · ${when}</div>
           <div class="tem-card-title">${escapeHtml(ev.title)}</div>
           ${venueRow}
           <div class="tem-card-foot">

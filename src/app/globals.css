@@ -430,6 +430,24 @@ body {
   font-weight: 600;
   margin-bottom: 2px;
 }
+/* 弹窗里的来源徽标：个人发帖（琥珀）/ 官方（天蓝） */
+.tem-card-src {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.tem-src-user {
+  background: #fef3c7;
+  color: #b45309;
+}
+.tem-src-official {
+  background: #e0f2fe;
+  color: #0369a1;
+}
 .tem-card-title {
   font-size: 13px;
   font-weight: 600;

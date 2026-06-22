@@ -7,6 +7,7 @@ import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
 import { EventDetail } from "./EventDetail";
+import { SourceBadge, SourceFilter, matchSource, type SourceSel } from "@/components/common/EventSource";
 import type { EventDTO } from "@/lib/types";
 
 function fmt(d: string | null): string {
@@ -24,6 +25,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const targetId = useRef<string | null>(null);
   const resolvedRef = useRef(false); // 仅在进页时解析一次 ?event=
   const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
+  const [source, setSource] = useState<SourceSel>("ALL");
   const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
   const [dateOpen, setDateOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -73,6 +75,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     const q = query.trim().toLowerCase();
     return events.filter((e) => {
       if (cat !== "ALL" && e.category !== cat) return false;
+      if (!matchSource(source, e.sourceType)) return false;
       if (!eventInDayRange(e, dateRange)) return false;
       if (!q) return true;
       // 搜索匹配：标题/场馆/地址/简介/描述/分类名/标签
@@ -82,7 +85,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [events, cat, dateRange, query]);
+  }, [events, cat, source, dateRange, query]);
 
   // 推荐搜索词：按出现频次取数据里最常见的展示标签（数据驱动、贴合实际内容）。
   const suggestions = useMemo(() => {
@@ -103,7 +106,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   // 懒加载：先渲染一批，触底再加载更多（减少首屏 DOM、加快渲染）
   const PAGE = 12;
   const [visibleCount, setVisibleCount] = useState(PAGE);
-  useEffect(() => { setVisibleCount(PAGE); }, [cat, dateRange, query]);
+  useEffect(() => { setVisibleCount(PAGE); }, [cat, source, dateRange, query]);
   const shown = filtered.slice(0, visibleCount);
 
   // 瀑布流分列：轮询分配（item i → 第 i%列），少量条目也能左右铺开、不挤一列。
@@ -228,6 +231,11 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
         </div>
       </div>
 
+      {/* 来源筛选：官方抓取 vs 个人发帖 */}
+      <div className="mb-3">
+        <SourceFilter value={source} onChange={setSource} />
+      </div>
+
       {filtered.length === 0 && (
         <p className="text-sm text-neutral-400 py-8 text-center">
           {query.trim() ? `没有匹配「${query.trim()}」的活动。` : "该分类下暂无活动。"}
@@ -255,6 +263,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                     <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                       <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
                       {meta.label} · {fmt(ev.startTime)}
+                      <SourceBadge sourceType={ev.sourceType} className="ml-auto" />
                     </div>
                     <h2 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{ev.title}</h2>
                     {ev.venueName && (
