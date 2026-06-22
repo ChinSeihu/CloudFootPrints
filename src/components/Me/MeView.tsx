@@ -38,7 +38,7 @@ function MeContent() {
   const [editingPost, setEditingPost] = useState<EventDTO | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
-  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
+  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -508,7 +508,7 @@ function MeContent() {
       <ConfirmDialog
         open={!!confirmBox}
         message={confirmBox?.message ?? ""}
-        onConfirm={() => { confirmBox?.onOk(); setConfirmBox(null); }}
+        onConfirm={async () => { await confirmBox?.onOk(); setConfirmBox(null); }}
         onCancel={() => setConfirmBox(null)}
       />
     </div>

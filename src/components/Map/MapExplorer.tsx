@@ -445,7 +445,7 @@ export function MapExplorer() {
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
   const [toast, setToast] = useState<string | null>(null);
-  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void } | null>(null);
+  const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [showStations, setShowStations] = useState(true);
@@ -1840,7 +1840,7 @@ export function MapExplorer() {
       <ConfirmDialog
         open={!!confirmBox}
         message={confirmBox?.message ?? ""}
-        onConfirm={() => { confirmBox?.onOk(); setConfirmBox(null); }}
+        onConfirm={async () => { await confirmBox?.onOk(); setConfirmBox(null); }}
         onCancel={() => setConfirmBox(null)}
       />
 

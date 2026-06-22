@@ -51,9 +51,7 @@ export default async function RecommendPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-3">
-      <h1 className="text-lg font-semibold mb-3 px-1">推荐 · 今天去哪</h1>
-
+    <div className="h-full overflow-y-auto p-3 pt-1">
       {dbError && (
         <p className="text-sm text-neutral-500 px-1">
           数据库尚未连接。配置 <code>.env</code> 的 DATABASE_URL 并跑迁移后，这里会出现活动卡片。

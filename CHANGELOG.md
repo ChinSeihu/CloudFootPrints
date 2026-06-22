@@ -6,6 +6,17 @@
 
 ## 2026-06-22
 
+### 去掉推荐页大标题 + 异步操作加等待反馈
+
+- **去标题**：移除推荐页「推荐 · 今天去哪」大标题，吸顶标签栏直接置顶，内容区更大更清爽。
+- **操作等待反馈**：异步操作过程中不再「画面定住、无反馈」。
+  - 通用 `ConfirmDialog` 的确认按钮支持 `onConfirm` 返回 Promise：执行期间按钮显示加载转圈 +「处理中…」并禁用两个按钮、屏蔽背景点击，完成后才关闭。覆盖个人页 / 地图弹窗的删除发帖、删除足迹。
+  - 评论删除（`EventDetail`）：按钮在请求中显示「删除中…」并禁用，防重复点击。
+
+**涉及文件：** `src/app/recommend/page.tsx`、`src/components/common/ConfirmDialog.tsx`、`src/components/Me/MeView.tsx`、`src/components/Map/MapExplorer.tsx`、`src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### 推荐页顶部精简（仿社区 App：滑动标签 + 搜索/筛选图标）
 
 - 顶部从 3 行压到 1 行：左侧**横向滑动的分类标签**（全部/展览/市集…，sticky 吸顶），右侧两个圆形图标。

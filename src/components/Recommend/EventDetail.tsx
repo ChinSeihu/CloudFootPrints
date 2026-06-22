@@ -47,6 +47,7 @@ export function EventDetail({
   const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
   // 按 id 索引，便于查回复目标
@@ -169,7 +170,9 @@ export function EventDetail({
   }
 
   async function removeComment(id: string) {
+    if (deletingId) return;
     setErr(null);
+    setDeletingId(id);
     try {
       const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -194,6 +197,8 @@ export function EventDetail({
       }
     } catch {
       setErr("网络错误，请稍后再试");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -232,9 +237,10 @@ export function EventDetail({
               <button
                 type="button"
                 onClick={() => removeComment(c.id)}
-                className="text-[11px] text-neutral-400 hover:text-red-500 transition"
+                disabled={deletingId === c.id}
+                className="text-[11px] text-neutral-400 hover:text-red-500 transition disabled:opacity-60"
               >
-                删除
+                {deletingId === c.id ? "删除中…" : "删除"}
               </button>
             )}
           </div>
