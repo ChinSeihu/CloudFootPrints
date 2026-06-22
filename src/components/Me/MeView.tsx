@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconStar, IconPin, IconMap, IconBookmark, IconBell } from "@/components/icons";
+import { CategoryIcon, IconHeart, IconPin, IconMap, IconBookmark, IconBell } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
@@ -142,7 +142,7 @@ function MeContent() {
         ) : photos.length === 0 ? (
           <div className="h-28 rounded-2xl bg-neutral-100 grid place-items-center text-neutral-400">
             <div className="text-center px-4">
-              <IconStar className="w-6 h-6 mx-auto mb-1 opacity-50" />
+              <IconHeart className="w-6 h-6 mx-auto mb-1 opacity-50" />
               <p className="text-xs">记录足迹时上传照片，这里会拼成你的足迹相册</p>
             </div>
           </div>
@@ -165,7 +165,7 @@ function MeContent() {
       <div className="px-4 pt-3 pb-1">
         <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">
           {([
-            ["checkins", "足迹", checkins.length, IconStar],
+            ["checkins", "足迹", checkins.length, IconHeart],
             ["posts", "发帖", posts.length, IconPin],
             ["favorites", "收藏", favorites.length, IconBookmark],
             ["messages", "消息", notices.length, IconBell],
@@ -257,9 +257,9 @@ function MeContent() {
                     </div>
                   )}
                   {c.rating != null && (
-                    <div className="flex text-amber-500">
+                    <div className="flex text-rose-500">
                       {Array.from({ length: c.rating }).map((_, i) => (
-                        <IconStar key={i} filled className="w-4 h-4" />
+                        <IconHeart key={i} filled className="w-4 h-4" />
                       ))}
                     </div>
                   )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { IconStar, IconPlus, CategoryIcon } from "@/components/icons";
+import { IconHeart, IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
@@ -280,12 +280,12 @@ export function EditCheckInDialog({
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>评分</label>
+        <label className={labelCls}>心情</label>
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" onClick={() => setRating(n === rating ? null : n)}
-              className={`transition ${rating && n <= rating ? "text-amber-500" : "text-neutral-300 hover:text-amber-300"}`} aria-label={`${n} 星`}>
-              <IconStar filled={!!rating && n <= rating} className="w-7 h-7" />
+              className={`transition ${rating && n <= rating ? "text-rose-500" : "text-neutral-300 hover:text-rose-300"}`} aria-label={`心情 ${n}`}>
+              <IconHeart filled={!!rating && n <= rating} className="w-7 h-7" />
             </button>
           ))}
         </div>

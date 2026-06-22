@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconStar, IconPin, IconPlus } from "@/components/icons";
+import { IconHeart, IconPin, IconPlus } from "@/components/icons";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
@@ -115,17 +115,17 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>评分</label>
+        <label className={labelCls}>心情</label>
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setRating(n === rating ? null : n)}
-              className={`transition ${rating && n <= rating ? "text-amber-500" : "text-neutral-300 hover:text-amber-300"}`}
-              aria-label={`${n} 星`}
+              className={`transition ${rating && n <= rating ? "text-rose-500" : "text-neutral-300 hover:text-rose-300"}`}
+              aria-label={`心情 ${n}`}
             >
-              <IconStar filled={!!rating && n <= rating} className="w-7 h-7" />
+              <IconHeart filled={!!rating && n <= rating} className="w-7 h-7" />
             </button>
           ))}
         </div>

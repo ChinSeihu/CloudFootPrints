@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconPlus, IconStar, IconPin } from "@/components/icons";
+import { IconPlus, IconHeart, IconPin } from "@/components/icons";
 
 // 浮动操作按钮（FAB）：点开有两个动作——打卡 / 发帖。
 //  - 打卡：我来过这里（个人足迹）
@@ -37,7 +37,7 @@ export function ActionFab({
             onClick={() => choose(onCheckin)}
             className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-full bg-white text-neutral-800 text-sm shadow-lg border border-black/5"
           >
-            <IconStar className="w-4 h-4 text-amber-500" />
+            <IconHeart className="w-4 h-4 text-rose-500" />
             足迹 · 我来过
           </button>
         </>

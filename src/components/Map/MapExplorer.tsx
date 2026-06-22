@@ -1183,7 +1183,7 @@ export function MapExplorer() {
       let photos: string[] = [];
       try { photos = JSON.parse((p.photos as string) || "[]"); } catch { /* ignore */ }
       const rating = Number(p.rating ?? 0);
-      const stars = rating ? `<div class="tem-ci-rating">${"★".repeat(rating)}${"☆".repeat(Math.max(0, 5 - rating))}</div>` : "";
+      const stars = rating ? `<div class="tem-ci-rating">心情 ${"♥".repeat(rating)}${"♡".repeat(Math.max(0, 5 - rating))}</div>` : "";
       const gallery = photos.length
         ? `<div class="tem-ci-galwrap">
             <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>

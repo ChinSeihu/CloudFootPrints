@@ -386,7 +386,7 @@ body {
 }
 .tem-ci-when { color: #94a3b8; font-size: 11px; margin-top: 2px; }
 .tem-ci-event { color: #64748b; font-size: 12px; margin-top: 3px; }
-.tem-ci-rating { color: #f59e0b; font-size: 12px; margin-top: 3px; letter-spacing: 1px; }
+.tem-ci-rating { color: #f43f5e; font-size: 12px; margin-top: 3px; letter-spacing: 1px; }
 .tem-ci-note { color: #444; font-size: 12.5px; line-height: 1.5; margin-top: 5px; }
 .tem-ci-del { color: #ef4444; font-size: 11px; background: none; border: none; padding: 0; margin-top: 8px; cursor: pointer; }
 .tem-ci-del:hover { text-decoration: underline; }

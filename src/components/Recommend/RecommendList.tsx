@@ -31,7 +31,16 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [searchOpen, setSearchOpen] = useState(false); // 搜索态：标签行 ↔ 搜索框
   const [query, setQuery] = useState("");
   const [colCount, setColCount] = useState(2); // 瀑布流列数：手机 2、≥sm 3
+  const [hello, setHello] = useState<{ greet: string; date: string }>({ greet: "", date: "" });
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
+
+  // 顶部问候语（按时段）+ 日期。客户端 mount 后计算，避免 SSR 时区不一致导致水合告警。
+  useEffect(() => {
+    const d = new Date();
+    const h = d.getHours();
+    const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 23 ? "晚上好" : "夜深了";
+    setHello({ greet, date: d.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" }) });
+  }, []);
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
   // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
@@ -131,8 +140,18 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
 
   return (
     <>
-      {/* 顶部精简栏：横滑分类标签 + 搜索/筛选图标（仿社区 App，收起多余筛选） */}
-      <div className="sticky top-0 z-20 -mx-3 px-3 py-2 mb-2 bg-white/95 backdrop-blur border-b border-black/5">
+      {/* 顶部精简栏：问候 + 横滑分类标签 + 搜索/筛选图标（仿社区 App，收起多余筛选） */}
+      <div className="sticky top-0 z-20 -mx-3 px-3 pt-2 pb-2 mb-2 bg-white/95 backdrop-blur border-b border-black/5">
+        {/* 问候行：填补去掉大标题后的留白，带时段问候 + 日期 + 活动数 */}
+        {!searchOpen && (
+          <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
+            <span className="text-[15px] font-semibold text-neutral-800 truncate">
+              {hello.greet || "发现"}
+              <span className="ml-1.5 text-xs font-normal text-neutral-400">{hello.date}</span>
+            </span>
+            <span className="shrink-0 text-xs text-neutral-400">东京 · {filtered.length} 场活动</span>
+          </div>
+        )}
         {searchOpen ? (
           // 搜索态：整行变搜索框 + 取消
           <div className="flex items-center gap-2">
