@@ -122,7 +122,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
               key={n}
               type="button"
               onClick={() => setRating(n === rating ? null : n)}
-              className={`transition ${rating && n <= rating ? "text-rose-500" : "text-neutral-300 hover:text-rose-300"}`}
+              className={`transition ${rating && n <= rating ? "text-amber-500" : "text-neutral-300 hover:text-amber-300"}`}
               aria-label={`心情 ${n}`}
             >
               <IconHeart filled={!!rating && n <= rating} className="w-7 h-7" />

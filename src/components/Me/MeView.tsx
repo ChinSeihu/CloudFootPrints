@@ -257,7 +257,7 @@ function MeContent() {
                     </div>
                   )}
                   {c.rating != null && (
-                    <div className="flex text-rose-500">
+                    <div className="flex text-amber-500">
                       {Array.from({ length: c.rating }).map((_, i) => (
                         <IconHeart key={i} filled className="w-4 h-4" />
                       ))}
