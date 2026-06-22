@@ -426,13 +426,17 @@ body {
 }
 .tem-card-foot {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   margin-top: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-/* 操作 pill：图标 + 文字，分色辨识 */
+.tem-card-foot::-webkit-scrollbar { display: none; }
+/* 操作 pill：图标 + 文字，分色辨识；不收缩、不换行（挤不下则整行横向滚动） */
 .tem-card-act {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -442,6 +446,7 @@ body {
   font-size: 11px;
   font-weight: 500;
   line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition: filter 0.12s, background 0.12s;
 }
@@ -454,21 +459,25 @@ body {
 .tem-card-act.act-guide:hover { background: rgba(124, 58, 237, 0.18); }
 /* 来源：保持低调文字链 */
 .tem-card-link {
+  flex: none;
   font-size: 11px;
   color: #64748b;
   text-decoration: none;
+  white-space: nowrap;
   padding: 4px 4px;
 }
 .tem-card-link:hover {
   text-decoration: underline;
 }
 .tem-card-del {
+  flex: none;
   font-size: 11px;
   color: #ef4444;
   background: none;
   border: none;
   padding: 4px 4px;
   cursor: pointer;
+  white-space: nowrap;
   margin-left: auto;
 }
 .tem-card-del:hover {
