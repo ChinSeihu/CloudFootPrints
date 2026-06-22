@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
-import { type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
+import { ALL_DATES, type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
 
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
@@ -17,6 +17,8 @@ type Props = {
   value: FilterState;
   onChange: (next: FilterState) => void;
   count: number;
+  showTrail: boolean; // 足迹轨迹线开关（由地图页托管，放进筛选面板）
+  onShowTrailChange: (v: boolean) => void;
 };
 
 function IconFilter({ className }: { className?: string }) {
@@ -28,7 +30,7 @@ function IconFilter({ className }: { className?: string }) {
 }
 
 // 筛选：左上角一个「筛选」按钮，点开展开面板（分类/时间/我的）；收起时不挡地图。
-export function Filters({ value, onChange, count }: Props) {
+export function Filters({ value, onChange, count, showTrail, onShowTrailChange }: Props) {
   const [open, setOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -36,7 +38,13 @@ export function Filters({ value, onChange, count }: Props) {
     value.categories.size +
     (value.mineOnly ? 1 : 0) +
     (isAllDates(value.dateRange) ? 0 : 1) +
-    (value.showExpired ? 1 : 0);
+    (value.showExpired ? 1 : 0) +
+    (showTrail ? 1 : 0);
+
+  function clearAll() {
+    onChange({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false });
+    onShowTrailChange(false);
+  }
 
   function toggleCategory(c: EventCategory) {
     const next = new Set(value.categories);
@@ -103,9 +111,16 @@ export function Filters({ value, onChange, count }: Props) {
         <div className="w-64 max-w-[78vw] bg-white/95 backdrop-blur rounded-xl shadow-lg border border-black/10 p-3 pointer-events-auto">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-sm font-medium">筛选</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-500">
-              收起
-            </button>
+            <div className="flex items-center gap-2.5">
+              {activeCount > 0 && (
+                <button type="button" onClick={clearAll} className="text-xs text-blue-600 font-medium">
+                  清除全部
+                </button>
+              )}
+              <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-500">
+                收起
+              </button>
+            </div>
           </div>
 
           {/* 分类 */}
@@ -146,18 +161,31 @@ export function Filters({ value, onChange, count }: Props) {
           </div>
 
           {/* 我的 */}
-          <button
-            type="button"
-            onClick={() => onChange({ ...value, mineOnly: !value.mineOnly })}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
-              value.mineOnly ? "bg-amber-500 text-white border-transparent" : "bg-white text-neutral-600 border-neutral-300"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4Z" />
-            </svg>
-            只看我的
-          </button>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => onChange({ ...value, mineOnly: !value.mineOnly })}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
+                value.mineOnly ? "bg-amber-500 text-white border-transparent" : "bg-white text-neutral-600 border-neutral-300"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4Z" />
+              </svg>
+              只看我的
+            </button>
+            {/* 足迹路线：从底部控件移到这里，避免地图下方按钮拥挤 */}
+            <button
+              type="button"
+              onClick={() => onShowTrailChange(!showTrail)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
+                showTrail ? "bg-amber-500 text-white border-transparent" : "bg-white text-neutral-600 border-neutral-300"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 19c2 0 2-3 4-3s2 3 4 3 2-4 4-4" /><circle cx="5" cy="19" r="1.4" /><circle cx="19" cy="15" r="1.4" /></svg>
+              足迹路线
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -1151,7 +1151,8 @@ export function MapExplorer() {
       filter: ["!", ["has", "point_count"]],
       layout: {
         "icon-image": ["coalesce", ["image", ["concat", "ci-photo-", ["get", "id"]]], ["image", "checkin-paw"]],
-        "icon-size": 0.72,
+        // 有照片的缩略图放大些更显眼；脚印保持原大小
+        "icon-size": ["case", ["==", ["get", "hasPhoto"], 1], 1.35, 0.72],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -1740,7 +1741,7 @@ export function MapExplorer() {
   return (
     <div className="absolute inset-0">
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
-      <Filters value={filters} onChange={setFilters} count={filtered.length} />
+      <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       <WeatherPanel />
 
       {/* 左下角控件：上=底图风格，下=美食/景点/车站（线性图标，非 emoji）。
@@ -1802,16 +1803,6 @@ export function MapExplorer() {
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
             车站
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowTrail((v) => !v)}
-            className={`pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs shadow-sm border transition ${
-              showTrail ? "bg-amber-500 text-white border-transparent" : "bg-white/95 text-neutral-600 border-black/10"
-            }`}
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 19c2 0 2-3 4-3s2 3 4 3 2-4 4-4" /><circle cx="5" cy="19" r="1.4" /><circle cx="19" cy="15" r="1.4" /></svg>
-            足迹路线
           </button>
         </div>
       </div>
