@@ -4,7 +4,7 @@ import { prisma } from "../src/lib/db";
 /**
  * 给已存在的测试账号填充「真人化」的足迹与发帖数据。
  * - 按人设造日记式备注、真实地点坐标、跨多周时间线、部分配图。
- * - 配图：把按分类挑好的真实活动图（walkerplus/jalan）通过 Cloudinary unsigned
+ * - 配图：每条日记配「内容匹配」的真实主题图（Unsplash），通过 Cloudinary unsigned
  *   upload 以「远程 URL 抓取」方式上传，得到自带 CORS 的 Cloudinary 链接
  *   （与真人上传一致；地图圆形缩略图也能正常显示）。
  * - 可重复执行：每次先清掉该用户旧的足迹/发帖再重灌。
@@ -41,39 +41,44 @@ async function toCloudinary(remoteUrl: string): Promise<string> {
   return result;
 }
 
-// 按人设分类挑的真实活动图（walkerplus / jalan，确保可访问；由 Cloudinary 服务端抓取）。
+// 与每条日记「内容匹配」的真实主题图（Unsplash，已逐一验证可达；由 Cloudinary 服务端抓取托管）。
+// 按 SRC[persona][i] 的位置对应下方各条 checkin/post，见各条注释。
+const u = (id: string) => `https://images.unsplash.com/photo-${id}?w=900&q=75&auto=format&fit=crop`;
 const SRC = {
+  // さくら（展览 / 美术馆）
   exhibition: [
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/68/l/583568_1.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/30/l/593530_1.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/54/l/584754.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/22/l/570922.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/09/l/583109.jpg",
+    u("1518998053901-5348d3961a04"), // 0 草间弥生·无限镜屋（沉浸光影）
+    u("1531913764164-f85c52e6e654"), // 1 草间弥生·展品近景
+    u("1492684223066-81342ee5ff30"), // 2 teamLab·数字光影
+    u("1554118811-1e0d58224f24"), //    3 看展后小馆夜聊
+    u("1577720580479-7d839d829c73"), // 4 (发帖) 印象派绘画特展
   ],
+  // ケンジ（live / 摇滚）
   live: [
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/10/l/580810.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/90/l/595490.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/03/l/595703.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/03/l/594203.jpg",
+    u("1470229722913-7c0e2dbbafd3"), // 0 live house 演出
+    u("1485579149621-3123dd979885"), // 1 街头吉他演出
+    u("1501386761578-eac5c94b800a"), // 2 (发帖) 乐队拼盘舞台
   ],
+  // 小林ゆい（市集 / 古着）
   market: [
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/12/l/580212.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/65/l/591665.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/96/l/594896.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/63/l/591663.jpg",
+    u("1452860606245-08befc0ff44b"), // 0 骨董市·旧物
+    u("1567696911980-2eed69a46042"), // 1 古着·复古衣架
+    u("1524578271613-d550eacf6090"), // 2 二手书 / 旧唱片摊
+    u("1441986300917-64674bd600d8"), // 3 (发帖) 手作小市集
   ],
+  // たけし（祭典摄影）
   festival: [
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/18/l/595018.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/43/l/466743_1.jpg",
-    "https://www.jalan.net/jalan/img/8/event/0358/KXL/e358692a.jpg",
-    "https://www.jalan.net/jalan/img/8/event/0358/KXL/e358706a.jpg",
-    "https://www.jalan.net/jalan/img/8/event/0358/KXL/e358626a.jpg",
+    u("1583416750470-965b2707b355"), // 0 浅草寺 / 仲见世
+    u("1540959733332-eab4deabeeaf"), // 1 晚霞下的东京天空树
+    u("1493780474015-ba834fd0ce2f"), // 2 日本祭典·神轿提灯
+    u("1480796927426-f609979314bd"), // 3 (发帖) 东京街景·祭典夜
   ],
+  // 美咲（咖啡 / 小店）
   cafe: [
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/89/l/596989.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/26/l/581726.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/62/l/406362_2.jpg",
-    "https://ms-cache.walkerplus.com/walkertouch/wtd/event/34/l/466434_3.jpg",
+    u("1495474472287-4d71bcdd2085"), // 0 Blue Bottle·手冲靠窗
+    u("1461023058943-07fcbe16d735"), // 1 拿铁拉花
+    u("1521017432531-fbd92d768814"), // 2 二楼小店·安静咖啡馆
+    u("1509042239860-f550ce710b93"), // 3 (发帖) 咖啡散步
   ],
 } as const;
 
