@@ -211,16 +211,17 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
         })}
       </div>
 
-      {/* 分类筛选（影响日历计数与清单） */}
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* 分类筛选（文字横滑 tab + 图标，影响日历计数与清单） */}
+      <div className="mt-4 flex items-center gap-5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => setCat("ALL")}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-            cat === "ALL" ? "bg-blue-600 text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+          className={`relative shrink-0 py-1.5 text-sm leading-none transition ${
+            cat === "ALL" ? "font-semibold text-blue-600" : "font-medium text-neutral-400 hover:text-neutral-600"
           }`}
         >
           全部
+          {cat === "ALL" && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full bg-blue-600" />}
         </button>
         {EVENT_CATEGORIES.map((c) => {
           const meta = CATEGORY_META[c];
@@ -230,13 +231,14 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
               key={c}
               type="button"
               onClick={() => setCat(active ? "ALL" : c)}
-              className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                active ? "text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+              className={`relative shrink-0 inline-flex items-center gap-1 py-1.5 text-sm leading-none transition ${
+                active ? "font-semibold" : "font-medium text-neutral-400 hover:text-neutral-600"
               }`}
-              style={active ? { backgroundColor: meta.color } : undefined}
+              style={active ? { color: meta.color } : undefined}
             >
               <CategoryIcon category={c} className="w-3.5 h-3.5" />
               {meta.label}
+              {active && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full" style={{ backgroundColor: meta.color }} />}
             </button>
           );
         })}

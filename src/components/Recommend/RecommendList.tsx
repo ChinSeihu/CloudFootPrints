@@ -38,7 +38,10 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [searchOpen, setSearchOpen] = useState(false); // 搜索态：标签行 ↔ 搜索框
   const [query, setQuery] = useState("");
   const [colCount, setColCount] = useState(2); // 瀑布流列数：手机 2、≥sm 3
+  const [secondaryVisible, setSecondaryVisible] = useState(true); // 二级菜单显隐（随滚动方向）
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
+  const stickyRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollRef = useRef(0);
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
   // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
@@ -102,6 +105,30 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
   }, [events]);
 
+  // 二级菜单随滚动方向显隐：下滑收起、上滑展开（贴近内容、减少干扰）。
+  useEffect(() => {
+    const start = stickyRef.current;
+    if (!start) return;
+    let node: HTMLElement | null = start.parentElement;
+    while (node) {
+      const oy = getComputedStyle(node).overflowY;
+      if (oy === "auto" || oy === "scroll") break;
+      node = node.parentElement;
+    }
+    if (!node) return;
+    const sc = node;
+    const onScroll = () => {
+      const y = sc.scrollTop;
+      const last = lastScrollRef.current;
+      if (y < 48) setSecondaryVisible(true);
+      else if (y > last + 6) setSecondaryVisible(false);
+      else if (y < last - 6) setSecondaryVisible(true);
+      lastScrollRef.current = y;
+    };
+    sc.addEventListener("scroll", onScroll, { passive: true });
+    return () => sc.removeEventListener("scroll", onScroll);
+  }, []);
+
   // 响应式列数：手机 2 列、≥640px 3 列
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");
@@ -140,42 +167,10 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   return (
     <>
       {/* 顶部精简栏：问候 + 横滑分类标签 + 搜索/筛选图标（仿社区 App，收起多余筛选） */}
-      <div className="sticky top-0 z-20 -mx-3 px-3 pt-2 pb-2 mb-2 bg-white/95 backdrop-blur border-b border-black/5">
-        {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮 + 搜索图标右上（仿小红书顶栏） */}
-        {!searchOpen && (
-          <div className="relative flex items-center justify-center h-9 mb-2">
-            <div className="flex items-end gap-9">
-              {TOP_TABS.map(({ k, label }) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setTab(k)}
-                  className={`relative pb-1 leading-none transition-all ${
-                    tab === k ? "text-[18px] font-bold text-neutral-900" : "text-[15px] font-medium text-neutral-400 hover:text-neutral-600"
-                  }`}
-                >
-                  {label}
-                  {tab === k && (
-                    <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-6 h-[3px] rounded-full bg-blue-600" />
-                  )}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              aria-label="搜索"
-              className={`absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 grid place-items-center rounded-full transition ${
-                query.trim() ? "text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
-              }`}
-            >
-              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            </button>
-          </div>
-        )}
+      <div ref={stickyRef} className="sticky top-0 z-20 -mx-3 px-3 pt-1.5 bg-white/95 backdrop-blur">
         {searchOpen ? (
           // 搜索态：整行变搜索框 + 取消
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-0.5 pb-2">
             <div className="relative flex-1">
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
               <input
@@ -192,66 +187,102 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
             <button type="button" onClick={() => setSearchOpen(false)} className="shrink-0 px-1 text-sm text-blue-600 font-medium">取消</button>
           </div>
         ) : (
-          // 默认态：横滑分类标签 + 搜索 + 漏斗
-          <div className="flex items-center gap-2">
-            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                type="button"
-                onClick={() => setCat("ALL")}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  cat === "ALL" ? "bg-blue-600 text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
-                }`}
-              >
-                全部
-              </button>
-              {EVENT_CATEGORIES.map((c) => {
-                const meta = CATEGORY_META[c];
-                const active = cat === c;
-                return (
+          <>
+            {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮；右侧常驻 漏斗 + 搜索；底边线分隔二级 */}
+            <div className="relative flex items-center justify-center h-9 border-b border-black/5">
+              <div className="flex items-center gap-9">
+                {TOP_TABS.map(({ k, label }) => (
                   <button
-                    key={c}
+                    key={k}
                     type="button"
-                    onClick={() => setCat(active ? "ALL" : c)}
-                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                      active ? "text-white shadow-sm" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
+                    onClick={() => setTab(k)}
+                    className={`relative pb-1 text-[16px] leading-none transition ${
+                      tab === k ? "font-bold text-neutral-900" : "font-medium text-neutral-400 hover:text-neutral-600"
                     }`}
-                    style={active ? { backgroundColor: meta.color } : undefined}
                   >
-                    <CategoryIcon category={c} className="w-3.5 h-3.5" />
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 漏斗筛选（时间），有筛选时显红点 */}
-            <div className="relative shrink-0" ref={filterBoxRef}>
-              <button
-                type="button"
-                onClick={() => setFilterOpen((v) => !v)}
-                aria-label="筛选"
-                className={`relative w-9 h-9 grid place-items-center rounded-full transition ${
-                  filterOpen ? "bg-blue-50 text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
-                }`}
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></svg>
-                {!isAllDates(dateRange) && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white" />
-                )}
-              </button>
-              {filterOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-30 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-black/5 bg-white shadow-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
-                    {!isAllDates(dateRange) && (
-                      <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs text-blue-600 font-medium">重置</button>
+                    {label}
+                    {tab === k && (
+                      <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-6 h-[3px] rounded-full bg-blue-600" />
                     )}
-                  </div>
-                  <CalendarRangePicker value={dateRange} onChange={setDateRange} />
+                  </button>
+                ))}
+              </div>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                {/* 漏斗筛选（时间），有筛选时显红点 */}
+                <div className="relative" ref={filterBoxRef}>
+                  <button
+                    type="button"
+                    onClick={() => setFilterOpen((v) => !v)}
+                    aria-label="筛选"
+                    className={`relative w-9 h-9 grid place-items-center rounded-full transition ${
+                      filterOpen ? "bg-blue-50 text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></svg>
+                    {!isAllDates(dateRange) && (
+                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 border border-white" />
+                    )}
+                  </button>
+                  {filterOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 z-30 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-black/5 bg-white shadow-xl p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
+                        {!isAllDates(dateRange) && (
+                          <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs text-blue-600 font-medium">重置</button>
+                        )}
+                      </div>
+                      <CalendarRangePicker value={dateRange} onChange={setDateRange} />
+                    </div>
+                  )}
                 </div>
-              )}
+                {/* 搜索 */}
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  aria-label="搜索"
+                  className={`w-9 h-9 grid place-items-center rounded-full transition ${
+                    query.trim() ? "text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                </button>
+              </div>
             </div>
-          </div>
+            {/* 二级菜单：横滑文字 tab（带图标），随滚动方向收起（下滑）/展开（上滑） */}
+            <div className={`overflow-hidden transition-all duration-300 ${secondaryVisible ? "max-h-12 opacity-100" : "max-h-0 opacity-0"}`}>
+              <div className="flex items-center gap-5 overflow-x-auto pt-2.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  type="button"
+                  onClick={() => setCat("ALL")}
+                  className={`relative shrink-0 py-1.5 text-sm leading-none transition ${
+                    cat === "ALL" ? "font-semibold text-blue-600" : "font-medium text-neutral-400 hover:text-neutral-600"
+                  }`}
+                >
+                  全部
+                  {cat === "ALL" && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full bg-blue-600" />}
+                </button>
+                {EVENT_CATEGORIES.map((c) => {
+                  const meta = CATEGORY_META[c];
+                  const active = cat === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCat(active ? "ALL" : c)}
+                      className={`relative shrink-0 inline-flex items-center gap-1 py-1.5 text-sm leading-none transition ${
+                        active ? "font-semibold" : "font-medium text-neutral-400 hover:text-neutral-600"
+                      }`}
+                      style={active ? { color: meta.color } : undefined}
+                    >
+                      <CategoryIcon category={c} className="w-3.5 h-3.5" />
+                      {meta.label}
+                      {active && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full" style={{ backgroundColor: meta.color }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
 
         {/* 搜索态下浮出推荐搜索词 */}
@@ -280,7 +311,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
         </p>
       )}
 
-      <div className="flex gap-3 items-start">
+      <div className="flex gap-3 items-start mt-2">
         {columns.map((col, ci) => (
           <div key={ci} className="flex-1 min-w-0 flex flex-col gap-3">
             {col.map((ev) => {
