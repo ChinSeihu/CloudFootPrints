@@ -217,7 +217,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
           type="button"
           onClick={() => setCat("ALL")}
           className={`relative shrink-0 py-1.5 text-sm leading-none transition ${
-            cat === "ALL" ? "font-semibold text-blue-600" : "font-medium text-neutral-400 hover:text-neutral-600"
+            cat === "ALL" ? "font-medium text-blue-600" : "font-normal text-neutral-400 hover:text-neutral-600"
           }`}
         >
           全部
@@ -232,7 +232,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
               type="button"
               onClick={() => setCat(active ? "ALL" : c)}
               className={`relative shrink-0 inline-flex items-center gap-1 py-1.5 text-sm leading-none transition ${
-                active ? "font-semibold" : "font-medium text-neutral-400 hover:text-neutral-600"
+                active ? "font-medium" : "font-normal text-neutral-400 hover:text-neutral-600"
               }`}
               style={active ? { color: meta.color } : undefined}
             >

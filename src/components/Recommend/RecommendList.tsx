@@ -202,8 +202,9 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
           </div>
         ) : (
           <>
-            {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮；右侧常驻 漏斗 + 搜索；底边线分隔二级 */}
-            <div className="relative flex items-center justify-center h-9 border-b border-black/5">
+            {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮；右侧常驻 时间筛选 + 搜索；底边线分隔二级。
+                z-20 让本行（含时间筛选弹层）层级高于下方二级菜单，弹层不被遮住。 */}
+            <div className="relative z-20 flex items-center justify-center h-9 border-b border-black/5">
               <div className="flex items-center gap-9">
                 {TOP_TABS.map(({ k, label }) => (
                   <button
@@ -222,23 +223,23 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                 ))}
               </div>
               <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                {/* 漏斗筛选（时间），有筛选时显红点 */}
+                {/* 时间筛选（日历图标），有筛选时显红点 */}
                 <div className="relative" ref={filterBoxRef}>
                   <button
                     type="button"
                     onClick={() => setFilterOpen((v) => !v)}
-                    aria-label="筛选"
+                    aria-label="时间筛选"
                     className={`relative w-9 h-9 grid place-items-center rounded-full transition ${
                       filterOpen ? "bg-blue-50 text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
                     }`}
                   >
-                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></svg>
+                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /></svg>
                     {!isAllDates(dateRange) && (
                       <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 border border-white" />
                     )}
                   </button>
                   {filterOpen && (
-                    <div className="absolute right-0 top-full mt-1.5 z-30 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-black/5 bg-white shadow-xl p-3">
+                    <div className="absolute right-0 top-full mt-1.5 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-black/5 bg-white shadow-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
                         {!isAllDates(dateRange) && (
@@ -269,7 +270,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                   type="button"
                   onClick={() => setCat("ALL")}
                   className={`relative shrink-0 py-1.5 text-sm leading-none transition ${
-                    cat === "ALL" ? "font-semibold text-blue-600" : "font-medium text-neutral-400 hover:text-neutral-600"
+                    cat === "ALL" ? "font-medium text-blue-600" : "font-normal text-neutral-400 hover:text-neutral-600"
                   }`}
                 >
                   全部
@@ -284,7 +285,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                       type="button"
                       onClick={() => setCat(active ? "ALL" : c)}
                       className={`relative shrink-0 inline-flex items-center gap-1 py-1.5 text-sm leading-none transition ${
-                        active ? "font-semibold" : "font-medium text-neutral-400 hover:text-neutral-600"
+                        active ? "font-medium" : "font-normal text-neutral-400 hover:text-neutral-600"
                       }`}
                       style={active ? { color: meta.color } : undefined}
                     >
