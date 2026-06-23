@@ -82,6 +82,22 @@ async function loadCategoryGlyphIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
+// 个人发帖角标：琥珀圆底 + 白色人形，叠在活动点右上角，让「个人发帖 vs 官方活动」一眼可辨。
+function userPostBadgeSvg(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.2" fill="#f59e0b" stroke="#ffffff" stroke-width="2.6"/><circle cx="14" cy="11" r="3.2" fill="#ffffff"/><path d="M7.8 21c0-4 3-5.7 6.2-5.7s6.2 1.7 6.2 5.7Z" fill="#ffffff"/></svg>`;
+}
+
+async function loadUserPostBadge(map: maplibregl.Map): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const name = "userpost-badge";
+    if (map.hasImage(name)) return resolve();
+    const img = new Image(28, 28);
+    img.onload = () => { if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 }); resolve(); };
+    img.onerror = () => resolve();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(userPostBadgeSvg());
+  });
+}
+
 // ── 地标（名胜/公园）图标与数据 ──
 function landmarkIconSvg(kind: LandmarkKind): string {
   const color = LANDMARK_KIND_META[kind].color;
@@ -419,7 +435,7 @@ export function MapExplorer() {
     const map = mapRef.current;
     if (!map) return;
     const vis = routePanel ? "none" : "visible";
-    for (const id of ["event-cluster-halo", "event-clusters", "event-cluster-count", "event-point-halo", "event-point", "event-glyph"]) {
+    for (const id of ["event-cluster-halo", "event-clusters", "event-cluster-count", "event-point-halo", "event-point", "event-glyph", "event-userbadge"]) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
     }
   }, [routePanel]);
@@ -831,6 +847,23 @@ export function MapExplorer() {
         "text-halo-width": 2,
         // 仅在放大后淡入，避免低缩放拥挤
         "text-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0, 14.6, 1],
+      },
+    });
+
+    // 个人发帖专属角标：只对 sourceType=USER 的单点显示，叠在右上角，醒目区分官方/个人。
+    await loadUserPostBadge(map);
+    map.addLayer({
+      id: "event-userbadge",
+      type: "symbol",
+      source: "events",
+      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "sourceType"], "USER"]],
+      layout: {
+        "icon-image": "userpost-badge",
+        "icon-size": 0.62,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        // ×icon-size(0.62) ≈ (13.6, -13.6)px：落在半径 14 圆点的右上角
+        "icon-offset": [22, -22],
       },
     });
 
