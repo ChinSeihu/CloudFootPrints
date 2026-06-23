@@ -83,6 +83,25 @@ const SRC = {
   ],
 } as const;
 
+// 新增 7 人的主题配图（Unsplash，均已 curl 验证 200；由 Cloudinary 服务端抓取托管）。
+const EXTRA = {
+  run1: u("1571008887538-b36bb32f4571"),      // 皇居 / 晨跑
+  run2: u("1486218119243-13883505764c"),      // 跑步 · 路面
+  gym: u("1534438327276-14e5300c3a48"),       // 健身房 · 杠铃
+  keyboard: u("1587829741301-dc798b83add3"),  // 机械键盘 / 数码
+  soccer1: u("1431324155629-1a6deb1dec8d"),   // 球场看台
+  soccer2: u("1574629810360-7efbbe195018"),   // 足球 · 比赛
+  onsen: u("1545569341-9eb8b30979d9"),        // 露天温泉
+  cinema: u("1489599849927-2ee91cede3ba"),    // 电影院
+  dessert1: u("1551024601-bec78aea704b"),     // 甜品 · 蒙布朗类
+  beach1: u("1507525428034-b723cf961d3e"),    // 海岸 · 镰仓
+  beach2: u("1505228395891-9a51e7e86bf6"),    // 海边 · 黄昏
+  izakaya: u("1493857671505-72967e2e2760"),   // 居酒屋夜
+  shopping: u("1483985988355-763728e1935b"),  // 古着 / 时尚衣架
+  library: u("1521587760476-6c12a4b040da"),   // 图书馆
+  cityNight: u("1503899036084-c55cdd92da26"), // 城市夜景 / 运河
+} as const;
+
 type CI = { note: string; rating: number; lat: number; lng: number; daysAgo: number; photos?: string[] };
 type PO = {
   title: string;
@@ -166,12 +185,12 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
     checkins: [
       { note: "第三版提案又被打回来了，组长一句'再想想'就走了。在公司楼下买了杯奶茶站着喝完才有力气回家。24 岁的春天，怎么全是 PPT。", rating: 3, lat: 35.69, lng: 139.7, daysAgo: 38 },
       { note: "和大学同学约在惠比寿，三个人点了一桌还嫌不够，聊各自公司的破事到打烊。原来大家都一样狼狈，突然就没那么丧了。", rating: 5, lat: 35.647, lng: 139.71, daysAgo: 30 },
-      { note: "发了工资，冲去表参道把看了一个月的那件外套拿下。试穿时店员说很适合我，虽然知道是客套，还是开心了一路。", rating: 4, lat: 35.665, lng: 139.712, daysAgo: 21 },
+      { note: "发了工资，冲去表参道把看了一个月的那件外套拿下。试穿时店员说很适合我，虽然知道是客套，还是开心了一路。", rating: 4, lat: 35.665, lng: 139.712, daysAgo: 21, photos: [EXTRA.shopping] },
       { note: "连着加班一周，今天终于准点下班。什么都不想干，瘫在沙发上点了炸鸡配综艺，这就是我的周五夜生活了。", rating: 3, lat: 35.658, lng: 139.73, daysAgo: 12 },
       { note: "提案过了！客户当场拍板那一刻我差点跳起来，组长难得夸了我一句。值了，这两周的命没白拼。", rating: 5, lat: 35.69, lng: 139.7, daysAgo: 4 },
     ],
     posts: [
-      { title: "周五下班 · 惠比寿小居酒屋拔草", category: "OTHER", description: "发现一家惠比寿的小居酒屋，串烧和高球都绝，位子不多。周五下班想约人一起，AA，能喝的来！", venueName: "惠比寿横丁", lat: 35.647, lng: 139.71, daysFromNow: 5, tags: ["美食", "聚会"], signupEnabled: true },
+      { title: "周五下班 · 惠比寿小居酒屋拔草", category: "OTHER", description: "发现一家惠比寿的小居酒屋，串烧和高球都绝，位子不多。周五下班想约人一起，AA，能喝的来！", venueName: "惠比寿横丁", lat: 35.647, lng: 139.71, daysFromNow: 5, tags: ["美食", "聚会"], signupEnabled: true, image: EXTRA.izakaya },
     ],
   },
 
@@ -179,9 +198,9 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   "陸": {
     checkins: [
       { note: "又一个版本上线，复盘会上大家鼓掌，我却想不起来这三个月到底为什么忙。回家路上在便利店站了五分钟，不知道想买什么。", rating: 3, lat: 35.681, lng: 139.766, daysAgo: 35 },
-      { note: "清澄白河的周末仪式：买豆、手冲、看河。一个人的早晨安静得有点过分，但这是这周里我唯一能完全掌控的两小时。", rating: 4, lat: 35.681, lng: 139.8, daysAgo: 27 },
+      { note: "清澄白河的周末仪式：买豆、手冲、看河。一个人的早晨安静得有点过分，但这是这周里我唯一能完全掌控的两小时。", rating: 4, lat: 35.681, lng: 139.8, daysAgo: 27, photos: [SRC.cafe[0]] },
       { note: "去天王洲看了个设计展，动线做得很聪明，忍不住用工作的眼光拆解。看展看成用户体验分析，职业病没救了。", rating: 4, lat: 35.622, lng: 139.75, daysAgo: 18 },
-      { note: "下班绕路走了一段没走过的运河，路灯一盏盏亮起来。三十岁快到了，工作没什么可挑的，可越好就越说不清自己想要什么。", rating: 3, lat: 35.679, lng: 139.797, daysAgo: 9 },
+      { note: "下班绕路走了一段没走过的运河，路灯一盏盏亮起来。三十岁快到了，工作没什么可挑的，可越好就越说不清自己想要什么。", rating: 3, lat: 35.679, lng: 139.797, daysAgo: 9, photos: [EXTRA.cityNight] },
       { note: "前同事约咖啡，聊到他裸辞去做独立开发。我嘴上说太冒险，心里却羡慕了一下午。", rating: 3, lat: 35.681, lng: 139.8, daysAgo: 3 },
     ],
     posts: [
@@ -192,9 +211,9 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   // 大学生 + 咖啡店兼职（三鹰）— 即将毕业、迷茫。就活焦虑与青春治愈交织。暂无配图。
   "葵": {
     checkins: [
-      { note: "咖啡店今天超忙，拉花练到手酸，被店长夸了句'最近稳了'。打工是真的累，但被认可的瞬间还是会偷偷开心。", rating: 4, lat: 35.703, lng: 139.58, daysAgo: 33 },
-      { note: "攒了好久的票，今晚现场太炸了，全场大合唱时鸡皮疙瘩起来。散场舍不得走，和陌生人在场馆外又聊了半天。", rating: 5, lat: 35.693, lng: 139.745, daysAgo: 25 },
-      { note: "投了第八份简历还是没消息。图书馆坐了一天，看着同学一个个内定，假装淡定其实慌得要死。明天还要早八。", rating: 2, lat: 35.703, lng: 139.566, daysAgo: 16 },
+      { note: "咖啡店今天超忙，拉花练到手酸，被店长夸了句'最近稳了'。打工是真的累，但被认可的瞬间还是会偷偷开心。", rating: 4, lat: 35.703, lng: 139.58, daysAgo: 33, photos: [SRC.cafe[1]] },
+      { note: "攒了好久的票，今晚现场太炸了，全场大合唱时鸡皮疙瘩起来。散场舍不得走，和陌生人在场馆外又聊了半天。", rating: 5, lat: 35.693, lng: 139.745, daysAgo: 25, photos: [SRC.live[0]] },
+      { note: "投了第八份简历还是没消息。图书馆坐了一天，看着同学一个个内定，假装淡定其实慌得要死。明天还要早八。", rating: 2, lat: 35.703, lng: 139.566, daysAgo: 16, photos: [EXTRA.library] },
       { note: "井之头公园的天鹅船还是那么蠢萌，和室友逃了下午的课来划船。穷学生的快乐很简单，晒晒太阳就回血了。", rating: 4, lat: 35.7, lng: 139.573, daysAgo: 8 },
       { note: "秋叶原淘到绝版的设定集，店员说是最后一本。抱着它在电车上傻笑，今天的运气大概全用在这了。", rating: 5, lat: 35.699, lng: 139.771, daysAgo: 3 },
     ],
@@ -206,14 +225,14 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   // 软件工程师（目黒）— 有钱没时间、单调。运动充实与孤独并存。暂无配图。
   "悠斗": {
     checkins: [
-      { note: "皇居一圈 5 公里，配速比上周快了十秒。清晨的二重桥没什么人，跑起来脑子格外清醒，比开一天会有用多了。", rating: 5, lat: 35.685, lng: 139.752, daysAgo: 36 },
+      { note: "皇居一圈 5 公里，配速比上周快了十秒。清晨的二重桥没什么人，跑起来脑子格外清醒，比开一天会有用多了。", rating: 5, lat: 35.685, lng: 139.752, daysAgo: 36, photos: [EXTRA.run1] },
       { note: "线上出 bug，搞到凌晨两点才回家。打车经过空荡荡的大崎，突然觉得这份高薪买走的好像是我所有的晚上。", rating: 2, lat: 35.62, lng: 139.728, daysAgo: 28 },
-      { note: "深蹲加到 100 公斤了，发了张照片到限动，几个朋友点赞。健身房是我现在最稳定的社交场所，想想还有点心酸。", rating: 4, lat: 35.633, lng: 139.7, daysAgo: 19 },
+      { note: "深蹲加到 100 公斤了，发了张照片到限动，几个朋友点赞。健身房是我现在最稳定的社交场所，想想还有点心酸。", rating: 4, lat: 35.633, lng: 139.7, daysAgo: 19, photos: [EXTRA.gym] },
       { note: "周末两天，除了健身房和超市哪也没去。钱包鼓了，朋友圈空了。三十一岁，是不是该交点不只在工位上的朋友。", rating: 3, lat: 35.633, lng: 139.71, daysAgo: 11 },
-      { note: "新键盘到了，敲起来手感太爽，一晚上没干别的就在配列。成年人的快乐，靠买。", rating: 4, lat: 35.633, lng: 139.71, daysAgo: 4 },
+      { note: "新键盘到了，敲起来手感太爽，一晚上没干别的就在配列。成年人的快乐，靠买。", rating: 4, lat: 35.633, lng: 139.71, daysAgo: 4, photos: [EXTRA.keyboard] },
     ],
     posts: [
-      { title: "约跑：驹沢公园长距离", category: "SPORTS", description: "报了下个月的横滨半马，一个人练有点枯燥。有没有跑友周末在驹沢公园拉个长距离？配速 5'30 上下。", venueName: "駒沢公园", lat: 35.626, lng: 139.662, daysFromNow: 9, tags: ["跑步", "健身"], signupEnabled: true },
+      { title: "约跑：驹沢公园长距离", category: "SPORTS", description: "报了下个月的横滨半马，一个人练有点枯燥。有没有跑友周末在驹沢公园拉个长距离？配速 5'30 上下。", venueName: "駒沢公园", lat: 35.626, lng: 139.662, daysFromNow: 9, tags: ["跑步", "健身"], signupEnabled: true, image: EXTRA.run2 },
     ],
   },
 
@@ -221,8 +240,8 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   "七海": {
     checkins: [
       { note: "连上三个夜班，下班时天刚亮，整个人是飘的。回家路上的乌鸦叫得我心烦，洗了澡倒头就睡，连饭都没力气吃。", rating: 2, lat: 35.752, lng: 139.738, daysAgo: 34 },
-      { note: "难得的连休，一个人去了趟箱根。泡在露天风吕里看山，热气腾腾的，感觉这半个月的疲惫被泡化了一点。", rating: 5, lat: 35.232, lng: 139.106, daysAgo: 26 },
-      { note: "白班结束跑去看了场电影，影院里就我一个人，哭得稀里哗啦。当护士久了，眼泪反而藏不住了。", rating: 4, lat: 35.671, lng: 139.764, daysAgo: 17 },
+      { note: "难得的连休，一个人去了趟箱根。泡在露天风吕里看山，热气腾腾的，感觉这半个月的疲惫被泡化了一点。", rating: 5, lat: 35.232, lng: 139.106, daysAgo: 26, photos: [EXTRA.onsen] },
+      { note: "白班结束跑去看了场电影，影院里就我一个人，哭得稀里哗啦。当护士久了，眼泪反而藏不住了。", rating: 4, lat: 35.671, lng: 139.764, daysAgo: 17, photos: [EXTRA.cinema] },
       { note: "休息日把积了一周的衣服洗了，阳台晾满，阳光很好。一个人住的好处是安静，坏处也是。", rating: 3, lat: 35.752, lng: 139.738, daysAgo: 9 },
       { note: "下午班前在飞鸟山公园走了走，樱花谢了但绿得很温柔。给自己买了杯热抹茶，难得对自己好一点。", rating: 4, lat: 35.751, lng: 139.737, daysAgo: 3 },
     ],
@@ -235,13 +254,13 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   "遥": {
     checkins: [
       { note: "今天这对新人在誓词里哭了，新郎的手一直在抖。做这行五年，还是会被这种瞬间打动。送走他们，回家电车上却莫名有点空。", rating: 4, lat: 35.665, lng: 139.712, daysAgo: 37 },
-      { note: "自由が丘新开的甜品店，蒙布朗的栗子味很正。一个人坐窗边慢慢吃完，给自己放了半天假。", rating: 5, lat: 35.607, lng: 139.668, daysAgo: 29 },
-      { note: "周末去镰仓拍海，光线好得不像话。按下快门那一刻，突然觉得比起策划别人的幸福，这种为自己拍照的时刻更让我安心。", rating: 5, lat: 35.319, lng: 139.55, daysAgo: 20 },
+      { note: "自由が丘新开的甜品店，蒙布朗的栗子味很正。一个人坐窗边慢慢吃完，给自己放了半天假。", rating: 5, lat: 35.607, lng: 139.668, daysAgo: 29, photos: [EXTRA.dessert1] },
+      { note: "周末去镰仓拍海，光线好得不像话。按下快门那一刻，突然觉得比起策划别人的幸福，这种为自己拍照的时刻更让我安心。", rating: 5, lat: 35.319, lng: 139.55, daysAgo: 20, photos: [EXTRA.beach1] },
       { note: "整理旧照片，翻到三年前自己写的'三十岁前要怎样怎样'。一条都没做到，但好像也没那么糟。", rating: 3, lat: 35.643, lng: 139.66, daysAgo: 11 },
       { note: "和闺蜜在三轩茶屋喝到很晚，她问我有没有想过自己的婚礼。我笑了笑没答上来——擅长成全别人，轮到自己反而不会了。", rating: 3, lat: 35.643, lng: 139.669, daysAgo: 4 },
     ],
     posts: [
-      { title: "镰仓拍照小众机位（避人潮）", category: "OTHER", description: "把镰仓适合拍照的几个小众机位整理了一下，避开人潮的时段也标了。喜欢海边、想拍点治愈系的可以参考。", venueName: "镰仓", lat: 35.319, lng: 139.55, daysFromNow: 6, tags: ["摄影", "旅行"] },
+      { title: "镰仓拍照小众机位（避人潮）", category: "OTHER", description: "把镰仓适合拍照的几个小众机位整理了一下，避开人潮的时段也标了。喜欢海边、想拍点治愈系的可以参考。", venueName: "镰仓", lat: 35.319, lng: 139.55, daysFromNow: 6, tags: ["摄影", "旅行"], image: EXTRA.beach2 },
     ],
   },
 
@@ -249,13 +268,13 @@ const DATA: Record<string, { checkins: CI[]; posts: PO[] }> = {
   "翔太": {
     checkins: [
       { note: "跑了一天客户，被拒了四家，第五家终于签了。在新宿站的人潮里站了会儿，给自己买了个汉堡当庆祝。销售的快乐就这么朴实。", rating: 4, lat: 35.69, lng: 139.7, daysAgo: 35 },
-      { note: "去味スタ看球，主队绝杀那一刻整个看台都疯了。和邻座素不相识的大叔击掌拥抱，这种热血，和在博多看球一模一样。", rating: 5, lat: 35.664, lng: 139.527, daysAgo: 27 },
+      { note: "去味スタ看球，主队绝杀那一刻整个看台都疯了。和邻座素不相识的大叔击掌拥抱，这种热血，和在博多看球一模一样。", rating: 5, lat: 35.664, lng: 139.527, daysAgo: 27, photos: [EXTRA.soccer1] },
       { note: "便利店看到博多明太子饭团，毫不犹豫买了。味道当然不对，但还是吃出了点家的感觉。来东京三年，这种瞬间越来越少了。", rating: 3, lat: 35.707, lng: 139.665, daysAgo: 18 },
       { note: "中野横丁和同事喝到末班车，聊东京聊老家聊将来。喝多了有点想家，但身边这帮人也挺好，东京慢慢有了'自己人'。", rating: 4, lat: 35.707, lng: 139.665, daysAgo: 10 },
       { note: "周末没安排，扛着相机在谷根千乱逛，拍老猫拍旧店招。一个人的探索也不赖，东京永远逛不完。", rating: 4, lat: 35.725, lng: 139.766, daysAgo: 3 },
     ],
     posts: [
-      { title: "约球迷：下场主场一起去味スタ", category: "SPORTS", description: "下场主场比赛想约人一起去味スタ，一个人喊不起来。福冈球迷优先哈哈，其他队也欢迎，散场横丁喝一杯。", venueName: "味の素スタジアム", lat: 35.664, lng: 139.527, daysFromNow: 10, tags: ["足球", "体育"], signupEnabled: true },
+      { title: "约球迷：下场主场一起去味スタ", category: "SPORTS", description: "下场主场比赛想约人一起去味スタ，一个人喊不起来。福冈球迷优先哈哈，其他队也欢迎，散场横丁喝一杯。", venueName: "味の素スタジアム", lat: 35.664, lng: 139.527, daysFromNow: 10, tags: ["足球", "体育"], signupEnabled: true, image: EXTRA.soccer2 },
     ],
   },
 };
