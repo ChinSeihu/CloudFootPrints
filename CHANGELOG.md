@@ -6,6 +6,16 @@
 
 ## 2026-06-23
 
+### 人物外观一致性基准（角色设定图）
+
+- 收录 `public/person.png`（12 人角色设定图：正/背全身 + 年龄/职业/身高/体型/穿衣风格），作为**人物长相的唯一标准**，防止后续推演中外观漂移。
+- `src/lib/personas.ts` 每人新增 `refIndex`（设定图编号 1–12）+ `appearance`（可识别外观摘要：发型/体型/惯常穿衣/气质）+ `REF_SHEET` 常量。
+- 规则写入 `docs/demo-personas.md` 配图规则与 `DECISIONS.md`：任何人物出镜/生成图片都以设定图为准；Phase 4 Image Agent 以其为外观参考。
+
+**涉及文件：** `public/person.png`、`src/lib/personas.ts`、`docs/demo-personas.md`、`DECISIONS.md`
+
+---
+
 ### 社区模拟 V7 · Phase 1：记忆/状态/关系地基（无 AI）
 
 把 12 个 demo 账号从「静态测试数据」往「有记忆、会演化的社区」推进第一步（设计见 `docs/Agent_Architecture.md`）。本期纯工程、不调 Claude、可回滚。

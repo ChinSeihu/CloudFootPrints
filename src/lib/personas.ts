@@ -5,6 +5,11 @@
 // 模拟时间线起点：已有内容算「最近几个月」，Feb→现在的内容在 Phase 2 补全，推演从现在往后。
 export const SIM_EPOCH = "2026-02-01";
 
+// 角色设定参考图（外观一致性基准）：6 列 × 2 行的 12 人全身正/背视图 + 年龄/职业/身高/体型/穿衣。
+// 后续任何「人物出镜 / 生成图片」都以此为准，防止推演中人物外观漂移。
+// refIndex 1–12 对应图中编号（左上→右，1–6 上排，7–12 下排）。
+export const REF_SHEET = { src: "/person.png", cols: 6, rows: 2, count: 12 } as const;
+
 export type LatLng = { name: string; lat: number; lng: number };
 
 // 配图视角：pro = 摄影强者可用讲究的客观构图；hobby = 平时主观、出「作品」时可客观；
@@ -16,6 +21,8 @@ export type Persona = {
   age: number;
   job: string;
   hasAvatar: boolean;
+  refIndex: number; // 在 REF_SHEET 设定图中的编号（1–12），外观一致性基准
+  appearance: string; // 可识别外观特征（发型/体型/惯常穿衣/气质），以设定图为准
   photoSkill: PhotoSkill;
   home: LatLng;
   roam: LatLng[];
@@ -35,6 +42,8 @@ export const PERSONAS: Persona[] = [
     age: 28,
     job: "出版社编辑（艺术类）",
     hasAvatar: true,
+    refIndex: 1,
+    appearance: "长直黑发、清瘦；简约自然风，白上衣配深色长裙；文静内敛。",
     photoSkill: "casual",
     home: { name: "渋谷", lat: 35.659, lng: 139.698 },
     roam: [
@@ -57,6 +66,8 @@ export const PERSONAS: Persona[] = [
     age: 26,
     job: "乐器店店员 / 地下乐队鼓手",
     hasAvatar: true,
+    refIndex: 2,
+    appearance: "中等身高中等身材、短发；乐队黑 T + 黑裤 + 球鞋，休闲摇滚味。",
     photoSkill: "casual",
     home: { name: "下北沢", lat: 35.6613, lng: 139.6679 },
     roam: [
@@ -78,6 +89,8 @@ export const PERSONAS: Persona[] = [
     age: 29,
     job: "自由平面设计师",
     hasAvatar: true,
+    refIndex: 3,
+    appearance: "中长发、纤细；自然米色系，白上衣配宽松长裤；柔和文艺。",
     photoSkill: "casual",
     home: { name: "中目黒·目黑川", lat: 35.6447, lng: 139.699 },
     roam: [
@@ -99,6 +112,8 @@ export const PERSONAS: Persona[] = [
     age: 24,
     job: "广告公司职员（入职第二年）",
     hasAvatar: false,
+    refIndex: 4,
+    appearance: "妆容精致；时髦都市风，深色连衣裙/外套，干练有社交感。",
     photoSkill: "casual",
     home: { name: "表参道 / 港区", lat: 35.665, lng: 139.712 },
     roam: [
@@ -120,6 +135,8 @@ export const PERSONAS: Persona[] = [
     age: 27,
     job: "产品经理",
     hasAvatar: false,
+    refIndex: 5,
+    appearance: "较高、清爽短发；简约黑白灰 monotone，理性干练。",
     photoSkill: "casual",
     home: { name: "清澄白河", lat: 35.681, lng: 139.8 },
     roam: [
@@ -141,6 +158,8 @@ export const PERSONAS: Persona[] = [
     age: 22,
     job: "大学生（即将毕业）/ 咖啡店兼职",
     hasAvatar: false,
+    refIndex: 6,
+    appearance: "学生气、休闲古着，常配咖啡店围裙；年轻随性。",
     photoSkill: "hobby",
     home: { name: "三鹰/吉祥寺·井之头", lat: 35.703, lng: 139.58 },
     roam: [
@@ -162,6 +181,8 @@ export const PERSONAS: Persona[] = [
     age: 31,
     job: "软件工程师",
     hasAvatar: false,
+    refIndex: 7,
+    appearance: "高个、运动体型；机能/运动风深色装，利落寡淡。",
     photoSkill: "casual",
     home: { name: "目黒/大崎", lat: 35.633, lng: 139.728 },
     roam: [
@@ -183,6 +204,8 @@ export const PERSONAS: Persona[] = [
     age: 27,
     job: "护士",
     hasAvatar: false,
+    refIndex: 8,
+    appearance: "温和娴静、中长发；工作时护士服，平时简单休闲；带倦意的暖。",
     photoSkill: "casual",
     home: { name: "北区/王子", lat: 35.752, lng: 139.738 },
     roam: [
@@ -204,6 +227,8 @@ export const PERSONAS: Persona[] = [
     age: 30,
     job: "婚礼策划",
     hasAvatar: false,
+    refIndex: 9,
+    appearance: "知性成熟、长发；米色 きれいめ 自然风，温柔得体。",
     photoSkill: "hobby",
     home: { name: "世田谷/三轩茶屋", lat: 35.643, lng: 139.669 },
     roam: [
@@ -225,6 +250,8 @@ export const PERSONAS: Persona[] = [
     age: 25,
     job: "销售（福冈出身）",
     hasAvatar: false,
+    refIndex: 10,
+    appearance: "爽朗阳光、短发；工作西装、平时休闲两套；体格结实。",
     photoSkill: "casual",
     home: { name: "中野", lat: 35.707, lng: 139.665 },
     roam: [
@@ -246,6 +273,8 @@ export const PERSONAS: Persona[] = [
     age: 31,
     job: "古着店主 / 手作人",
     hasAvatar: true,
+    refIndex: 11,
+    appearance: "自然古着风、常配围裙；手作人气质，温暖惜物。",
     photoSkill: "casual",
     home: { name: "吉祥寺/井之头", lat: 35.7003, lng: 139.5704 },
     roam: [
@@ -267,6 +296,8 @@ export const PERSONAS: Persona[] = [
     age: 35,
     job: "自由摄影师",
     hasAvatar: true,
+    refIndex: 12,
+    appearance: "沉稳寡言、短发；简约黑色、夹克，摄影师气场。",
     photoSkill: "pro",
     home: { name: "浅草", lat: 35.7148, lng: 139.7967 },
     roam: [
