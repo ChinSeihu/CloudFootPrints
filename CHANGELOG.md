@@ -6,6 +6,20 @@
 
 ## 2026-06-23
 
+### 社区模拟 V7 · Phase 1：记忆/状态/关系地基（无 AI）
+
+把 12 个 demo 账号从「静态测试数据」往「有记忆、会演化的社区」推进第一步（设计见 `docs/Agent_Architecture.md`）。本期纯工程、不调 Claude、可回滚。
+
+- **新增 4 张模拟状态表**（`prisma db push`，非破坏性，仅加表）：`Memory`（记忆，含类型/重要度/发生时间/衰减/溯源）、`CharacterState`（情绪 jsonb/目标/人生阶段）、`Relationship`（弱连接，强度/情感，规范化唯一）、`WorldState`（每天东京状态）。`User` 加对应反向关系。
+- **`src/lib/personas.ts`**：12 人「机器可读」结构化档案（性格分值/情绪基线/目标/据点与活动坐标/笔触/弱连接/`photoSkill`），作为各 Agent 的 Layer-2 事实源；`SIM_EPOCH = 2026-02-01`。
+- **`scripts/sim-init.ts`**（幂等回填）：现有足迹 → 初始 `Memory`、按 persona 初始化 `CharacterState`、按 friends 建 `Relationship`。已执行入库：**12 人状态 / 57 条记忆 / 13 对关系**。
+- **配图视角规则**：`docs/demo-personas.md` 配图规则新增——日常照片默认**主观镜头**（手机随手拍），仅摄影强者（`photoSkill=pro/hobby`）出「作品」时用客观构图。
+- 时间线决定：已有内容算「最近几个月」，Feb→现在的内容与每日推演留待 Phase 2。
+
+**涉及文件：** `prisma/schema.prisma`、`src/lib/personas.ts`、`scripts/sim-init.ts`、`docs/demo-personas.md`、`DECISIONS.md`
+
+---
+
 ### 新增人物种子内容补配图（不再全是文字）
 
 - 给新 7 人的足迹/发帖补**内容匹配**的主题配图（跑步 / 健身 / 足球 / 温泉 / 电影 / 甜品 / 海岸 / 居酒屋 / 图书馆 / 键盘 / 城市夜等），Unsplash 主题图均 `curl` 验证 200、经 Cloudinary 服务端抓取托管（`scripts/seed-demo.ts` 新增 `EXTRA` 配图表）。每人 2~4 张：有画面感的瞬间配图，琐碎日常（加班/洗衣/emo）不配。

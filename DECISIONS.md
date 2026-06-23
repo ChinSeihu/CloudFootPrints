@@ -124,3 +124,21 @@
 - **用户系统**：✅ 已实现（本地账号 + 认证 + 个人资料 + 未登录拦截，见上「架构」与 CHANGELOG）。
 - **收藏 / 点赞（#2）**：✅ 已实现。`Reaction` 单表 + `ReactionType`(LIKE/FAVORITE) 区分，唯一约束 `(userId,eventId,type)`；`services/reactions.ts` + `/api/events/[id]/reactions`（GET 状态 / POST 切换需登录）+ `/api/favorites`。详情页头部点赞/收藏按钮（乐观更新+回滚），个人页「收藏」tab。**改 schema 后 dev server 必须重启**才会加载新 Prisma client。
 - **评论作者展示（待实现）**：Comment 记录真实 userId 后，列表 join User 显示用户名/头像。
+
+## 社区模拟（V7 Agent Architecture）
+
+> 总设计见 `docs/Agent_Architecture.md`（愿景：记忆驱动的社区模拟，内容是「活着」的副产物，不是 `prompt→帖子`）；人物画像见 `docs/demo-personas.md` + 机器可读版 `src/lib/personas.ts`。
+
+- **目标**：把 12 个 demo 账号从「静态测试数据」变成「有记忆、有情绪/目标、有弱关系、会演化」的社区。核心链路 `记忆 → 关系 → 事件 → 行为 → 内容`。
+- **时间线 epoch = `2026-02-01`**（`personas.ts` 的 `SIM_EPOCH`）：已有内容算「最近几个月」；Feb→现在的内容在 Phase 2 生成补全，推演从「现在」往后单调推进。
+- **内部状态表与对外内容表分离**（Phase 1 已建，`prisma db push` 入库，非破坏性）：
+  - `Memory`（记忆：`type` EVENT/RELATIONSHIP/MILESTONE/GOAL/SUMMARY、`importance` 1–3、`happenedAt` 可回填过去、`decayAt` 衰减、`sourceCheckInId` 溯源去重）
+  - `CharacterState`（每人一行：`emotion` jsonb 0–100 / `goals` / `lifeStage` / `lastActiveAt`）
+  - `Relationship`（弱连接：`strength` 0–100 / `sentiment` -100–100，规范化 `aId<bId` 唯一，成长慢、自然衰减）
+  - `WorldState`（每天一行：季节/天气/城市情绪/热点）
+  - 对外内容仍只用 `CheckIn/Post/Comment`，模拟状态不直接展示。
+- **配图视角**（`personas.ts` 的 `photoSkill`）：`casual` 日常一律**主观镜头**（手机随手拍）；`hobby`（遥/葵）平时主观、出「作品」才客观；`pro`（たけし）可讲究构图。规则写入 `docs/demo-personas.md` 配图规则。
+- **Phase 1（已完成，纯工程无 AI）**：建 4 表 + `src/lib/personas.ts` 结构化档案 + `scripts/sim-init.ts` 回填（现有足迹→初始 Memory、按 persona 初始化 CharacterState、按 friends 建 Relationship）。可重复执行、幂等（记忆按 `sourceCheckInId` 重建）。
+- **Phase 2（待办）**：每日 cron（凌晨 3 点，复用 `CRON_SECRET` 鉴权）跑 World Agent → 各角色决策(haiku，几十 token) → 写 Memory → 概率发内容；白天用户纯读 DB、不调 Claude。先只产 CheckIn 再加 Post/Comment。补全 Feb→现在的内容。
+- **Phase 3/4（待办）**：每周 Community/Career、每月人生事件 + 记忆压缩（30 天→生活摘要）；关系/八卦/恋爱极低概率。`ImageProvider` 统一接口（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
+- **成本取向**：12 人每天一跑、haiku 决策为主，日成本可忽略；用 GitHub Actions 或 Vercel Cron 均可（重活已有 Actions 先例）。
