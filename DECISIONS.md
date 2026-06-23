@@ -140,6 +140,8 @@
 - **配图视角**（`personas.ts` 的 `photoSkill`）：`casual` 日常一律**主观镜头**（手机随手拍）；`hobby`（遥/葵）平时主观、出「作品」才客观；`pro`（たけし）可讲究构图。规则写入 `docs/demo-personas.md` 配图规则。
 - **人物外观一致性基准 = `public/person.png`**：12 人角色设定图（正/背全身 + 身高/体型/穿衣），是人物长相的**唯一标准**，防止推演中外观漂移。每人外观摘要落在 `personas.ts` 的 `appearance`、设定图编号 `refIndex`（1–12）。任何生成的人物出镜照都以此为准；Phase 4 Image Agent 应将其作为外观参考（文本描述 +（若模型支持）图参）。
 - **Phase 1（已完成，纯工程无 AI）**：建 4 表 + `src/lib/personas.ts` 结构化档案 + `scripts/sim-init.ts` 回填（现有足迹→初始 Memory、按 persona 初始化 CharacterState、按 friends 建 Relationship）。可重复执行、幂等（记忆按 `sourceCheckInId` 重建）。
-- **Phase 2（待办）**：每日 cron（凌晨 3 点，复用 `CRON_SECRET` 鉴权）跑 World Agent → 各角色决策(haiku，几十 token) → 写 Memory → 概率发内容；白天用户纯读 DB、不调 Claude。先只产 CheckIn 再加 Post/Comment。补全 Feb→现在的内容。
+- **Phase 2（已实现）**：每日推演引擎 `src/services/simulation/`（`world.ts` 规则化世界状态零 LLM；`decide.ts` provider 感知决策 = DeepSeek JSON / Claude tool；`engine.ts` 参与度掷点→决策→写 Memory+可选 CheckIn+更新情绪）。**幂等**：当天 sim 记忆（`sourceCheckInId=null`）存在即跳过（回填记忆 `sourceCheckInId` 非空，不混淆）。入口：`scripts/sim-run.ts`（`--date/--from..--to/--only/--dry`）+ `/api/simulate`（`CRON_SECRET` 保护）。坐标只从人物据点清单选 + 抖动，保证落在活动范围。**白天用户纯读 DB、不调 LLM**。
+  - **回填 Feb→现在**：`npx tsx scripts/sim-run.ts --from=2026-02-01 --to=<今天>`，幂等可分段；约数百次 DeepSeek 调用。
+  - **每日定时**：建议沿用 GitHub Actions（同 extract，避免 serverless 超时）跑 `sim-run.ts`；或 `/api/simulate` 接 Vercel Cron。**尚未配置调度**（端点/脚本就绪，调度待定）。
 - **Phase 3/4（待办）**：每周 Community/Career、每月人生事件 + 记忆压缩（30 天→生活摘要）；关系/八卦/恋爱极低概率。`ImageProvider` 统一接口（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
 - **成本取向**：12 人每天一跑、haiku 决策为主，日成本可忽略；用 GitHub Actions 或 Vercel Cron 均可（重活已有 Actions 先例）。

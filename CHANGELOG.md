@@ -6,6 +6,22 @@
 
 ## 2026-06-23
 
+### 社区模拟 V7 · Phase 2：每日推演引擎（记忆驱动→内容）
+
+把 Phase 1 的地基跑起来：角色「过日子→形成记忆→按概率才产内容」，内容是副产物（非 `prompt→帖子`）。
+
+- **World Agent**（`src/services/simulation/world.ts`）：规则化生成当天东京状态（季节/天气/城市情绪/热点），按日期可复现、零 LLM、落 `WorldState`。
+- **角色决策**（`decide.ts`）：provider 感知（DeepSeek JSON / Claude tool use），输入人物档案 + 当前情绪/目标/人生阶段 + 最近记忆 + 最近足迹（防重复）+ 世界状态，输出当天记忆 + 情绪微调 + 可选足迹（地点从据点清单选）。提示内置内容分布(日常 40%…)、情绪比例、防 AI 味、笔触口吻。
+- **引擎**（`engine.ts`）：每人「参与度掷点」（外向/情绪决定，0.2–0.75，平淡日不调 LLM）→ 决策 → 写 `Memory` + 可选 `CheckIn`（坐标落据点 + 轻微抖动、时间为当天）+ 更新 `CharacterState` 情绪/活跃。**幂等**：当天已模拟的角色自动跳过，可断点续跑。
+- **运行入口**：`scripts/sim-run.ts`（`--date` / `--from --to` 回填 / `--only` / `--dry` 干跑）；`/api/simulate`（cron 端点，`CRON_SECRET` 保护，跑「今天」）。
+- 实测：模拟 2026-06-20 单日 → 12 人中 5 人参与、产 3 条足迹，内容贴合人物口吻与当天世界状态（夏季闷热/花火热点）；重跑同日全部跳过（幂等）。
+
+**待办（需你来跑/决定）**：① Feb→现在回填：`npx tsx scripts/sim-run.ts --from=2026-02-01 --to=<今天>`（约数百次 DeepSeek 调用，耗时分钟级，幂等可分段）；② 每日定时：建议沿用 GitHub Actions（同 extract）每日跑 `sim-run.ts`，或 `/api/simulate` 接 cron。
+
+**涉及文件：** `src/services/simulation/{world,decide,engine}.ts`、`scripts/sim-run.ts`、`src/app/api/simulate/route.ts`
+
+---
+
 ### 人物外观一致性基准（角色设定图）
 
 - 收录 `public/person.png`（12 人角色设定图：正/背全身 + 年龄/职业/身高/体型/穿衣风格），作为**人物长相的唯一标准**，防止后续推演中外观漂移。
