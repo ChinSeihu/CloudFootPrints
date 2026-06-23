@@ -148,5 +148,8 @@
   - **社区平衡**（`community.ts`，每周一，规则化）：>7 天没活跃的角色 excitement +15，抬高参与度让其回归（防有人长期消失）。
   - **记忆压缩**（`memory.ts`，每月 1 日，LLM）：把 45 天前的一批 EVENT 记忆压成 1 条 SUMMARY（省 token + 成长叙事），删原件。阈值 45 天避免与近期日推演的幂等标记冲突；回填 Feb→现在时自然触发。
   - 触发节奏内嵌在 `engine.simulateDay`（按 dateKey 的星期/月初判定），故回填一段时也会按真实日期建立关系/平衡/压缩。
-- **Phase 3b/4（待办）**：角色间评论/八卦/恋爱、Career Agent、重大人生事件、动态签名(status/signature)随记忆刷新；`ImageProvider` 统一接口（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
+- **Phase 3b（已实现）**：
+  - **系统外熟人（cast）**：社交不限于 12 用户。`CharacterState.cast`(jsonb `[{name,relation}]`)记录现实里反复出现的人（室友/同事/老乡/店主/家人/陌生人）；决策喂回 cast 保持连续，当天出现的人回写（最近优先、去重、cap 8）。
+  - **动态签名/状态**：`signature.ts` 据最近记忆+情绪刷新；`status` 每周一(近一周活跃)、`signature` 每月 1 日(近两周活跃)。**直接写 `prisma.user` 仅改 status/signature**，绝不用 `updateProfile`（它会把未传字段如 avatar/cover 置 null）。
+- **Phase 3c/4（待办）**：角色间评论/八卦/恋爱、Career Agent、重大人生事件；情绪向基线回归(防 sadness+excitement 同时拉满)；`ImageProvider` 统一接口 + 以 `public/person.png`(`personas.refIndex/appearance`)为外观基准的人物配图（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
 - **成本取向**：12 人每天一跑、haiku 决策为主，日成本可忽略；用 GitHub Actions 或 Vercel Cron 均可（重活已有 Actions 先例）。

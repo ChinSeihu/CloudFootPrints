@@ -6,6 +6,17 @@
 
 ## 2026-06-23
 
+### 社区模拟 V7 · Phase 3b：系统外熟人 + 动态签名/状态
+
+- **系统外熟人（cast）**：社交关系不限于 12 个 App 用户——`CharacterState` 加 `cast`(jsonb `[{name,relation}]`)记录角色现实里反复出现的人（室友/同事/老乡/店主/家人/陌生人）。决策时把 cast 喂回提示，鼓励自然带入、保持连续（"又见到那个…"），并把当天出现的人回写名册（最近优先、去重、最多 8 人）。实测 ケンジ 形成「高円寺横丁拉面店老板」并跨天复现。
+- **动态签名/状态**：`signature.ts` 按最近记忆+情绪+人生阶段刷新——`status`(近况)每周一刷新近一周活跃角色、`signature`(个性签名)每月 1 日刷新近两周活跃角色。直接写 `prisma.user`（仅改目标字段，**不经 `updateProfile`** 以免把头像/封面置 null）。
+- 维护摘要新增「状态刷新 N / 签名刷新 N」；`sim-inspect` 展示当前 status/signature + 系统外熟人名册。
+- schema：`CharacterState.cast` 列（`prisma db push`，非破坏性）。
+
+**涉及文件：** `prisma/schema.prisma`、`src/services/simulation/{decide,engine,signature}.ts`、`scripts/sim-inspect.ts`
+
+---
+
 ### 社区模拟 V7 · Phase 3：关系动态 + 社区平衡 + 记忆压缩
 
 在每日推演后加「维护」层，让社区「连接、成长、不失联」。仅在真跑 + 全员 + 当天有动作时触发（子集/dry/幂等重跑不触发）。

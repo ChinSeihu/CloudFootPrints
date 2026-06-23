@@ -6,6 +6,7 @@ import { decideDay, type SpotOption } from "./decide";
 import { applyRelationshipDynamics } from "./relationships";
 import { weeklyCommunityBalance } from "./community";
 import { compressMemories } from "./memory";
+import { refreshStatus, refreshSignature } from "./signature";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
 // 每个角色：参与度掷点 → (参与才调 LLM) → 决策 → 写 Memory + 可选 CheckIn + 更新情绪/活跃。
@@ -13,6 +14,22 @@ import { compressMemories } from "./memory";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+type CastEntry = { name: string; relation: string };
+const CAST_CAP = 8;
+// 合并熟人名册：今天出现的(added)置顶，旧的去重补后，最多 CAP 个（按最近出现保留）。
+function mergeCast(existing: CastEntry[], added: CastEntry[]): CastEntry[] {
+  const out: CastEntry[] = [];
+  const seen = new Set<string>();
+  for (const p of [...added, ...existing]) {
+    const name = p.name?.trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push({ name, relation: p.relation?.trim() || "熟人" });
+    if (out.length >= CAST_CAP) break;
+  }
+  return out;
+}
 
 function seeded(key: string): () => number {
   let h = 2166136261;
@@ -84,6 +101,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const emotion: Record<string, number> = (state?.emotion as Record<string, number>) ?? { ...persona.emotionBaseline };
   const goals = state?.goals ?? persona.goals;
   const lifeStage = state?.lifeStage ?? persona.lifeStage;
+  const cast: { name: string; relation: string }[] = Array.isArray(state?.cast) ? (state!.cast as { name: string; relation: string }[]) : [];
 
   // 参与度掷点（按 日期|用户 复现）。不参与 = 平淡无事的一天，不调 LLM、不留内容。
   const roll = seeded(`${dateKey}|${username}`)();
@@ -105,7 +123,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
 
   const decision = await decideDay({
     persona, world: await getOrCreateWorldState(dateKey), dateLabel: dateLabel(dateKey),
-    emotion, goals, lifeStage, recentMemories, recentNotes, spots: options,
+    emotion, goals, lifeStage, recentMemories, recentNotes, spots: options, cast,
   });
   if (!decision) return { username, status: "no-decision" };
 
@@ -137,10 +155,11 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
     data: { userId, text: decision.memoryText, type: "EVENT", importance: decision.memoryImportance, happenedAt: when, sourceCheckInId: null },
   });
 
+  const nextCast = mergeCast(cast, decision.people);
   await prisma.characterState.upsert({
     where: { userId },
-    create: { userId, emotion: nextEmotion, goals, lifeStage, lastActiveAt: when },
-    update: { emotion: nextEmotion, lastActiveAt: when },
+    create: { userId, emotion: nextEmotion, goals, lifeStage, cast: nextCast, lastActiveAt: when },
+    update: { emotion: nextEmotion, cast: nextCast, lastActiveAt: when },
   });
 
   return { username, status: posted ? "posted" : "memory", note: posted ? decision.post!.note : decision.memoryText };
@@ -172,18 +191,34 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
     const rel = await applyRelationshipDynamics(activeIds, when);
     const parts = [`关系+${rel.grown}/-${rel.decayed}`];
 
-    // 每周一：社区平衡（让久未露面的人回升参与度）
+    // 每周一：社区平衡 + 刷新近一周活跃角色的「当前状态」(status)
     if (weekday === 1) {
       const nudged = await weeklyCommunityBalance(when);
       parts.push(`社区唤醒${nudged}`);
+      const weekAgo = new Date(when.getTime() - 7 * 86_400_000);
+      const active = await prisma.user.findMany({
+        where: { username: { in: PERSONAS.map((p) => p.username) }, charState: { lastActiveAt: { gte: weekAgo } } },
+        select: { username: true },
+      });
+      let statusN = 0;
+      for (const a of active) { try { if (await refreshStatus(a.username)) statusN++; } catch { /* 跳过 */ } }
+      parts.push(`状态刷新${statusN}`);
     }
-    // 每月 1 日：记忆压缩（旧记忆→生活摘要）
+    // 每月 1 日：记忆压缩 + 刷新近两周活跃角色的「个性签名」(signature)
     if (dom === 1) {
       let compressed = 0;
       for (const p of PERSONAS) {
         try { if (await compressMemories(p.username, when)) compressed++; } catch { /* 跳过失败 */ }
       }
       parts.push(`记忆压缩${compressed}`);
+      const twoWeeksAgo = new Date(when.getTime() - 14 * 86_400_000);
+      const active = await prisma.user.findMany({
+        where: { username: { in: PERSONAS.map((p) => p.username) }, charState: { lastActiveAt: { gte: twoWeeksAgo } } },
+        select: { username: true },
+      });
+      let sigN = 0;
+      for (const a of active) { try { if (await refreshSignature(a.username)) sigN++; } catch { /* 跳过 */ } }
+      parts.push(`签名刷新${sigN}`);
     }
     maintenance = parts.join(" · ");
   }

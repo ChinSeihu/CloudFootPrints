@@ -25,7 +25,7 @@ async function nameMap(): Promise<Map<string, string>> {
 
 async function inspectOne(username: string, memN: number, idToName: Map<string, string>) {
   const persona = personaOf(username);
-  const user = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+  const user = await prisma.user.findUnique({ where: { username }, select: { id: true, status: true, signature: true } });
   if (!user) { console.log(`\n✗ ${username}：用户不存在`); return; }
   const userId = user.id;
 
@@ -38,12 +38,15 @@ async function inspectOne(username: string, memN: number, idToName: Map<string, 
 
   console.log(`\n${"═".repeat(56)}`);
   console.log(`● ${username}　${persona ? `${persona.age}岁 · ${persona.job}` : ""}`);
+  console.log(`  状态: ${user.status ?? "—"}   签名: ${user.signature ?? "—"}`);
   if (state) {
     const emo = Object.entries((state.emotion as Record<string, number>) ?? {}).map(([k, v]) => `${k}:${v}`).join("  ");
     console.log(`  情绪: ${emo || "(无)"}`);
     console.log(`  目标: ${(state.goals ?? []).join("；") || "(无)"}`);
     console.log(`  人生阶段: ${state.lifeStage ?? "(无)"}`);
     console.log(`  最后活跃: ${state.lastActiveAt ? fmt(state.lastActiveAt) : "(无)"}`);
+    const cast = Array.isArray(state.cast) ? (state.cast as { name: string; relation: string }[]) : [];
+    if (cast.length) console.log(`  系统外熟人: ${cast.map((c) => `${c.name}(${c.relation})`).join("、")}`);
   } else {
     console.log("  (无 CharacterState —— 先跑 sim-init)");
   }

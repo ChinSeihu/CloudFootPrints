@@ -17,6 +17,7 @@ export type DecideInput = {
   recentMemories: string[]; // 最近若干条记忆文本（旧→新）
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
   spots: SpotOption[]; // 可选打卡地点（home + roam），index 对应
+  cast: { name: string; relation: string }[]; // 系统外常出现的熟人（让"又见到某人"有连续性）
 };
 
 export type DecideOutput = {
@@ -28,6 +29,7 @@ export type DecideOutput = {
     rating: number | null; // 1..5
     spotIndex: number; // 命中 spots 的 index；越界则回退据点
   };
+  people: { name: string; relation: string }[]; // 今天内容里出现的系统外的人（已有的或新出现的）
 };
 
 function getApiKey(): string {
@@ -52,7 +54,8 @@ const SYSTEM = `你在模拟一个真实生活在东京的年轻人「这一天�
 - 必须像真人：有不确定、有琐碎、有小情绪；禁止鸡汤、人生感悟、营销腔、AI 味。
 - 必须贴合该人物的「笔触口吻」和当前情绪/目标/最近记忆，体现连续与缓慢成长。
 - 不是每天都发内容；平淡的一天可以只在心里留个记忆（post 置 null）。
-- 若发足迹：第一人称、50~150 字、写一个具体瞬间与感受，地点只能从给定清单里选。`;
+- 若发足迹：第一人称、50~150 字、写一个具体瞬间与感受，地点只能从给定清单里选。
+- 社交对象**不限于 App 用户**：现实里你会遇到室友、同事、老同学、老乡、店主、家人、陌生人。能自然带入「你生活里常出现的人」就带，保持连续（"又见到那个…"）；也可以出现新的人。把今天内容里出现的人填到 people（已有的沿用同名，新的也列上）。`;
 
 function buildUserPrompt(inp: DecideInput): string {
   const spotList = inp.spots.map((s) => `${s.index}. ${s.name}`).join("\n");
@@ -76,10 +79,13 @@ ${mem}
 【最近发的足迹】（避免重复题材/用词；若连续同一兴趣，今天换别的）
 ${notes}
 
+【你生活里常出现的人】（系统外的现实熟人，可自然带入、保持连续；也可出现新的人）
+${inp.cast.length ? inp.cast.map((c) => `- ${c.name}（${c.relation}）`).join("\n") : "（暂无，按需自然引入）"}
+
 【可选打卡地点】（post.spotIndex 只能取下列编号）
 ${spotList}
 
-请决定这个人「今天」过得怎样：必产出一条今天的记忆(memoryText, 第一人称, 简短一句)，给出情绪微调(moodDelta, 可空), 并决定是否发一条足迹(post)。`;
+请决定这个人「今天」过得怎样：必产出一条今天的记忆(memoryText, 第一人称, 简短一句)，给出情绪微调(moodDelta, 可空), 决定是否发一条足迹(post)，并把今天内容里出现的系统外的人填到 people。`;
 }
 
 const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围栏：
@@ -89,7 +95,8 @@ const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围
   "moodDelta": {"stress": -5, "loneliness": 3},  // 情绪增减，可空对象 {}
   "post": null,                          // 平淡的一天用 null
   // 或发足迹：
-  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0}  // rating 1-5 或 null
+  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0},  // rating 1-5 或 null
+  "people": [{"name": "酒井さん", "relation": "常去店的老板"}]  // 今天出现的系统外的人，没有就 []
 }`;
 
 const TOOL: Anthropic.Tool = {
@@ -110,6 +117,15 @@ const TOOL: Anthropic.Tool = {
         },
         required: ["note", "spotIndex"],
         additionalProperties: false,
+      },
+      people: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { name: { type: "string" }, relation: { type: "string" } },
+          required: ["name", "relation"],
+          additionalProperties: false,
+        },
       },
     },
     required: ["memoryText", "memoryImportance"],
@@ -149,7 +165,17 @@ function normalize(raw: unknown): DecideOutput | null {
       };
     }
   }
-  return { memoryText, memoryImportance, moodDelta, post };
+  const people: { name: string; relation: string }[] = [];
+  if (Array.isArray(o.people)) {
+    for (const it of o.people) {
+      if (it && typeof it === "object") {
+        const name = typeof (it as Record<string, unknown>).name === "string" ? ((it as Record<string, unknown>).name as string).trim() : "";
+        const relation = typeof (it as Record<string, unknown>).relation === "string" ? ((it as Record<string, unknown>).relation as string).trim() : "";
+        if (name) people.push({ name, relation: relation || "熟人" });
+      }
+    }
+  }
+  return { memoryText, memoryImportance, moodDelta, post, people };
 }
 
 export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> {
