@@ -42,6 +42,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const stickyRef = useRef<HTMLDivElement | null>(null);
   const lastScrollRef = useRef(0);
+  const secondaryVisibleRef = useRef(true); // 镜像 secondaryVisible，供滚动回调即时读、避免重复 setState
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
   // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
@@ -105,7 +106,9 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
   }, [events]);
 
-  // 二级菜单随滚动方向显隐：下滑收起、上滑展开（贴近内容、减少干扰）。
+  // 二级菜单随滚动方向显隐：下滑收起、上滑展开。
+  // 收/展会改变顶栏高度→clamp scrollTop→再触发 scroll，易反复横跳闪烁；
+  // 故切换后短暂上锁（覆盖过渡时长），锁内只跟随 scrollTop、不再判定方向。
   useEffect(() => {
     const start = stickyRef.current;
     if (!start) return;
@@ -117,16 +120,27 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     }
     if (!node) return;
     const sc = node;
+    let locked = false;
+    let unlockTimer: ReturnType<typeof setTimeout> | undefined;
+    const setVis = (v: boolean) => {
+      if (secondaryVisibleRef.current === v) return; // 状态没变就不重渲染
+      secondaryVisibleRef.current = v;
+      setSecondaryVisible(v);
+      locked = true;
+      clearTimeout(unlockTimer);
+      unlockTimer = setTimeout(() => { locked = false; lastScrollRef.current = sc.scrollTop; }, 380);
+    };
     const onScroll = () => {
       const y = sc.scrollTop;
-      const last = lastScrollRef.current;
-      if (y < 48) setSecondaryVisible(true);
-      else if (y > last + 6) setSecondaryVisible(false);
-      else if (y < last - 6) setSecondaryVisible(true);
+      if (y < 48) { setVis(true); lastScrollRef.current = y; return; } // 近顶恒展开
+      if (locked) { lastScrollRef.current = y; return; }              // 锁内只跟随，不判方向
+      const delta = y - lastScrollRef.current;
+      if (delta > 10) setVis(false);        // 明显下滑→收起
+      else if (delta < -10) setVis(true);   // 明显上滑→展开
       lastScrollRef.current = y;
     };
     sc.addEventListener("scroll", onScroll, { passive: true });
-    return () => sc.removeEventListener("scroll", onScroll);
+    return () => { sc.removeEventListener("scroll", onScroll); clearTimeout(unlockTimer); };
   }, []);
 
   // 响应式列数：手机 2 列、≥640px 3 列
