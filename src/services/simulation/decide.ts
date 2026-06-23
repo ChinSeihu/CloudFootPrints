@@ -28,6 +28,8 @@ export type DecideOutput = {
     note: string;
     rating: number | null; // 1..5
     spotIndex: number; // 命中 spots 的 index；越界则回退据点
+    photo: boolean; // 这条是否值得配图（有画面感/重要瞬间才配，琐碎日常不配）
+    photoDesc: string; // 若配图：一句话描述照片画面（默认主观镜头/手机随手拍）
   };
   people: { name: string; relation: string }[]; // 今天内容里出现的系统外的人（已有的或新出现的）
 };
@@ -95,7 +97,7 @@ const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围
   "moodDelta": {"stress": -5, "loneliness": 3},  // 情绪增减，可空对象 {}
   "post": null,                          // 平淡的一天用 null
   // 或发足迹：
-  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0},  // rating 1-5 或 null
+  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0, "photo": true, "photoDesc": "手机随手拍：窗边的手冲咖啡，目黑川的绿意在杯子后面虚化"},  // rating 1-5 或 null；photo 仅在有画面感/重要瞬间为 true；photoDesc 默认主观镜头
   "people": [{"name": "酒井さん", "relation": "常去店的老板"}]  // 今天出现的系统外的人，没有就 []
 }`;
 
@@ -114,6 +116,8 @@ const TOOL: Anthropic.Tool = {
           note: { type: "string" },
           rating: { type: ["integer", "null"], enum: [1, 2, 3, 4, 5, null] },
           spotIndex: { type: "integer" },
+          photo: { type: "boolean" },
+          photoDesc: { type: "string" },
         },
         required: ["note", "spotIndex"],
         additionalProperties: false,
@@ -158,10 +162,13 @@ function normalize(raw: unknown): DecideOutput | null {
     const note = typeof p.note === "string" ? p.note.trim() : "";
     if (note) {
       const r = Number(p.rating);
+      const photoDesc = typeof p.photoDesc === "string" ? p.photoDesc.trim() : "";
       post = {
         note,
         rating: r >= 1 && r <= 5 ? Math.round(r) : null,
         spotIndex: Number.isFinite(Number(p.spotIndex)) ? Math.max(0, Math.round(Number(p.spotIndex))) : 0,
+        photo: p.photo === true && !!photoDesc, // 仅当明确要配图且给了画面描述
+        photoDesc,
       };
     }
   }

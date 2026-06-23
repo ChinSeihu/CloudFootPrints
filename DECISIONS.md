@@ -151,5 +151,6 @@
 - **Phase 3b（已实现）**：
   - **系统外熟人（cast）**：社交不限于 12 用户。`CharacterState.cast`(jsonb `[{name,relation}]`)记录现实里反复出现的人（室友/同事/老乡/店主/家人/陌生人）；决策喂回 cast 保持连续，当天出现的人回写（最近优先、去重、cap 8）。
   - **动态签名/状态**：`signature.ts` 据最近记忆+情绪刷新；`status` 每周一(近一周活跃)、`signature` 每月 1 日(近两周活跃)。**直接写 `prisma.user` 仅改 status/signature**，绝不用 `updateProfile`（它会把未传字段如 avatar/cover 置 null）。
-- **Phase 3c/4（待办）**：角色间评论/八卦/恋爱、Career Agent、重大人生事件；情绪向基线回归(防 sadness+excitement 同时拉满)；`ImageProvider` 统一接口 + 以 `public/person.png`(`personas.refIndex/appearance`)为外观基准的人物配图（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
+- **Phase 4（已实现 · 管线）**：人物配图管线 `image.ts`。`decide` 标注 `photo`/`photoDesc`；`ImageProvider` 接口 + `getImageProvider()`（`IMAGE_PROVIDER` env：`none` 默认 / `agnes`）；`buildPrompt` 以 `personas.appearance`(外观基准 `public/person.png`) + `photoSkill` 视角（casual/hobby 主观手机镜头、pro 客观）+ 画面描述 + 季节天气拼 prompt；生成图 `persistToCloudinary`（CORS 持久）。引擎在足迹发布且 `photo` 为真时生成→上传→回填。**provider 失败一律不出图、绝不打断 sim**。接 Agnes 只需填 `AGNES_API_URL/KEY/MODEL` 并按其文档校准 `image.ts` 里解析那一处。
+- **Phase 3c（待办）**：角色间评论/八卦/恋爱、Career Agent、重大人生事件；情绪向基线回归(防 sadness+excitement 同时拉满)。
 - **成本取向**：12 人每天一跑、haiku 决策为主，日成本可忽略；用 GitHub Actions 或 Vercel Cron 均可（重活已有 Actions 先例）。

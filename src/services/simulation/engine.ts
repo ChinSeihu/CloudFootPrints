@@ -7,6 +7,7 @@ import { applyRelationshipDynamics } from "./relationships";
 import { weeklyCommunityBalance } from "./community";
 import { compressMemories } from "./memory";
 import { refreshStatus, refreshSignature } from "./signature";
+import { generateCheckinImage } from "./image";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
 // 每个角色：参与度掷点 → (参与才调 LLM) → 决策 → 写 Memory + 可选 CheckIn + 更新情绪/活跃。
@@ -121,8 +122,9 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   });
   const recentNotes = notes.map((n) => n.note!).filter(Boolean);
 
+  const world = await getOrCreateWorldState(dateKey);
   const decision = await decideDay({
-    persona, world: await getOrCreateWorldState(dateKey), dateLabel: dateLabel(dateKey),
+    persona, world, dateLabel: dateLabel(dateKey),
     emotion, goals, lifeStage, recentMemories, recentNotes, spots: options, cast,
   });
   if (!decision) return { username, status: "no-decision" };
@@ -146,7 +148,16 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
       { lat: jLat, lng: jLng, note: decision.post.note, rating: decision.post.rating, visitedAt: when.toISOString() },
       userId,
     );
-    if (r.ok) posted = true;
+    if (r.ok) {
+      posted = true;
+      // 配图（仅 LLM 判定值得配图、且 IMAGE_PROVIDER 启用时）：生成→上传 Cloudinary→回填。
+      if (decision.post.photo) {
+        try {
+          const img = await generateCheckinImage({ persona, photoDesc: decision.post.photoDesc, world });
+          if (img) await prisma.checkIn.update({ where: { id: r.checkin.id }, data: { photoUrl: img, photoUrls: [img] } });
+        } catch { /* 出图失败不影响足迹 */ }
+      }
+    }
   }
 
   // 写当天记忆：模拟生成的记忆 sourceCheckInId 恒为 null，兼作「当天已跑」幂等标记
