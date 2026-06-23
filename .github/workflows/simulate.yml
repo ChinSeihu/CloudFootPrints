@@ -1,0 +1,64 @@
+name: 每日社区推演
+
+# V7 社区模拟：每天凌晨在 GitHub Actions 里跑一次「当天」推演（World → 各角色决策 →
+# 写记忆 / 可选足迹），直接连 Neon 写库（不走 Vercel 函数，避免 LLM 调用被函数超时打断）。
+# 白天用户访问只读库、不触发模拟。幂等：当天已模拟的角色自动跳过。
+on:
+  schedule:
+    - cron: "30 18 * * *" # UTC 18:30 = JST 03:30（每日凌晨，排在数据抓取 03:00 之后）
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "模拟某一天 (YYYY-MM-DD)，留空 = 今天(东京)"
+        required: false
+        default: ""
+      from:
+        description: "回填起始日 (YYYY-MM-DD)，需与 to 一起用"
+        required: false
+        default: ""
+      to:
+        description: "回填结束日 (YYYY-MM-DD)"
+        required: false
+        default: ""
+
+# 避免与上一次未结束的运行重叠
+concurrency:
+  group: daily-simulate
+  cancel-in-progress: false
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    # 每日单天很快；手动回填一段(--from/--to)可能数百次 LLM 调用，放宽超时。
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Prisma 7 依赖要求 node >=22（与抓取 workflow 一致）。
+          node-version: "22"
+      - name: 安装依赖
+        run: yarn install --frozen-lockfile
+      - name: 生成 Prisma Client
+        run: yarn prisma generate
+      - name: 跑社区推演
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # LLM = DeepSeek（OpenAI 兼容端点）；与 extract 复用同一 LLM_API_KEY secret。
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_PROVIDER: deepseek
+          LLM_MODEL: deepseek-chat
+          LLM_BASE_URL: https://api.deepseek.com
+          # 手动触发时的可选参数（schedule 触发时均为空 → 默认跑「今天」）。
+          IN_DATE: ${{ github.event.inputs.date }}
+          IN_FROM: ${{ github.event.inputs.from }}
+          IN_TO: ${{ github.event.inputs.to }}
+        run: |
+          ARGS=""
+          if [ -n "$IN_FROM" ] && [ -n "$IN_TO" ]; then
+            ARGS="--from=$IN_FROM --to=$IN_TO"
+          elif [ -n "$IN_DATE" ]; then
+            ARGS="--date=$IN_DATE"
+          fi
+          echo "运行参数: ${ARGS:-(今天)}"
+          npx tsx scripts/sim-run.ts $ARGS

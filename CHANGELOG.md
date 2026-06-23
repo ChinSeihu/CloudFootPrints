@@ -16,9 +16,10 @@
 - **运行入口**：`scripts/sim-run.ts`（`--date` / `--from --to` 回填 / `--only` / `--dry` 干跑）；`/api/simulate`（cron 端点，`CRON_SECRET` 保护，跑「今天」）。
 - 实测：模拟 2026-06-20 单日 → 12 人中 5 人参与、产 3 条足迹，内容贴合人物口吻与当天世界状态（夏季闷热/花火热点）；重跑同日全部跳过（幂等）。
 
-**待办（需你来跑/决定）**：① Feb→现在回填：`npx tsx scripts/sim-run.ts --from=2026-02-01 --to=<今天>`（约数百次 DeepSeek 调用，耗时分钟级，幂等可分段）；② 每日定时：建议沿用 GitHub Actions（同 extract）每日跑 `sim-run.ts`，或 `/api/simulate` 接 cron。
+**每日定时（已配置）**：`.github/workflows/simulate.yml`，每日 03:30 JST 跑当天全员（复用 extract 的 `DATABASE_URL`/`LLM_API_KEY` secret）；手动触发可传 `date` 或 `from`+`to` 做回填。
+**待办（需你来跑）**：Feb→现在回填——本地 `npx tsx scripts/sim-run.ts --from=2026-02-01 --to=<今天>`，或在 Actions 页手动触发 simulate 填 `from/to`（约数百次 DeepSeek 调用、幂等可分段）。
 
-**涉及文件：** `src/services/simulation/{world,decide,engine}.ts`、`scripts/sim-run.ts`、`src/app/api/simulate/route.ts`
+**涉及文件：** `src/services/simulation/{world,decide,engine}.ts`、`scripts/sim-run.ts`、`src/app/api/simulate/route.ts`、`.github/workflows/simulate.yml`
 
 ---
 
