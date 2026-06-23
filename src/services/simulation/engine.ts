@@ -3,6 +3,9 @@ import { PERSONAS, personaOf, type Persona } from "@/lib/personas";
 import { createCheckin } from "@/services/checkins";
 import { getOrCreateWorldState } from "./world";
 import { decideDay, type SpotOption } from "./decide";
+import { applyRelationshipDynamics } from "./relationships";
+import { weeklyCommunityBalance } from "./community";
+import { compressMemories } from "./memory";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
 // 每个角色：参与度掷点 → (参与才调 LLM) → 决策 → 写 Memory + 可选 CheckIn + 更新情绪/活跃。
@@ -59,7 +62,7 @@ function engagementProb(p: Persona, emotion: Record<string, number>): number {
 export type CharDayStatus = "skipped-quiet" | "skipped-done" | "no-decision" | "memory" | "posted";
 export type CharDayResult = { username: string; status: CharDayStatus; note?: string };
 
-export type DayResult = { date: string; world: string; results: CharDayResult[] };
+export type DayResult = { date: string; world: string; results: CharDayResult[]; maintenance?: string };
 
 export type SimOptions = { only?: string[]; dry?: boolean };
 
@@ -155,5 +158,41 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
       console.warn(`  ⚠️ ${username} @ ${dateKey} 失败：${e instanceof Error ? e.message : e}`);
     }
   }
-  return { date: dateKey, world: `${world.season} ${world.weather} · ${world.cityMood}`, results };
+
+  // ── Phase 3 维护：仅在「真跑 + 全员 + 当天确有动作」时执行，避免子集/干跑/幂等重跑里误触发 ──
+  let maintenance: string | undefined;
+  const didWork = results.some((r) => r.status === "posted" || r.status === "memory");
+  if (!opts.dry && !opts.only && didWork) {
+    const when = new Date(`${dateKey}T12:00:00+09:00`);
+    const weekday = new Date(`${dateKey}T03:00:00Z`).getUTCDay(); // 正午 JST = 03:00 UTC 同日
+    const dom = Number(dateKey.slice(8, 10));
+
+    // 每日：关系动态（同日都活跃→升温；久无互动→衰减）
+    const activeIds = await usernamesToIds(results.filter((r) => r.status === "posted" || r.status === "memory").map((r) => r.username));
+    const rel = await applyRelationshipDynamics(activeIds, when);
+    const parts = [`关系+${rel.grown}/-${rel.decayed}`];
+
+    // 每周一：社区平衡（让久未露面的人回升参与度）
+    if (weekday === 1) {
+      const nudged = await weeklyCommunityBalance(when);
+      parts.push(`社区唤醒${nudged}`);
+    }
+    // 每月 1 日：记忆压缩（旧记忆→生活摘要）
+    if (dom === 1) {
+      let compressed = 0;
+      for (const p of PERSONAS) {
+        try { if (await compressMemories(p.username, when)) compressed++; } catch { /* 跳过失败 */ }
+      }
+      parts.push(`记忆压缩${compressed}`);
+    }
+    maintenance = parts.join(" · ");
+  }
+
+  return { date: dateKey, world: `${world.season} ${world.weather} · ${world.cityMood}`, results, maintenance };
+}
+
+async function usernamesToIds(usernames: string[]): Promise<string[]> {
+  if (!usernames.length) return [];
+  const users = await prisma.user.findMany({ where: { username: { in: usernames } }, select: { id: true } });
+  return users.map((u) => u.id);
 }

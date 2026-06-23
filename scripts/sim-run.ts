@@ -55,7 +55,7 @@ async function main() {
     const quiet = r.results.filter((x) => x.status === "skipped-quiet" || x.status === "skipped-done");
     totalPosts += posted.length;
     totalMem += mem.length;
-    console.log(`▸ ${date}  [${r.world}]  发帖 ${posted.length} / 记忆 ${mem.length} / 平静 ${quiet.length}`);
+    console.log(`▸ ${date}  [${r.world}]  发帖 ${posted.length} / 记忆 ${mem.length} / 平静 ${quiet.length}${r.maintenance ? `  ｜ ${r.maintenance}` : ""}`);
     for (const p of posted) console.log(`   📍 ${p.username}: ${p.note?.slice(0, 60)}`);
   }
   console.log(`\n合计：足迹 ${totalPosts} 条、纯记忆 ${totalMem} 条。`);

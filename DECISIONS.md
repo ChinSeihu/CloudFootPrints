@@ -143,5 +143,10 @@
 - **Phase 2（已实现）**：每日推演引擎 `src/services/simulation/`（`world.ts` 规则化世界状态零 LLM；`decide.ts` provider 感知决策 = DeepSeek JSON / Claude tool；`engine.ts` 参与度掷点→决策→写 Memory+可选 CheckIn+更新情绪）。**幂等**：当天 sim 记忆（`sourceCheckInId=null`）存在即跳过（回填记忆 `sourceCheckInId` 非空，不混淆）。入口：`scripts/sim-run.ts`（`--date/--from..--to/--only/--dry`）+ `/api/simulate`（`CRON_SECRET` 保护）。坐标只从人物据点清单选 + 抖动，保证落在活动范围。**白天用户纯读 DB、不调 LLM**。
   - **回填 Feb→现在**：`npx tsx scripts/sim-run.ts --from=2026-02-01 --to=<今天>`，幂等可分段；约数百次 DeepSeek 调用。
   - **每日定时（已配置）**：GitHub Actions `.github/workflows/simulate.yml`，`cron 30 18 * * *`(UTC)= **03:30 JST**（排在抓取 03:00 之后），跑 `sim-run.ts` 当天全员；与 extract 复用同样的 `DATABASE_URL`/`LLM_API_KEY` secret（`LLM_PROVIDER=deepseek`）。手动触发支持 `date` / `from`+`to` 输入做回填。避开 serverless 超时；`/api/simulate` 端点保留供按需触发。
-- **Phase 3/4（待办）**：每周 Community/Career、每月人生事件 + 记忆压缩（30 天→生活摘要）；关系/八卦/恋爱极低概率。`ImageProvider` 统一接口（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
+- **Phase 3（已实现 · 核心）**：在每日推演的角色循环后做「维护」，仅在**真跑 + 全员 + 当天有动作**时触发（子集/dry/幂等重跑不触发）：
+  - **关系动态**（`relationships.ts`，每日，规则化零 LLM）：同一天都活跃的弱连接朋友 → 强度 +2/情感 +1；>14 天没互动 → 强度 -1。已验证成长与衰减并存。
+  - **社区平衡**（`community.ts`，每周一，规则化）：>7 天没活跃的角色 excitement +15，抬高参与度让其回归（防有人长期消失）。
+  - **记忆压缩**（`memory.ts`，每月 1 日，LLM）：把 45 天前的一批 EVENT 记忆压成 1 条 SUMMARY（省 token + 成长叙事），删原件。阈值 45 天避免与近期日推演的幂等标记冲突；回填 Feb→现在时自然触发。
+  - 触发节奏内嵌在 `engine.simulateDay`（按 dateKey 的星期/月初判定），故回填一段时也会按真实日期建立关系/平衡/压缩。
+- **Phase 3b/4（待办）**：角色间评论/八卦/恋爱、Career Agent、重大人生事件、动态签名(status/signature)随记忆刷新；`ImageProvider` 统一接口（当前 Unsplash+Cloudinary，未来可换 Agnes，**接口先行不绑死**）。
 - **成本取向**：12 人每天一跑、haiku 决策为主，日成本可忽略；用 GitHub Actions 或 Vercel Cron 均可（重活已有 Actions 先例）。
