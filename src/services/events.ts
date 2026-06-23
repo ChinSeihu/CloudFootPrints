@@ -90,8 +90,11 @@ export async function getEventsInBounds(q: EventQuery) {
   const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
 
+  // 官方活动按矩形范围抽取（数据量大，限范围控性能 + 流量）；
+  // 用户发帖不限地理范围（量小，全量返回）——允许出现在东京 bbox 之外（如镰仓/箱根/远行的帖）。
+  // 分类 / 时间窗筛选仍对两者同样生效。
   const eventWhere: Prisma.EventWhereInput = { ...bbox };
-  const postWhere: Prisma.PostWhereInput = { ...bbox };
+  const postWhere: Prisma.PostWhereInput = {};
   if (q.category) { eventWhere.category = q.category; postWhere.category = q.category; }
   if (or) { eventWhere.OR = or; postWhere.OR = or; }
 
