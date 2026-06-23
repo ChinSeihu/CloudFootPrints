@@ -38,16 +38,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [searchOpen, setSearchOpen] = useState(false); // 搜索态：标签行 ↔ 搜索框
   const [query, setQuery] = useState("");
   const [colCount, setColCount] = useState(2); // 瀑布流列数：手机 2、≥sm 3
-  const [hello, setHello] = useState<{ greet: string; date: string }>({ greet: "", date: "" });
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
-
-  // 顶部问候语（按时段）+ 日期。客户端 mount 后计算，避免 SSR 时区不一致导致水合告警。
-  useEffect(() => {
-    const d = new Date();
-    const h = d.getHours();
-    const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 23 ? "晚上好" : "夜深了";
-    setHello({ greet, date: d.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" }) });
-  }, []);
 
   // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
   // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
@@ -150,36 +141,36 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     <>
       {/* 顶部精简栏：问候 + 横滑分类标签 + 搜索/筛选图标（仿社区 App，收起多余筛选） */}
       <div className="sticky top-0 z-20 -mx-3 px-3 pt-2 pb-2 mb-2 bg-white/95 backdrop-blur border-b border-black/5">
-        {/* 一级菜单：活动(官方) / 发现(个人发帖)，居中下划线高亮（仿社区 App） */}
+        {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮 + 搜索图标右上（仿小红书顶栏） */}
         {!searchOpen && (
-          <div className="flex items-center justify-center gap-7 mb-2">
-            {TOP_TABS.map(({ k, label }) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setTab(k)}
-                className={`relative px-1 pb-1 text-[17px] leading-none transition ${
-                  tab === k ? "font-semibold text-neutral-900" : "font-medium text-neutral-400"
-                }`}
-              >
-                {label}
-                {tab === k && (
-                  <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-5 h-[3px] rounded-full bg-blue-600" />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* 问候行：填补去掉大标题后的留白，带时段问候 + 日期 + 条数 */}
-        {!searchOpen && (
-          <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
-            <span className="text-[15px] font-semibold text-neutral-800 truncate">
-              {hello.greet || "发现"}
-              <span className="ml-1.5 text-xs font-normal text-neutral-400">{hello.date}</span>
-            </span>
-            <span className="shrink-0 text-xs text-neutral-400">
-              东京 · {filtered.length} {tab === "USER" ? "篇分享" : "场活动"}
-            </span>
+          <div className="relative flex items-center justify-center h-9 mb-2">
+            <div className="flex items-end gap-9">
+              {TOP_TABS.map(({ k, label }) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTab(k)}
+                  className={`relative pb-1 leading-none transition-all ${
+                    tab === k ? "text-[18px] font-bold text-neutral-900" : "text-[15px] font-medium text-neutral-400 hover:text-neutral-600"
+                  }`}
+                >
+                  {label}
+                  {tab === k && (
+                    <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-6 h-[3px] rounded-full bg-blue-600" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="搜索"
+              className={`absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 grid place-items-center rounded-full transition ${
+                query.trim() ? "text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            </button>
           </div>
         )}
         {searchOpen ? (
@@ -233,26 +224,14 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
               })}
             </div>
 
-            {/* 搜索图标（有搜索词时高亮） */}
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              aria-label="搜索"
-              className={`shrink-0 w-9 h-9 grid place-items-center rounded-full border transition ${
-                query.trim() ? "bg-blue-600 text-white border-transparent" : "bg-white text-neutral-600 border-black/10 hover:bg-neutral-50"
-              }`}
-            >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            </button>
-
             {/* 漏斗筛选（时间），有筛选时显红点 */}
             <div className="relative shrink-0" ref={filterBoxRef}>
               <button
                 type="button"
                 onClick={() => setFilterOpen((v) => !v)}
                 aria-label="筛选"
-                className={`relative w-9 h-9 grid place-items-center rounded-full border transition ${
-                  filterOpen ? "bg-blue-600 text-white border-transparent" : "bg-white text-neutral-600 border-black/10 hover:bg-neutral-50"
+                className={`relative w-9 h-9 grid place-items-center rounded-full transition ${
+                  filterOpen ? "bg-blue-50 text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
                 }`}
               >
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></svg>
