@@ -4,10 +4,11 @@ import { createCheckin } from "@/services/checkins";
 import { getOrCreateWorldState } from "./world";
 import { decideDay, type SpotOption } from "./decide";
 import { applyRelationshipDynamics } from "./relationships";
-import { weeklyCommunityBalance } from "./community";
+import { weeklyCommunityBalance, relaxEmotions } from "./community";
 import { compressMemories } from "./memory";
 import { refreshStatus, refreshSignature } from "./signature";
 import { generateCheckinImage } from "./image";
+import { maybeLifeEvent } from "./lifeEvents";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
 // 每个角色：参与度掷点 → (参与才调 LLM) → 决策 → 写 Memory + 可选 CheckIn + 更新情绪/活跃。
@@ -197,10 +198,11 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
     const weekday = new Date(`${dateKey}T03:00:00Z`).getUTCDay(); // 正午 JST = 03:00 UTC 同日
     const dom = Number(dateKey.slice(8, 10));
 
-    // 每日：关系动态（同日都活跃→升温；久无互动→衰减）
+    // 每日：关系动态（同日都活跃→升温；久无互动→衰减）+ 情绪向基线回归
     const activeIds = await usernamesToIds(results.filter((r) => r.status === "posted" || r.status === "memory").map((r) => r.username));
     const rel = await applyRelationshipDynamics(activeIds, when);
-    const parts = [`关系+${rel.grown}/-${rel.decayed}`];
+    const relaxed = await relaxEmotions();
+    const parts = [`关系+${rel.grown}/-${rel.decayed}`, `情绪回归${relaxed}`];
 
     // 每周一：社区平衡 + 刷新近一周活跃角色的「当前状态」(status)
     if (weekday === 1) {
@@ -230,6 +232,10 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
       let sigN = 0;
       for (const a of active) { try { if (await refreshSignature(a.username)) sigN++; } catch { /* 跳过 */ } }
       parts.push(`签名刷新${sigN}`);
+      // 重大人生事件（每人低概率，罕见有后果）
+      let evN = 0;
+      for (const p of PERSONAS) { try { if (await maybeLifeEvent(p.username, when)) evN++; } catch { /* 跳过 */ } }
+      parts.push(`人生事件${evN}`);
     }
     maintenance = parts.join(" · ");
   }

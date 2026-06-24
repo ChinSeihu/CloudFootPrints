@@ -53,7 +53,7 @@ async function inspectOne(username: string, memN: number, idToName: Map<string, 
 
   console.log(`\n  记忆 (${memTotal} 条，显示最近 ${mems.length}):`);
   for (const m of mems) {
-    const tag = m.sourceCheckInId ? "足迹" : "推演";
+    const tag = m.type === "MILESTONE" ? "里程碑" : m.type === "SUMMARY" ? "摘要" : m.sourceCheckInId ? "足迹" : "推演";
     console.log(`   ${fmt(m.happenedAt)} [${"★".repeat(m.importance)}|${tag}] ${m.text}`);
   }
 
