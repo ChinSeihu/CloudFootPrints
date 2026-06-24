@@ -47,9 +47,25 @@ export async function fetchT(url: string, init: RequestInit, ms: number): Promis
 // 视角语气：casual 日常一律主观；hobby 平时主观（作品才客观，这里日常按主观）；pro 客观构图。
 function povClause(persona: Persona): string {
   if (persona.photoSkill === "pro") {
-    return "considered composition, photographer's eye, deliberate framing and light";
+    return [
+      "Photographed with a photographer's eye.",
+      "Thoughtful composition and natural environmental storytelling.",
+      "Deliberate framing and use of available light.",
+      "Still realistic, candid and grounded in everyday life.",
+      "Not commercial photography."
+    ].join(" ");
   }
-  return "first-person point of view, casual smartphone snapshot, slightly imperfect candid framing; the scene as the person sees it (hands, objects, food, street), face not necessarily visible";
+
+  return [
+    "First-person perspective.",
+    "Casual smartphone snapshot.",
+    "Captured naturally during daily life.",
+    "The scene as seen by the person.",
+    "Hands, food, drinks, tickets, bags, streets or objects may appear in frame.",
+    "Face does not need to be visible.",
+    "Slightly imperfect framing.",
+    "Feels spontaneous rather than planned."
+  ].join(" ");
 }
 
 // 我们的「生图规则」：附加在 LLM 写的场景 prompt 之后，强制写实 / 表情自然 / 视角 / 外观一致 / 无水印。
@@ -57,12 +73,47 @@ function povClause(persona: Persona): string {
 function buildRules(persona: Persona): string {
   return [
     "[Constraints]",
-    povClause(persona) + ".",
-    "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo, not a professional shoot.",
-    "People are ordinary young Asian people in Tokyo with calm, natural, subtle expressions, relaxed and unposed; no exaggerated smiles or dramatic faces; an unaware candid instant.",
-    `Recurring individual — keep the SAME face, hairstyle and body type consistent (identity: ${persona.appearance}). But VARY the clothing, outfit and accessories each time to fit this scene, season and weather; do NOT reuse the same outfit.`,
-    "Natural available light, true-to-life muted colors, realistic skin texture with minor imperfections, faint grain, slightly imperfect casual framing.",
-    "Avoid an AI/CGI look: no 3D render, no hyperreal over-sharpening, no glossy plastic skin, no cinematic dramatic lighting, no studio portrait, no posed shot, no exaggerated expression. No text, no watermark, no logo.",
+    povClause(persona),
+    "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo.",
+    "Authentic Japanese lifestyle photography.",
+    "Ordinary young Asian people living in Tokyo.",
+    "Calm, natural and subtle expressions.",
+    "Relaxed and unposed.",
+    "An unaware candid instant.",
+    "Ordinary happiness rather than dramatic emotion.",
+    `Recurring individual — keep the SAME face, hairstyle, body type, height and overall appearance consistent (identity: ${persona.appearance}).`,
+    "The face must remain recognizable across different images.",
+    "Clothing, outfit colors, accessories, bags and shoes should vary naturally according to season, weather and activity.",
+    "Do not reuse the same outfit repeatedly.",
+    "Natural available light.",
+    "Realistic skin texture with minor imperfections.",
+    "Realistic smartphone camera quality.",
+    "True-to-life muted colors.",
+    "Slightly imperfect composition.",
+    "Subtle motion blur.",
+    "Smartphone auto exposure.",
+    "Social media snapshot quality.",
+    "Kodak Portra 400 color tone.",
+    "Subtle film grain.",
+    "Atmospheric storytelling.",
+    "Avoid AI-generated appearance.",
+    "No CGI.",
+    "No 3D render.",
+    "No glossy plastic skin.",
+    "No hyper-sharpening.",
+    "No cinematic dramatic lighting.",
+    "No studio portrait.",
+    "No fashion shoot.",
+    "No advertisement.",
+    "No influencer-style posing.",
+    "No professional model pose.",
+    "No exaggerated smile.",
+    "No exaggerated facial expression.",
+    "No perfect symmetry.",
+    "No unrealistic beauty-filter look.",
+    "No text.",
+    "No watermark.",
+    "No logo."
   ].join(" ");
 }
 
@@ -74,9 +125,51 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   if (!key) return null;
   const provider = (process.env.LLM_PROVIDER || "").toLowerCase();
   const useAnthropic = provider === "anthropic" || provider === "claude" || (process.env.LLM_MODEL || "").toLowerCase().startsWith("claude");
-  const system = `你是专业的摄影指导兼 AI 绘图提示词工程师。根据给定的生活场景，写一段**详细、专业的英文图片生成 prompt**，只描述画面本身：主体与动作、构图与景别、前景/背景层次、光线方向与质感、镜头/相机感（焦段、景深）、环境与道具细节、氛围与时间。具体、有画面感，60~110 词。
-若画面里有该人物出镜：为 ta 安排一套**符合当下场景/季节/天气的具体穿搭**（颜色/单品/配饰，**每次尽量不同、避免千篇一律**），但**长相/发型/体型保持不变**。
-只输出这段英文 prompt，不要解释、不要加引号、不要写风格规则。`;
+  const system = `
+  你是专业摄影导演。
+
+  根据给定生活场景生成一段英文图片描述。
+
+  只描述：
+
+  - 场景
+  - 主体
+  - 动作
+  - 环境
+  - 道具
+  - 时间
+  - 天气
+  - 构图
+  - 景别
+  - 前景与背景关系
+  - 光线方向与环境氛围
+
+  如果人物出镜：
+
+  - 为人物安排符合季节、天气和场景的具体穿搭
+  - 穿搭应尽量与之前不同
+  - 不要描述人物长相
+  - 不要描述摄影风格
+
+  不要输出：
+
+  - photorealistic
+  - candid
+  - smartphone photo
+  - POV
+  - Kodak
+  - film grain
+  - CGI
+  - professional photography
+  - quality tags
+  - negative prompt
+
+  这些内容由系统统一附加。
+
+  输出 60~120 词英文画面描述。
+
+  只输出英文 prompt。
+  `;
   const user = `场景（中文）：${photoDesc}
 人物：${persona.age}岁 ${persona.job}；视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "第一人称手机随手拍"}。
 季节天气：${world.season} / ${world.weather}。
