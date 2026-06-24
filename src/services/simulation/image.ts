@@ -46,7 +46,7 @@ function buildRules(persona: Persona): string {
     povClause(persona) + ".",
     "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo, not a professional shoot.",
     "People are ordinary young Asian people in Tokyo with calm, natural, subtle expressions, relaxed and unposed; no exaggerated smiles or dramatic faces; an unaware candid instant.",
-    `If a main person is clearly shown, keep appearance consistent with: ${persona.appearance}.`,
+    `Recurring individual — keep the SAME face, hairstyle and body type consistent (identity: ${persona.appearance}). But VARY the clothing, outfit and accessories each time to fit this scene, season and weather; do NOT reuse the same outfit.`,
     "Natural available light, true-to-life muted colors, realistic skin texture with minor imperfections, faint grain, slightly imperfect casual framing.",
     "Avoid an AI/CGI look: no 3D render, no hyperreal over-sharpening, no glossy plastic skin, no cinematic dramatic lighting, no studio portrait, no posed shot, no exaggerated expression. No text, no watermark, no logo.",
   ].join(" ");
@@ -60,7 +60,9 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   if (!key) return null;
   const provider = (process.env.LLM_PROVIDER || "").toLowerCase();
   const useAnthropic = provider === "anthropic" || provider === "claude" || (process.env.LLM_MODEL || "").toLowerCase().startsWith("claude");
-  const system = `你是专业的摄影指导兼 AI 绘图提示词工程师。根据给定的生活场景，写一段**详细、专业的英文图片生成 prompt**，只描述画面本身：主体与动作、构图与景别、前景/背景层次、光线方向与质感、镜头/相机感（焦段、景深）、环境与道具细节、氛围与时间。具体、有画面感，60~110 词。只输出这段英文 prompt，不要解释、不要加引号、不要写风格规则。`;
+  const system = `你是专业的摄影指导兼 AI 绘图提示词工程师。根据给定的生活场景，写一段**详细、专业的英文图片生成 prompt**，只描述画面本身：主体与动作、构图与景别、前景/背景层次、光线方向与质感、镜头/相机感（焦段、景深）、环境与道具细节、氛围与时间。具体、有画面感，60~110 词。
+若画面里有该人物出镜：为 ta 安排一套**符合当下场景/季节/天气的具体穿搭**（颜色/单品/配饰，**每次尽量不同、避免千篇一律**），但**长相/发型/体型保持不变**。
+只输出这段英文 prompt，不要解释、不要加引号、不要写风格规则。`;
   const user = `场景（中文）：${photoDesc}
 人物：${persona.age}岁 ${persona.job}；视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "第一人称手机随手拍"}。
 季节天气：${world.season} / ${world.weather}。
