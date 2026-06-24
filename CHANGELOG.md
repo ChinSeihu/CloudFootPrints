@@ -6,6 +6,16 @@
 
 ## 2026-06-23
 
+### 配图 prompt 改由 LLM 撰写（专业详细）+ 附加生图规则
+
+- 生成图前先用 **LLM 写一段专业、详细的英文场景 prompt**（主体/动作、构图景别、前后景层次、光线质感、镜头/景深、环境道具、氛围；60~110 词），再**附加我们的「生图规则」**`[Constraints]`（主观/客观视角、写实压 AI 感、表情自然不夸张、亚洲年轻人在东京、外观一致、无文字水印）。
+- `image.ts`：新增 `scenePromptLLM`(provider 感知 DeepSeek/Claude) + `buildRules` + `composePrompt`（场景 + 规则；LLM 失败回退 photoDesc+规则）。`generateCheckinImage` 改用 `composePrompt`；QA 重生成时也附加规则。
+- 实测：LLM 产出的 prompt 画面层次/光线/景深描述明显更专业，规则块完整附加。
+
+**涉及文件：** `src/services/simulation/image.ts`
+
+---
+
 ### 配图视觉质检闭环（不合格自动改 prompt 重生成）
 
 - **`imageQA.ts`**：用 Agnes 多模态 chat（`agnes-2.0-flash`，已实测可读图）「看」生成图，按四条标准判合格（符合画面意图 / 像真人手机随手拍无 AI 感 / 表情自然不夸张不畸形 / 无文字水印），不合格则产出「改进版英文 prompt」。
