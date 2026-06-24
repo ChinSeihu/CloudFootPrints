@@ -25,16 +25,18 @@ function povClause(persona: Persona): string {
   return "first-person point of view, casual smartphone snapshot, slightly imperfect candid framing; the scene as the person sees it (hands, objects, food, street), face not necessarily visible";
 }
 
-// 拼最终英文 prompt：写实生活流 + 主/客观视角 + 画面 + 人物外观基准 + 季节天气。
+// 拼最终英文 prompt：刻意压「AI 感」、表情自然不夸张 + 主/客观视角 + 画面 + 人物外观基准 + 季节天气。
+// Agnes 无负向提示参数，写实度全靠这里措辞：强调手机随手拍、自然肌理、避免 CGI/戏剧光/摆拍。
 export function buildPrompt(req: ImageRequest): string {
   const { persona, photoDesc, world } = req;
   return [
-    "Tokyo lifestyle photography, natural lighting, authentic candid moment, realistic everyday environment, non-influencer aesthetic, photorealistic.",
+    "Candid everyday snapshot taken on a smartphone in Tokyo, ordinary daily life, unremarkable real moment.",
     povClause(persona),
-    `Scene: ${photoDesc}`,
-    `If a person appears, a young Asian person in Tokyo (appearance reference: ${persona.appearance}); keep appearance consistent.`,
-    `Season ${world.season}, weather ${world.weather}.`,
-    "No text, no watermark, no logo.",
+    `Scene: ${photoDesc}.`,
+    "If people appear: ordinary young Asian people in Tokyo with calm natural and subtle expressions, relaxed, NOT posing for the camera, no exaggerated smiles, no dramatic faces; an unaware candid instant.",
+    `If a main person is clearly shown, keep appearance consistent with: ${persona.appearance}.`,
+    `Season ${world.season}, weather ${world.weather}, natural available light, true-to-life muted colors, realistic skin texture with minor imperfections, faint grain, slightly imperfect casual framing.`,
+    "Avoid an AI-generated or CGI look: no 3D render, no hyperreal over-sharpening, no glossy plastic skin, no cinematic dramatic lighting, no studio portrait, no posed shot, no exaggerated expression. No text, no watermark, no logo.",
   ].join(" ");
 }
 

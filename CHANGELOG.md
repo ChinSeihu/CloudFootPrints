@@ -6,6 +6,16 @@
 
 ## 2026-06-23
 
+### 配图 prompt 调优：压「AI 感」+ 表情自然不夸张
+
+- 据 Agnes 文档（无负向提示/guidance 参数，写实度全靠 prompt）重写 `buildPrompt`：强调「手机随手拍 / 自然肌理与瑕疵 / 真实柔光」，并显式 **避免 CGI·3D·过锐·油光皮肤·戏剧打光·影棚摆拍**；人物 **表情自然克制、不摆拍、不夸张笑容**。
+- 实测(居酒屋碰杯场景)：表情自然、纪实感明显增强、AI 味下降。
+- 记录：Agnes `image: string[]`(参考图/img2img) 在 `extra_body` 内——后续可裁 `person.png` 单人图作图参强化人脸一致性（待装 sharp）。
+
+**涉及文件：** `src/services/simulation/image.ts`
+
+---
+
 ### 社区模拟 V7 · Phase 4 配图打通（Agnes，端到端实测）
 
 - **接入 Agnes**（OpenAI images 兼容，已实测）：`POST <base>/images/generations`（Bearer 鉴权），`{model: agnes-image-2.1-flash, prompt, n, size}` → `data[0].url`。`image.ts` 的 `AgnesProvider` 据此精确接入（base 自动补 `/images/generations`）。
