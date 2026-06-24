@@ -57,6 +57,7 @@ const SYSTEM = `你在模拟一个真实生活在东京的年轻人「这一天�
 - 必须贴合该人物的「笔触口吻」和当前情绪/目标/最近记忆，体现连续与缓慢成长。
 - 不是每天都发内容；平淡的一天可以只在心里留个记忆（post 置 null）。
 - 若发足迹：第一人称、50~150 字、写一个具体瞬间与感受，地点只能从给定清单里选。
+- 配图：**大部分有场景/画面感的足迹都配图**（约三分之二，photo:true + photoDesc）；只有很私人 / 琐碎 / 没画面的（加班、emo、通勤、纯心情）才不配。
 - 社交对象**不限于 App 用户**：现实里你会遇到室友、同事、老同学、老乡、店主、家人、陌生人。能自然带入「你生活里常出现的人」就带，保持连续（"又见到那个…"）；也可以出现新的人。把今天内容里出现的人填到 people（已有的沿用同名，新的也列上）。`;
 
 function buildUserPrompt(inp: DecideInput): string {
@@ -97,7 +98,7 @@ const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围
   "moodDelta": {"stress": -5, "loneliness": 3},  // 情绪增减，可空对象 {}
   "post": null,                          // 平淡的一天用 null
   // 或发足迹：
-  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0, "photo": true, "photoDesc": "手机随手拍：窗边的手冲咖啡，目黑川的绿意在杯子后面虚化"},  // rating 1-5 或 null；photo 仅在有画面感/重要瞬间为 true；photoDesc 默认主观镜头
+  "post": {"note": "50~150字第一人称足迹", "rating": 4, "spotIndex": 0, "photo": true, "photoDesc": "手机随手拍：窗边的手冲咖啡，目黑川的绿意在杯子后面虚化"},  // rating 1-5 或 null；**大部分有场景/画面感的足迹都配图(约2/3)**，只有很私人/琐碎/没画面的(加班、emo、通勤)才 photo:false；photoDesc 默认主观镜头
   "people": [{"name": "酒井さん", "relation": "常去店的老板"}]  // 今天出现的系统外的人，没有就 []
 }`;
 

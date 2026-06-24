@@ -6,6 +6,17 @@
 
 ## 2026-06-23
 
+### 像素级锁脸（person.png 图参）+ 调高配图比例 + 清空重灌脚本
+
+- **像素级锁脸**：装 `sharp`，`scripts/crop-refs.ts` 把 `public/person.png`(1536×1024，6×2) 裁成 12 张单人参考图 `public/refs/01.png…12.png`（取每格中间图形带，去名牌/规格文字）。`image.ts` 出图时按 `persona.refIndex` 载入对应参考图，作为 **Agnes `extra_body.image`（img2img）** 传入 → **把该人物放进新场景、锁定脸/外观**（已实测：美咲 脸与设定图一致、场景为全新代官山咖啡馆抓拍）。Gemini 也支持（inlineData）。
+  - 取舍：img2img 下**穿搭会倾向参考图**那套；脸锁定是硬目标（已达成），穿搭变化是软目标（prompt 仍推动，不同场景会变但可能偏向设定图）。
+- **调高配图比例**：决策提示由「仅重要瞬间配图」改为「**大部分有场景/画面感的足迹都配图（约 2/3）**，只有很私人/琐碎/无画面的才不配」。
+- **清空重灌脚本**：`scripts/sim-reset.ts`（默认干跑打印将删数量，`--yes` 才执行）——只清 demo 12 人的内容(足迹/发帖/评论/点赞)与模拟状态(记忆/状态/关系/世界)，并把 status/signature 重置为初始值；**保留账号/头像**。重灌流程：`sim-reset --yes → seed-demo → sim-init → sim-run --from=2026-02-01 --to=<今天>`。
+
+**涉及文件：** `scripts/crop-refs.ts`、`scripts/sim-reset.ts`、`public/refs/*`、`src/services/simulation/image.ts`、`src/services/simulation/decide.ts`
+
+---
+
 ### 社区模拟 V7 · Phase 3c：情绪稳态 + 重大人生事件
 
 - **情绪稳态**（`community.ts` `relaxEmotions`，每日，规则化）：把各角色情绪向「基线」缓慢回归（基线维度→`emotionBaseline`，临时情绪→中性 50，每天 15%），消除长期累积出的极端/矛盾（如 sadness 与 excitement 同时拉满）。实测情绪已回到合理区间。

@@ -1,7 +1,20 @@
+import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Persona } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
+
+// 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 person.png 裁出）→ data URI。
+// 作为 Agnes img2img 的图参锁定人脸/外观。缺图返回 null（回退纯文本）。
+function loadRefImage(refIndex: number): string | null {
+  const p = `public/refs/${String(refIndex).padStart(2, "0")}.png`;
+  try {
+    if (!existsSync(p)) return null;
+    return `data:image/png;base64,${readFileSync(p).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
 
 // Image Agent（V7 Phase 4）：把"生活"转成生活化照片。统一 ImageProvider 接口，
 // 当前可选 provider：none（默认，不出图）/ agnes（外部生成 API，按 env 接入）。
@@ -16,7 +29,8 @@ export type ImageRequest = {
 
 export interface ImageProvider {
   readonly name: string;
-  generate(prompt: string): Promise<string | null>; // 传入最终 prompt，返回图片 URL 或 data URI；失败返回 null
+  // 传入最终 prompt + （可选）人物参考图 data URI（img2img 锁脸）；返回图片 URL 或 data URI；失败返回 null。
+  generate(prompt: string, refImage?: string): Promise<string | null>;
 }
 
 // 带超时的 fetch：避免出图/质检的网络请求卡住整条回填或每日 workflow。超时即 abort → 上层按失败处理。
@@ -125,8 +139,8 @@ export async function persistToCloudinary(src: string): Promise<string | null> {
 // ── Provider：none（默认，不出图）──
 class NoopProvider implements ImageProvider {
   readonly name = "none";
-  async generate(_prompt: string): Promise<string | null> {
-    void _prompt;
+  async generate(_prompt: string, _ref?: string): Promise<string | null> {
+    void _prompt; void _ref;
     return null;
   }
 }
@@ -137,7 +151,7 @@ class NoopProvider implements ImageProvider {
 //          AGNES_API_KEY、(可选) AGNES_MODEL(默认 agnes-image-2.1-flash)。任何失败→null。
 class AgnesProvider implements ImageProvider {
   readonly name = "agnes";
-  async generate(prompt: string): Promise<string | null> {
+  async generate(prompt: string, refImage?: string): Promise<string | null> {
     const base = process.env.AGNES_API_URL;
     const key = process.env.AGNES_API_KEY;
     if (!base || !key) return null;
@@ -153,6 +167,8 @@ class AgnesProvider implements ImageProvider {
           prompt,
           size: "1024x1024",
           n: 1,
+          // 人物参考图（img2img）：把该人物放进新场景，锁定脸/外观。
+          ...(refImage ? { extra_body: { image: [refImage], response_format: "url" } } : {}),
         }),
       }, 120000);
       if (!res.ok) return null;
@@ -172,16 +188,19 @@ class AgnesProvider implements ImageProvider {
 // 账户无额度时返回 429 → 本方法返回 null（不出图、不打断模拟）。
 class GeminiProvider implements ImageProvider {
   readonly name = "gemini";
-  async generate(prompt: string): Promise<string | null> {
+  async generate(prompt: string, refImage?: string): Promise<string | null> {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return null;
     const model = (process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image").replace(/^models\//, "");
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const reqParts: Array<Record<string, unknown>> = [{ text: prompt }];
+    const m = refImage?.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+    if (m) reqParts.push({ inlineData: { mimeType: m[1], data: m[2] } });
     try {
       const res = await fetchT(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        body: JSON.stringify({ contents: [{ parts: reqParts }] }),
       }, 120000);
       if (!res.ok) return null;
       const data = (await res.json()) as {
@@ -215,13 +234,14 @@ export async function generateCheckinImage(req: ImageRequest): Promise<string | 
 
   const qaOn = (process.env.IMAGE_QA ?? "true").toLowerCase() !== "false";
   const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 1)) : 0;
-  // 先让 LLM 写专业详细 prompt + 附加生图规则
+  // 先让 LLM 写专业详细 prompt + 附加生图规则；并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req);
+  const refImage = loadRefImage(req.persona.refIndex) ?? undefined;
 
   let prompt = basePrompt;
   let lastRaw: string | null = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const raw = await provider.generate(prompt);
+    const raw = await provider.generate(prompt, refImage);
     if (!raw) break; // 生成失败，不再重试
     lastRaw = raw;
     if (!qaOn) break;
