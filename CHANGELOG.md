@@ -10,9 +10,10 @@
 
 - 生成图前先用 **LLM 写一段专业、详细的英文场景 prompt**（主体/动作、构图景别、前后景层次、光线质感、镜头/景深、环境道具、氛围；60~110 词），再**附加我们的「生图规则」**`[Constraints]`（主观/客观视角、写实压 AI 感、表情自然不夸张、亚洲年轻人在东京、外观一致、无文字水印）。
 - `image.ts`：新增 `scenePromptLLM`(provider 感知 DeepSeek/Claude) + `buildRules` + `composePrompt`（场景 + 规则；LLM 失败回退 photoDesc+规则）。`generateCheckinImage` 改用 `composePrompt`；QA 重生成时也附加规则。
-- 实测：LLM 产出的 prompt 画面层次/光线/景深描述明显更专业，规则块完整附加。
+- 实测：LLM 产出的 prompt 画面层次/光线/景深描述明显更专业，规则块完整附加；出图质量与人设外观一致性明显更好（如 美咲 雨中二楼咖啡馆、米色自然系穿搭一致）。
+- **健壮性**：给出图/质检/上传的网络请求加超时（`fetchT`，出图 120s、质检 60s、上传 60s、写 prompt 45s）——某次请求卡住即放弃该步、优雅降级，避免拖死整段回填或每日 workflow。
 
-**涉及文件：** `src/services/simulation/image.ts`
+**涉及文件：** `src/services/simulation/image.ts`、`src/services/simulation/imageQA.ts`
 
 ---
 

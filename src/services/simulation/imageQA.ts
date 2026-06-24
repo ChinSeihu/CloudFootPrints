@@ -1,6 +1,14 @@
 // 图片视觉质检（V7 Phase 4+）：用 Agnes 的多模态 chat 模型「看」生成图，判断是否合格；
 // 不合格则产出「改进版英文 prompt」，供上层重生成。纯防御：任何失败视为「通过」（不打断出图）。
 
+// 带超时的 fetch（避免质检请求卡住）。本地定义，避免与 image.ts 形成循环依赖。
+async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), ms);
+  try { return await fetch(url, { ...init, signal: ac.signal }); }
+  finally { clearTimeout(timer); }
+}
+
 export type QAResult = { ok: boolean; reason: string; improvedPrompt: string | null };
 
 const QA_SYSTEM = `你是生活照图片质检员。判断给定图片是否「合格」。
@@ -28,7 +36,7 @@ export async function judgeImage(imageRef: string, photoDesc: string, basePrompt
   const endpoint = `${base.replace(/\/$/, "")}/chat/completions`;
   const ask = `画面意图：${photoDesc}\n参考的原始 prompt：${basePrompt}\n\n请判断这张图是否合格，只输出 JSON：{"ok": true/false, "reason": "简短中文原因", "improvedPrompt": "不合格时给改进后的英文 prompt，合格则 null"}`;
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetchT(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -42,7 +50,7 @@ export async function judgeImage(imageRef: string, photoDesc: string, basePrompt
           ] },
         ],
       }),
-    });
+    }, 60000);
     if (!res.ok) return { ok: true, reason: `QA 请求失败 ${res.status}，跳过`, improvedPrompt: null };
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const parsed = safeParse(data.choices?.[0]?.message?.content ?? "") as { ok?: unknown; reason?: unknown; improvedPrompt?: unknown } | null;

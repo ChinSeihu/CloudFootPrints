@@ -19,6 +19,17 @@ export interface ImageProvider {
   generate(prompt: string): Promise<string | null>; // 传入最终 prompt，返回图片 URL 或 data URI；失败返回 null
 }
 
+// 带超时的 fetch：避免出图/质检的网络请求卡住整条回填或每日 workflow。超时即 abort → 上层按失败处理。
+export async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // 视角语气：casual 日常一律主观；hobby 平时主观（作品才客观，这里日常按主观）；pro 客观构图。
 function povClause(persona: Persona): string {
   if (persona.photoSkill === "pro") {
@@ -65,7 +76,7 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
       return t?.text.trim() || null;
     }
     const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-    const res = await fetch(`${baseUrl}/chat/completions`, {
+    const res = await fetchT(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -73,7 +84,7 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         temperature: 0.7, max_tokens: 400,
       }),
-    });
+    }, 45000);
     if (!res.ok) return null;
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     return (data.choices?.[0]?.message?.content ?? "").trim() || null;
@@ -101,7 +112,7 @@ export async function persistToCloudinary(src: string): Promise<string | null> {
     form.append("file", src); // 接受远程 URL 或 data URI
     form.append("upload_preset", preset);
     form.append("folder", "cloudfootprints/sim");
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form });
+    const res = await fetchT(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form }, 60000);
     if (!res.ok) return /^https?:\/\//.test(src) ? src : null;
     return ((await res.json()) as { secure_url: string }).secure_url;
   } catch {
@@ -132,7 +143,7 @@ class AgnesProvider implements ImageProvider {
       ? base
       : `${base.replace(/\/$/, "")}/images/generations`;
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetchT(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
@@ -141,7 +152,7 @@ class AgnesProvider implements ImageProvider {
           size: "1024x1024",
           n: 1,
         }),
-      });
+      }, 120000);
       if (!res.ok) return null;
       const data = (await res.json()) as { data?: Array<{ url?: string; b64_json?: string }> };
       const d = data.data?.[0];
@@ -165,11 +176,11 @@ class GeminiProvider implements ImageProvider {
     const model = (process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image").replace(/^models\//, "");
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     try {
-      const res = await fetch(url, {
+      const res = await fetchT(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      });
+      }, 120000);
       if (!res.ok) return null;
       const data = (await res.json()) as {
         candidates?: Array<{ content?: { parts?: Array<Record<string, unknown>> } }>;
