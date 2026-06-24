@@ -12,11 +12,12 @@
 
 - **决策层标注配图**：`decide.ts` 的 post 新增 `photo`(是否值得配图，仅有画面感/重要瞬间) + `photoDesc`(一句话画面描述，默认主观镜头)。琐碎日常不配图。
 - **`image.ts` 统一管线**：`ImageProvider` 接口 + `getImageProvider()`（按 `IMAGE_PROVIDER` env 选）；`buildPrompt` 据 **personas.appearance（以 `public/person.png` 为外观基准）+ photoSkill 视角（casual/hobby 主观手机镜头、pro 客观构图）+ 画面描述 + 季节天气** 拼写实 prompt；生成图统一 `persistToCloudinary`（服务端抓取，自带 CORS）。
-- **provider**：`none`（默认，不出图，sim 照常）/ `agnes`（外部 API，env 驱动 `AGNES_API_URL/KEY/MODEL`，对返回形态防御性解析，任何失败→不出图、绝不打断模拟）。
+- **provider**：`none`（默认）/ **`gemini`（Google Gemini 2.5 Flash Image，已接入）** / `agnes`（备选）。任何失败→不出图、绝不打断模拟。
+  - Gemini：鉴权 `x-goog-api-key` 头（已实测确认），图片在 `candidates[0].content.parts[].inlineData`(base64) → 转 data URI → 上传 Cloudinary。
 - **引擎接入**：足迹发布后若 `photo` 为真且 provider 启用 → 生成 → 上传 → 回填 `photoUrls`。
-- 已实测 `IMAGE_PROVIDER=none` 下推演照常、不报错；`.env.example` 补充配图相关变量。
+- 已实测 `IMAGE_PROVIDER=none` 与 `=gemini` 下推演均照常、不报错；`.env.example` 补充配图相关变量（gemini/agnes）。
 
-**待办**：接 Agnes（需其确切 endpoint/鉴权/响应字段）后即可真正出图——其余管线无需改动。
+**待办**：Gemini key 已接、鉴权确认，但所给账户**额度耗尽(429 RESOURCE_EXHAUSTED)**——AI Studio 充值/开通 billing 后即可真正出图（管线无需再改）。后续增强：以 `person.png` 单人裁切作 Gemini 图参，强化人脸一致性（需图像库）。
 
 **涉及文件：** `src/services/simulation/{decide,engine,image}.ts`、`.env.example`
 

@@ -105,8 +105,43 @@ class AgnesProvider implements ImageProvider {
   }
 }
 
+// ── Provider：Google Gemini 2.5 Flash Image ──
+// 鉴权 = x-goog-api-key 头（已实测确认）；返回图片在 candidates[0].content.parts[].inlineData(base64)。
+// 需要 env：IMAGE_PROVIDER=gemini、GEMINI_API_KEY、(可选) GEMINI_IMAGE_MODEL。
+// 账户无额度时返回 429 → 本方法返回 null（不出图、不打断模拟）。
+class GeminiProvider implements ImageProvider {
+  readonly name = "gemini";
+  async generate(req: ImageRequest): Promise<string | null> {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return null;
+    const model = (process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image").replace(/^models\//, "");
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({ contents: [{ parts: [{ text: buildPrompt(req) }] }] }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<Record<string, unknown>> } }>;
+      };
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      for (const p of parts) {
+        const inline = (p as { inlineData?: { mimeType?: string; data?: string }; inline_data?: { mimeType?: string; data?: string } });
+        const dat = inline.inlineData || inline.inline_data;
+        if (dat?.data) return `data:${dat.mimeType || "image/png"};base64,${dat.data}`;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+}
+
 export function getImageProvider(): ImageProvider {
   const p = (process.env.IMAGE_PROVIDER || "none").toLowerCase();
+  if (p === "gemini") return new GeminiProvider();
   if (p === "agnes") return new AgnesProvider();
   return new NoopProvider();
 }
