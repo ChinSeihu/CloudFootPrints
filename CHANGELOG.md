@@ -6,6 +6,18 @@
 
 ## 2026-06-23
 
+### 配图视觉质检闭环（不合格自动改 prompt 重生成）
+
+- **`imageQA.ts`**：用 Agnes 多模态 chat（`agnes-2.0-flash`，已实测可读图）「看」生成图，按四条标准判合格（符合画面意图 / 像真人手机随手拍无 AI 感 / 表情自然不夸张不畸形 / 无文字水印），不合格则产出「改进版英文 prompt」。
+- **`generateCheckinImage` 改为闭环**：生成 → 质检 → 不合格用改进 prompt 重生成（默认重试 1 次）→ 仍不过则保留最后一张兜底 → 上传 Cloudinary。Provider 接口改为接受最终 prompt 字符串（buildPrompt 移到上层编排）。
+- 开关：`IMAGE_QA`(默认开，置 false 省钱)、`IMAGE_QA_RETRIES`(默认 1)、`IMAGE_QA_MODEL`(默认 agnes-2.0-flash)。
+- 实测：质检能挑出 AI 感（「皮肤过光滑、透视生硬、虚化不自然」）并给出改进 prompt；端到端重生成的图表情自然、纪实感强。
+- 注意：开 QA 后每张图成本/耗时约翻倍（多一次看图 + 可能一次重生成），批量回填可按需关闭。
+
+**涉及文件：** `src/services/simulation/{image,imageQA}.ts`、`.env.example`
+
+---
+
 ### 配图 prompt 调优：压「AI 感」+ 表情自然不夸张
 
 - 据 Agnes 文档（无负向提示/guidance 参数，写实度全靠 prompt）重写 `buildPrompt`：强调「手机随手拍 / 自然肌理与瑕疵 / 真实柔光」，并显式 **避免 CGI·3D·过锐·油光皮肤·戏剧打光·影棚摆拍**；人物 **表情自然克制、不摆拍、不夸张笑容**。

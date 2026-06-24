@@ -1,5 +1,6 @@
 import type { Persona } from "@/lib/personas";
 import type { World } from "./world";
+import { judgeImage } from "./imageQA";
 
 // Image Agent（V7 Phase 4）：把"生活"转成生活化照片。统一 ImageProvider 接口，
 // 当前可选 provider：none（默认，不出图）/ agnes（外部生成 API，按 env 接入）。
@@ -14,7 +15,7 @@ export type ImageRequest = {
 
 export interface ImageProvider {
   readonly name: string;
-  generate(req: ImageRequest): Promise<string | null>; // 返回图片 URL 或 data URI；失败/未配置返回 null
+  generate(prompt: string): Promise<string | null>; // 传入最终 prompt，返回图片 URL 或 data URI；失败返回 null
 }
 
 // 视角语气：casual 日常一律主观；hobby 平时主观（作品才客观，这里日常按主观）；pro 客观构图。
@@ -62,7 +63,8 @@ export async function persistToCloudinary(src: string): Promise<string | null> {
 // ── Provider：none（默认，不出图）──
 class NoopProvider implements ImageProvider {
   readonly name = "none";
-  async generate(): Promise<string | null> {
+  async generate(_prompt: string): Promise<string | null> {
+    void _prompt;
     return null;
   }
 }
@@ -73,7 +75,7 @@ class NoopProvider implements ImageProvider {
 //          AGNES_API_KEY、(可选) AGNES_MODEL(默认 agnes-image-2.1-flash)。任何失败→null。
 class AgnesProvider implements ImageProvider {
   readonly name = "agnes";
-  async generate(req: ImageRequest): Promise<string | null> {
+  async generate(prompt: string): Promise<string | null> {
     const base = process.env.AGNES_API_URL;
     const key = process.env.AGNES_API_KEY;
     if (!base || !key) return null;
@@ -86,7 +88,7 @@ class AgnesProvider implements ImageProvider {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
           model: process.env.AGNES_MODEL || "agnes-image-2.1-flash",
-          prompt: buildPrompt(req),
+          prompt,
           size: "1024x1024",
           n: 1,
         }),
@@ -108,7 +110,7 @@ class AgnesProvider implements ImageProvider {
 // 账户无额度时返回 429 → 本方法返回 null（不出图、不打断模拟）。
 class GeminiProvider implements ImageProvider {
   readonly name = "gemini";
-  async generate(req: ImageRequest): Promise<string | null> {
+  async generate(prompt: string): Promise<string | null> {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return null;
     const model = (process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image").replace(/^models\//, "");
@@ -117,7 +119,7 @@ class GeminiProvider implements ImageProvider {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({ contents: [{ parts: [{ text: buildPrompt(req) }] }] }),
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       });
       if (!res.ok) return null;
       const data = (await res.json()) as {
@@ -143,11 +145,28 @@ export function getImageProvider(): ImageProvider {
   return new NoopProvider();
 }
 
-// 高层入口：生成 + 持久化。引擎只调这个。none provider 直接返回 null（不出图）。
+// 高层入口：生成 →（可选）视觉质检 → 不合格用改进 prompt 重生成 → 持久化。引擎只调这个。
+// 质检默认开（IMAGE_QA != false），重试次数 IMAGE_QA_RETRIES（默认 1）。质检需 Agnes chat（agnes-2.0-flash）。
 export async function generateCheckinImage(req: ImageRequest): Promise<string | null> {
   const provider = getImageProvider();
   if (provider.name === "none") return null;
-  const raw = await provider.generate(req);
-  if (!raw) return null;
-  return persistToCloudinary(raw);
+
+  const qaOn = (process.env.IMAGE_QA ?? "true").toLowerCase() !== "false";
+  const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 1)) : 0;
+  const basePrompt = buildPrompt(req);
+
+  let prompt = basePrompt;
+  let lastRaw: string | null = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const raw = await provider.generate(prompt);
+    if (!raw) break; // 生成失败，不再重试
+    lastRaw = raw;
+    if (!qaOn) break;
+    const qa = await judgeImage(raw, req.photoDesc, basePrompt);
+    if (qa.ok) break; // 合格
+    if (qa.improvedPrompt && attempt < retries) { prompt = qa.improvedPrompt; continue; } // 用改进 prompt 重生成
+    break; // 重试用尽：保留最后一张（兜底，有图胜过无图）
+  }
+  if (!lastRaw) return null;
+  return persistToCloudinary(lastRaw);
 }
