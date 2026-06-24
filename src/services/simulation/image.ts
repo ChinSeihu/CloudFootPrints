@@ -65,40 +65,35 @@ class NoopProvider implements ImageProvider {
   }
 }
 
-// ── Provider：Agnes（外部生成 API）──
-// 按 env 接入，对未知细节保持防御性（任何失败→null，绝不打断模拟）。
-// 需要的 env：IMAGE_PROVIDER=agnes、AGNES_API_URL、AGNES_API_KEY、(可选) AGNES_MODEL。
-// 注意：Agnes 的确切请求/响应字段以其官方文档为准，下面用常见形态（OpenAI images 风格）兜底解析，
-// 接入时若不符再按文档调整这一处即可（其余管线无需改动）。
+// ── Provider：Agnes（OpenAI images 兼容，已实测）──
+// 鉴权 Bearer；endpoint = <base>/images/generations；返回 data[0].url（或 b64_json）。
+// 需要 env：IMAGE_PROVIDER=agnes、AGNES_API_URL(base，如 https://apihub.agnes-ai.com/v1)、
+//          AGNES_API_KEY、(可选) AGNES_MODEL(默认 agnes-image-2.1-flash)。任何失败→null。
 class AgnesProvider implements ImageProvider {
   readonly name = "agnes";
   async generate(req: ImageRequest): Promise<string | null> {
-    const url = process.env.AGNES_API_URL;
+    const base = process.env.AGNES_API_URL;
     const key = process.env.AGNES_API_KEY;
-    if (!url || !key) return null;
+    if (!base || !key) return null;
+    const endpoint = /\/images\/generations$/.test(base)
+      ? base
+      : `${base.replace(/\/$/, "")}/images/generations`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
-          model: process.env.AGNES_MODEL || "agnes-image",
+          model: process.env.AGNES_MODEL || "agnes-image-2.1-flash",
           prompt: buildPrompt(req),
           size: "1024x1024",
           n: 1,
         }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as Record<string, unknown>;
-      // 兼容多种返回形态：{data:[{url|b64_json}]} / {url} / {image} / {images:[...]}
-      const d = (data.data as Array<Record<string, unknown>> | undefined)?.[0];
-      const b64 = d?.b64_json as string | undefined;
-      if (b64) return `data:image/png;base64,${b64}`;
-      const candidate =
-        (d?.url as string) ||
-        (data.url as string) ||
-        (data.image as string) ||
-        ((data.images as string[] | undefined)?.[0]);
-      return typeof candidate === "string" && candidate ? candidate : null;
+      const data = (await res.json()) as { data?: Array<{ url?: string; b64_json?: string }> };
+      const d = data.data?.[0];
+      if (d?.b64_json) return `data:image/png;base64,${d.b64_json}`;
+      return d?.url || null;
     } catch {
       return null;
     }

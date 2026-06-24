@@ -6,6 +6,16 @@
 
 ## 2026-06-23
 
+### 社区模拟 V7 · Phase 4 配图打通（Agnes，端到端实测）
+
+- **接入 Agnes**（OpenAI images 兼容，已实测）：`POST <base>/images/generations`（Bearer 鉴权），`{model: agnes-image-2.1-flash, prompt, n, size}` → `data[0].url`。`image.ts` 的 `AgnesProvider` 据此精确接入（base 自动补 `/images/generations`）。
+- **端到端验证**：模拟 2026-06-27 → 3 条「值得配图」的足迹各生成图 → 上传 Cloudinary（`res.cloudinary.com/.../cloudfootprints`）→ 回填 `photoUrls`。出图质量在线：主观镜头、场景精准（目黑川散步 / 代代木公园野餐 / 浅草摊位）、亚洲年轻人 + 东京感、写实非网红风，与人设穿搭一致。
+- 默认仍 `IMAGE_PROVIDER=none`（不烧钱）；本地切 `agnes` 即出图。`.env.example` 更新 Agnes/Gemini 用法。
+
+> 提醒：回填 Feb→现在会对每条配图足迹各生成 1 张（约每张十几秒 + 上传），量大耗时；建议先小段验证质量再批量。
+
+---
+
 ### 社区模拟 V7 · Phase 4：人物配图管线（ImageProvider 抽象）
 
 把"生活"转成生活化照片的管线（接口先行、provider 可替换；外部生成 API 待你确认后接入）。
