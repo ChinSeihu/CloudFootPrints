@@ -21,7 +21,13 @@ function arg(name: string): string | undefined {
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
 
 function tokyoToday(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+  const yesterday = new Date(
+    Date.now() - 24 * 60 * 60 * 1000
+  ).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Tokyo"
+  });
+  // return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+  return yesterday;
 }
 
 function dateRange(from: string, to: string): string[] {
