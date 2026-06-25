@@ -44,6 +44,10 @@ jobs:
       - name: 跑社区推演
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          IMAGE_PROVIDER: ${{ secrets.IMAGE_PROVIDER }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          AGNES_MODEL: ${{ secrets.AGNES_MODEL }}
+          AGNES_API_URL: ${{ secrets.AGNES_API_URL }}
           # LLM = DeepSeek（OpenAI 兼容端点）；与 extract 复用同一 LLM_API_KEY secret。
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_PROVIDER: deepseek
