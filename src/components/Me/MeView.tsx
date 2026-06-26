@@ -61,11 +61,6 @@ function MeContent() {
   }, []);
 
   // 打卡照片拼图：收集打卡上传的照片（最多 9 张）
-  const photos = useMemo(
-    () => checkins.map((c) => c.photoUrl).filter((u): u is string => !!u).slice(0, 9),
-    [checkins],
-  );
-
   // 足迹统计：总数 / 照片数 / 活跃天数
   const footStats = useMemo(() => {
     const photoCount = checkins.reduce((n, c) => n + (c.photoUrls?.length || (c.photoUrl ? 1 : 0)), 0);
@@ -136,32 +131,7 @@ function MeContent() {
     <div className="h-full overflow-y-auto">
       <ProfileHeader />
 
-      {/* 打卡照片拼图 */}
-      <div className="px-4 pt-2 pb-1">
-        {!loaded ? (
-          <div className="h-28 rounded-2xl bg-neutral-100 animate-pulse" />
-        ) : photos.length === 0 ? (
-          <div className="h-28 rounded-2xl bg-neutral-100 grid place-items-center text-neutral-400">
-            <div className="text-center px-4">
-              <IconHeart className="w-6 h-6 mx-auto mb-1 opacity-50" />
-              <p className="text-xs">记录足迹时上传照片，这里会拼成你的足迹相册</p>
-            </div>
-          </div>
-        ) : (
-          <div className={`grid gap-0.5 rounded-2xl overflow-hidden ${photos.length === 1 ? "grid-cols-1" : photos.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
-            {photos.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={url}
-                alt=""
-                loading="lazy"
-                className={`w-full object-cover ${photos.length === 1 ? "max-h-56" : "aspect-square"}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* 照片墙暂时隐藏：避免占用个人页首屏空间。 */}
 
       <div className="px-4 pt-3 pb-1">
         <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">
@@ -220,14 +190,23 @@ function MeContent() {
             {footGroups.map(([month, items]) => (
             <div key={month} className="mb-5">
               <div className="text-xs font-medium text-neutral-400 mb-2">{month} · {items.length} 处</div>
-              <ol className="relative border-l border-neutral-200 ml-2">
-              {items.map((c) => (
-                <li key={c.id} className="mb-5 ml-4 rounded-2xl border border-neutral-100 bg-white p-3 shadow-sm">
-                  <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-blue-600 border border-white" />
-                  <div className="flex items-center gap-2">
-                    <time className="text-[11px] text-neutral-400">
-                      {new Date(c.createdAt).toLocaleString("zh-CN")}
-                    </time>
+              <ol className="space-y-6">
+              {items.map((c) => {
+                const d = new Date(c.createdAt);
+                const day = d.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+                const weekday = d.toLocaleDateString("zh-CN", { weekday: "short" });
+                const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+                return (
+                <li key={c.id} className="grid grid-cols-[54px_minmax(0,1fr)] gap-3">
+                  <div className="relative text-right">
+                    <div className="sticky top-2">
+                      <div className="text-[13px] font-semibold text-neutral-800 tabular-nums">{day}</div>
+                      <div className="mt-0.5 text-[10px] leading-tight text-neutral-400">{weekday}<br />{time}</div>
+                    </div>
+                  </div>
+                  <div className="relative min-w-0 border-l border-neutral-200 pl-4 pb-1">
+                    <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-600 shadow-sm" />
+                    <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => router.push(`/?lat=${c.lat}&lng=${c.lng}`)}
@@ -274,7 +253,7 @@ function MeContent() {
                       </div>
                     );
                   })()}
-                  {c.note && <p className="text-sm mt-0.5">{c.note}</p>}
+                  {c.note && <p className="mt-2 text-[14px] leading-relaxed text-neutral-800">{c.note}</p>}
                   {(() => {
                     const imgs = c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : [];
                     if (imgs.length === 0) return null;
@@ -288,14 +267,16 @@ function MeContent() {
                             alt=""
                             loading="lazy"
                             onClick={() => setLightbox({ images: imgs, index: i })}
-                            className={`w-full rounded-xl object-cover cursor-zoom-in ${imgs.length === 1 ? "aspect-[4/3]" : "aspect-square"}`}
+                            className={`w-full rounded-xl object-cover cursor-zoom-in ${imgs.length === 1 ? "aspect-[4/3] max-h-52" : "aspect-square"}`}
                           />
                         ))}
                       </div>
                     );
                   })()}
+                  </div>
                 </li>
-              ))}
+                );
+              })}
               </ol>
             </div>
             ))}
