@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-06-27
+
+### Restyle map page surface
+- **Map top controls**: filter, activity count, date, and weather controls now use larger rounded white capsules with softer shadows.
+- **Bottom map dock**: replaced the small pill controls with a reference-style icon dock for food, quick event filters, stations, and map options.
+- **Nearby activity sheet**: expanded the drawer with a clearer header, radius hint, AI route entry, featured activity cards, and recommendation chips.
+**Files:** `src/components/Map/Filters.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`, `src/components/Map/WeatherPanel.tsx`
+
+---
+
 ## 2026-06-26
 
 ### Add daily featured event carousel

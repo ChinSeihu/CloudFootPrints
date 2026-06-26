@@ -54,20 +54,20 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
   }
 
   return (
-    <div className="absolute top-3 left-3 z-30 flex flex-col items-start gap-2 pointer-events-none">
+    <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2 pointer-events-none">
       {/* 收起行：筛选按钮 + 计数 + 时间（数据每日自动更新，去掉手动刷新）。
           flex-wrap + shrink-0 + nowrap：日期范围标签变长时整块换行，不再挤乱其它按钮。 */}
-      <div className="flex flex-wrap items-center gap-2 pointer-events-auto max-w-[calc(100vw-1.5rem)]">
+      <div className="flex flex-wrap items-center gap-2.5 pointer-events-auto max-w-[calc(100vw-2rem)]">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+          className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
             open || activeCount > 0
               ? "bg-blue-600 text-white border-transparent"
-              : "bg-white/95 text-neutral-700 border-black/10"
+              : "bg-white/95 text-neutral-800 border-white/80"
           }`}
         >
-          <IconFilter className="w-3.5 h-3.5" />
+          <IconFilter className="w-4 h-4" />
           筛选
           {activeCount > 0 && (
             <span className="ml-0.5 min-w-4 h-4 px-1 rounded-full bg-white/90 text-blue-600 text-[10px] leading-4 text-center">
@@ -76,8 +76,8 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
           )}
         </button>
 
-        <span className="shrink-0 whitespace-nowrap text-xs text-neutral-600 bg-white/85 rounded-full px-2 py-1 shadow-sm">
-          {count}个活动中
+        <span className="shrink-0 whitespace-nowrap rounded-full border border-white/80 bg-white/95 px-4 py-2 text-sm font-semibold text-neutral-800 shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
+          {count} 个活动
         </span>
 
         {/* 时间筛选：放在计数右边，更显眼 */}
@@ -85,18 +85,18 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
           <button
             type="button"
             onClick={() => setDateOpen((v) => !v)}
-            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition ${
+            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
               isAllDates(value.dateRange)
-                ? "bg-white/95 text-neutral-700 border-black/10"
+                ? "bg-white/95 text-neutral-800 border-white/80"
                 : "bg-blue-600 text-white border-transparent"
             }`}
           >
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
             {dayRangeLabel(value.dateRange)}
             <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${dateOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
           </button>
           {dateOpen && (
-            <div className="absolute right-0 top-full mt-1.5 rounded-2xl border border-black/5 bg-white shadow-xl p-3 z-30">
+            <div className="absolute right-0 top-full mt-2 rounded-3xl border border-black/5 bg-white p-3 shadow-[0_16px_42px_rgba(15,23,42,0.14)] z-30">
               <CalendarRangePicker
                 value={value.dateRange}
                 onChange={(dr) => onChange({ ...value, dateRange: dr })}
@@ -108,7 +108,7 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
 
       {/* 展开面板 */}
       {open && (
-        <div className="w-64 max-w-[78vw] bg-white/95 backdrop-blur rounded-xl shadow-lg border border-black/10 p-3 pointer-events-auto">
+        <div className="w-64 max-w-[78vw] rounded-3xl border border-white/80 bg-white/95 p-3 shadow-[0_16px_42px_rgba(15,23,42,0.14)] backdrop-blur pointer-events-auto">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-sm font-medium">筛选</span>
             <div className="flex items-center gap-2.5">

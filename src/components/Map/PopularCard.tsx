@@ -29,6 +29,13 @@ function formatDistance(d: number | null): string {
   return d < 10 ? `${d.toFixed(1)}km` : `${Math.round(d)}km`;
 }
 
+const SUGGESTION_CARDS = [
+  { title: "想放松一下", subtitle: "公园散步好去处", count: "12 个活动", tone: "bg-violet-50 text-violet-700" },
+  { title: "一个人去", subtitle: "安静治愈的地方", count: "8 个活动", tone: "bg-cyan-50 text-cyan-700" },
+  { title: "今天想拍照", subtitle: "出片圣地推荐", count: "15 个活动", tone: "bg-rose-50 text-rose-700" },
+  { title: "夜生活", subtitle: "东京夜晚指南", count: "10 个活动", tone: "bg-indigo-50 text-indigo-700" },
+];
+
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
   const [open, setOpen] = useState(true);
   const [dragY, setDragY] = useState(0);
@@ -79,7 +86,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute bottom-24 left-1/2 z-20 -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/95 px-4 py-2 text-xs font-medium text-neutral-700 shadow-lg backdrop-blur"
+        className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2.5 text-xs font-semibold text-neutral-700 shadow-[0_10px_30px_rgba(15,23,42,0.16)] backdrop-blur"
       >
         <span className="h-2 w-2 rounded-full bg-blue-600" />
         {anchored ? "锚点周边" : "附近活动"}
@@ -89,7 +96,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   return (
     <section
-      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[24px] border-t border-black/5 bg-white/95 px-4 pb-3 pt-2.5 shadow-[0_-14px_34px_rgba(15,23,42,0.12)] backdrop-blur transition-transform duration-200"
+      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl transition-transform duration-200"
       style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
     >
       <button
@@ -100,16 +107,17 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         aria-label="收起附近活动"
-        className="mx-auto mb-2.5 block h-5 w-20 touch-none cursor-grab rounded-full py-1.5 active:cursor-grabbing"
+        className="mx-auto mb-3 block h-5 w-20 touch-none cursor-grab rounded-full py-1.5 active:cursor-grabbing"
       >
         <span className="mx-auto block h-1.5 w-14 rounded-full bg-neutral-300" />
       </button>
 
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-[17px] font-bold leading-tight text-neutral-950">{anchored ? "锚点周边" : "附近活动"}</h2>
-          <p className="mt-1 text-[11px] leading-none text-neutral-500">
-            {anchored ? "以你点选的位置为中心" : "根据当前地图视野推荐"}
+          <h2 className="text-[18px] font-black leading-tight text-neutral-950">{anchored ? "锚点周边" : "附近活动"}</h2>
+          <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] leading-none text-neutral-500">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /></svg>
+            {anchored ? "以锚点为中心 · 半径 2km" : "以当前位置为中心 · 半径 2km"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -125,14 +133,14 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
           <button
             type="button"
             onClick={onViewAll}
-            className="rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.24)]"
+            className="rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
           >
-            全部
+            AI 推荐路线
           </button>
         </div>
       </div>
 
-      <div className="mt-3.5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => setActiveCategory("ALL")}
@@ -162,6 +170,13 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         })}
       </div>
 
+      <div className="mt-3 flex items-center justify-between">
+        <h3 className="text-sm font-black text-neutral-950">精选活动</h3>
+        <button type="button" onClick={onViewAll} className="text-xs font-semibold text-neutral-500">
+          查看全部 ›
+        </button>
+      </div>
+
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.slice(0, 6).map(({ e: ev, d }) => {
           const meta = CATEGORY_META[ev.category];
@@ -170,9 +185,9 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
               key={ev.id}
               type="button"
               onClick={() => onSelect(ev)}
-              className="group w-[8.25rem] shrink-0 overflow-hidden rounded-[16px] bg-white text-left shadow-[0_7px_18px_rgba(15,23,42,0.08)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.12)]"
+              className="group w-[9.2rem] shrink-0 overflow-hidden rounded-[18px] bg-white text-left shadow-[0_8px_24px_rgba(15,23,42,0.09)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]"
             >
-              <div className="relative aspect-[5/3.4] overflow-hidden bg-neutral-100">
+              <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
                 {ev.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
@@ -180,21 +195,37 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                   <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${meta.color}33, #f8fafc)` }} />
                 )}
                 <span
-                  className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm"
+                  className="absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm"
                   style={{ backgroundColor: meta.color }}
                 >
                   {meta.label}
                 </span>
+                <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-white/70 bg-black/30 text-white backdrop-blur">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                </span>
               </div>
-              <div className="p-2">
-                <h3 className="line-clamp-2 min-h-[2.2rem] text-[12.5px] font-semibold leading-snug text-neutral-900">{ev.title}</h3>
-                <p className="mt-0.5 truncate text-[10.5px] text-neutral-500">
+              <div className="p-2.5">
+                <h3 className="line-clamp-2 min-h-[2.45rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
+                <p className="mt-1 truncate text-[11px] text-neutral-500">
                   {formatDistance(d)} · {ev.venueName ?? "会场待定"}
                 </p>
               </div>
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-3">
+        <h3 className="mb-2 text-sm font-black text-neutral-950">为你推荐</h3>
+        <div className="grid grid-cols-4 gap-2">
+          {SUGGESTION_CARDS.map((card) => (
+            <button key={card.title} type="button" onClick={onViewAll} className={`rounded-2xl px-2 py-2.5 text-left ${card.tone}`}>
+              <div className="truncate text-[11px] font-black">{card.title}</div>
+              <div className="mt-1 line-clamp-2 min-h-[2rem] text-[10.5px] leading-snug opacity-80">{card.subtitle}</div>
+              <div className="mt-1 text-[10.5px] font-semibold opacity-90">{card.count}</div>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
