@@ -86,7 +86,7 @@ scripts/sim-run.ts
     -> maintenance: relationships / community / memory / signature / lifeEvents
 ```
 
-`engine.ts` 的参与概率使用 `socialProfile.socialNeed` 与 `personality.extraversion`，地点来自 `personaSpots()`，不再读取旧的 `home`/`roam`。
+`engine.ts` 的参与概率使用 `socialProfile.socialNeed` 与 `personality.extraversion`，地点来自 `personaSpots()`，不再读取旧的 `home`/`roam`。`PERSONA_SPOTS` 只是少量锚点；实际候选会同时从 `homeArea / frequentAreas / explorationAreas` 派生，避免长期限定在固定场地。
 
 `decide.ts` 的 prompt 使用：
 
@@ -453,7 +453,9 @@ not advertisement
 
 不要因为动态属于某个角色，就强制让角色出现在画面中。人物存在于生活里，不一定存在于镜头里。
 
-第一人称足迹要控制出镜比例，而不是完全不出镜：主角独自行动时，大多数图片应像主角自己拍到的环境、物品、餐桌、票根、街景、舞台或窗外；少量可以是自拍、镜中/橱窗倒影、定时器、三脚架、手机放在桌上或地上延时拍；朋友同行时可以有朋友帮拍或合照。避免每张图都像第三者跟拍主角本人。
+第一人称足迹要控制出镜比例，而不是完全不出镜：这些角色接近 INS 风生活博主，人物出镜比例应偏高。建议约 45% 是主角自己拍到的环境、物品、餐桌、票根、街景、舞台或窗外；约 35% 是镜中/橱窗倒影、定时器、三脚架、手机放在桌上或地上延时拍、自然 pose；约 20% 是朋友帮拍或合照。避免每张图都像第三者跟拍主角本人，也避免频繁出现拿手机自拍/拍照的动作。
+
+出镜时穿搭、妆发和配饰应更像东京 INS 风生活博主：时尚但日常，符合季节、天气、场景和角色消费能力。可以有自然 pose，例如走路、侧身看橱窗、靠栏杆、坐在咖啡桌边、整理头发、拿饮料或购物袋；不要变成棚拍、广告大片或夸张网红摆拍。手部特写必须像年轻女性的手，手指纤细、比例正常、皮肤质感柔和、指甲干净，不要粗糙、过大或男性化。
 
 ### 防 AI 味规则
 

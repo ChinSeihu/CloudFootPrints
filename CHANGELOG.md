@@ -6,6 +6,17 @@
 
 ## 2026-06-26
 
+### 提高 INS 风人物出镜比例并扩展地点池
+
+- **人物出镜比例提高**：模拟决策 prompt 调整为 INS 风生活博主视角，建议约 45% 主观环境/物品、35% 倒影/定时器/三脚架/手机放置延时/自然 pose、20% 朋友帮拍/合照；图片规则同步允许更高频率的合理出镜。
+- **时尚与手部细节增强**：配图规则要求穿搭、妆发和配饰更贴近东京 INS 风生活博主；减少拿手机拍照动作，允许自然 pose；手部特写强调年轻女性手部比例、肤质和指甲细节，避免粗糙、过大或男性化。
+- **地点不再硬限于 `PERSONA_SPOTS`**：`personaSpots()` 改为从 `homeArea / frequentAreas / explorationAreas` 派生候选点，并叠加原 `PERSONA_SPOTS` 锚点；没有精确坐标的区域会生成稳定近似坐标，避免角色长期只在几个硬编码场地活动。
+- **文档同步**：`docs/demo-personas.md` 说明 `PERSONA_SPOTS` 只是锚点，实际模拟地点来自 V2 区域偏好与探索区域。
+
+**涉及文件：** `src/services/simulation/decide.ts`、`src/services/simulation/image.ts`、`src/lib/personas.ts`、`docs/demo-personas.md`
+
+---
+
 ### 调整模拟配图出镜比例
 
 - **从“少出镜”改为“自然比例”**：决策 prompt 明确独自行动时约 70% 为主观环境/物品画面，约 20% 可用自拍、倒影、定时器、三脚架或手机放置延时拍，约 10% 为朋友帮拍/合照。

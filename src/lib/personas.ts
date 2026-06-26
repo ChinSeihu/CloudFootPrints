@@ -249,10 +249,78 @@ export function personaVoiceText(persona: PersonaV2): string {
   ].join("; ");
 }
 
+const AREA_COORDS: Record<string, Omit<LatLng, "name">> = {
+  Shibuya: { lat: 35.659, lng: 139.698 },
+  Daikanyama: { lat: 35.6485, lng: 139.703 },
+  Nakameguro: { lat: 35.6447, lng: 139.699 },
+  Ebisu: { lat: 35.647, lng: 139.71 },
+  Jimbocho: { lat: 35.6959, lng: 139.7577 },
+  "Kiyosumi-shirakawa": { lat: 35.681, lng: 139.8 },
+  Jiyugaoka: { lat: 35.607, lng: 139.668 },
+  Omotesando: { lat: 35.665, lng: 139.712 },
+  Shinjuku: { lat: 35.69, lng: 139.7 },
+  Ginza: { lat: 35.671, lng: 139.765 },
+  Kuramae: { lat: 35.704, lng: 139.791 },
+  Asakusa: { lat: 35.7148, lng: 139.7967 },
+  Yanaka: { lat: 35.727, lng: 139.767 },
+  Nezu: { lat: 35.717, lng: 139.763 },
+  Yokohama: { lat: 35.465, lng: 139.622 },
+  Kamakura: { lat: 35.319, lng: 139.55 },
+  Atami: { lat: 35.096, lng: 139.071 },
+  Hakone: { lat: 35.232, lng: 139.107 },
+  Koenji: { lat: 35.705, lng: 139.65 },
+  Kichijoji: { lat: 35.7003, lng: 139.5704 },
+  Ueno: { lat: 35.7138, lng: 139.777 },
+  Ikebukuro: { lat: 35.7295, lng: 139.7109 },
+  Kagurazaka: { lat: 35.703, lng: 139.739 },
+  Yoyogi: { lat: 35.683, lng: 139.702 },
+  "Yoyogi Park": { lat: 35.672, lng: 139.694 },
+  "Komazawa Park": { lat: 35.626, lng: 139.662 },
+  Shimokitazawa: { lat: 35.6613, lng: 139.6679 },
+  "Futako-tamagawa": { lat: 35.612, lng: 139.626 },
+  Sangenjaya: { lat: 35.643, lng: 139.669 },
+};
+
+function hashText(text: string): number {
+  let h = 2166136261;
+  for (const ch of text) {
+    h ^= ch.codePointAt(0) ?? 0;
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function fallbackAreaCoord(name: string): Omit<LatLng, "name"> {
+  const h = hashText(name);
+  const lat = 35.6812 + (((h & 0xff) / 255) - 0.5) * 0.16;
+  const lng = 139.7671 + ((((h >>> 8) & 0xff) / 255) - 0.5) * 0.22;
+  return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+}
+
+function areaSpot(name: string, label: string): LatLng {
+  const coord = AREA_COORDS[name] ?? fallbackAreaCoord(name);
+  return { name: `${name} ${label}`, ...coord };
+}
+
+function uniqueSpots(spots: LatLng[]): LatLng[] {
+  const seen = new Set<string>();
+  const out: LatLng[] = [];
+  for (const spot of spots) {
+    const key = `${spot.name}|${spot.lat.toFixed(4)}|${spot.lng.toFixed(4)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(spot);
+  }
+  return out;
+}
+
 export function personaSpots(persona: PersonaV2): LatLng[] {
-  return PERSONA_SPOTS[persona.id] ?? [
-    { name: `${persona.homeArea} home base`, lat: 35.6812, lng: 139.7671 },
-  ];
+  return uniqueSpots([
+    areaSpot(persona.homeArea, "home area"),
+    ...persona.frequentAreas.map((area) => areaSpot(area, "frequent area")),
+    ...persona.explorationAreas.map((area) => areaSpot(area, "exploration area")),
+    ...(PERSONA_SPOTS[persona.id] ?? []),
+  ]);
 }
 // 人物模型设计参考 ./PersonaV2_Migration_Guide.md
 export const PERSONAS: PersonaV2[] = [
