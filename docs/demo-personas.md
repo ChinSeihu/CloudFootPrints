@@ -122,29 +122,338 @@ npx tsx scripts/crop-refs.ts
 
 Image Agent 使用 `personaRefIndex()` 从 `C01` 到 `C13` 自动找到对应参考图。C13 已有 `public/refs/13.png`。
 
-## 图片生成规则
+## 配图规则
 
-CheckIn 约 90% 可以配图，但不要强迫每条内容都有人脸。优先级：
+### 目标
+
+配图应让用户感觉：
+
+> 真的有一群生活在东京的年轻人，正在记录自己的日常。
+
+而不是：
+
+> AI 正在生成东京生活照片。
+
+整体风格偏 Threads、Instagram、BeReal、小红书日常记录，而非商业广告、摄影作品集、旅游宣传图或 AI 海报。
+
+### 人物一致性
+
+人物外观一致性基准：
+
+```text
+public/personV2.png
+public/refs/01.png ... public/refs/13.png
+```
+
+对应 `src/lib/personas.ts` 中的：
+
+- `appearance`
+- `photoSkill`
+- `personaRefIndex()`
+
+必须长期保持一致：
+
+- 脸部特征
+- 发型
+- 发色
+- 身高
+- 体型
+- 性别气质
+
+禁止：
+
+- 换脸
+- 发型漂移
+- 身高变化
+- 身材变化
+
+可以根据场景动态变化：
+
+- 上衣
+- 外套
+- 裤子
+- 裙子
+- 鞋子
+- 包
+- 配饰
+
+原则：同一个人不等于永远穿同一套衣服。穿搭应符合季节、天气、活动内容和东京年轻人的日常习惯。
+
+### 角色摄影能力
+
+来源：`photoSkill`
+
+`pro`：
+
+- 代表：C10 たけし
+- 允许主观镜头、客观摄影、摄影作品。
+
+`hobby`：
+
+- 代表：C05 遥香、C06 美月、C07 凛、C09 ゆい、C11 林雨晴、C13 真理
+- 默认主观镜头。
+- 仅在特意拍照、摄影创作、认真出片时允许客观摄影。
+
+`casual`：
+
+- 其余人物。
+- 日常照片优先 POV、自拍、朋友帮拍。
+- 避免专业摄影感。
+
+### 图片主体类型
+
+先决定图片拍的是什么，再决定如何拍。
+
+`ENVIRONMENT`：环境
+
+- 例如东京街景、夜景、河边、公园、演唱会舞台、花火大会。
+- 人物可不存在。
+
+`OBJECT`：物品
+
+- 例如咖啡、拉面、茶泡饭、车票、黑胶唱片、电脑桌、甜品、宠物用品。
+- 人物可不存在。
+
+`SELF`：发帖人本人
+
+- 例如自拍、镜子自拍。
+
+`SELF_AND_FRIENDS`：发帖人与朋友
+
+- 例如聚餐、合照、出游。
+
+`FRIENDS`：朋友
+
+- 发帖人不一定出现。
+
+`OBSERVED_PEOPLE`：观察到的人
+
+- 例如情侣、路人、老夫妻、排队的人群。
+- 重要：`OBSERVED_PEOPLE` 不等于发帖人，不要让用户误认为图片中的人物是发帖账号本人。
+
+### ContainsPoster
+
+生成图片时必须明确：
+
+```ts
+containsPoster: boolean
+```
+
+`true`：图片中包含发帖人，例如自拍、合照、朋友帮拍。
+
+`false`：图片中不包含发帖人，例如咖啡、风景、路人、演唱会、夜景。
+
+### 镜头类型
+
+Image Agent 应优先选择以下镜头。
+
+`POV_HAND`：主观镜头
+
+- 手里的咖啡
+- 手里的车票
+- 手里的烟花棒
+
+`POV_FOOD`：主观餐桌视角
+
+- 拉面
+- 居酒屋
+- 茶泡饭
+- 甜品
+
+`POV_STREET`：主观街景
+
+- 散步
+- 回家路上
+- 逛街
+
+`POV_STAGE`：观众席视角
+
+- Live
+- 演唱会
+- 舞台剧
+
+`POV_WALK`：步行视角
+
+- 目黑川
+- 吉祥寺
+- 下北泽
+
+`SELFIE`：自拍
+
+- 前置摄像头
+- 手持手机
+- 自然表情
+- 禁止网红摆拍
+
+`GROUP_SELFIE`：多人自拍
+
+- 朋友挤进镜头
+- 轻微构图混乱
+- 有真实感
+
+`FRIEND_TOOK`：朋友帮拍
+
+- 自然状态
+- 不看镜头
+- 不摆 Pose
+- 推荐用于聚餐、野餐、出游。
+
+`PHOTO_WORK`：摄影作品
+
+- 仅 `pro` 与 `hobby` 允许使用。
+
+### 出镜优先级
+
+普通动态建议：
+
+```text
+ENVIRONMENT       40%
+OBJECT            30%
+SELF              15%
+SELF_AND_FRIENDS  10%
+FRIENDS            3%
+OBSERVED_PEOPLE    2%
+```
+
+原则：不要每条动态都有人脸。东京年轻人的真实动态里，大量内容是食物、街景、演出、天空、河边、店铺，而不是自拍。
+
+### 拍摄意图
+
+图片不仅要描述场景，还要体现为什么拍。
+
+示例：
+
+- 午餐：`showing today's lunch`
+- 演唱会：`wanting to remember the moment`
+- 散步：`capturing the atmosphere of the evening`
+- 旅行：`saving memories from the trip`
+- 下班：`sharing a small moment from today`
+
+### 东京地点库
+
+优先具体地点，避免笼统写 `Tokyo cafe` 或 `Tokyo street`。
+
+推荐地点词：
+
+- Shibuya
+- Harajuku
+- Shimokitazawa
+- Ebisu
+- Nakameguro
+- Kichijoji
+- Koenji
+- Jiyugaoka
+- Asakusa
+- Shinjuku
+- Yoyogi Park
+- Meguro River
+- Daikanyama
+- Kuramae
+- Takadanobaba
+- Omotesando
+
+优先写 `small cafe in Shimokitazawa`，而不是 `Tokyo cafe`。
+
+### 不完美细节库
+
+可随机加入：
+
+- `slightly imperfect composition`
+- `partially cropped subject`
+- `subtle motion blur`
+- `slightly tilted horizon`
+- `people walking through frame`
+- `table clutter`
+- `social media compression`
+- `smartphone auto exposure`
+- `imperfect framing`
+- `captured in a hurry`
+
+避免：
+
+- 完美构图
+- 完美对称
+- 完美打光
+
+### 配图频率
+
+`CheckIn`：约 90% 配图。
+
+适合：
+
+- 美食
+- 演出
+- 温泉
+- 海边
+- 公园
+- 节日活动
+- 宠物友好场景
+- 有画面感的日常瞬间
+
+不强制：
+
+- 加班
+- 洗衣
+- 发呆
+- 纯情绪记录
+- 私密对话
+
+`Post`：尽量配 1 张封面图，必须与活动内容匹配。
+
+### 基础 Prompt
+
+统一风格：
+
+```text
+Japanese lifestyle photography,
+authentic daily life in Tokyo,
+
+casual smartphone snapshot,
+captured casually,
+
+unposed moment,
+ordinary happiness,
+
+natural lighting,
+
+slightly imperfect composition,
+
+realistic smartphone camera quality,
+
+social media photo,
+
+Kodak Portra 400 color tone,
+subtle film grain,
+
+atmospheric storytelling,
+
+not professional photography,
+not commercial photography,
+not advertisement
+```
+
+### 最终原则
+
+除非内容明确需要人物出镜，否则优先：
 
 ```text
 环境 > 物品 > 活动现场 > 人物
 ```
 
-适合配图：
+不要因为动态属于某个角色，就强制让角色出现在画面中。人物存在于生活里，不一定存在于镜头里。
 
-- 美食、咖啡、甜品
-- 演出、展览、活动现场
-- 公园、河边、夜景、旅行
-- 宠物友好场景
-- 有画面感的日常瞬间
+### 防 AI 味规则
 
-不适合强制配图：
+如果某角色连续 5 条内容围绕同一兴趣，下一条必须优先生成：
 
-- 加班、发呆、纯情绪记录
-- 私密对话
-- 没有画面主体的内心活动
+- 工作
+- 身体状态
+- 天气
+- 社交
+- 家务
+- 偶然事件
 
-人物出镜时必须保持 `appearance` 与参考图一致，但服装、包、鞋、配饰要随季节、天气和活动自然变化。
+工作相关话题的优先级也应该降低，没有人喜欢天天分享工作相关的。任何角色都不能变成“展览机器人 / 咖啡机器人 / Live 机器人”。
 
 ## 内容规则
 

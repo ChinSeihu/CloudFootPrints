@@ -6,6 +6,15 @@
 
 ## 2026-06-26
 
+### 恢复 demo-personas 生图细则
+
+- **恢复完整生图规则**：将旧版 `docs/demo-personas.md` 中的配图目标、人物一致性、摄影能力、图片主体类型、`containsPoster`、镜头类型、出镜优先级、拍摄意图、东京地点库、不完美细节库、配图频率、基础 prompt、最终原则和防 AI 味规则合并回 V2 手册。
+- **适配 PersonaV2 表述**：旧规则中的 `public/person.png/refIndex/12人` 表述改为 `public/personV2.png`、`public/refs/01.png ... 13.png` 和 `personaRefIndex()`，并补充 C13 与 V2 的 `photoSkill` 角色分组。
+
+**涉及文件：** `docs/demo-personas.md`
+
+---
+
 ### PersonaV2 标准化迁移 + sim-run 调用链适配
 
 - **人物模型以 `PersonaV2` 为准**：`src/lib/personas.ts` 移除旧 `Persona` 类型消费路径，新增 V2 派生函数：`personaGoals`、`personaLifeStageText`、`personaInterestList`、`personaVoiceText`、`personaSpots`、`personaRefIndex`、`personaById`。数据库 `CharacterState.goals/lifeStage` 继续作为运行态快照，由 V2 派生写入。
