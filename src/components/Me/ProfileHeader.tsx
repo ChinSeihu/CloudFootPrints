@@ -122,7 +122,9 @@ export function ProfileHeader() {
               {user.username}
             </div>
             {user.status && !editing && (
-              <div className={`text-xs mt-0.5 truncate ${hasCover ? "text-white/85" : "text-neutral-500"}`}>{user.status}</div>
+              <div className={`text-xs mt-0.5 leading-snug line-clamp-2 break-words ${hasCover ? "text-white/85" : "text-neutral-500"}`}>
+                {user.status}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2.5 shrink-0 pt-1">

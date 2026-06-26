@@ -6,6 +6,14 @@
 
 ## 2026-06-26
 
+### 修复个人页状态文字截断
+
+- **个人信息卡状态支持两行显示**：`ProfileHeader` 中用户状态从单行 `truncate` 改为两行 `line-clamp-2` 与自动断词，避免 PersonaV2 较长当前目标在个人页显示不全。
+
+**涉及文件：** `src/components/Me/ProfileHeader.tsx`
+
+---
+
 ### 调整 PersonaV2 头像居中裁剪
 
 - **头像裁剪改为手工定位**：`scripts/crop-avatars.ts` 从自动 `attention` 裁剪改为 13 组逐人方形裁剪参数，避免背景、相机、宠物、甜点等元素把头像重心带偏。
