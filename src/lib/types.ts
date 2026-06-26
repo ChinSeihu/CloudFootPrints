@@ -27,7 +27,15 @@ export type EventDTO = {
   trustLevel: number;
   tags: string[];
   signupEnabled: boolean;
+  metrics?: EventMetrics;
   author?: UserBrief | null; // USER 发帖的作者；抓取来源为 null
+};
+
+export type EventMetrics = {
+  likeCount: number;
+  favoriteCount: number;
+  signupCount: number;
+  clickCount: number;
 };
 
 export type CommentDTO = {

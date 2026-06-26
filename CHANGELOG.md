@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### Tighten calendar and explore density
+- **Calendar density pass**: compacted the calendar header/date strip, reduced whitespace, moved category filters into the top-right filter popup, and made search/filter affect the date strip, event list, and heatmap.
+- **Calendar heatmap redesign**: replaced the simple dot grid with a weekday-aligned monthly heatmap using visible day cells and intensity levels.
+- **Explore density pass**: compacted the explore header, hero banner, hot carousel, sticky tabs, and masonry cards so the page carries more content above the fold.
+- **Real popularity metrics**: added `EventMetric` click tracking and server-side aggregation of like/favorite/signup/click counts for curated and hot ranking, removing fake want-to-go counts.
+- **Explore interactions**: fixed hot "view all" to reset filters and scroll to the full feed; opening an event now records a click metric.
+**Files:** `src/components/Calendar/CalendarView.tsx`, `src/components/Recommend/RecommendList.tsx`, `src/app/recommend/page.tsx`, `src/app/api/events/[id]/click/route.ts`, `src/lib/types.ts`, `prisma/schema.prisma`, `prisma/migrations/20260626103000_add_event_metrics/migration.sql`
+
+---
+
 ### Fix map drawer filtering and layering
 - **Enable drawer category filtering**: nearby/anchor drawer category pills now filter the visible event cards, with an all-state reset.
 - **Tune drawer visual details**: reduced panel radius, card width, title size, badge text size, and softened shadows to better match the reference.

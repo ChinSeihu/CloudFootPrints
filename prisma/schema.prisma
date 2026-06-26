@@ -202,6 +202,12 @@ model Reaction {
   @@index([userId, type])
 }
 
+model EventMetric {
+  eventId    String   @id
+  clickCount Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 // v2：本地账号（用户名 + 口令哈希）。CheckIn/Comment/Event 的 userId 存本表 id（旧数据沿用 "me"，不加外键以免破坏）。
 model User {
   id           String   @id @default(cuid())
