@@ -1789,7 +1789,7 @@ export function MapExplorer() {
 
       {/* 左下角控件：上=底图风格，下=美食/景点/车站（线性图标，非 emoji）。
           右侧留出 FAB 空间(right-20)，允许换行，避免被发帖按钮遮住。 */}
-      <div className="absolute bottom-[19rem] left-3 right-20 z-20 flex flex-col items-start gap-2 pointer-events-none">
+      <div className="absolute bottom-7 left-3 right-20 z-20 flex flex-col items-start gap-2 pointer-events-none">
         <StyleSwitcher value={theme} onChange={setTheme} />
         <div className="flex flex-wrap items-center gap-2">
           {/* 美食：点开选菜系筛选 / 不显示 */}

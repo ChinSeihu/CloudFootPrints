@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type PointerEvent, useMemo, useRef, useState } from "react";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
 import type { EventDTO } from "@/lib/types";
@@ -31,6 +31,8 @@ function formatDistance(d: number | null): string {
 
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
   const [open, setOpen] = useState(true);
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef<number | null>(null);
 
   const nearest = useMemo<{ e: EventDTO; d: number | null }[]>(() => {
     const source = center
@@ -46,6 +48,26 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   if (events.length === 0) return null;
 
+  function startDrag(e: PointerEvent<HTMLButtonElement>) {
+    dragStartY.current = e.clientY;
+    setDragY(0);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function moveDrag(e: PointerEvent<HTMLButtonElement>) {
+    if (dragStartY.current == null) return;
+    setDragY(Math.max(0, e.clientY - dragStartY.current));
+  }
+
+  function endDrag(e: PointerEvent<HTMLButtonElement>) {
+    if (dragStartY.current == null) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const shouldClose = dragY > 56;
+    dragStartY.current = null;
+    setDragY(0);
+    if (shouldClose) setOpen(false);
+  }
+
   if (!open) {
     return (
       <button
@@ -60,13 +82,22 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
   }
 
   return (
-    <section className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-black/5 bg-white/95 px-4 pb-5 pt-3 shadow-[0_-18px_45px_rgba(15,23,42,0.14)] backdrop-blur">
+    <section
+      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-black/5 bg-white/95 px-4 pb-5 pt-3 shadow-[0_-18px_45px_rgba(15,23,42,0.14)] backdrop-blur transition-transform duration-200"
+      style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
+    >
       <button
         type="button"
         onClick={() => setOpen(false)}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         aria-label="收起附近活动"
-        className="mx-auto mb-3 block h-1.5 w-14 rounded-full bg-neutral-300"
-      />
+        className="mx-auto mb-3 block h-5 w-20 touch-none cursor-grab rounded-full py-1.5 active:cursor-grabbing"
+      >
+        <span className="mx-auto block h-1.5 w-14 rounded-full bg-neutral-300" />
+      </button>
 
       <div className="flex items-start justify-between gap-3">
         <div>

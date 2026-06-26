@@ -6,6 +6,13 @@
 
 ## 2026-06-26
 
+### Refine map drawer interaction
+- **Restore map control position**: moved map style, food, landmark, and station controls back to their original bottom-left placement.
+- **Add drag-down collapse**: the nearby/anchor activity drawer handle now follows a downward drag and collapses when released past the threshold.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Redesign map, calendar, and explore pages
 - **Map nearby activity sheet**: `PopularCard` now uses a rounded bottom sheet with category pills, horizontal event cards, distance/venue metadata, view-all, and collapsed states.
 - **Map control spacing**: moved map style, food, landmark, and station controls upward so they do not collide with the new bottom sheet.
