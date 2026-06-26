@@ -13,7 +13,7 @@ export type DemoUser = {
 const cover = (i: number) => PRESET_COVERS[i % PRESET_COVERS.length].url;
 
 function refAvatar(persona: PersonaV2): string {
-  return `/refs/${String(personaRefIndex(persona)).padStart(2, "0")}.png`;
+  return `/avatars/persona-v2/${String(personaRefIndex(persona)).padStart(2, "0")}.png`;
 }
 
 function profileSignature(persona: PersonaV2): string {

@@ -33,6 +33,17 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
   return user.id;
 }
 
+export async function listDemoUsers(): Promise<PublicUser[]> {
+  await Promise.all(DEMO_USERS.map((demo) => ensureDemoUser(demo.username)));
+
+  const users = await prisma.user.findMany({
+    where: { username: { in: DEMO_USERS.map((demo) => demo.username) } },
+    select: PUBLIC_SELECT,
+  });
+  const byUsername = new Map(users.map((user) => [user.username, toPublicUser(user)]));
+  return DEMO_USERS.map((demo) => byUsername.get(demo.username)).filter((user): user is PublicUser => !!user);
+}
+
 // 领域逻辑：账号注册 / 登录 / 资料更新。route handler 只调用这里。
 // 公开资料字段 PUBLIC_SELECT + toPublicUser 复用 lib/auth（统一含 lastLoginAt 序列化）。
 

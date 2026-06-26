@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### 登录页 demo 用户改为数据库读取 + PersonaV2 头像裁剪
+
+- **一键登录列表改为数据库数据**：`GET /api/auth/demo` 会确保 PersonaV2 的 13 个 demo 用户存在，并按 PersonaV2 顺序返回数据库里的公开用户资料；登录页不再直接 import 静态 `DEMO_USERS`，而是在客户端加载真实数据库用户。
+- **头像改为 PersonaV2 方形裁剪**：新增 `scripts/crop-avatars.ts` 和 `npm run crop:avatars`，从 `public/refs/01.png ... 13.png` 裁出适合圆形头像显示的 `public/avatars/persona-v2/01.png ... 13.png`。
+- **数据库头像已同步**：`DEMO_USERS.avatarUrl` 改为 `/avatars/persona-v2/xx.png`，并已执行 `npm run sync:demo-users`，结果为 13 个用户更新、13 条角色状态写入、16 组朋友关系确认。
+
+**涉及文件：** `src/components/Auth/AuthForm.tsx`、`src/app/api/auth/demo/route.ts`、`src/services/users.ts`、`src/lib/demoUsers.ts`、`scripts/crop-avatars.ts`、`public/avatars/persona-v2/*`、`package.json`
+
+---
+
 ### 同步数据库 demo 人物到 PersonaV2
 
 - **demo 用户资料改为 V2 派生**：`src/lib/demoUsers.ts` 不再维护旧 12 人硬编码列表，改为从 `PERSONAS` 自动生成 13 个 demo 用户的用户名、签名、常驻地、状态、封面和 `/refs/xx.png` 头像。

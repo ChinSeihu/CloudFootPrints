@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { fieldCls } from "@/components/Map/formStyles";
 import { Avatar } from "@/components/common/Avatar";
-import { DEMO_USERS } from "@/lib/demoUsers";
+
+type DemoLoginUser = {
+  username: string;
+  avatarUrl: string | null;
+  status: string | null;
+};
 
 // 登录 / 注册表单（本地账号）。成功后写入全局登录态。
 export function AuthForm() {
@@ -14,6 +19,24 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [demoUsers, setDemoUsers] = useState<DemoLoginUser[]>([]);
+  const [demoLoading, setDemoLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/demo")
+      .then((res) => res.json())
+      .then((data: { users?: DemoLoginUser[] }) => {
+        if (alive) setDemoUsers(Array.isArray(data.users) ? data.users : []);
+      })
+      .catch(() => {
+        if (alive) setDemoUsers([]);
+      })
+      .finally(() => {
+        if (alive) setDemoLoading(false);
+      });
+    return () => { alive = false; };
+  }, []);
 
   async function submit() {
     if (submitting || !username.trim() || !password) return;
@@ -111,7 +134,17 @@ export function AuthForm() {
           <div className="h-px flex-1 bg-neutral-200" />
         </div>
         <div className="space-y-2">
-          {DEMO_USERS.map((d) => (
+          {demoLoading && (
+            <div className="p-3 rounded-xl border border-neutral-200 text-xs text-neutral-400">
+              加载测试账号中…
+            </div>
+          )}
+          {!demoLoading && demoUsers.length === 0 && (
+            <div className="p-3 rounded-xl border border-neutral-200 text-xs text-neutral-400">
+              暂未读取到测试账号
+            </div>
+          )}
+          {demoUsers.map((d) => (
             <button
               key={d.username}
               type="button"
