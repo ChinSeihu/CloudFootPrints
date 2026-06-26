@@ -6,6 +6,19 @@
 
 ## 2026-06-26
 
+### 收紧个人卡片并扩展心情选择
+
+- **个人资料卡变紧凑**：降低个人页顶部资料卡高度，缩小头像、姓名和状态胶囊尺寸，让首屏更多内容露出。
+- **资料操作收纳**：将“编辑资料 / 登出”收进右上角三横菜单，默认只显示一个二级菜单入口。
+- **心情标签扩展**：心情从 10 个扩展为 16 个，加入疲惫、低落、EMO、焦虑、孤独、释然等非正面状态。
+- **心情支持多选**：发布/编辑足迹时可同时选择多个心情标签，最多 6 个；个人页和地图足迹弹窗会展示全部已选心情。
+- **心情选择折叠**：发布/编辑足迹表单默认只显示 3 个心情标签，其余通过“更多心情”展开；编辑旧足迹时如果当前心情在折叠区，会优先展示已选标签。
+- **数据结构升级**：新增 `CheckIn.moodTags` 数组字段保存多选心情，并用旧 `rating` 回填历史数据；`rating` 继续保存第一个心情值作为兼容字段。
+
+**涉及文件：** `prisma/schema.prisma`、`prisma/migrations/20260626072000_add_checkin_mood_tags/migration.sql`、`src/components/Me/ProfileHeader.tsx`、`src/components/common/MoodSelector.tsx`、`src/lib/moods.tsx`、`src/services/checkins.ts`、`src/app/api/checkins/route.ts`、`src/app/api/checkins/[id]/route.ts`
+
+---
+
 ### 改善个人页视觉与心情标签
 
 - **个人页头图升级**：将资料区改为更接近参考图的封面卡片风格，使用大封面、暗色渐层、浮层头像、状态胶囊和常住地胶囊，提升信息层级与氛围感。

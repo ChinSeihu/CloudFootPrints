@@ -61,6 +61,7 @@ export type CheckInDTO = {
   photoUrl: string | null;
   photoUrls: string[];
   rating: number | null;
+  moodTags: number[];
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;
 };

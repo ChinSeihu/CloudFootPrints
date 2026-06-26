@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       photoUrl: typeof b.photoUrl === "string" ? b.photoUrl : null,
       photoUrls: Array.isArray(b.photoUrls) ? b.photoUrls.filter((u): u is string => typeof u === "string") : [],
       rating: b.rating == null ? null : Number(b.rating),
+      moodTags: Array.isArray(b.moodTags) ? b.moodTags.map(Number) : undefined,
       visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
       eventId: typeof b.eventId === "string" ? b.eventId : null,
     },

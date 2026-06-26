@@ -202,7 +202,7 @@ export function EditCheckInDialog({
   onSaved: (patch: Partial<CheckInDTO>) => void;
 }) {
   const [note, setNote] = useState(checkin.note ?? "");
-  const [rating, setRating] = useState<number | null>(checkin.rating);
+  const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
   const [visitedAt, setVisitedAt] = useState(isoToLocal(checkin.createdAt));
   const [keptUrls, setKeptUrls] = useState<string[]>(checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : []);
   const [files, setFiles] = useState<File[]>([]);
@@ -248,7 +248,7 @@ export function EditCheckInDialog({
         }
       }
       const photoUrls = [...keptUrls, ...newUrls];
-      const patch = { note: note.trim() || null, rating, photoUrls, visitedAt: toISO(visitedAt) };
+      const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, visitedAt: toISO(visitedAt) };
       const res = await fetch(`/api/checkins/${checkin.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -259,7 +259,7 @@ export function EditCheckInDialog({
         setError(d.error || "保存失败");
         return;
       }
-      onSaved({ note: patch.note, rating, photoUrls, photoUrl: photoUrls[0] ?? null, createdAt: patch.visitedAt ?? checkin.createdAt });
+      onSaved({ note: patch.note, rating: patch.rating, moodTags, photoUrls, photoUrl: photoUrls[0] ?? null, createdAt: patch.visitedAt ?? checkin.createdAt });
       onClose();
     } catch {
       setError("网络错误，请稍后再试");
@@ -282,7 +282,7 @@ export function EditCheckInDialog({
 
       <div className="mb-5">
         <label className={labelCls}>心情</label>
-        <MoodSelector value={rating} onChange={setRating} />
+        <MoodSelector value={moodTags} onChange={setMoodTags} />
       </div>
 
       <div className="mb-5">

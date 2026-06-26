@@ -345,6 +345,7 @@ function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poi
           title: c.event?.title ?? "",
           note: c.note ?? "",
           rating: c.rating ?? 0,
+          moodTags: JSON.stringify(c.moodTags?.length ? c.moodTags : c.rating ? [c.rating] : []),
           seq: seqOf.get(c.id) ?? 0,
           hasPhoto: photos.length ? 1 : 0,
           photo: photos[0] ?? "", // 缩略图标记用
@@ -1216,9 +1217,12 @@ export function MapExplorer() {
       const p = f.properties ?? {};
       let photos: string[] = [];
       try { photos = JSON.parse((p.photos as string) || "[]"); } catch { /* ignore */ }
+      let moodValues: number[] = [];
+      try { moodValues = JSON.parse((p.moodTags as string) || "[]"); } catch { /* ignore */ }
       const rating = Number(p.rating ?? 0);
-      const mood = MOOD_TAGS.find((item) => item.value === rating);
-      const stars = mood ? `<div class="tem-ci-rating">心情 · ${escapeHtml(mood.label)}</div>` : "";
+      if (moodValues.length === 0 && rating > 0) moodValues = [rating];
+      const moods = moodValues.map((value) => MOOD_TAGS.find((item) => item.value === value)).filter((item): item is (typeof MOOD_TAGS)[number] => !!item);
+      const stars = moods.length ? `<div class="tem-ci-rating">心情 · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
       const gallery = photos.length
         ? `<div class="tem-ci-galwrap">
             <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>
@@ -1713,7 +1717,7 @@ export function MapExplorer() {
     const res = await fetch("/api/checkins", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, photoUrls: draft.photoUrls, eventId: draft.eventId ?? null }),
+      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, moodTags: draft.moodTags, photoUrls: draft.photoUrls, eventId: draft.eventId ?? null }),
     });
     clearPlacing();
     setDialogAt(null);

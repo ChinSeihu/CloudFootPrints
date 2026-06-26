@@ -13,6 +13,7 @@ export type CheckInDraft = {
   lng: number;
   note: string;
   rating: number | null;
+  moodTags: number[];
   photoUrls: string[];
   eventId?: string | null;
 };
@@ -30,7 +31,7 @@ type Props = {
 // 虚拟人物仍由 simulation/engine.ts 通过服务端 visitedAt 传入虚拟时间。
 export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapChange }: Props) {
   const [note, setNote] = useState("");
-  const [rating, setRating] = useState<number | null>(null);
+  const [moodTags, setMoodTags] = useState<number[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +80,8 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
         lat,
         lng,
         note,
-        rating,
+        rating: moodTags[0] ?? null,
+        moodTags,
         photoUrls,
         eventId: eventId ?? null,
       });
@@ -108,7 +110,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
 
       <div className="mb-5">
         <label className={labelCls}>心情</label>
-        <MoodSelector value={rating} onChange={setRating} />
+        <MoodSelector value={moodTags} onChange={setMoodTags} />
       </div>
 
       <div className="mb-5">

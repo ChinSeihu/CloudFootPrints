@@ -156,7 +156,8 @@ model CheckIn {
   note      String?
   photoUrl  String?  // 封面照片（= photoUrls[0]，向后兼容）
   photoUrls String[] @default([]) // 多张打卡照片
-  rating    Int? // 1–5
+  rating    Int? // legacy primary mood tag
+  moodTags  Int[] @default([]) // selected mood tag values
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])

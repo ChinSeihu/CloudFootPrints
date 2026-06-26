@@ -6,6 +6,11 @@ import { prisma } from "@/lib/db";
 // TODO(v2): 用认证会话替换固定 userId。
 export const CURRENT_USER_ID = "me";
 
+function normalizeMoodTags(moodTags?: number[], fallbackRating?: number | null): number[] {
+  const raw = moodTags && moodTags.length > 0 ? moodTags : fallbackRating != null ? [fallbackRating] : [];
+  return [...new Set(raw.map((value) => Math.round(Number(value))).filter((value) => Number.isFinite(value)))].slice(0, 6);
+}
+
 export async function listCheckins(userId: string = CURRENT_USER_ID) {
   const rows = await prisma.checkIn.findMany({
     where: { userId },
@@ -26,6 +31,7 @@ export type CreateCheckinInput = {
   photoUrl?: string | null;
   photoUrls?: string[];
   rating?: number | null;
+  moodTags?: number[];
   visitedAt?: string | null; // ISO；用户自选打卡时间，默认现在
   eventId?: string | null;
 };
@@ -47,6 +53,7 @@ async function createCheckinRow(data: CreateCheckinInput, userId: string) {
   // 用户指定了 visitedAt 则覆盖 createdAt（用于补录过去的打卡）；否则用默认 now。
   const visited = data.visitedAt ? new Date(data.visitedAt) : null;
   const photoUrls = (data.photoUrls ?? []).filter(Boolean);
+  const moodTags = normalizeMoodTags(data.moodTags, data.rating);
   // 关联目标（可选）：解析是官方活动还是用户发帖；解析不到则不关联。
   const target = data.eventId ? await resolveTarget(data.eventId) : null;
   return prisma.checkIn.create({
@@ -57,7 +64,8 @@ async function createCheckinRow(data: CreateCheckinInput, userId: string) {
       note: data.note ?? null,
       photoUrl: photoUrls[0] ?? data.photoUrl ?? null,
       photoUrls,
-      rating: data.rating ?? null,
+      rating: moodTags[0] ?? null,
+      moodTags,
       ...(target ?? {}),
       ...(visited && !Number.isNaN(visited.getTime()) ? { createdAt: visited } : {}),
     },
@@ -71,8 +79,9 @@ export async function createCheckin(
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     return { ok: false, error: "缺少或非法的经纬度" };
   }
-  if (input.rating != null && (input.rating < 1 || input.rating > 10)) {
-    return { ok: false, error: "rating 必须在 1–10 之间" };
+  const moodTags = normalizeMoodTags(input.moodTags, input.rating);
+  if (moodTags.some((value) => value < 1 || value > 16)) {
+    return { ok: false, error: "moodTags 必须在 1–16 之间" };
   }
   const checkin = await createCheckinRow(input, userId);
   return { ok: true, checkin };
@@ -82,6 +91,7 @@ export async function createCheckin(
 export type UpdateCheckinInput = {
   note?: string | null;
   rating?: number | null;
+  moodTags?: number[];
   photoUrls?: string[];
   visitedAt?: string | null; // ISO
 };
@@ -98,13 +108,21 @@ export async function updateCheckin(
   const existing = await prisma.checkIn.findUnique({ where: { id } });
   if (!existing) return { ok: false, error: "打卡记录不存在" };
   if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
-  if (input.rating != null && (input.rating < 1 || input.rating > 10)) {
-    return { ok: false, error: "rating 必须在 1–10 之间" };
+  const moodTags = input.moodTags !== undefined ? normalizeMoodTags(input.moodTags, input.rating) : undefined;
+  if (moodTags?.some((value) => value < 1 || value > 16)) {
+    return { ok: false, error: "moodTags 必须在 1–16 之间" };
   }
 
   const data: Record<string, unknown> = {};
   if (input.note !== undefined) data.note = input.note ?? null;
-  if (input.rating !== undefined) data.rating = input.rating ?? null;
+  if (moodTags !== undefined) {
+    data.moodTags = moodTags;
+    data.rating = moodTags[0] ?? null;
+  } else if (input.rating !== undefined) {
+    const fallbackMoodTags = normalizeMoodTags(undefined, input.rating);
+    data.moodTags = fallbackMoodTags;
+    data.rating = fallbackMoodTags[0] ?? null;
+  }
   if (input.photoUrls !== undefined) {
     const photoUrls = input.photoUrls.filter(Boolean);
     data.photoUrls = photoUrls;

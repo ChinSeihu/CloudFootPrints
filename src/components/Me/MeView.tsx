@@ -90,7 +90,7 @@ function MeContent() {
   useEffect(() => {
     if (!readKey) return;
     const v = localStorage.getItem(readKey);
-    setLastRead(v ? Number(v) : 0);
+    queueMicrotask(() => setLastRead(v ? Number(v) : 0));
   }, [readKey]);
   const unreadCount = useMemo(
     () => notices.filter((n) => new Date(n.createdAt).getTime() > lastRead).length,
@@ -258,13 +258,19 @@ function MeContent() {
                     </div>
                   )}
                   {(() => {
-                    const mood = moodTagOf(c.rating);
-                    if (!mood) return null;
-                    const { Icon } = mood;
+                    const moods = (c.moodTags?.length ? c.moodTags : c.rating ? [c.rating] : []).map(moodTagOf).filter((mood) => !!mood);
+                    if (moods.length === 0) return null;
                     return (
-                      <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${mood.tone}`}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {mood.label}
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {moods.map((mood) => {
+                          const { Icon } = mood;
+                          return (
+                            <span key={mood.value} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${mood.tone}`}>
+                              <Icon className="w-3.5 h-3.5" />
+                              {mood.label}
+                            </span>
+                          );
+                        })}
                       </div>
                     );
                   })()}

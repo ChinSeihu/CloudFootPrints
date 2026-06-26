@@ -8,7 +8,7 @@ import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 
-function Avatar({ url, name, size = 72 }: { url: string | null; name: string; size?: number }) {
+function Avatar({ url, name, size = 58 }: { url: string | null; name: string; size?: number }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
@@ -26,6 +26,7 @@ function Avatar({ url, name, size = 72 }: { url: string | null; name: string; si
 export function ProfileHeader() {
   const { user, setUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [signature, setSignature] = useState(user?.signature ?? "");
   const [hometown, setHometown] = useState(user?.hometown ?? "");
   const [status, setStatus] = useState(user?.status ?? "");
@@ -88,6 +89,7 @@ export function ProfileHeader() {
     setStatus(user.status ?? "");
     setAvatarUrl(user.avatarUrl ?? "");
     setCoverUrl(user.coverUrl ?? "");
+    setMenuOpen(false);
     setEditing(true);
   }
 
@@ -97,40 +99,65 @@ export function ProfileHeader() {
   return (
     <div className="px-4 pt-4 pb-2">
       <div
-        className="relative min-h-[230px] overflow-hidden rounded-2xl border border-black/5 bg-neutral-900 shadow-sm"
+        className={`relative overflow-hidden rounded-2xl border border-black/5 bg-neutral-900 shadow-sm ${
+          editing ? "min-h-[170px]" : "min-h-[168px]"
+        }`}
         style={cover ? { backgroundImage: `url("${cover}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       >
         {!cover && <div className="absolute inset-0 bg-gradient-to-br from-sky-400 via-blue-500 to-slate-900" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
 
-        <div className="relative flex items-start justify-between px-4 pt-4">
-          <button
-            type="button"
-            onClick={editing ? () => setEditing(false) : startEdit}
-            className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm backdrop-blur"
-          >
-            {editing ? "取消" : "编辑资料"}
-          </button>
-          {!editing && (
-            <button type="button" onClick={logout} className="rounded-full bg-black/25 px-3 py-1.5 text-xs text-white/85 backdrop-blur">
-              登出
+        <div className="relative flex justify-end px-3 pt-3">
+          {editing ? (
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm backdrop-blur"
+            >
+              取消
             </button>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-black/25 text-white/90 shadow-sm backdrop-blur"
+                aria-label="打开资料菜单"
+                aria-expanded={menuOpen}
+              >
+                <span className="flex flex-col gap-1">
+                  <span className="block h-0.5 w-4 rounded-full bg-current" />
+                  <span className="block h-0.5 w-4 rounded-full bg-current" />
+                  <span className="block h-0.5 w-4 rounded-full bg-current" />
+                </span>
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-9 z-10 w-28 overflow-hidden rounded-xl border border-black/5 bg-white py-1 text-sm shadow-lg">
+                  <button type="button" onClick={startEdit} className="block w-full px-3 py-2 text-left text-neutral-700 hover:bg-neutral-50">
+                    编辑资料
+                  </button>
+                  <button type="button" onClick={logout} className="block w-full px-3 py-2 text-left text-neutral-500 hover:bg-neutral-50">
+                    登出
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="relative px-4 pt-12 pb-4">
+        <div className="relative px-4 pt-5 pb-4">
           <div className="flex items-end gap-3">
             <div className="rounded-full bg-white/95 p-1 shadow-lg">
-              <Avatar url={avatar} name={user.username} size={74} />
+              <Avatar url={avatar} name={user.username} size={58} />
             </div>
-            <div className="min-w-0 pb-1 text-white">
+            <div className="min-w-0 pb-0.5 text-white">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-2xl font-semibold drop-shadow">{user.username}</h1>
-                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">Lv.5</span>
+                <h1 className="truncate text-xl font-semibold drop-shadow">{user.username}</h1>
+                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">Lv.5</span>
               </div>
               {user.status && !editing && (
-                <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-white/18 px-2 py-1 text-xs text-white/90 backdrop-blur">
-                  <IconSparkles className="h-3.5 w-3.5 shrink-0" />
+                <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-white/18 px-2 py-0.5 text-[11px] text-white/90 backdrop-blur">
+                  <IconSparkles className="h-3 w-3 shrink-0" />
                   <span className="truncate">{user.status}</span>
                 </div>
               )}
@@ -138,11 +165,11 @@ export function ProfileHeader() {
           </div>
 
           {!editing && (
-            <div className="mt-4 space-y-2 text-white">
-              {user.signature && <p className="max-w-[92%] text-sm leading-relaxed text-white/92 drop-shadow">{user.signature}</p>}
+            <div className="mt-3 space-y-1.5 text-white">
+              {user.signature && <p className="line-clamp-2 max-w-[94%] text-xs leading-relaxed text-white/92 drop-shadow">{user.signature}</p>}
               {user.hometown && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/16 px-2.5 py-1 text-[11px] text-white/90 backdrop-blur">
-                  <IconPin className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/16 px-2 py-0.5 text-[11px] text-white/90 backdrop-blur">
+                  <IconPin className="h-3 w-3" />
                   常住地 · {user.hometown}
                 </span>
               )}
@@ -150,7 +177,7 @@ export function ProfileHeader() {
           )}
 
           {editing && (
-            <div className="mt-4 space-y-3 rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur">
+            <div className="mt-3 space-y-3 rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur">
               {canUpload && (
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="cursor-pointer text-xs font-medium text-blue-600">
