@@ -83,6 +83,9 @@ function buildRules(persona: PersonaV2): string {
     "Ordinary happiness rather than dramatic emotion.",
     `Recurring individual — keep the SAME face, body type, height and overall appearance consistent (identity: ${persona.appearance}).`,
     "The face must remain recognizable across different images.",
+    "Natural hands and anatomy.",
+    "If hands are visible, fingers should be relaxed, correctly counted, naturally posed, and realistically holding objects.",
+    "Avoid showing detailed hands unless they are necessary for the scene.",
     "Clothing, outfit colors, accessories, bags and shoes should vary naturally according to season, weather and activity.",
     "Do not reuse the same outfit repeatedly.",
     "Natural available light.",
@@ -93,14 +96,27 @@ function buildRules(persona: PersonaV2): string {
     "Subtle motion blur.",
     "Smartphone auto exposure.",
     "Social media snapshot quality.",
+    "Documentary smartphone photo.",
+    "35mm consumer film snapshot feeling.",
     "Kodak Portra 400 color tone.",
+    "Fujifilm Superia-style muted greens and soft contrast.",
     "Subtle film grain.",
+    "Gentle halation in highlights.",
+    "Mild lens softness.",
     "Atmospheric storytelling.",
     "Avoid AI-generated appearance.",
     "No CGI.",
     "No 3D render.",
     "No glossy plastic skin.",
+    "No waxy skin.",
+    "No over-smoothed beauty filter.",
     "No hyper-sharpening.",
+    "No malformed hands.",
+    "No extra fingers.",
+    "No fused fingers.",
+    "No twisted wrists.",
+    "No broken anatomy.",
+    "No impossible object grip.",
     "No cinematic dramatic lighting.",
     "No studio portrait.",
     "No fashion shoot.",
@@ -320,13 +336,13 @@ export function getImageProvider(): ImageProvider {
 }
 
 // 高层入口：生成 →（可选）视觉质检 → 不合格用改进 prompt 重生成 → 持久化。引擎只调这个。
-// 质检默认开（IMAGE_QA != false），重试次数 IMAGE_QA_RETRIES（默认 1）。质检需 Agnes chat（agnes-2.0-flash）。
+// 质检默认开（IMAGE_QA != false），重试次数 IMAGE_QA_RETRIES（默认 2）。质检需 Agnes chat（agnes-2.0-flash）。
 export async function generateCheckinImage(req: ImageRequest): Promise<string | null> {
   const provider = getImageProvider();
   if (provider.name === "none") return null;
 
   const qaOn = (process.env.IMAGE_QA ?? "true").toLowerCase() !== "false";
-  const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 1)) : 0;
+  const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 2)) : 0;
   // 先让 LLM 写专业详细 prompt + 附加生图规则；并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req);
   const refImage = loadRefImage(personaRefIndex(req.persona)) ?? undefined;

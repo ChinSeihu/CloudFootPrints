@@ -423,7 +423,10 @@ realistic smartphone camera quality,
 social media photo,
 
 Kodak Portra 400 color tone,
+Fujifilm Superia muted greens and soft contrast,
 subtle film grain,
+gentle highlight halation,
+mild lens softness,
 
 atmospheric storytelling,
 
@@ -431,6 +434,13 @@ not professional photography,
 not commercial photography,
 not advertisement
 ```
+
+质检补充：
+- 手部 / 手指 / 手腕 / 胳膊 / 身体比例有明显畸形时，直接判为不合格并重生成。
+- 出现塑料皮肤、蜡像脸、过度磨皮、过度锐化、HDR 过强、摄影棚光、网红大片感时，直接判为不合格。
+- 允许轻微虚焦、胶片颗粒、曝光不完美、构图不完美；这些比“完美高清”更像真实生活照。
+- 如果手部不是画面重点，prompt 应避免把手部作为清晰主体；如果必须出现手，需强调 natural hands and anatomy。
+- 重生成 prompt 应补充 documentary smartphone photo、subtle 35mm film grain、muted film colors、imperfect casual framing。
 
 ### 最终原则
 

@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### 收紧模拟配图质检与胶片风格
+
+- **图片 QA 更严格**：`imageQA.ts` 重写质检标准，手部/手指/肢体畸形、塑料皮肤、蜡像脸、过度磨皮、过度锐化、HDR 过强、摄影棚光、网红大片感等都作为不合格硬伤，失败时要求改进 prompt 点名修正。
+- **生图规则强化真实感**：`image.ts` 增加 natural hands and anatomy、documentary smartphone photo、35mm consumer film snapshot、Fujifilm Superia 色彩、柔和高光、镜头软度等约束，并显式禁止畸形手、融合手指、扭曲手腕和不合理持物。
+- **默认重试更严谨**：`IMAGE_QA_RETRIES` 默认值从 1 提高到 2，`.env.example` 同步更新；`docs/demo-personas.md` 补充胶片风格和质检规则。
+
+**涉及文件：** `src/services/simulation/imageQA.ts`、`src/services/simulation/image.ts`、`docs/demo-personas.md`、`.env.example`
+
+---
+
 ### 足迹创建表单移除时间输入
 
 - **创建足迹默认使用提交时间**：`CheckInDialog` 移除“到访时间”字段，用户创建足迹时不再手动选择时间；`MapExplorer` 提交足迹时也不再发送 `visitedAt`，服务端沿用 `CheckIn.createdAt` 默认值。
