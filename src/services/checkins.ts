@@ -80,8 +80,8 @@ export async function createCheckin(
     return { ok: false, error: "缺少或非法的经纬度" };
   }
   const moodTags = normalizeMoodTags(input.moodTags, input.rating);
-  if (moodTags.some((value) => value < 1 || value > 16)) {
-    return { ok: false, error: "moodTags 必须在 1–16 之间" };
+  if (moodTags.some((value) => value < 1 || value > 40)) {
+    return { ok: false, error: "moodTags 必须在 1–40 之间" };
   }
   const checkin = await createCheckinRow(input, userId);
   return { ok: true, checkin };
@@ -109,8 +109,8 @@ export async function updateCheckin(
   if (!existing) return { ok: false, error: "打卡记录不存在" };
   if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
   const moodTags = input.moodTags !== undefined ? normalizeMoodTags(input.moodTags, input.rating) : undefined;
-  if (moodTags?.some((value) => value < 1 || value > 16)) {
-    return { ok: false, error: "moodTags 必须在 1–16 之间" };
+  if (moodTags?.some((value) => value < 1 || value > 40)) {
+    return { ok: false, error: "moodTags 必须在 1–40 之间" };
   }
 
   const data: Record<string, unknown> = {};

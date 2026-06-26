@@ -31,21 +31,27 @@ export function MoodSelector({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-2">
-        {visibleMoods.map(({ value: moodValue, label, tone, Icon }) => {
+      <div className={`grid gap-2 ${expanded ? "grid-cols-2" : "grid-cols-3"}`}>
+        {visibleMoods.map(({ value: moodValue, label, subLabel, tone, Icon }) => {
           const active = selectedValues.includes(moodValue);
           return (
             <button
               key={moodValue}
               type="button"
               onClick={() => toggle(moodValue)}
-              className={`min-h-10 rounded-xl border px-2 py-2 inline-flex items-center justify-center gap-1.5 text-sm transition ${
-                active ? `${tone} ring-2 ring-blue-500/20` : "border-neutral-200 bg-white text-neutral-500 hover:border-blue-200 hover:bg-blue-50/40"
+              className={`relative min-h-[74px] rounded-xl border bg-white px-2.5 py-2 text-left transition ${
+                active ? `${tone} ring-2 ring-blue-500/20` : "border-neutral-200 text-neutral-600 hover:border-blue-200 hover:bg-blue-50/30"
               }`}
               aria-pressed={active}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="truncate">{label}</span>
+              <span className={`absolute left-2 top-2 grid h-5 min-w-5 place-items-center rounded-lg px-1 text-[11px] font-semibold ${active ? "bg-white/70" : "bg-neutral-100 text-neutral-500"}`}>
+                {moodValue}
+              </span>
+              <span className="flex h-full flex-col items-center justify-center gap-1 pt-2">
+                <Icon className="h-6 w-6" />
+                <span className="text-[13px] font-semibold leading-none text-neutral-900">{label}</span>
+                <span className="max-w-full truncate text-[10px] text-neutral-500">{subLabel}</span>
+              </span>
             </button>
           );
         })}
