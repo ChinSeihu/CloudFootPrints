@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconHeart, IconPin, IconMap, IconBookmark, IconBell } from "@/components/icons";
+import { CategoryIcon, IconPin, IconMap, IconBookmark } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
@@ -133,14 +133,14 @@ function MeContent() {
 
       {/* 照片墙暂时隐藏：避免占用个人页首屏空间。 */}
 
-      <div className="px-4 pt-3 pb-1">
-        <div className="flex gap-1 p-1 rounded-2xl bg-neutral-100">
+      <div className="px-4 pt-3 pb-0 border-b border-neutral-100">
+        <div className="flex items-end gap-7">
           {([
-            ["checkins", "足迹", checkins.length, IconHeart],
-            ["posts", "发帖", posts.length, IconPin],
-            ["favorites", "收藏", favorites.length, IconBookmark],
-            ["messages", "消息", notices.length, IconBell],
-          ] as const).map(([key, label, count, Icon]) => {
+            ["checkins", "足迹", checkins.length],
+            ["posts", "发帖", posts.length],
+            ["favorites", "收藏", favorites.length],
+            ["messages", "消息", notices.length],
+          ] as const).map(([key, label, count]) => {
             const active = tab === key;
             const isMsg = key === "messages";
             const badge = isMsg ? unreadCount : count;
@@ -152,13 +152,13 @@ function MeContent() {
                   setTab(key);
                   if (isMsg) markMessagesRead();
                 }}
-                className={`flex-1 inline-flex items-center justify-center gap-1 py-2 rounded-xl text-[13px] transition ${
-                  active ? "bg-white text-blue-600 font-medium shadow-sm" : "text-neutral-500"
+                className={`relative inline-flex items-center justify-center gap-1.5 pb-2 text-[14px] transition ${
+                  active ? "text-neutral-950 font-semibold" : "text-neutral-500"
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
                 {label}
-                {badge > 0 && <CountBadge count={badge} active={active} tone={isMsg ? "red" : "blue"} />}
+                {isMsg && badge > 0 && <CountBadge count={badge} active={active} tone="red" />}
+                {active && <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-blue-600" />}
               </button>
             );
           })}
@@ -178,18 +178,18 @@ function MeContent() {
               <p className="text-sm text-neutral-500">还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</p>
             )}
             {checkins.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="grid grid-cols-3 gap-1.5 mb-4">
                 {([["足迹", footStats.total], ["照片", footStats.photos], ["活跃天", footStats.days]] as const).map(([label, value]) => (
-                  <div key={label} className="rounded-xl bg-neutral-50 px-3 py-2.5 text-center">
-                    <div className="text-xl font-semibold text-neutral-800 tabular-nums">{value}</div>
+                  <div key={label} className="rounded-lg bg-neutral-50 px-2 py-1.5 text-center">
+                    <div className="text-sm font-semibold text-neutral-800 tabular-nums">{value}</div>
                     <div className="text-[11px] text-neutral-400 mt-0.5">{label}</div>
                   </div>
                 ))}
               </div>
             )}
             {footGroups.map(([month, items]) => (
-            <div key={month} className="mb-5">
-              <div className="text-xs font-medium text-neutral-400 mb-2">{month} · {items.length} 处</div>
+            <div key={month} className="mb-6">
+              <div className="mb-3 border-b border-neutral-200 pb-1 text-[15px] font-semibold text-neutral-900">{month} · {items.length} 处</div>
               <ol className="space-y-6">
               {items.map((c) => {
                 const d = new Date(c.createdAt);
