@@ -59,13 +59,44 @@ function povClause(persona: PersonaV2): string {
   return [
     "First-person perspective.",
     "Casual smartphone snapshot.",
+    "The protagonist is the photographer, not the subject being photographed.",
     "Captured naturally during daily life.",
     "The scene as seen by the person.",
-    "Hands, food, drinks, tickets, bags, streets or objects may appear in frame.",
-    "Face does not need to be visible.",
+    "Prefer what the person is looking at: food, drinks, tickets, books, shop interiors, streets, stage, park, train window, hands or objects.",
+    "For first-person shots, show at most one hand unless a tripod, mirror selfie, or another photographer is explicitly described.",
+    "The protagonist should usually NOT appear facing the camera.",
+    "If the protagonist appears, use POV hands, partial body, reflection, back view, side view, or a casual selfie only when explicitly requested.",
+    "Do not make it look like another person is following them around taking portraits.",
     "Slightly imperfect framing.",
     "Feels spontaneous rather than planned."
   ].join(" ");
+}
+
+function shouldUseIdentityReference(req: ImageRequest): boolean {
+  const text = `${req.photoDesc} ${req.persona.photoSkill}`.toLowerCase();
+  if (req.persona.photoSkill === "pro") return true;
+  return [
+    "selfie",
+    "portrait",
+    "friend took",
+    "friends took",
+    "taken by a friend",
+    "photo of me",
+    "me in the frame",
+    "my face",
+    "自拍",
+    "合照",
+    "朋友拍",
+    "被朋友拍",
+    "帮我拍",
+    "我出镜",
+    "正面",
+    "露脸",
+    "背影",
+    "侧脸",
+    "镜子",
+    "倒影",
+  ].some((keyword) => text.includes(keyword));
 }
 
 // 我们的「生图规则」：附加在 LLM 写的场景 prompt 之后，强制写实 / 表情自然 / 视角 / 外观一致 / 无水印。
@@ -77,6 +108,8 @@ function buildRules(persona: PersonaV2): string {
     "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo.",
     "Authentic Japanese lifestyle photography.",
     "Ordinary young Asian people living in Tokyo.",
+    "For first-person solo check-ins, the camera should usually show the protagonist's view, not a third-person portrait of the protagonist.",
+    "Do not include the recurring individual in the image unless the scene explicitly calls for selfie, reflection, back view, friend-taken photo, group photo, or portrait.",
     "Calm, natural and subtle expressions.",
     "Relaxed and unposed.",
     "An unaware candid instant.",
@@ -85,6 +118,7 @@ function buildRules(persona: PersonaV2): string {
     "The face must remain recognizable across different images.",
     "Natural hands and anatomy.",
     "If hands are visible, fingers should be relaxed, correctly counted, naturally posed, and realistically holding objects.",
+    "In first-person smartphone POV, avoid showing both of the protagonist's hands at the same time.",
     "Avoid showing detailed hands unless they are necessary for the scene.",
     "Clothing, outfit colors, accessories, bags and shoes should vary naturally according to season, weather and activity.",
     "Do not reuse the same outfit repeatedly.",
@@ -114,6 +148,7 @@ function buildRules(persona: PersonaV2): string {
     "No malformed hands.",
     "No extra fingers.",
     "No fused fingers.",
+    "No two-handed POV unless explicitly plausible.",
     "No twisted wrists.",
     "No broken anatomy.",
     "No impossible object grip.",
@@ -345,7 +380,7 @@ export async function generateCheckinImage(req: ImageRequest): Promise<string | 
   const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 2)) : 0;
   // 先让 LLM 写专业详细 prompt + 附加生图规则；并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req);
-  const refImage = loadRefImage(personaRefIndex(req.persona)) ?? undefined;
+  const refImage = shouldUseIdentityReference(req) ? loadRefImage(personaRefIndex(req.persona)) ?? undefined : undefined;
 
   let prompt = basePrompt;
   let lastRaw: string | null = null;

@@ -19,9 +19,10 @@ Acceptance criteria:
 3. Reject obvious AI aesthetics: CGI or 3D render feel, waxy/plastic skin, over-smoothed skin, over-sharpening, excessive HDR, studio lighting, commercial fashion-shoot look, influencer posing, overly perfect composition, melted background details, repeated textures or impossible objects.
 4. If people are visible, faces and expressions must be natural and restrained. Eyes, teeth, hair edges and facial proportions must not be visibly distorted.
 5. Hands and anatomy are hard checks. Reject images with extra or missing fingers, fused fingers, warped palms, twisted wrists, misplaced arms, broken joints, impossible body proportions, or implausible ways of holding objects. If hands are hidden, out of frame, or too blurred to judge and no clear defect is visible, that is acceptable.
-6. Reject text, watermark, logo, strange symbols or poster-like typography.
+6. For first-person smartphone POV, reject images where both of the protagonist's hands are clearly visible in an implausible way, unless a tripod, mirror selfie, timer shot, or another photographer is explicitly implied.
+7. Reject text, watermark, logo, strange symbols or poster-like typography.
 
-When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, natural hands and anatomy, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
+When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, natural hands and anatomy, at most one hand visible in POV shots, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
 
 function safeParse(text: string): unknown {
   let t = text.trim();
@@ -47,7 +48,7 @@ export async function judgeImage(imageRef: string, photoDesc: string, basePrompt
     `Intended scene: ${photoDesc}`,
     `Original prompt: ${basePrompt}`,
     "",
-    "Check scene match, AI/CGI feel, skin texture, hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
+    "Check scene match, camera viewpoint, whether the protagonist is photographer or subject, AI/CGI feel, skin texture, hands, two-handed POV problems, anatomy, face, teeth, eyes, hair, text/watermarks.",
     'Return JSON only: {"ok": true/false, "reason": "short Chinese reason; if rejected name the main defect", "improvedPrompt": "corrected English prompt when rejected, otherwise null"}',
   ].join("\n");
 
