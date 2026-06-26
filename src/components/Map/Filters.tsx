@@ -30,7 +30,7 @@ function IconFilter({ className }: { className?: string }) {
 }
 
 // 筛选：左上角一个「筛选」按钮，点开展开面板（分类/时间/我的）；收起时不挡地图。
-export function Filters({ value, onChange, count, showTrail, onShowTrailChange }: Props) {
+export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props) {
   const [open, setOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -55,7 +55,7 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
 
   return (
     <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2 pointer-events-none">
-      {/* 收起行：筛选按钮 + 计数 + 时间（数据每日自动更新，去掉手动刷新）。
+      {/* 收起行：筛选按钮 + 时间（数据每日自动更新，去掉手动刷新）。
           flex-wrap + shrink-0 + nowrap：日期范围标签变长时整块换行，不再挤乱其它按钮。 */}
       <div className="flex flex-wrap items-center gap-2.5 pointer-events-auto max-w-[calc(100vw-2rem)]">
         <button
@@ -76,11 +76,7 @@ export function Filters({ value, onChange, count, showTrail, onShowTrailChange }
           )}
         </button>
 
-        <span className="shrink-0 whitespace-nowrap rounded-full border border-white/80 bg-white/95 px-4 py-2 text-sm font-semibold text-neutral-800 shadow-[0_8px_24px_rgba(15,23,42,0.10)]">
-          {count} 个活动
-        </span>
-
-        {/* 时间筛选：放在计数右边，更显眼 */}
+        {/* 时间筛选：保留在顶部，避免与右上天气按钮重叠。 */}
         <div className="relative shrink-0">
           <button
             type="button"

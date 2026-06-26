@@ -13,6 +13,7 @@ type Props = {
   onSelect: (ev: EventDTO) => void;
   onViewAll: () => void;
   onPlanRoute: (events: EventDTO[]) => void;
+  onRecommendIntent: (intent: RecommendIntent, events: EventDTO[]) => void;
 };
 
 function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -30,14 +31,21 @@ function formatDistance(d: number | null): string {
   return d < 10 ? `${d.toFixed(1)}km` : `${Math.round(d)}km`;
 }
 
-const SUGGESTION_CARDS = [
-  { title: "想放松一下", subtitle: "公园散步好去处", count: "12 个活动", tone: "bg-violet-50 text-violet-700" },
-  { title: "一个人去", subtitle: "安静治愈的地方", count: "8 个活动", tone: "bg-cyan-50 text-cyan-700" },
-  { title: "今天想拍照", subtitle: "出片圣地推荐", count: "15 个活动", tone: "bg-rose-50 text-rose-700" },
-  { title: "夜生活", subtitle: "东京夜晚指南", count: "10 个活动", tone: "bg-indigo-50 text-indigo-700" },
+export type RecommendIntent = {
+  title: string;
+  subtitle: string;
+  prompt: string;
+  tone: string;
+};
+
+const SUGGESTION_CARDS: RecommendIntent[] = [
+  { title: "想放松一下", subtitle: "轻松散步和休息点", prompt: "我想放松一下，请从附近活动里挑适合轻松散步、休息、不赶时间的点，规划一条舒缓路线。", tone: "bg-violet-50 text-violet-700" },
+  { title: "一个人去", subtitle: "安静自在的选择", prompt: "我想一个人去，请推荐附近适合独处、安静、不尴尬的活动，并规划顺路的游玩路线。", tone: "bg-cyan-50 text-cyan-700" },
+  { title: "今天想拍照", subtitle: "出片地点和动线", prompt: "我今天想拍照，请从附近活动里挑视觉效果好、适合出片的点，规划拍照路线和停留顺序。", tone: "bg-rose-50 text-rose-700" },
+  { title: "夜生活", subtitle: "傍晚后的安排", prompt: "我想体验夜生活，请推荐附近适合傍晚或晚上去的活动，并安排一条夜间游玩路线。", tone: "bg-indigo-50 text-indigo-700" },
 ];
 
-export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute }: Props) {
+export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -299,10 +307,9 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         <h3 className="mb-2 text-sm font-black text-neutral-950">为你推荐</h3>
         <div className="grid grid-cols-4 gap-2">
           {SUGGESTION_CARDS.map((card) => (
-            <button key={card.title} type="button" onClick={onViewAll} className={`rounded-2xl px-2 py-2.5 text-left ${card.tone}`}>
+            <button key={card.title} type="button" onClick={() => onRecommendIntent(card, shown.map(({ e }) => e))} className={`rounded-2xl px-2 py-2.5 text-left ${card.tone}`}>
               <div className="truncate text-[11px] font-black">{card.title}</div>
               <div className="mt-1 line-clamp-2 min-h-[2rem] text-[10.5px] leading-snug opacity-80">{card.subtitle}</div>
-              <div className="mt-1 text-[10.5px] font-semibold opacity-90">{card.count}</div>
             </button>
           ))}
         </div>

@@ -10,7 +10,7 @@ import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
 import { StyleSwitcher } from "./StyleSwitcher";
-import { PopularCard } from "./PopularCard";
+import { PopularCard, type RecommendIntent } from "./PopularCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { applyMapTheme, type MapTheme } from "@/lib/mapTheme";
 import { LANDMARKS, LANDMARK_GLYPH, LANDMARK_KIND_META, type LandmarkKind } from "@/lib/landmarks";
@@ -1834,6 +1834,37 @@ export function MapExplorer() {
     });
   }
 
+  function openRecommendIntentGuide(intent: RecommendIntent, candidates: EventDTO[]) {
+    if (candidates.length === 0) {
+      showToast("附近暂时没有可推荐的活动");
+      return;
+    }
+    const list = candidates.slice(0, 8).map((event, index) => {
+      const category = CATEGORY_META[event.category as keyof typeof CATEGORY_META]?.label ?? event.category;
+      const time = event.startTime ? new Date(event.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "时间未定";
+      return `${index + 1}. ${event.title}｜${category}｜${event.venueName ?? "地点待定"}｜${time}｜${event.summary ?? event.description ?? ""}`;
+    }).join("\n");
+    const prompt = `${intent.prompt}\n\n请基于下面这些地图附近活动给出推荐。要求：先说明推荐思路，再选出适合的 3-5 个点；如果适合形成路线，就按顺序给出路线和停留建议；语气像东京本地导游，不要提系统或数据来源。\n\n附近活动：\n${list}`;
+    openGuideRef.current({
+      kind: "route",
+      title: intent.title,
+      category: "AI 意图推荐",
+      description: `用户意图：${intent.title} - ${intent.subtitle}\n地图附近候选活动：\n${list}`,
+      routePrompt: prompt,
+      routeCandidates: candidates.slice(0, 10).map((event) => ({
+        id: event.id,
+        title: event.title,
+        category: event.category,
+        venueName: event.venueName,
+        summary: event.summary,
+        description: event.description,
+        startTime: event.startTime,
+        lat: event.lat,
+        lng: event.lng,
+      })),
+    });
+  }
+
   function setQuickCategory(category: EventCategory) {
     setFilters((current) => {
       const active = !current.mineOnly && current.categories.size === 1 && current.categories.has(category);
@@ -1935,6 +1966,7 @@ export function MapExplorer() {
         onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
         onViewAll={() => router.push("/recommend")}
         onPlanRoute={openNearbyRouteGuide}
+        onRecommendIntent={openRecommendIntentGuide}
       />
       <ActionFab
         onCheckin={() => openPlacement("checkin")}

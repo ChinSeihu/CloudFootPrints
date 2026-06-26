@@ -63,7 +63,7 @@ export function WeatherPanel() {
         onClick={() => setOpen((v) => !v)}
         aria-label="天气"
         aria-pressed={open}
-        className={`absolute top-4 right-4 z-[999] h-11 px-4 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
+        className={`absolute top-28 right-3 z-[999] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-800"
         }`}
       >

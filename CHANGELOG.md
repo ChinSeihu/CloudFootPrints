@@ -6,6 +6,20 @@
 
 ## 2026-06-27
 
+### Reduce map top-control overlap
+- **Hide activity-count capsule**: removed the map top activity-count capsule so filter/date controls have more room.
+- **Move weather control**: restored the weather button to the right-side control column area so it does not cover top filters or core map controls.
+**Files:** `src/components/Map/Filters.tsx`, `src/components/Map/WeatherPanel.tsx`
+
+---
+
+### Convert map recommendation chips into AI intents
+- **Remove fake counts**: "for you" recommendation chips no longer show static activity counts.
+- **Intent-based guide entry**: tapping a recommendation chip now opens AI guide with nearby activity context and a matching planning prompt.
+**Files:** `src/components/Map/PopularCard.tsx`, `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### Make nearby sheet drag follow the finger
 - **Direct drag tracking**: nearby activity sheet now updates its transform immediately during pointer movement instead of waiting for an animation frame.
 - **Release-only hiding**: the sheet follows the finger while dragging and only decides to snap back or hide after pointer release.
