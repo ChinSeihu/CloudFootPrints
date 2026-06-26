@@ -1,6 +1,6 @@
 "use client";
 
-import { type PointerEvent, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, type EventCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
 import type { EventDTO } from "@/lib/types";
@@ -38,9 +38,14 @@ const SUGGESTION_CARDS = [
 
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
   const [open, setOpen] = useState(true);
-  const [dragY, setDragY] = useState(0);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
+  const sheetRef = useRef<HTMLElement | null>(null);
   const dragStartY = useRef<number | null>(null);
+  const dragCurrentY = useRef(0);
+  const dragRaf = useRef<number | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const didDrag = useRef(false);
+  const suppressClick = useRef(false);
 
   const nearest = useMemo<{ e: EventDTO; d: number | null }[]>(() => {
     const source = center
@@ -59,26 +64,77 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
     [activeCategory, nearest],
   );
 
+  useEffect(() => {
+    return () => {
+      if (dragRaf.current != null) cancelAnimationFrame(dragRaf.current);
+      if (closeTimer.current != null) window.clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   if (events.length === 0) return null;
+
+  function setSheetOffset(offset: number, animated: boolean) {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    sheet.style.transition = animated ? "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)" : "none";
+    sheet.style.transform = offset > 0 ? `translate3d(0, ${offset}px, 0)` : "translate3d(0, 0, 0)";
+  }
+
+  function scheduleSheetOffset(offset: number) {
+    dragCurrentY.current = offset;
+    if (dragRaf.current != null) return;
+    dragRaf.current = requestAnimationFrame(() => {
+      dragRaf.current = null;
+      setSheetOffset(dragCurrentY.current, false);
+    });
+  }
+
+  function rubberBand(delta: number) {
+    if (delta <= 0) return 0;
+    if (delta <= 180) return delta;
+    return 180 + (delta - 180) * 0.32;
+  }
 
   function startDrag(e: PointerEvent<HTMLButtonElement>) {
     dragStartY.current = e.clientY;
-    setDragY(0);
+    dragCurrentY.current = 0;
+    didDrag.current = false;
+    suppressClick.current = false;
+    setSheetOffset(0, false);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
   function moveDrag(e: PointerEvent<HTMLButtonElement>) {
     if (dragStartY.current == null) return;
-    setDragY(Math.max(0, e.clientY - dragStartY.current));
+    const next = rubberBand(e.clientY - dragStartY.current);
+    if (next > 4) didDrag.current = true;
+    scheduleSheetOffset(next);
   }
 
   function endDrag(e: PointerEvent<HTMLButtonElement>) {
     if (dragStartY.current == null) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
-    const shouldClose = dragY > 56;
+    const shouldClose = dragCurrentY.current > 88;
     dragStartY.current = null;
-    setDragY(0);
-    if (shouldClose) setOpen(false);
+    suppressClick.current = didDrag.current;
+    if (shouldClose) {
+      const sheetHeight = sheetRef.current?.offsetHeight ?? 360;
+      setSheetOffset(sheetHeight + 24, true);
+      closeTimer.current = window.setTimeout(() => {
+        setOpen(false);
+        setSheetOffset(0, false);
+      }, 180);
+    } else {
+      setSheetOffset(0, true);
+    }
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
+
+  function handleGripClick() {
+    if (suppressClick.current) return;
+    setOpen(false);
   }
 
   if (!open) {
@@ -96,12 +152,12 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   return (
     <section
-      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl transition-transform duration-200"
-      style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
+      ref={sheetRef}
+      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl will-change-transform"
     >
       <button
         type="button"
-        onClick={() => setOpen(false)}
+        onClick={handleGripClick}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}

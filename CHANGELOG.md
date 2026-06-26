@@ -6,6 +6,13 @@
 
 ## 2026-06-27
 
+### Smooth nearby sheet dragging
+- **Smoother drawer gesture**: nearby activity sheet dragging now uses requestAnimationFrame and direct transform updates instead of state updates on every pointer move.
+- **Better release behavior**: small drags snap back smoothly, while longer downward drags animate closed without accidental tap-to-close.
+**Files:** `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Restyle map page surface
 - **Map top controls**: filter, activity count, date, and weather controls now use larger rounded white capsules with softer shadows.
 - **Bottom map dock**: replaced the small pill controls with a reference-style icon dock for food, quick event filters, stations, and map options.
