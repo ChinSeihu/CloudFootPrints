@@ -20,7 +20,6 @@ import { LinePanel, type LineDetail, type PanelLine } from "./LinePanel";
 import { RoutePanel, type RoutePlan, type RoutePlace } from "./RoutePanel";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
-import { GuideFab } from "@/components/Guide/GuideFab";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { anchorMarkerEl } from "./markers";
@@ -319,6 +318,7 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
         endTime: ev.endTime ?? "",
         sourceType: ev.sourceType,
         sourceUrl: ev.sourceUrl ?? "",
+        imageUrl: ev.imageUrl ?? "",
         // 供聚合按「地理分散度」计算半径用（同点活动不放大，分散才放大）
         lng: ev.lng,
         lat: ev.lat,
@@ -876,6 +876,7 @@ export function MapExplorer() {
       id: string; title: string; category: string;
       venueName: string; address: string;
       startTime: string; sourceType: string; sourceUrl: string;
+      imageUrl: string;
     };
     const toPopupEvent = (p: Record<string, unknown>): PopupEvent => ({
       id: String(p.id ?? ""),
@@ -886,6 +887,7 @@ export function MapExplorer() {
       startTime: String(p.startTime ?? ""),
       sourceType: String(p.sourceType ?? ""),
       sourceUrl: String(p.sourceUrl ?? ""),
+      imageUrl: String(p.imageUrl ?? ""),
     });
 
     // 复制/对勾小图标（弹窗是原生 HTML，无法用 React 图标组件）
@@ -911,6 +913,9 @@ export function MapExplorer() {
       const source = ev.sourceUrl
         ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>`
         : "";
+      const image = ev.imageUrl
+        ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /></div>`
+        : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"></div>`;
       const del = ev.sourceType === "USER"
         ? `<button class="tem-card-del" data-action="delete">删除</button>`
         : "";
@@ -918,15 +923,17 @@ export function MapExplorer() {
         ? `<span class="tem-card-src tem-src-user">个人</span>`
         : `<span class="tem-card-src tem-src-official">官方</span>`;
       return `<div class="tem-card" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
-        <span class="tem-card-bar" style="background:${color}"></span>
+        ${image}
         <div class="tem-card-body">
-          <div class="tem-card-cat" style="color:${color}">${srcBadge}${escapeHtml(label)} · ${when}</div>
+          <div class="tem-card-cat" style="color:${color}">${srcBadge}${escapeHtml(label)}</div>
           <div class="tem-card-title">${escapeHtml(ev.title)}</div>
           ${venueRow}
+          <div class="tem-card-time">${when}</div>
           <div class="tem-card-foot">
             <button class="tem-card-act act-detail"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button>
             <button class="tem-card-act act-nav" data-action="route"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>导航</button>
             <button class="tem-card-act act-guide" data-action="guide"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8z"/></svg>问导游</button>
+            <button class="tem-card-act act-fav" data-action="favorite"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>收藏</button>
             ${source}${del}
           </div>
         </div>
@@ -989,6 +996,19 @@ export function MapExplorer() {
                 startTime: pe.startTime || null,
               });
             }
+            return;
+          }
+          if (action === "favorite") {
+            ev.stopPropagation();
+            fetch(`/api/events/${encodeURIComponent(id)}/reactions`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: "FAVORITE" }),
+            }).then((res) => {
+              if (!res.ok || !actionEl) return;
+              actionEl.classList.add("active");
+              actionEl.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>已收藏`;
+            }).catch(() => {});
             return;
           }
           popup.remove();
@@ -1783,6 +1803,26 @@ export function MapExplorer() {
     src?.setData({ type: "FeatureCollection", features: [] });
   }
 
+  function openNearbyRouteGuide(candidates: EventDTO[]) {
+    if (candidates.length < 2) {
+      showToast("附近活动不足，暂时无法规划");
+      return;
+    }
+    const list = candidates.slice(0, 8).map((event, index) => {
+      const category = CATEGORY_META[event.category as keyof typeof CATEGORY_META]?.label ?? event.category;
+      const time = event.startTime ? new Date(event.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "时间未定";
+      return `${index + 1}. ${event.title}｜${category}｜${event.venueName ?? "地点待定"}｜${time}｜${event.summary ?? event.description ?? ""}`;
+    }).join("\n");
+    const prompt = `请根据下面这些地图附近活动，帮我规划一条适合步行或短距离移动的附近游玩路线。要求：选 3-5 个点，说明顺序、每站停留建议、适合的节奏和为什么这样安排；如果有时间冲突请提醒；语气像东京本地导游，不要提系统或数据来源。\n\n附近活动：\n${list}`;
+    openGuideRef.current({
+      kind: "route",
+      title: "附近活动路线规划",
+      category: "AI 规划路线",
+      description: `地图附近候选活动：\n${list}`,
+      routePrompt: prompt,
+    });
+  }
+
   function setQuickCategory(category: EventCategory) {
     setFilters((current) => {
       const active = !current.mineOnly && current.categories.size === 1 && current.categories.has(category);
@@ -1883,8 +1923,8 @@ export function MapExplorer() {
         onClearAnchor={() => setExploreAnchor(null)}
         onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
         onViewAll={() => router.push("/recommend")}
+        onPlanRoute={openNearbyRouteGuide}
       />
-      <GuideFab />
       <ActionFab
         onCheckin={() => openPlacement("checkin")}
         onPost={() => openPlacement("post")}

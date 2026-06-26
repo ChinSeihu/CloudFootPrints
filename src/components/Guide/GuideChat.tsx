@@ -41,6 +41,12 @@ function topicQuick(t: GuideTopic): string[] {
         `「${n}」周边有什么好吃好玩的？`,
         `「${n}」附近近期有什么活动？`,
       ];
+    case "route":
+      return [
+        "帮我规划附近 2-3 小时游玩路线",
+        "按轻松散步节奏推荐几个顺路点",
+        "如果我想拍照和休息，怎么安排更舒服？",
+      ];
     default: // event
       return [
         `讲讲「${n}」的看点和文化背景`,
@@ -60,7 +66,7 @@ function topicInfo(t: GuideTopic): string {
       `时间：${new Date(t.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo" })}`,
     t.description && `资料：${t.description}`,
   ].filter(Boolean);
-  const label = t.kind === "food" ? "用户正在查看的餐厅" : t.kind === "landmark" ? "用户正在查看的景点" : t.kind === "station" ? "用户正在查看的车站" : "用户正在查看的活动";
+  const label = t.kind === "food" ? "用户正在查看的餐厅" : t.kind === "landmark" ? "用户正在查看的景点" : t.kind === "station" ? "用户正在查看的车站" : t.kind === "route" ? "用户正在地图上查看的附近活动" : "用户正在查看的活动";
   return `【${label}】${parts.join("；")}`;
 }
 
@@ -157,7 +163,7 @@ export function GuideChat() {
             {topic ? (
               <>
                 <p className="font-medium text-neutral-700 mb-1">关于「{topic.title}」</p>
-                <p>想了解它的看点、历史文化背景，或怎么去、周边推荐？选一个问题开始：</p>
+                <p>{topic.kind === "route" ? "我已经看到你当前位置附近的活动，可以帮你按距离、节奏和兴趣串成一条游玩路线。" : "想了解它的看点、历史文化背景，或怎么去、周边推荐？选一个问题开始："}</p>
               </>
             ) : (
               <>
@@ -223,6 +229,16 @@ export function GuideChat() {
 
       {messages.length === 0 && (
         <div className="shrink-0 px-4 pb-2 flex flex-col gap-2">
+          {topic?.kind === "route" && topic.routePrompt && (
+            <button
+              type="button"
+              onClick={() => send(topic.routePrompt ?? "")}
+              className="text-left rounded-2xl border border-violet-200 bg-violet-600 px-3.5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)]"
+            >
+              <span className="block">AI 规划附近游玩路线</span>
+              <span className="mt-1 block text-xs font-normal text-white/75">根据附近活动，给我一条顺路、有节奏的 City Walk</span>
+            </button>
+          )}
           {quick.map((q) => (
             <button
               key={q}

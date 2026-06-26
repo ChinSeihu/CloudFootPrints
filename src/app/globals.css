@@ -392,10 +392,11 @@ body {
 .tem-ci-del:hover { text-decoration: underline; }
 
 .tem-pop {
-  max-width: 260px;
-  max-height: 320px;
+  max-width: 360px;
+  max-height: 420px;
   overflow-y: auto;
   font-family: inherit;
+  background: #fff;
 }
 .tem-pop-head {
   font-size: 11px;
@@ -405,8 +406,10 @@ body {
 }
 .tem-card {
   display: flex;
+  gap: 12px;
   cursor: pointer;
   border-top: 1px solid #f1f5f9;
+  padding: 12px;
   transition: background 0.12s ease;
 }
 .tem-card:first-child {
@@ -415,13 +418,26 @@ body {
 .tem-card:hover {
   background: #f8fafc;
 }
-.tem-card-bar {
-  width: 4px;
+.tem-card-image {
+  width: 104px;
+  min-height: 132px;
   flex: none;
-  align-self: stretch;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f1f5f9;
+}
+.tem-card-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 132px;
+  object-fit: cover;
+  display: block;
+}
+.tem-card-image-empty {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tem-card-color) 24%, white), #f8fafc);
 }
 .tem-card-body {
-  padding: 9px 12px;
+  padding: 0;
   flex: 1;
   min-width: 0;
 }
@@ -449,11 +465,11 @@ body {
   color: #0369a1;
 }
 .tem-card-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 800;
   color: #0f172a;
   line-height: 1.35;
-  margin-bottom: 2px;
+  margin-bottom: 5px;
 }
 .tem-card-venue {
   display: flex;
@@ -462,7 +478,7 @@ body {
   font-size: 11px;
   color: #64748b;
   line-height: 1.4;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 .tem-card-venue-text {
   flex: 1;
@@ -485,6 +501,16 @@ body {
 }
 .tem-card-copy.copied {
   color: #16a34a;
+}
+.tem-card-time {
+  display: inline-flex;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 8px;
+  margin-bottom: 6px;
 }
 .tem-card-foot {
   display: flex;
@@ -519,6 +545,9 @@ body {
 .tem-card-act.act-nav:hover { background: rgba(37, 99, 235, 0.18); }
 .tem-card-act.act-guide { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
 .tem-card-act.act-guide:hover { background: rgba(124, 58, 237, 0.18); }
+.tem-card-act.act-fav { background: rgba(15, 23, 42, 0.06); color: #475569; }
+.tem-card-act.act-fav:hover,
+.tem-card-act.act-fav.active { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
 /* 来源：保持低调文字链 */
 .tem-card-link {
   flex: none;

@@ -12,6 +12,7 @@ type Props = {
   onClearAnchor?: () => void;
   onSelect: (ev: EventDTO) => void;
   onViewAll: () => void;
+  onPlanRoute: (events: EventDTO[]) => void;
 };
 
 function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -36,9 +37,10 @@ const SUGGESTION_CARDS = [
   { title: "夜生活", subtitle: "东京夜晚指南", count: "10 个活动", tone: "bg-indigo-50 text-indigo-700" },
 ];
 
-export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
+export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute }: Props) {
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const sheetRef = useRef<HTMLElement | null>(null);
   const dragStartY = useRef<number | null>(null);
   const dragCurrentY = useRef(0);
@@ -137,6 +139,28 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
     setOpen(false);
   }
 
+  async function toggleFavorite(ev: EventDTO) {
+    setFavoriteIds((current) => {
+      const next = new Set(current);
+      if (next.has(ev.id)) next.delete(ev.id);
+      else next.add(ev.id);
+      return next;
+    });
+    const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}/reactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "FAVORITE" }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setFavoriteIds((current) => {
+        const next = new Set(current);
+        if (next.has(ev.id)) next.delete(ev.id);
+        else next.add(ev.id);
+        return next;
+      });
+    }
+  }
+
   if (!open) {
     return (
       <button
@@ -188,10 +212,10 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
           )}
           <button
             type="button"
-            onClick={onViewAll}
+            onClick={() => onPlanRoute(shown.map(({ e }) => e))}
             className="rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
           >
-            AI 推荐路线
+            AI 帮我规划
           </button>
         </div>
       </div>
@@ -236,12 +260,15 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.slice(0, 6).map(({ e: ev, d }) => {
           const meta = CATEGORY_META[ev.category];
+          const favorited = favoriteIds.has(ev.id);
           return (
-            <button
+            <div
               key={ev.id}
-              type="button"
               onClick={() => onSelect(ev)}
-              className="group w-[9.2rem] shrink-0 overflow-hidden rounded-[18px] bg-white text-left shadow-[0_8px_24px_rgba(15,23,42,0.09)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => { if (event.key === "Enter") onSelect(ev); }}
+              className="group w-[9.2rem] shrink-0 cursor-pointer overflow-hidden rounded-[18px] bg-white text-left shadow-[0_8px_24px_rgba(15,23,42,0.09)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.13)]"
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
                 {ev.imageUrl ? (
@@ -256,9 +283,14 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                 >
                   {meta.label}
                 </span>
-                <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-white/70 bg-black/30 text-white backdrop-blur">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
-                </span>
+                <button
+                  type="button"
+                  aria-label={favorited ? "取消收藏" : "收藏活动"}
+                  onClick={(event) => { event.stopPropagation(); void toggleFavorite(ev); }}
+                  className={`absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-white/70 backdrop-blur ${favorited ? "bg-blue-600 text-white" : "bg-black/30 text-white"}`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill={favorited ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                </button>
               </div>
               <div className="p-2.5">
                 <h3 className="line-clamp-2 min-h-[2.45rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
@@ -266,7 +298,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                   {formatDistance(d)} · {ev.venueName ?? "会场待定"}
                 </p>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

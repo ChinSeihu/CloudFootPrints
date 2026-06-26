@@ -6,6 +6,15 @@
 
 ## 2026-06-27
 
+### Connect guide route prompt and map favorites
+- **Guide-integrated route planning**: the nearby activity sheet now opens the existing AI guide with nearby activity context and a special route-planning option at the bottom.
+- **Cleaner map AI entry**: removed the separate map AI guide floating button so route planning starts from the nearby activity drawer.
+- **Real favorite actions**: featured activity bookmark buttons and map popup favorite buttons now call the real `FAVORITE` reaction endpoint.
+- **Image-first map popup cards**: map activity popups now include event cover images with a richer preview-card layout.
+**Files:** `src/components/Guide/GuideContext.tsx`, `src/components/Guide/GuideChat.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`, `src/app/globals.css`
+
+---
+
 ### Smooth nearby sheet dragging
 - **Smoother drawer gesture**: nearby activity sheet dragging now uses requestAnimationFrame and direct transform updates instead of state updates on every pointer move.
 - **Better release behavior**: small drags snap back smoothly, while longer downward drags animate closed without accidental tap-to-close.
