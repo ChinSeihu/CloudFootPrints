@@ -37,6 +37,7 @@ export type NormalizedEvent = {
   sourceType: string;
   sourceUrl: string | null;
   trustLevel: number;
+  featuredToday: boolean;
   tags: string[];
   signupEnabled: boolean;
   userId: string | null; // Post 的作者；官方活动为 null
@@ -52,7 +53,7 @@ export function normalizeOfficial(e: Event): NormalizedEvent {
     imageUrl: e.imageUrl, imageUrls: [], lat: e.lat, lng: e.lng,
     startTime: e.startTime, endTime: e.endTime,
     sourceType: e.sourceType, sourceUrl: e.sourceUrl, trustLevel: e.trustLevel,
-    tags: [], signupEnabled: false, userId: null,
+    tags: [], signupEnabled: false, featuredToday: e.featuredToday, userId: null,
     createdAt: e.createdAt, updatedAt: e.updatedAt,
   };
 }
@@ -65,7 +66,7 @@ export function normalizePost(p: Post): NormalizedEvent {
     imageUrl: p.imageUrl, imageUrls: p.imageUrls, lat: p.lat, lng: p.lng,
     startTime: p.startTime, endTime: p.endTime,
     sourceType: "USER", sourceUrl: null, trustLevel: 10,
-    tags: p.tags, signupEnabled: p.signupEnabled, userId: p.userId,
+    tags: p.tags, signupEnabled: p.signupEnabled, featuredToday: false, userId: p.userId,
     createdAt: p.createdAt, updatedAt: p.updatedAt,
   };
 }

@@ -2,6 +2,7 @@ import { extractFromText } from "./extract";
 import { maybeReclassify } from "./classify";
 import { maybeSummarize } from "./summarize";
 import { ingestEvents, type IngestStats } from "./ingest";
+import { maybeSelectDailyFeatured } from "./featured";
 import { getSources } from "./sources";
 import type { Source } from "./types";
 
@@ -61,5 +62,6 @@ export async function runExtractionPipeline(): Promise<IngestStats> {
     const stats = await runSource(source);
     total = addStats(total, stats);
   }
+  await maybeSelectDailyFeatured();
   return total;
 }

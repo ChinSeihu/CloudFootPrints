@@ -38,6 +38,8 @@ jobs:
           CLASSIFY_WITH_LLM: "true"
           # 开启 LLM 一句话摘要：为每条活动生成 ≤14 字短摘要，存 Event.summary，地图标签用。
           SUMMARIZE_WITH_LLM: "true"
+          # 抓取结束后让 LLM 从当天开始的活动里选最多 5 个今日精选 banner。
+          FEATURE_DAILY_WITH_LLM: "true"
           # 体育子分类抓几页（可调）
           WALKERPLUS_SPORTS_MAX_PAGES: "6"
         run: yarn extract

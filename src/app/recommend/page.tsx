@@ -74,6 +74,7 @@ export default async function RecommendPage() {
         sourceType: e.sourceType,
         sourceUrl: e.sourceUrl,
         trustLevel: e.trustLevel,
+        featuredToday: e.featuredToday,
         tags: e.tags ?? [],
         signupEnabled: e.signupEnabled ?? false,
         author: e.author ?? null,

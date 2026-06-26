@@ -6,6 +6,14 @@
 
 ## 2026-06-26
 
+### Add daily featured event carousel
+- **LLM daily picks**: the daily extraction workflow now asks the LLM to mark up to five events starting today as `featuredToday` after ingestion.
+- **Explore banner carousel**: the recommend page uses those featured events as a rotating hero banner, with a click/like/favorite fallback when no LLM picks exist.
+- **Hide sparse metrics**: hot cards no longer show like/view counts while data volume is still low.
+**Files:** `.github/workflows/extract.yml`, `src/services/extraction/featured.ts`, `src/services/extraction/index.ts`, `src/components/Recommend/RecommendList.tsx`, `src/app/recommend/page.tsx`, `src/services/events.ts`, `src/lib/types.ts`, `prisma/schema.prisma`, `prisma/migrations/20260626113000_add_event_featured_today/migration.sql`
+
+---
+
 ### Strengthen calendar red-day markers
 - **Red-day heatmap overlay**: holiday heatmap cells now include a rose bottom overlay band with the date number kept above it for clearer recognition.
 **Files:** `src/components/Calendar/CalendarView.tsx`

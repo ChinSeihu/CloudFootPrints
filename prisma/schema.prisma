@@ -50,6 +50,7 @@ model Event {
   sourceType  SourceType
   sourceUrl   String?
   trustLevel  Int           @default(0) // 官方高、社交低
+  featuredToday Boolean     @default(false)
   rawText     String?       // 保留原始文本，便于以后重新解析
 
   checkIns    CheckIn[]
@@ -62,6 +63,7 @@ model Event {
   @@index([lat, lng])
   @@index([startTime])
   @@index([category])
+  @@index([featuredToday, startTime])
   // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
 }
 

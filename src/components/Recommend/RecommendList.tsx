@@ -36,15 +36,18 @@ function heatScore(ev: EventDTO): number {
   return m.likeCount * 4 + m.favoriteCount * 3 + m.signupCount * 5 + m.clickCount + imageBonus + soonBonus + ev.trustLevel;
 }
 
-function pickReason(ev: EventDTO): string {
+function fallbackFeaturedScore(ev: EventDTO): number {
   const m = metricsOf(ev);
+  return m.clickCount + m.likeCount * 4 + m.favoriteCount * 3;
+}
+
+function pickReason(ev: EventDTO): string {
   const parts: string[] = [];
-  if (m.likeCount > 0) parts.push(`${m.likeCount} 个点赞`);
-  if (m.favoriteCount > 0) parts.push(`${m.favoriteCount} 个收藏`);
-  if (m.clickCount > 0) parts.push(`${m.clickCount} 次查看`);
+  if (ev.featuredToday) parts.push("今日精选");
   if (ev.imageUrl) parts.push("图像完整");
   if (ev.startTime) parts.push("近期可去");
-  return parts.length ? `精选理由：${parts.slice(0, 3).join(" · ")}` : "精选理由：时间明确、信息完整";
+  if (ev.venueName) parts.push("地点明确");
+  return parts.length ? `推荐理由：${parts.slice(0, 3).join(" · ")}` : "推荐理由：信息完整";
 }
 
 function matchesQuery(ev: EventDTO, query: string): boolean {
@@ -70,6 +73,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [query, setQuery] = useState("");
   const [colCount, setColCount] = useState(2);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [heroIndex, setHeroIndex] = useState(0);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLElement | null>(null);
@@ -130,8 +134,26 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
 
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
-  const hero = rankedOfficial.find((e) => e.imageUrl) ?? rankedOfficial[0] ?? events[0];
-  const hot = rankedOfficial.filter((e) => e.id !== hero?.id).slice(0, 8);
+  const featuredEvents = useMemo(() => {
+    const flagged = rankedOfficial.filter((e) => e.featuredToday);
+    const fallback = [...officialEvents].sort((a, b) => fallbackFeaturedScore(b) - fallbackFeaturedScore(a) || heatScore(b) - heatScore(a));
+    const source = flagged.length > 0 ? flagged : fallback;
+    return source.slice(0, 5);
+  }, [officialEvents, rankedOfficial]);
+  const hero = featuredEvents[heroIndex % Math.max(1, featuredEvents.length)] ?? rankedOfficial[0] ?? events[0];
+  const hot = rankedOfficial.filter((e) => !featuredEvents.some((f) => f.id === e.id)).slice(0, 8);
+
+  useEffect(() => {
+    setHeroIndex(0);
+  }, [featuredEvents.map((event) => event.id).join("|")]);
+
+  useEffect(() => {
+    if (featuredEvents.length <= 1) return;
+    const timer = setInterval(() => {
+      setHeroIndex((i) => (i + 1) % featuredEvents.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [featuredEvents.length]);
 
   const suggestions = useMemo(() => {
     const count = new Map<string, number>();
@@ -204,21 +226,39 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
       )}
 
       {hero && (
-        <button type="button" onClick={() => openEvent(hero)} className="relative block w-full overflow-hidden rounded-[24px] bg-neutral-900 text-left shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
-          <div className="aspect-[16/9]">
-            {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
-          <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-600">今日精选</span>
-            <span className="rounded-full bg-white/85 px-2.5 py-1 text-xs font-semibold text-neutral-800">想去 {metricsOf(hero).favoriteCount + metricsOf(hero).signupCount}</span>
-          </div>
-          <div className="absolute bottom-3 left-3 right-3 text-white">
-            <p className="text-[11px] font-semibold opacity-90">{CATEGORY_META[hero.category]?.label} · {fmt(hero.startTime)}</p>
-            <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight">{hero.title}</h2>
-            <p className="mt-1 line-clamp-1 text-xs opacity-90">{hero.venueName ?? "东京"} · {pickReason(hero)}</p>
-          </div>
-        </button>
+        <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
+          <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
+            <div className="aspect-[16/9]">
+              {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
+            <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
+              <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-600">每日精选</span>
+              <span className="rounded-full bg-white/85 px-2.5 py-1 text-xs font-semibold text-neutral-800">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{featuredEvents.length}</span>
+            </div>
+            <div className="absolute bottom-5 left-3 right-3 text-white">
+              <p className="text-[11px] font-semibold opacity-90">{CATEGORY_META[hero.category]?.label} · {fmt(hero.startTime)}</p>
+              <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight">{hero.title}</h2>
+              <p className="mt-1 line-clamp-1 text-xs opacity-90">{hero.venueName ?? "东京"} · {pickReason(hero)}</p>
+            </div>
+          </button>
+          {featuredEvents.length > 1 && (
+            <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5">
+              {featuredEvents.map((event, index) => {
+                const active = index === heroIndex % featuredEvents.length;
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    aria-label={`切换到精选 ${index + 1}`}
+                    onClick={() => setHeroIndex(index)}
+                    className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
 
       <section className="mt-4">
@@ -229,7 +269,6 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
         <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {hot.map((ev) => {
             const meta = CATEGORY_META[ev.category];
-            const m = metricsOf(ev);
             return (
               <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8.5rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
                 <div className="relative aspect-square bg-neutral-100">
@@ -238,7 +277,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
                 </div>
                 <div className="p-2.5">
                   <h3 className="line-clamp-2 min-h-[2.35rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
-                  <p className="mt-1 text-[11px] font-semibold text-rose-500">♥ {m.likeCount} · 查看 {m.clickCount}</p>
+                  <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmt(ev.startTime)}</p>
                 </div>
               </button>
             );

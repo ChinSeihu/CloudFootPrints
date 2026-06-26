@@ -315,14 +315,13 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
                 type="button"
                 onClick={() => setSelectedDate(key)}
                 title={`${Number(key.slice(8, 10))}日 ${count}个活动${info.holiday ? ` · ${info.holiday}` : ""}`}
-                className={`relative h-7 overflow-hidden rounded-md text-[10px] font-semibold ${
-                  info.isRed ? "border border-rose-400" : "border border-transparent"
+                className={`relative h-7 overflow-hidden rounded-md text-[10px] font-semibold border border-transparent"
                 } ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}
                 style={color}
               >
-                {info.isRed && <span className="absolute inset-x-0 bottom-0 h-2 bg-rose-500/35" />}
-                <span className="relative z-10">{Number(key.slice(8, 10))}</span>
-                {info.holiday && <span className={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${ratio > 0.58 ? "bg-white" : "bg-rose-500"}`} />}
+                {info.isRed && <span className="inline-flex justify-center items-center w-[100%] bottom-0 h-7 leading-[10px] bg-rose-400 text-[9px]">{info.holiday}</span>}
+                <span className="relative z-10">{info.isRed ? '' : Number(key.slice(8, 10))}</span>
+                {/* {info.holiday && <span className={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${ratio > 0.58 ? "bg-white" : "bg-rose-500"}`} />} */}
               </button>
             );
           })}

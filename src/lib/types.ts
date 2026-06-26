@@ -25,6 +25,7 @@ export type EventDTO = {
   sourceType: string;
   sourceUrl: string | null;
   trustLevel: number;
+  featuredToday?: boolean;
   tags: string[];
   signupEnabled: boolean;
   metrics?: EventMetrics;
