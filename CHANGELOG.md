@@ -6,6 +6,15 @@
 
 ## 2026-06-26
 
+### 调整 PersonaV2 头像居中裁剪
+
+- **头像裁剪改为手工定位**：`scripts/crop-avatars.ts` 从自动 `attention` 裁剪改为 13 组逐人方形裁剪参数，避免背景、相机、宠物、甜点等元素把头像重心带偏。
+- **重新生成头像资源**：更新 `public/avatars/persona-v2/01.png ... 13.png`，让登录页和用户头像里的脸部更接近圆形头像中心。
+
+**涉及文件：** `scripts/crop-avatars.ts`、`public/avatars/persona-v2/*`
+
+---
+
 ### 登录页 demo 用户改为数据库读取 + PersonaV2 头像裁剪
 
 - **一键登录列表改为数据库数据**：`GET /api/auth/demo` 会确保 PersonaV2 的 13 个 demo 用户存在，并按 PersonaV2 顺序返回数据库里的公开用户资料；登录页不再直接 import 静态 `DEMO_USERS`，而是在客户端加载真实数据库用户。
