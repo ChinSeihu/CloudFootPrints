@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### 同步数据库 demo 人物到 PersonaV2
+
+- **demo 用户资料改为 V2 派生**：`src/lib/demoUsers.ts` 不再维护旧 12 人硬编码列表，改为从 `PERSONAS` 自动生成 13 个 demo 用户的用户名、签名、常驻地、状态、封面和 `/refs/xx.png` 头像。
+- **新增数据库同步脚本**：`scripts/sync-demo-users.ts` 会 upsert PersonaV2 的 demo 用户资料、`CharacterState` 情绪/目标/人生阶段，并补齐 V2 朋友关系；`package.json` 新增 `npm run sync:demo-users`。
+- **已执行同步**：本地数据库本次同步结果为 7 个用户新建、6 个用户更新、13 条角色状态写入、16 组朋友关系确认。旧版 demo 用户未自动删除，避免误删已有历史内容。
+
+**涉及文件：** `src/lib/demoUsers.ts`、`scripts/sync-demo-users.ts`、`package.json`
+
+---
+
 ### 恢复 demo-personas 生图细则
 
 - **恢复完整生图规则**：将旧版 `docs/demo-personas.md` 中的配图目标、人物一致性、摄影能力、图片主体类型、`containsPoster`、镜头类型、出镜优先级、拍摄意图、东京地点库、不完美细节库、配图频率、基础 prompt、最终原则和防 AI 味规则合并回 V2 手册。
