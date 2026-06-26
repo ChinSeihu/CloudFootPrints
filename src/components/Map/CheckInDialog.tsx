@@ -5,7 +5,6 @@ import { IconHeart, IconPin, IconPlus } from "@/components/icons";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
-import { DateTimeField } from "@/components/common/DateTimeField";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type CheckInDraft = {
@@ -14,11 +13,8 @@ export type CheckInDraft = {
   note: string;
   rating: number | null;
   photoUrls: string[];
-  visitedAt: string | null; // ISO；用户可选打卡时间，默认现在
   eventId?: string | null;
 };
-
-const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
 type Props = {
   lat: number;
@@ -29,12 +25,11 @@ type Props = {
   onSnapChange?: (snap: "peek" | "full") => void;
 };
 
-// 打卡："我来过这里"（个人足迹：时间 / 文字 / 评分 / 图片）。
-// 图片与发帖一致：客户端压缩后上传 Cloudinary，DB 只存返回 URL。
+// 足迹创建不再让用户手填时间：真实用户默认使用提交时间；
+// 虚拟人物仍由 simulation/engine.ts 通过服务端 visitedAt 传入虚拟时间。
 export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapChange }: Props) {
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | null>(null);
-  const [visitedAt, setVisitedAt] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -49,13 +44,14 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
     if (picked.length === 0) return;
     const add = picked.slice(0, Math.max(0, MAX_IMAGES - files.length));
     setFiles((prev) => [...prev, ...add]);
-    setPreviews((prev) => [...prev, ...add.map((f) => URL.createObjectURL(f))]);
+    setPreviews((prev) => [...prev, ...add.map((file) => URL.createObjectURL(file))]);
     e.target.value = "";
   }
-  function removeImage(i: number) {
-    URL.revokeObjectURL(previews[i]);
-    setFiles((prev) => prev.filter((_, idx) => idx !== i));
-    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+
+  function removeImage(index: number) {
+    URL.revokeObjectURL(previews[index]);
+    setFiles((prev) => prev.filter((_, idx) => idx !== index));
+    setPreviews((prev) => prev.filter((_, idx) => idx !== index));
   }
 
   async function handleSubmit() {
@@ -68,7 +64,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
         setPhase("uploading");
         try {
           photoUrls = await Promise.all(
-            files.map(async (f) => uploadToCloudinary(await compressImage(f))),
+            files.map(async (file) => uploadToCloudinary(await compressImage(file))),
           );
         } catch (err) {
           setError((err as Error).message || "图片上传失败");
@@ -77,13 +73,13 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
           setPhase("");
         }
       }
+
       await onSubmit({
         lat,
         lng,
         note,
         rating,
         photoUrls,
-        visitedAt: toISO(visitedAt),
         eventId: eventId ?? null,
       });
     } finally {
@@ -99,18 +95,13 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>到访时间</label>
-        <DateTimeField value={visitedAt} onChange={setVisitedAt} placeholder="默认现在" />
-      </div>
-
-      <div className="mb-5">
         <label className={labelCls}>想说点什么</label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           className={`${fieldCls} resize-none`}
-          placeholder="这家展览的灯光很好…"
+          placeholder="这家展览的灯光很好..."
         />
       </div>
 
@@ -131,22 +122,21 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
         </div>
       </div>
 
-      {/* 图片（可选，可多张，客户端压缩后上传图床） */}
       <div className="mb-5">
         <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
         {canUpload ? (
           <div className="grid grid-cols-3 gap-2">
-            {previews.map((src, i) => (
-              <div key={i} className="relative aspect-square">
+            {previews.map((src, index) => (
+              <div key={src} className="relative aspect-square">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
+                  onClick={() => removeImage(index)}
                   className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur"
                   aria-label="移除图片"
                 >
-                  ×
+                  x
                 </button>
               </div>
             ))}
@@ -182,7 +172,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
           disabled={submitting}
           className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
         >
-          {phase === "uploading" ? "上传图片…" : submitting ? "保存中…" : "留下足迹"}
+          {phase === "uploading" ? "上传图片..." : submitting ? "保存中..." : "留下足迹"}
         </button>
       </div>
     </BottomSheet>

@@ -1711,7 +1711,7 @@ export function MapExplorer() {
     const res = await fetch("/api/checkins", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, photoUrls: draft.photoUrls, visitedAt: draft.visitedAt, eventId: draft.eventId ?? null }),
+      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, photoUrls: draft.photoUrls, eventId: draft.eventId ?? null }),
     });
     clearPlacing();
     setDialogAt(null);

@@ -6,6 +6,15 @@
 
 ## 2026-06-26
 
+### 足迹创建表单移除时间输入
+
+- **创建足迹默认使用提交时间**：`CheckInDialog` 移除“到访时间”字段，用户创建足迹时不再手动选择时间；`MapExplorer` 提交足迹时也不再发送 `visitedAt`，服务端沿用 `CheckIn.createdAt` 默认值。
+- **保留虚拟人物时间入口**：服务端 `createCheckin` 仍支持 `visitedAt`，`simulation/engine.ts` 继续传入虚拟日期生成的 `when.toISOString()`，虚拟人物足迹不会被真实当前时间覆盖。
+
+**涉及文件：** `src/components/Map/CheckInDialog.tsx`、`src/components/Map/MapExplorer.tsx`
+
+---
+
 ### 修复个人页状态文字截断
 
 - **个人信息卡状态支持两行显示**：`ProfileHeader` 中用户状态从单行 `truncate` 改为两行 `line-clamp-2` 与自动断词，避免 PersonaV2 较长当前目标在个人页显示不全。
