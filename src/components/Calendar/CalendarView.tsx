@@ -22,6 +22,12 @@ function fmtTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString("zh-CN", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" });
 }
 
+function dayInfo(key: string) {
+  const d = new Date(`${key}T00:00:00+09:00`);
+  const holiday = holidayName(key);
+  return { weekday: d.getDay(), holiday, isRed: d.getDay() === 0 || !!holiday };
+}
+
 function eventMatchesQuery(ev: EventDTO, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -44,6 +50,12 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
+  const dayRefs = useRef(new Map<string, HTMLButtonElement>());
+
+  useEffect(() => {
+    const node = dayRefs.current.get(selected) ?? dayRefs.current.get(todayKey);
+    node?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [selected, todayKey, month, year]);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -66,6 +78,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
       if (list) list.push(ev);
       else m.set(key, [ev]);
     };
+
     for (const ev of filteredEvents) {
       if (!ev.startTime) continue;
       const startKey = tokyoDateKey(ev.startTime);
@@ -108,14 +121,27 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
     setDayTab(startingEvents.length === 0 && ongoingEvents.length > 0 ? "ongoing" : "starting");
   }, [selected, startingEvents.length, ongoingEvents.length]);
 
+  function setMonthDate(nextYear: number, nextMonth: number, day = Number(selected.slice(8, 10))) {
+    setYear(nextYear);
+    setMonth(nextMonth);
+    setSelectedDate(ymd(nextYear, nextMonth, Math.min(day, new Date(nextYear, nextMonth + 1, 0).getDate())));
+  }
+
   function shiftMonth(delta: number) {
-    let m = month + delta;
-    let y = year;
-    if (m < 0) { m = 11; y--; }
-    if (m > 11) { m = 0; y++; }
-    setMonth(m);
-    setYear(y);
-    setSelectedDate(ymd(y, m, Math.min(Number(selected.slice(8, 10)), new Date(y, m + 1, 0).getDate())));
+    let nextMonth = month + delta;
+    let nextYear = year;
+    if (nextMonth < 0) { nextMonth = 11; nextYear -= 1; }
+    if (nextMonth > 11) { nextMonth = 0; nextYear += 1; }
+    setMonthDate(nextYear, nextMonth);
+  }
+
+  function shiftDay(delta: number) {
+    const d = new Date(`${selected}T00:00:00+09:00`);
+    d.setDate(d.getDate() + delta);
+    const key = d.toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    setYear(Number(key.slice(0, 4)));
+    setMonth(Number(key.slice(5, 7)) - 1);
+    setSelectedDate(key);
   }
 
   const shownEvents = dayTab === "starting" ? startingEvents : ongoingEvents;
@@ -169,21 +195,43 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
 
       <section className="rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
         <div className="mb-2 flex items-center justify-between">
-          <button type="button" className="inline-flex items-center gap-1 text-lg font-black text-neutral-950">{year}年 {month + 1}月</button>
+          <div className="inline-flex items-center gap-1.5">
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-7 w-7 place-items-center rounded-full bg-neutral-50 text-neutral-500"><IconChevronLeft className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1)} className="rounded-full px-2 text-lg font-black text-neutral-950">{year}年 {month + 1}月</button>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-7 w-7 place-items-center rounded-full bg-neutral-50 text-neutral-500"><IconChevronRight className="h-3.5 w-3.5" /></button>
+          </div>
           <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronLeft className="h-4 w-4" /></button>
-            <button type="button" onClick={() => { setYear(Number(todayKey.slice(0, 4))); setMonth(Number(todayKey.slice(5, 7)) - 1); setSelectedDate(todayKey); }} className="h-8 rounded-full bg-neutral-50 px-3 text-xs font-semibold text-neutral-600">今天</button>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronRight className="h-4 w-4" /></button>
+            <button type="button" onClick={() => shiftDay(-1)} aria-label="前一天" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-8 rounded-full bg-neutral-50 px-3 text-xs font-semibold text-neutral-600">今天</button>
+            <button type="button" onClick={() => shiftDay(1)} aria-label="后一天" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronRight className="h-4 w-4" /></button>
           </div>
         </div>
+
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {monthDays.map((key) => {
-            const d = new Date(`${key}T00:00:00+09:00`);
+            const info = dayInfo(key);
             const count = byDate.get(key)?.length ?? 0;
             const active = key === selected;
             return (
-              <button key={key} type="button" onClick={() => setSelectedDate(key)} className={`flex h-14 w-11 shrink-0 flex-col items-center justify-center rounded-xl transition ${active ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-white text-neutral-700 hover:bg-neutral-50"}`}>
-                <span className={`text-[10px] ${active ? "text-white/80" : d.getDay() === 0 ? "text-rose-500" : d.getDay() === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[d.getDay()]}</span>
+              <button
+                key={key}
+                ref={(node) => {
+                  if (node) dayRefs.current.set(key, node);
+                  else dayRefs.current.delete(key);
+                }}
+                type="button"
+                onClick={() => setSelectedDate(key)}
+                title={info.holiday ?? undefined}
+                className={`relative flex h-14 w-11 shrink-0 flex-col items-center justify-center rounded-xl transition ${
+                  active
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                    : info.holiday
+                      ? "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                      : "bg-white text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                {info.holiday && <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-rose-500"}`} />}
+                <span className={`text-[10px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[info.weekday]}</span>
                 <span className="mt-0.5 text-base font-black">{Number(key.slice(8, 10))}</span>
                 <span className="mt-0.5 flex h-1.5 gap-0.5">{Array.from({ length: Math.min(3, count) }).map((_, i) => <span key={i} className={`h-1 w-1 rounded-full ${active ? "bg-white" : "bg-blue-500"}`} />)}</span>
               </button>
@@ -194,7 +242,10 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
 
       <section className="mt-3 rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-black text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日{selected === todayKey && <span className="ml-1 text-xs text-blue-600">今天</span>}</h2>
+          <div>
+            <h2 className="text-base font-black text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日{selected === todayKey && <span className="ml-1 text-xs text-blue-600">今天</span>}</h2>
+            {holidayName(selected) && <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{holidayName(selected)}</p>}
+          </div>
           <div className="flex rounded-full bg-neutral-100 p-1">
             {(["starting", "ongoing"] as const).map((k) => {
               const active = dayTab === k;
@@ -231,15 +282,29 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
       <section className="mt-3 rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-black text-neutral-950">本月活动热力图</h2>
-          <div className="flex items-center gap-1 text-[10px] text-neutral-400"><span>少</span><span className="h-2 w-2 rounded bg-blue-100" /><span className="h-2 w-2 rounded bg-blue-300" /><span className="h-2 w-2 rounded bg-blue-600" /><span>多</span></div>
+          <div className="flex items-center gap-1 text-[10px] text-neutral-400">
+            <span>少</span><span className="h-2 w-2 rounded bg-sky-50" /><span className="h-2 w-2 rounded bg-sky-200" /><span className="h-2 w-2 rounded bg-blue-500" /><span>多</span>
+          </div>
         </div>
-        <div className="mb-1 grid grid-cols-7 text-center text-[10px] text-neutral-400">{WEEKDAYS.map((d) => <span key={d}>{d}</span>)}</div>
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="mb-1 grid grid-cols-7 text-center text-[10px] text-neutral-400">{WEEKDAYS.map((d, i) => <span key={d} className={i === 0 ? "text-rose-400" : i === 6 ? "text-blue-400" : ""}>{d}</span>)}</div>
+        <div className="grid grid-cols-7 gap-1">
           {heatCells.map((key, i) => {
             if (!key) return <span key={`blank-${i}`} />;
             const count = byDate.get(key)?.length ?? 0;
-            const level = count === 0 ? "bg-slate-100" : count < 2 ? "bg-blue-100" : count < 5 ? "bg-blue-300" : count < 9 ? "bg-blue-500" : "bg-blue-700";
-            return <button key={key} type="button" onClick={() => setSelectedDate(key)} title={`${Number(key.slice(8, 10))}日 ${count}个活动`} className={`aspect-square rounded-lg text-[10px] font-semibold ${level} ${count > 4 ? "text-white" : "text-neutral-500"} ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}>{Number(key.slice(8, 10))}</button>;
+            const info = dayInfo(key);
+            const level = count === 0 ? "bg-slate-50" : count === 1 ? "bg-sky-100" : count <= 3 ? "bg-sky-200" : count <= 6 ? "bg-blue-400" : count <= 10 ? "bg-blue-600" : "bg-blue-800";
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedDate(key)}
+                title={`${Number(key.slice(8, 10))}日 ${count}个活动${info.holiday ? ` · ${info.holiday}` : ""}`}
+                className={`relative h-7 rounded-md text-[10px] font-semibold ${level} ${count > 3 ? "text-white" : info.isRed ? "text-rose-500" : "text-neutral-500"} ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}
+              >
+                {Number(key.slice(8, 10))}
+                {info.holiday && <span className={`absolute right-0.5 top-0.5 h-1 w-1 rounded-full ${count > 3 ? "bg-white" : "bg-rose-500"}`} />}
+              </button>
+            );
           })}
         </div>
       </section>

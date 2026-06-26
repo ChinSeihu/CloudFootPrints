@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### Refine calendar date navigation and holidays
+- **Default day strip positioning**: the horizontal date strip now scrolls the selected/today date into view on load and when the selected date changes.
+- **Separate month and day navigation**: month switching moved to the month label area, while the right-side arrows now move the selected day backward/forward.
+- **Restore Japanese red days**: holidays and Sundays are highlighted in the date strip and heatmap, with holiday dots and selected-day holiday text.
+- **Compact heatmap cells**: reduced heatmap cell height and added stronger blue intensity levels so activity volume reads as a gradient instead of oversized date boxes.
+- **Tighten drawer cards**: kept the in-progress nearby drawer padding/card-gap adjustment and further reduced event card width, image height, text padding, and title/meta spacing.
+**Files:** `src/components/Calendar/CalendarView.tsx`, `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Tighten calendar and explore density
 - **Calendar density pass**: compacted the calendar header/date strip, reduced whitespace, moved category filters into the top-right filter popup, and made search/filter affect the date strip, event list, and heatmap.
 - **Calendar heatmap redesign**: replaced the simple dot grid with a weekday-aligned monthly heatmap using visible day cells and intensity levels.

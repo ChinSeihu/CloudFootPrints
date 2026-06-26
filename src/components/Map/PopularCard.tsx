@@ -89,7 +89,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   return (
     <section
-      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[24px] border-t border-black/5 bg-white/95 px-4 pb-5 pt-2.5 shadow-[0_-14px_34px_rgba(15,23,42,0.12)] backdrop-blur transition-transform duration-200"
+      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[24px] border-t border-black/5 bg-white/95 px-4 pb-3 pt-2.5 shadow-[0_-14px_34px_rgba(15,23,42,0.12)] backdrop-blur transition-transform duration-200"
       style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
     >
       <button
@@ -162,7 +162,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         })}
       </div>
 
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.slice(0, 6).map(({ e: ev, d }) => {
           const meta = CATEGORY_META[ev.category];
           return (
@@ -170,9 +170,9 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
               key={ev.id}
               type="button"
               onClick={() => onSelect(ev)}
-              className="group w-[8.7rem] shrink-0 overflow-hidden rounded-[18px] bg-white text-left shadow-[0_8px_22px_rgba(15,23,42,0.08)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)]"
+              className="group w-[8.25rem] shrink-0 overflow-hidden rounded-[16px] bg-white text-left shadow-[0_7px_18px_rgba(15,23,42,0.08)] ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.12)]"
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
+              <div className="relative aspect-[5/3.4] overflow-hidden bg-neutral-100">
                 {ev.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
@@ -180,15 +180,15 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                   <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${meta.color}33, #f8fafc)` }} />
                 )}
                 <span
-                  className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm"
+                  className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm"
                   style={{ backgroundColor: meta.color }}
                 >
                   {meta.label}
                 </span>
               </div>
-              <div className="p-2.5">
-                <h3 className="line-clamp-2 min-h-[2.35rem] text-[13px] font-semibold leading-snug text-neutral-900">{ev.title}</h3>
-                <p className="mt-1 truncate text-[11px] text-neutral-500">
+              <div className="p-2">
+                <h3 className="line-clamp-2 min-h-[2.2rem] text-[12.5px] font-semibold leading-snug text-neutral-900">{ev.title}</h3>
+                <p className="mt-0.5 truncate text-[10.5px] text-neutral-500">
                   {formatDistance(d)} · {ev.venueName ?? "会场待定"}
                 </p>
               </div>
