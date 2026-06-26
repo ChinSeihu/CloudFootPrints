@@ -1820,6 +1820,17 @@ export function MapExplorer() {
       category: "AI 规划路线",
       description: `地图附近候选活动：\n${list}`,
       routePrompt: prompt,
+      routeCandidates: candidates.slice(0, 10).map((event) => ({
+        id: event.id,
+        title: event.title,
+        category: event.category,
+        venueName: event.venueName,
+        summary: event.summary,
+        description: event.description,
+        startTime: event.startTime,
+        lat: event.lat,
+        lng: event.lng,
+      })),
     });
   }
 

@@ -5,12 +5,13 @@ import { IconSparkles, IconPin } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import type { ChatMessage } from "@/lib/llm";
+import type { GuideRoutePlan } from "@/lib/guideRoute";
 import type { EventDTO } from "@/lib/types";
 
 // 导游回答里提到的活动（可点击进入详情）。
 type GuideEventLink = { id: string; title: string };
 // 聊天消息 + AI 推测的后续问题建议 + 提到的活动（仅 assistant 消息带）。
-type UIMessage = ChatMessage & { suggestions?: string[]; events?: GuideEventLink[] };
+type UIMessage = ChatMessage & { suggestions?: string[]; events?: GuideEventLink[]; routePlan?: GuideRoutePlan };
 
 const GENERAL_QUICK = [
   "今天东京有什么值得去的活动？",
@@ -70,6 +71,55 @@ function topicInfo(t: GuideTopic): string {
   return `【${label}】${parts.join("；")}`;
 }
 
+function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: string) => void }) {
+  return (
+    <div className="mt-2 w-[min(24rem,85vw)] overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+      <div className="relative h-20 bg-[linear-gradient(135deg,#eef2ff,#f5f3ff)]">
+        <div className="absolute left-7 right-7 top-1/2 h-0.5 -translate-y-1/2 border-t-2 border-dashed border-violet-300" />
+        {plan.stops.map((stop, index) => (
+          <button
+            key={stop.id}
+            type="button"
+            onClick={() => onOpen(stop.id)}
+            className="absolute top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-violet-600 text-[11px] font-black text-white shadow-md"
+            style={{ left: `${8 + (index * 84) / Math.max(1, plan.stops.length - 1)}%` }}
+          >
+            {index + 1}
+          </button>
+        ))}
+      </div>
+      <div className="p-3">
+        <div className="flex items-start gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-600">
+            <IconSparkles className="h-4.5 w-4.5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-black text-neutral-950">{plan.title}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-neutral-500">{plan.summary}</p>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2 text-[11px] font-semibold text-neutral-500">
+          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-600">{plan.mood}</span>
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1">约 {plan.totalMinutes} 分</span>
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1">{plan.walkKm}km</span>
+        </div>
+        <ol className="mt-3 space-y-3">
+          {plan.stops.map((stop, index) => (
+            <li key={stop.id} className="flex gap-3">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-black text-white">{index + 1}</span>
+              <button type="button" onClick={() => onOpen(stop.id)} className="min-w-0 flex-1 text-left">
+                <div className="truncate text-sm font-bold text-neutral-900">{stop.title}</div>
+                <div className="mt-0.5 text-xs text-neutral-500">{stop.venueName ?? "附近地点"} · 停留约 {stop.stayMinutes} 分</div>
+                <div className="mt-1 text-xs leading-relaxed text-neutral-600">{stop.note}</div>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 // 全局 AI 导游聊天面板（受 GuideContext 控制）。可带活动话题聚焦对话。
 export function GuideChat() {
   const { open, topic, closeGuide } = useGuide();
@@ -122,6 +172,37 @@ export function GuideChat() {
       }
     } catch {
       setMessages((m) => [...m, { role: "assistant", content: "网络错误，请稍后再试。" }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function planNearbyRoute() {
+    const candidates = topicRef.current?.routeCandidates ?? [];
+    if (loading || candidates.length < 2) return;
+    const next: UIMessage[] = [...messages, { role: "user", content: "AI 规划附近游玩路线" }];
+    setMessages(next);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/guide/route-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidates }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.plan) throw new Error(data.error ?? "规划失败");
+      const plan = data.plan as GuideRoutePlan;
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: `${plan.summary}\n\n我把路线整理成下面这张卡片，你可以按编号依次逛，也可以点开某一站看详情。`,
+          routePlan: plan,
+          suggestions: ["这条路线适合拍照吗？", "如果只有 1 小时怎么压缩？", "附近适合休息吃东西的地方？"],
+        },
+      ]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", content: "刚才路线规划失败了，可以稍后再试一次。" }]);
     } finally {
       setLoading(false);
     }
@@ -199,6 +280,9 @@ export function GuideChat() {
                 ))}
               </div>
             )}
+            {m.role === "assistant" && m.routePlan && (
+              <RoutePlanCard plan={m.routePlan} onOpen={openEventDetail} />
+            )}
           </div>
         ))}
         {loading && (
@@ -232,7 +316,7 @@ export function GuideChat() {
           {topic?.kind === "route" && topic.routePrompt && (
             <button
               type="button"
-              onClick={() => send(topic.routePrompt ?? "")}
+              onClick={planNearbyRoute}
               className="text-left rounded-2xl border border-violet-200 bg-violet-600 px-3.5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)]"
             >
               <span className="block">AI 规划附近游玩路线</span>

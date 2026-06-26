@@ -44,7 +44,6 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
   const sheetRef = useRef<HTMLElement | null>(null);
   const dragStartY = useRef<number | null>(null);
   const dragCurrentY = useRef(0);
-  const dragRaf = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
   const didDrag = useRef(false);
   const suppressClick = useRef(false);
@@ -68,7 +67,6 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   useEffect(() => {
     return () => {
-      if (dragRaf.current != null) cancelAnimationFrame(dragRaf.current);
       if (closeTimer.current != null) window.clearTimeout(closeTimer.current);
     };
   }, []);
@@ -82,22 +80,13 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
     sheet.style.transform = offset > 0 ? `translate3d(0, ${offset}px, 0)` : "translate3d(0, 0, 0)";
   }
 
-  function scheduleSheetOffset(offset: number) {
-    dragCurrentY.current = offset;
-    if (dragRaf.current != null) return;
-    dragRaf.current = requestAnimationFrame(() => {
-      dragRaf.current = null;
-      setSheetOffset(dragCurrentY.current, false);
-    });
-  }
-
   function rubberBand(delta: number) {
     if (delta <= 0) return 0;
-    if (delta <= 180) return delta;
-    return 180 + (delta - 180) * 0.32;
+    return delta;
   }
 
   function startDrag(e: PointerEvent<HTMLButtonElement>) {
+    e.preventDefault();
     dragStartY.current = e.clientY;
     dragCurrentY.current = 0;
     didDrag.current = false;
@@ -108,13 +97,16 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   function moveDrag(e: PointerEvent<HTMLButtonElement>) {
     if (dragStartY.current == null) return;
+    e.preventDefault();
     const next = rubberBand(e.clientY - dragStartY.current);
     if (next > 4) didDrag.current = true;
-    scheduleSheetOffset(next);
+    dragCurrentY.current = next;
+    setSheetOffset(next, false);
   }
 
   function endDrag(e: PointerEvent<HTMLButtonElement>) {
     if (dragStartY.current == null) return;
+    e.preventDefault();
     e.currentTarget.releasePointerCapture(e.pointerId);
     const shouldClose = dragCurrentY.current > 88;
     dragStartY.current = null;
@@ -187,7 +179,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         aria-label="收起附近活动"
-        className="mx-auto mb-3 block h-5 w-20 touch-none cursor-grab rounded-full py-1.5 active:cursor-grabbing"
+        className="mx-auto mb-2 block h-8 w-28 touch-none cursor-grab rounded-full py-3 active:cursor-grabbing"
       >
         <span className="mx-auto block h-1.5 w-14 rounded-full bg-neutral-300" />
       </button>

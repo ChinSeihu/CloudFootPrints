@@ -6,12 +6,20 @@
 
 ## 2026-06-27
 
+### Make nearby sheet drag follow the finger
+- **Direct drag tracking**: nearby activity sheet now updates its transform immediately during pointer movement instead of waiting for an animation frame.
+- **Release-only hiding**: the sheet follows the finger while dragging and only decides to snap back or hide after pointer release.
+**Files:** `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Connect guide route prompt and map favorites
 - **Guide-integrated route planning**: the nearby activity sheet now opens the existing AI guide with nearby activity context and a special route-planning option at the bottom.
+- **Route result card**: the special route option now renders a structured route card inside AI guide chat, with numbered stops, route summary, estimated time, walk distance, and clickable stop details.
 - **Cleaner map AI entry**: removed the separate map AI guide floating button so route planning starts from the nearby activity drawer.
 - **Real favorite actions**: featured activity bookmark buttons and map popup favorite buttons now call the real `FAVORITE` reaction endpoint.
 - **Image-first map popup cards**: map activity popups now include event cover images with a richer preview-card layout.
-**Files:** `src/components/Guide/GuideContext.tsx`, `src/components/Guide/GuideChat.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`, `src/app/globals.css`
+**Files:** `src/app/api/guide/route-plan/route.ts`, `src/lib/guideRoute.ts`, `src/components/Guide/GuideContext.tsx`, `src/components/Guide/GuideChat.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`, `src/app/globals.css`
 
 ---
 
