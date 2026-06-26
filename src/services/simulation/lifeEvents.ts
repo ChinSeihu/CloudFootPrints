@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { personaOf } from "@/lib/personas";
+import { personaLifeStageText, personaOf, personaVoiceText } from "@/lib/personas";
 
 // 重大人生事件（V7 Phase 3c）：每月对每人低概率触发一次「罕见、有意义、有后果」的事件，
 // 写一条 MILESTONE 记忆 + 刷新当前状态（status）+（可选）新增一个目标。
@@ -34,7 +34,7 @@ function getApiKey(): string {
   if (!k) throw new Error("缺少 LLM_API_KEY");
   return k;
 }
-function useAnthropic(): boolean {
+function shouldUseAnthropic(): boolean {
   const p = (process.env.LLM_PROVIDER || "").toLowerCase();
   if (p === "anthropic" || p === "claude") return true;
   if (p === "deepseek" || p === "openai") return false;
@@ -63,14 +63,14 @@ export async function maybeLifeEvent(username: string, when: Date): Promise<Life
   const mems = await prisma.memory.findMany({ where: { userId: user.id }, orderBy: { happenedAt: "desc" }, take: 6, select: { text: true } });
   const recent = mems.map((m) => m.text).join("；") || "（无）";
   const system = `你在为一个真实生活在东京的年轻人，生成一次「重大但可信」的人生事件。要求：罕见、有意义、有后果，但克制、不狗血、不突兀；贴合 ta 的人物设定、人生阶段与最近经历，并保持其口吻。恋爱类要极慢极淡。`;
-  const u = `人物：${username}，${persona.age}岁 ${persona.job}。人生阶段：${persona.lifeStage}。最大矛盾：${persona.conflict}。口吻：${persona.voice}
+  const u = `人物：${username}，${persona.age}岁 ${persona.occupation}。人生阶段：${personaLifeStageText(persona)}。最大矛盾：${persona.coreConflict}。口吻：${personaVoiceText(persona)}
 最近经历：${recent}
 本次事件类型：${type.desc}
 请输出 JSON：{"memory":"第一人称、1~2句、点出这件事与心情的 MILESTONE 记忆","status":"一句新的当前状态(≤16字,口语,可带1个emoji)","goal":"由此产生的一个新目标(可选,没有就空字符串)"}`;
 
   let raw: string | null = null;
   try {
-    if (useAnthropic()) {
+    if (shouldUseAnthropic()) {
       const client = new Anthropic({ apiKey: getApiKey() });
       const res = await client.messages.create({ model: process.env.LLM_MODEL || "claude-haiku-4-5", max_tokens: 400, system, messages: [{ role: "user", content: u }] });
       raw = res.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? null;

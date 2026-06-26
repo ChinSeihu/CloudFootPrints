@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/db";
-import { PERSONAS, personaOf, type Persona } from "@/lib/personas";
+import {
+  PERSONAS,
+  personaGoals,
+  personaLifeStageText,
+  personaOf,
+  personaSpots,
+  type PersonaV2,
+} from "@/lib/personas";
 import { createCheckin } from "@/services/checkins";
 import { getOrCreateWorldState } from "./world";
 import { decideDay, type SpotOption } from "./decide";
@@ -61,8 +68,8 @@ function dateLabel(dateKey: string): string {
   return `${Number(dateKey.slice(5, 7))}月${Number(dateKey.slice(8, 10))}日 周${WEEKDAYS[wd]}`;
 }
 
-function spotsOf(p: Persona): { options: SpotOption[]; coords: { lat: number; lng: number }[] } {
-  const list = [p.home, ...p.roam];
+function spotsOf(p: PersonaV2): { options: SpotOption[]; coords: { lat: number; lng: number }[] } {
+  const list = personaSpots(p);
   return {
     options: list.map((s, i) => ({ index: i, name: s.name })),
     coords: list.map((s) => ({ lat: s.lat, lng: s.lng })),
@@ -70,8 +77,8 @@ function spotsOf(p: Persona): { options: SpotOption[]; coords: { lat: number; ln
 }
 
 // 参与度：外向/社交 + 当前兴奋度越高越可能「今天有事可记」。0.2–0.75。
-function engagementProb(p: Persona, emotion: Record<string, number>): number {
-  const social = (p.personality.social ?? p.personality.extrovert ?? 50);
+function engagementProb(p: PersonaV2, emotion: Record<string, number>): number {
+  const social = (p.socialProfile.socialNeed + p.personality.extraversion) / 2;
   const excitement = emotion.excitement ?? 50;
   const loneliness = emotion.loneliness ?? 40;
   const base = 0.32 + social / 300 + (excitement - 50) / 300 - (loneliness - 50) / 600;
@@ -101,8 +108,8 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
 
   const state = await prisma.characterState.findUnique({ where: { userId } });
   const emotion: Record<string, number> = (state?.emotion as Record<string, number>) ?? { ...persona.emotionBaseline };
-  const goals = state?.goals ?? persona.goals;
-  const lifeStage = state?.lifeStage ?? persona.lifeStage;
+  const goals = state?.goals?.length ? state.goals : personaGoals(persona);
+  const lifeStage = state?.lifeStage ?? personaLifeStageText(persona);
   const cast: { name: string; relation: string }[] = Array.isArray(state?.cast) ? (state!.cast as { name: string; relation: string }[]) : [];
 
   // 参与度掷点（按 日期|用户 复现）。不参与 = 平淡无事的一天，不调 LLM、不留内容。

@@ -12,9 +12,10 @@ export async function relaxEmotions(): Promise<number> {
     if (!st) continue;
     const persona = personaOf(p.username)!;
     const emo = { ...((st.emotion as Record<string, number>) ?? {}) };
+    const baseline: Record<string, number> = persona.emotionBaseline;
     let changed = false;
     for (const k of Object.keys(emo)) {
-      const target = k in persona.emotionBaseline ? persona.emotionBaseline[k] : 50; // 基线维度回基线，临时情绪回中性
+      const target = k in baseline ? baseline[k] : 50; // 基线维度回基线，临时情绪回中性
       const next = Math.round(emo[k] + (target - emo[k]) * 0.15); // 每天回归 15%
       if (next !== emo[k]) { emo[k] = next; changed = true; }
     }

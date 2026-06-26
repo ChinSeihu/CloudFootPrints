@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import type { Persona } from "@/lib/personas";
+import { personaRefIndex, type PersonaV2 } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 
-// 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 person.png 裁出）→ data URI。
+// 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 personV2.png 裁出）→ data URI。
 // 作为 Agnes img2img 的图参锁定人脸/外观。缺图返回 null（回退纯文本）。
 function loadRefImage(refIndex: number): string | null {
   const p = `public/refs/${String(refIndex).padStart(2, "0")}.png`;
@@ -18,11 +18,11 @@ function loadRefImage(refIndex: number): string | null {
 
 // Image Agent（V7 Phase 4）：把"生活"转成生活化照片。统一 ImageProvider 接口，
 // 当前可选 provider：none（默认，不出图）/ agnes（外部生成 API，按 env 接入）。
-// 设计目标：接口先行、provider 可替换；外观以 public/person.png + personas.appearance 为基准；
+// 设计目标：接口先行、provider 可替换；外观以 public/personV2.png + personas.appearance 为基准；
 // 默认主观镜头（手机随手拍），仅摄影强者用客观构图。生成图统一上传 Cloudinary（CORS + 持久）。
 
 export type ImageRequest = {
-  persona: Persona;
+  persona: PersonaV2;
   photoDesc: string; // 来自决策：一句话画面描述（中文，主观视角倾向）
   world: World;
 };
@@ -45,7 +45,7 @@ export async function fetchT(url: string, init: RequestInit, ms: number): Promis
 }
 
 // 视角语气：casual 日常一律主观；hobby 平时主观（作品才客观，这里日常按主观）；pro 客观构图。
-function povClause(persona: Persona): string {
+function povClause(persona: PersonaV2): string {
   if (persona.photoSkill === "pro") {
     return [
       "Photographed with a photographer's eye.",
@@ -70,7 +70,7 @@ function povClause(persona: Persona): string {
 
 // 我们的「生图规则」：附加在 LLM 写的场景 prompt 之后，强制写实 / 表情自然 / 视角 / 外观一致 / 无水印。
 // Agnes 无负向提示参数，这些约束全靠措辞。
-function buildRules(persona: Persona): string {
+function buildRules(persona: PersonaV2): string {
   return [
     "[Constraints]",
     povClause(persona),
@@ -81,7 +81,7 @@ function buildRules(persona: Persona): string {
     "Relaxed and unposed.",
     "An unaware candid instant.",
     "Ordinary happiness rather than dramatic emotion.",
-    `Recurring individual — keep the SAME face, hairstyle, body type, height and overall appearance consistent (identity: ${persona.appearance}).`,
+    `Recurring individual — keep the SAME face, body type, height and overall appearance consistent (identity: ${persona.appearance}).`,
     "The face must remain recognizable across different images.",
     "Clothing, outfit colors, accessories, bags and shoes should vary naturally according to season, weather and activity.",
     "Do not reuse the same outfit repeatedly.",
@@ -171,7 +171,7 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   只输出英文 prompt。
   `;
   const user = `场景（中文）：${photoDesc}
-人物：${persona.age}岁 ${persona.job}；视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "第一人称手机随手拍"}。
+人物：${persona.age}岁 ${persona.occupation}；视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "第一人称手机随手拍"}。
 季节天气：${world.season} / ${world.weather}。
 请写英文图片生成 prompt。`;
   try {
@@ -329,7 +329,7 @@ export async function generateCheckinImage(req: ImageRequest): Promise<string | 
   const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 1)) : 0;
   // 先让 LLM 写专业详细 prompt + 附加生图规则；并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req);
-  const refImage = loadRefImage(req.persona.refIndex) ?? undefined;
+  const refImage = loadRefImage(personaRefIndex(req.persona)) ?? undefined;
 
   let prompt = basePrompt;
   let lastRaw: string | null = null;

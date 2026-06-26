@@ -1,5 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Persona } from "@/lib/personas";
+import {
+  personaInterestList,
+  personaVoiceText,
+  type PersonaV2,
+} from "@/lib/personas";
 import type { World } from "./world";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
@@ -8,7 +12,7 @@ import type { World } from "./world";
 export type SpotOption = { index: number; name: string };
 
 export type DecideInput = {
-  persona: Persona;
+  persona: PersonaV2;
   world: World;
   dateLabel: string; // 人类可读日期（含星期）
   emotion: Record<string, number>;
@@ -65,12 +69,12 @@ function buildUserPrompt(inp: DecideInput): string {
   const mem = inp.recentMemories.length ? inp.recentMemories.map((m) => `- ${m}`).join("\n") : "（暂无）";
   const notes = inp.recentNotes.length ? inp.recentNotes.map((m) => `- ${m}`).join("\n") : "（暂无）";
   const emo = Object.entries(inp.emotion).map(([k, v]) => `${k}:${v}`).join(" ");
-  return `【人物】${inp.persona.username}，${inp.persona.age}岁，${inp.persona.job}。
+  return `【人物】${inp.persona.username}，${inp.persona.age}岁，${inp.persona.occupation}。
 性格倾向：${Object.entries(inp.persona.personality).map(([k, v]) => `${k}${v}`).join("/")}。
 人生阶段：${inp.lifeStage}
-最大矛盾：${inp.persona.conflict}
-兴趣：${inp.persona.interests.join("、")}
-笔触口吻（务必遵守）：${inp.persona.voice}
+最大矛盾：${inp.persona.coreConflict}
+兴趣：${personaInterestList(inp.persona).join("、")}
+笔触口吻（务必遵守）：${personaVoiceText(inp.persona)}
 当前情绪(0-100)：${emo}
 当前目标：${inp.goals.join("；") || "（无）"}
 

@@ -37,7 +37,7 @@ async function inspectOne(username: string, memN: number, idToName: Map<string, 
   const rels = await prisma.relationship.findMany({ where: { OR: [{ aId: userId }, { bId: userId }] } });
 
   console.log(`\n${"═".repeat(56)}`);
-  console.log(`● ${username}　${persona ? `${persona.age}岁 · ${persona.job}` : ""}`);
+  console.log(`● ${username}　${persona ? `${persona.age}岁 · ${persona.occupation}` : ""}`);
   console.log(`  状态: ${user.status ?? "—"}   签名: ${user.signature ?? "—"}`);
   if (state) {
     const emo = Object.entries((state.emotion as Record<string, number>) ?? {}).map(([k, v]) => `${k}:${v}`).join("  ");

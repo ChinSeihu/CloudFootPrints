@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { personaOf } from "@/lib/personas";
+import { personaOf, personaVoiceText } from "@/lib/personas";
 
 // Memory Agent · 压缩（V7 Phase 3）：每 ~月把"很多条琐碎旧记忆"压成一条"生活摘要"，
 // 既省 token 又制造"成长感"（例：20 条咖啡店 → "最近迷上手冲，开始追产地"）。
@@ -30,7 +30,7 @@ const SYSTEM = `你在帮一个东京年轻人「回顾过去这段日子」。�
 
 async function summarizeLife(username: string, texts: string[]): Promise<string | null> {
   const persona = personaOf(username);
-  const voice = persona ? `（${username} 的口吻：${persona.voice}）` : "";
+  const voice = persona ? `（${username} 的口吻：${personaVoiceText(persona)}）` : "";
   const user = `${voice}\n这段时间的零碎记忆：\n${texts.map((t) => `- ${t}`).join("\n")}\n\n请压缩成 1~2 句生活摘要。`;
   if (getProvider() === "anthropic") {
     const client = new Anthropic({ apiKey: getApiKey() });

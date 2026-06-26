@@ -1,6 +1,12 @@
 import "./loadEnv";
 import { prisma } from "../src/lib/db";
-import { PERSONAS, friendPairs, personaOf } from "../src/lib/personas";
+import {
+  PERSONAS,
+  friendPairs,
+  personaGoals,
+  personaLifeStageText,
+  personaOf,
+} from "../src/lib/personas";
 
 /**
  * Phase 1 模拟地基初始化（无 AI，纯工程，可重复执行）：
@@ -56,10 +62,12 @@ async function main() {
 
     // ── 2) 初始化 CharacterState（情绪基线 / 目标 / 人生阶段）──
     const lastActiveAt = checkins.length ? checkins[checkins.length - 1].createdAt : null;
+    const goals = personaGoals(p);
+    const lifeStage = personaLifeStageText(p);
     await prisma.characterState.upsert({
       where: { userId },
-      create: { userId, emotion: p.emotionBaseline, goals: p.goals, lifeStage: p.lifeStage, lastActiveAt },
-      update: { emotion: p.emotionBaseline, goals: p.goals, lifeStage: p.lifeStage, lastActiveAt },
+      create: { userId, emotion: p.emotionBaseline, goals, lifeStage, lastActiveAt },
+      update: { emotion: p.emotionBaseline, goals, lifeStage, lastActiveAt },
     });
     console.log(`${p.username}: ${checkins.filter((c) => (c.note ?? "").trim()).length} 记忆, 状态已写`);
   }

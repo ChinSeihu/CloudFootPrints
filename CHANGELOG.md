@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-06-26
+
+### PersonaV2 标准化迁移 + sim-run 调用链适配
+
+- **人物模型以 `PersonaV2` 为准**：`src/lib/personas.ts` 移除旧 `Persona` 类型消费路径，新增 V2 派生函数：`personaGoals`、`personaLifeStageText`、`personaInterestList`、`personaVoiceText`、`personaSpots`、`personaRefIndex`、`personaById`。数据库 `CharacterState.goals/lifeStage` 继续作为运行态快照，由 V2 派生写入。
+- **模拟调用链迁移**：`scripts/sim-run.ts` 调用到的 `engine/decide/image/signature/lifeEvents/memory/community` 已改为消费 V2 字段或派生函数，不再读取旧 `job/home/roam/conflict/refIndex`。`sim-init` 会把 V2 目标与人生阶段写成当前 Prisma schema 需要的形状；`sim-inspect` 展示 `occupation`。
+- **关系与地点适配**：`friends` 中的 `Cxx` 角色 ID 会通过 `friendPairs()` 映射为用户名关系对；每个角色新增至少 5 个 `personaSpots()` 坐标候选点，供打卡与 LLM 决策使用。
+- **视觉参考图升级**：`REF_SHEET` 指向 `public/personV2.png`，`scripts/crop-refs.ts` 从 13 人设定卡裁剪 `public/refs/01.png` 至 `13.png`；`image.ts` 通过 `personaRefIndex()` 加载对应参考图。
+- **文档同步**：`docs/demo-personas.md` 重写为 PersonaV2 手册，记录 13 人列表、派生函数、`sim-run` 主链路、图片规则和动态维护模块。
+- **项目规则**：`AGENTS.md` 新增约定，之后每次完成代码或内容改动都要同步记录到 `CHANGELOG.md`，并自动创建 git commit。
+- **验证**：`npx.cmd tsc --noEmit` 通过；V2 烟测确认 `PERSONAS.length=13`、每人至少 5 个坐标候选点、`friendPairs()` 可生成用户名关系对。全量 `npm run lint` 仍有既存 React lint 规则问题，已修复模拟链路 touched 文件中的 `useAnthropic` hook 命名误判。
+
+**涉及文件：** `src/lib/personas.ts`、`docs/demo-personas.md`、`scripts/{crop-refs,sim-init,sim-inspect}.ts`、`src/services/simulation/{engine,decide,image,signature,lifeEvents,memory,community}.ts`、`public/refs/*`、`AGENTS.md`
+
+---
+
 ## 2026-06-23
 
 ### 像素级锁脸（person.png 图参）+ 调高配图比例 + 清空重灌脚本

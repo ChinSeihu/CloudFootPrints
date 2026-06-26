@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { personaOf } from "@/lib/personas";
+import { personaOf, personaVoiceText } from "@/lib/personas";
 
 // 动态签名/状态（V7 Phase 3b）：随人生状态/情绪/最近经历刷新（见 docs/demo-personas.md）。
 //  - status（近况）：变化较快，每周刷新活跃角色。
@@ -69,7 +69,7 @@ export async function refreshStatus(username: string): Promise<string | null> {
   const { mems, emo, lifeStage } = await context(user.id);
   if (!mems.length) return null;
   const system = `你在替一个东京年轻人更新 SNS 的「当前状态」——一句很短的近况（此刻在干嘛/最近心情）。口语、具体、≤16 字，符合 ta 的口吻，可带 1 个 emoji。只输出这句话，不要引号或解释。`;
-  const u = `人物：${username}，${persona.job}。口吻：${persona.voice}\n人生阶段：${lifeStage}\n情绪：${emo}\n最近经历：\n${mems.map((m) => `- ${m}`).join("\n")}\n\n据此写一句新的当前状态。`;
+  const u = `人物：${username}，${persona.occupation}。口吻：${personaVoiceText(persona)}\n人生阶段：${lifeStage}\n情绪：${emo}\n最近经历：\n${mems.map((m) => `- ${m}`).join("\n")}\n\n据此写一句新的当前状态。`;
   const out = await oneLine(system, u, 80);
   if (!out) return null;
   const status = clean(out, 24);
@@ -84,7 +84,7 @@ export async function refreshSignature(username: string): Promise<string | null>
   const { mems, emo, lifeStage } = await context(user.id);
   if (!mems.length) return null;
   const system = `你在替一个东京年轻人更新「个性签名」——较稳定的自我定位/心境，概括、像一句 slogan，≤20 字，符合 ta 的口吻。只输出这句话，不要引号或解释。`;
-  const u = `人物：${username}，${persona.job}。口吻：${persona.voice}\n人生阶段：${lifeStage}\n情绪：${emo}\n最近经历：\n${mems.map((m) => `- ${m}`).join("\n")}\n\n据此写一句新的个性签名。`;
+  const u = `人物：${username}，${persona.occupation}。口吻：${personaVoiceText(persona)}\n人生阶段：${lifeStage}\n情绪：${emo}\n最近经历：\n${mems.map((m) => `- ${m}`).join("\n")}\n\n据此写一句新的个性签名。`;
   const out = await oneLine(system, u, 80);
   if (!out) return null;
   const signature = clean(out, 30);
