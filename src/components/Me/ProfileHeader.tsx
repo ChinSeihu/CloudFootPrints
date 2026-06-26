@@ -8,7 +8,7 @@ import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 
-function Avatar({ url, name, size = 58 }: { url: string | null; name: string; size?: number }) {
+function Avatar({ url, name, size = 68 }: { url: string | null; name: string; size?: number }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
@@ -107,7 +107,7 @@ export function ProfileHeader() {
         {!cover && <div className="absolute inset-0 bg-gradient-to-br from-sky-400 via-blue-500 to-slate-900" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
 
-        <div className="relative flex justify-end px-3 pt-3">
+        <div className="absolute right-3 top-3 z-20 flex justify-end">
           {editing ? (
             <button
               type="button"
@@ -145,10 +145,10 @@ export function ProfileHeader() {
           )}
         </div>
 
-        <div className="relative px-4 pt-5 pb-4">
+        <div className="relative px-4 pt-4 pb-4">
           <div className="flex items-end gap-3">
             <div className="rounded-full bg-white/95 p-1 shadow-lg">
-              <Avatar url={avatar} name={user.username} size={58} />
+              <Avatar url={avatar} name={user.username} size={68} />
             </div>
             <div className="min-w-0 pb-0.5 text-white">
               <div className="flex items-center gap-2">
