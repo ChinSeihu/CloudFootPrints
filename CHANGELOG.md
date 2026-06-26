@@ -6,6 +6,16 @@
 
 ## 2026-06-26
 
+### Redesign map, calendar, and explore pages
+- **Map nearby activity sheet**: `PopularCard` now uses a rounded bottom sheet with category pills, horizontal event cards, distance/venue metadata, view-all, and collapsed states.
+- **Map control spacing**: moved map style, food, landmark, and station controls upward so they do not collide with the new bottom sheet.
+- **Calendar visual refresh**: added page header, month switcher card, horizontal date strip, event timeline card, and monthly heatmap while keeping category filters and detail dialogs.
+- **Explore feed refresh**: added page header, search/filter buttons, hero event, weekly hot carousel, pill filters, and softer masonry cards while preserving search, date filters, official/user tabs, and detail routing.
+- **Bottom nav polish**: changed labels to map/calendar/explore/mine semantics and added a blue circular active icon state.
+**Files:** `src/components/Map/PopularCard.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Calendar/CalendarView.tsx`, `src/components/Recommend/RecommendList.tsx`, `src/components/BottomNav.tsx`
+
+---
+
 ### 缩小心情标签选择器
 
 - **标签改回轻量 badge**：发布/编辑足迹的心情选择从大卡片改为小号圆角 badge，不再显示编号。

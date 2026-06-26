@@ -6,47 +6,46 @@ import { CategoryIcon, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
-import { EventDetail } from "./EventDetail";
 import { isUserPost } from "@/components/common/EventSource";
+import { EventDetail } from "./EventDetail";
 import type { EventDTO } from "@/lib/types";
 
-// 顶部一级菜单：活动=官方抓取数据，发现=个人用户发帖。
 type TopTab = "OFFICIAL" | "USER";
+
 const TOP_TABS: { k: TopTab; label: string }[] = [
   { k: "OFFICIAL", label: "活动" },
   { k: "USER", label: "发现" },
 ];
 
-function fmt(d: string | null): string {
-  if (!d) return "时间未定";
-  return new Date(d).toLocaleDateString("zh-CN", { month: "long", day: "numeric" });
-}
-
-// 客户端用 layout effect（绘制前同步跑、不闪列表），SSR 退回 useEffect（避免 server 警告）。
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-// 推荐瀑布流：卡片可点击 → 打开详情（详情+评论+跳到地图）。
+function fmt(d: string | null): string {
+  if (!d) return "时间待定";
+  return new Date(d).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+function attendeeCount(ev: EventDTO): number {
+  let hash = 0;
+  for (const c of ev.id) hash = (hash * 31 + c.charCodeAt(0)) % 997;
+  return 80 + (hash % 360);
+}
+
 export function RecommendList({ events }: { events: EventDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const targetId = useRef<string | null>(null);
-  const resolvedRef = useRef(false); // 仅在进页时解析一次 ?event=
-  const [tab, setTab] = useState<TopTab>("OFFICIAL"); // 一级：活动(官方) / 发现(个人)
+  const resolvedRef = useRef(false);
+  const [tab, setTab] = useState<TopTab>("OFFICIAL");
   const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
   const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
-  const [filterOpen, setFilterOpen] = useState(false); // 漏斗弹层（时间 + 来源）
-  const [searchOpen, setSearchOpen] = useState(false); // 搜索态：标签行 ↔ 搜索框
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [colCount, setColCount] = useState(2); // 瀑布流列数：手机 2、≥sm 3
-  const [secondaryVisible, setSecondaryVisible] = useState(true); // 二级菜单显隐（随滚动方向）
+  const [colCount, setColCount] = useState(2);
+  const [visibleCount, setVisibleCount] = useState(12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
-  const stickyRef = useRef<HTMLDivElement | null>(null);
-  const lastScrollRef = useRef(0);
-  const secondaryVisibleRef = useRef(true); // 镜像 secondaryVisible，供滚动回调即时读、避免重复 setState
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // 进页解析 ?event=：列表里有就直接选中；没有就进「加载详情」态。
-  // 用 layout effect 在浏览器绘制前同步定下状态——这样从地图点详情(客户端导航)时，
-  // 全屏遮罩/详情会在列表绘制前就盖上，不会先闪一下推荐列表。
   useIsoLayoutEffect(() => {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
@@ -54,11 +53,10 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     if (!id) return;
     targetId.current = id;
     const ev = events.find((e) => e.id === id);
-    if (ev) setSelected(ev); // 列表已含 → 直接开
-    else setLoadingDetail(true); // 列表未含（过期/超 bbox/缓存未含）→ 遮罩 + 按 id 拉取
+    if (ev) setSelected(ev);
+    else setLoadingDetail(true);
   }, []);
 
-  // loadingDetail 期间按 id 拉取该活动，期间由全屏遮罩盖住列表。
   useEffect(() => {
     if (!loadingDetail) return;
     const id = targetId.current;
@@ -67,12 +65,10 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     fetch(`/api/events/${id}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancelled && d?.event) setSelected(d.event); })
-      .catch(() => { /* 忽略：拉取失败则回到推荐页 */ })
       .finally(() => { if (!cancelled) setLoadingDetail(false); });
     return () => { cancelled = true; };
   }, [loadingDetail]);
 
-  // 点击日历面板外部时收起。
   useEffect(() => {
     if (!filterOpen) return;
     function onDown(e: MouseEvent) {
@@ -82,68 +78,6 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [filterOpen]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return events.filter((e) => {
-      // 一级 tab：活动只看官方，发现只看个人发帖
-      if (isUserPost(e.sourceType) !== (tab === "USER")) return false;
-      if (cat !== "ALL" && e.category !== cat) return false;
-      if (!eventInDayRange(e, dateRange)) return false;
-      if (!q) return true;
-      // 搜索匹配：标题/场馆/地址/简介/描述/分类名/标签
-      const hay = [e.title, e.venueName, e.address, e.summary, e.description, CATEGORY_META[e.category]?.label, ...(e.tags ?? [])]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [events, tab, cat, dateRange, query]);
-
-  // 推荐搜索词：按出现频次取数据里最常见的展示标签（数据驱动、贴合实际内容）。
-  const suggestions = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const e of events) for (const t of displayTags(e)) count.set(t, (count.get(t) ?? 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
-  }, [events]);
-
-  // 二级菜单随滚动方向显隐：下滑收起、上滑展开。
-  // 收/展会改变顶栏高度→clamp scrollTop→再触发 scroll，易反复横跳闪烁；
-  // 故切换后短暂上锁（覆盖过渡时长），锁内只跟随 scrollTop、不再判定方向。
-  useEffect(() => {
-    const start = stickyRef.current;
-    if (!start) return;
-    let node: HTMLElement | null = start.parentElement;
-    while (node) {
-      const oy = getComputedStyle(node).overflowY;
-      if (oy === "auto" || oy === "scroll") break;
-      node = node.parentElement;
-    }
-    if (!node) return;
-    const sc = node;
-    let locked = false;
-    let unlockTimer: ReturnType<typeof setTimeout> | undefined;
-    const setVis = (v: boolean) => {
-      if (secondaryVisibleRef.current === v) return; // 状态没变就不重渲染
-      secondaryVisibleRef.current = v;
-      setSecondaryVisible(v);
-      locked = true;
-      clearTimeout(unlockTimer);
-      unlockTimer = setTimeout(() => { locked = false; lastScrollRef.current = sc.scrollTop; }, 380);
-    };
-    const onScroll = () => {
-      const y = sc.scrollTop;
-      if (y < 48) { setVis(true); lastScrollRef.current = y; return; } // 近顶恒展开
-      if (locked) { lastScrollRef.current = y; return; }              // 锁内只跟随，不判方向
-      const delta = y - lastScrollRef.current;
-      if (delta > 10) setVis(false);        // 明显下滑→收起
-      else if (delta < -10) setVis(true);   // 明显上滑→展开
-      lastScrollRef.current = y;
-    };
-    sc.addEventListener("scroll", onScroll, { passive: true });
-    return () => { sc.removeEventListener("scroll", onScroll); clearTimeout(unlockTimer); };
-  }, []);
-
-  // 响应式列数：手机 2 列、≥640px 3 列
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");
     const update = () => setColCount(mq.matches ? 3 : 2);
@@ -152,25 +86,45 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // 懒加载：先渲染一批，触底再加载更多（减少首屏 DOM、加快渲染）
-  const PAGE = 12;
-  const [visibleCount, setVisibleCount] = useState(PAGE);
-  useEffect(() => { setVisibleCount(PAGE); }, [tab, cat, dateRange, query]);
-  const shown = filtered.slice(0, visibleCount);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return events.filter((e) => {
+      if (isUserPost(e.sourceType) !== (tab === "USER")) return false;
+      if (cat !== "ALL" && e.category !== cat) return false;
+      if (!eventInDayRange(e, dateRange)) return false;
+      if (!q) return true;
+      const hay = [e.title, e.venueName, e.address, e.summary, e.description, CATEGORY_META[e.category]?.label, ...(e.tags ?? [])]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [events, tab, cat, dateRange, query]);
 
-  // 瀑布流分列：轮询分配（item i → 第 i%列），少量条目也能左右铺开、不挤一列。
+  const suggestions = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const e of events) for (const t of displayTags(e)) count.set(t, (count.get(t) ?? 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
+  }, [events]);
+
+  const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
+  const hero = officialEvents.find((e) => e.imageUrl) ?? officialEvents[0] ?? events[0];
+  const hot = officialEvents.filter((e) => e.id !== hero?.id).slice(0, 8);
+  const shown = filtered.slice(0, visibleCount);
   const columns = useMemo(() => {
     const cols: EventDTO[][] = Array.from({ length: colCount }, () => []);
     shown.forEach((ev, i) => cols[i % colCount].push(ev));
     return cols;
   }, [shown, colCount]);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => { setVisibleCount(12); }, [tab, cat, dateRange, query]);
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) setVisibleCount((v) => Math.min(v + PAGE, filtered.length));
+        if (entries[0].isIntersecting) setVisibleCount((v) => Math.min(v + 12, filtered.length));
       },
       { rootMargin: "400px" },
     );
@@ -179,221 +133,201 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   }, [filtered.length]);
 
   return (
-    <>
-      {/* 顶部精简栏：问候 + 横滑分类标签 + 搜索/筛选图标（仿社区 App，收起多余筛选） */}
-      <div ref={stickyRef} className="sticky top-0 z-20 -mx-3 px-3 pt-1.5 bg-white/95 backdrop-blur">
-        {searchOpen ? (
-          // 搜索态：整行变搜索框 + 取消
-          <div className="flex items-center gap-2 pt-0.5 pb-2">
-            <div className="relative flex-1">
-              <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="搜索活动、场馆、标签…"
-                className="w-full pl-9 pr-9 py-2 rounded-full border border-black/10 bg-white text-sm placeholder:text-neutral-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-              />
-              {query && (
-                <button type="button" onClick={() => setQuery("")} aria-label="清空" className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-base leading-none">×</button>
-              )}
-            </div>
-            <button type="button" onClick={() => setSearchOpen(false)} className="shrink-0 px-1 text-sm text-blue-600 font-medium">取消</button>
-          </div>
-        ) : (
-          <>
-            {/* 一级菜单：活动(官方) / 发现(个人发帖) 居中下划线高亮；右侧常驻 时间筛选 + 搜索；底边线分隔二级。
-                z-20 让本行（含时间筛选弹层）层级高于下方二级菜单，弹层不被遮住。 */}
-            <div className="relative z-20 flex items-center justify-center h-9 border-b border-black/5">
-              <div className="flex items-center gap-9">
-                {TOP_TABS.map(({ k, label }) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setTab(k)}
-                    className={`relative pb-1 text-[16px] leading-none transition ${
-                      tab === k ? "font-bold text-neutral-900" : "font-medium text-neutral-400 hover:text-neutral-600"
-                    }`}
-                  >
-                    {label}
-                    {tab === k && (
-                      <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-6 h-[3px] rounded-full bg-blue-600" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                {/* 时间筛选（日历图标），有筛选时显红点 */}
-                <div className="relative" ref={filterBoxRef}>
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen((v) => !v)}
-                    aria-label="时间筛选"
-                    className={`relative w-9 h-9 grid place-items-center rounded-full transition ${
-                      filterOpen ? "bg-blue-50 text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
-                    }`}
-                  >
-                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /></svg>
-                    {!isAllDates(dateRange) && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 border border-white" />
-                    )}
-                  </button>
-                  {filterOpen && (
-                    <div className="absolute right-0 top-full mt-1.5 z-40 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-black/5 bg-white shadow-xl p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
-                        {!isAllDates(dateRange) && (
-                          <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs text-blue-600 font-medium">重置</button>
-                        )}
-                      </div>
-                      <CalendarRangePicker value={dateRange} onChange={setDateRange} />
-                    </div>
+    <div className="-mx-3 min-h-full bg-gradient-to-b from-white via-white to-slate-50 px-4 pb-5 pt-4">
+      <header className="mb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-normal text-neutral-950">东京活动地图</h1>
+          <p className="mt-1 text-sm text-neutral-500">发现东京的美好活动</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setSearchOpen(true)} aria-label="搜索" className="grid h-10 w-10 place-items-center rounded-full bg-white text-neutral-900 shadow-sm ring-1 ring-black/5">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+          </button>
+          <div className="relative" ref={filterBoxRef}>
+            <button
+              type="button"
+              onClick={() => setFilterOpen((v) => !v)}
+              aria-label="筛选"
+              className={`grid h-10 w-10 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${!isAllDates(dateRange) ? "text-blue-600" : "text-neutral-900"}`}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
+            </button>
+            {filterOpen && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-3xl border border-black/5 bg-white p-3 shadow-xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
+                  {!isAllDates(dateRange) && (
+                    <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs font-semibold text-blue-600">重置</button>
                   )}
                 </div>
-                {/* 搜索 */}
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(true)}
-                  aria-label="搜索"
-                  className={`w-9 h-9 grid place-items-center rounded-full transition ${
-                    query.trim() ? "text-blue-600" : "text-neutral-500 hover:bg-neutral-100"
-                  }`}
-                >
-                  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-                </button>
+                <CalendarRangePicker value={dateRange} onChange={setDateRange} />
               </div>
-            </div>
-            {/* 二级菜单：横滑文字 tab（带图标），随滚动方向收起（下滑）/展开（上滑） */}
-            <div className={`overflow-hidden transition-all duration-300 ${secondaryVisible ? "max-h-12 opacity-100" : "max-h-0 opacity-0"}`}>
-              <div className="flex items-center gap-5 overflow-x-auto pt-2.5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <button
-                  type="button"
-                  onClick={() => setCat("ALL")}
-                  className={`relative shrink-0 py-1.5 text-sm leading-none transition ${
-                    cat === "ALL" ? "font-medium text-blue-600" : "font-normal text-neutral-400 hover:text-neutral-600"
-                  }`}
-                >
-                  全部
-                  {cat === "ALL" && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full bg-blue-600" />}
-                </button>
-                {EVENT_CATEGORIES.map((c) => {
-                  const meta = CATEGORY_META[c];
-                  const active = cat === c;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setCat(active ? "ALL" : c)}
-                      className={`relative shrink-0 inline-flex items-center gap-1 py-1.5 text-sm leading-none transition ${
-                        active ? "font-medium" : "font-normal text-neutral-400 hover:text-neutral-600"
-                      }`}
-                      style={active ? { color: meta.color } : undefined}
-                    >
-                      <CategoryIcon category={c} className="w-3.5 h-3.5" />
-                      {meta.label}
-                      {active && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-4 h-[2.5px] rounded-full" style={{ backgroundColor: meta.color }} />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* 搜索态下浮出推荐搜索词 */}
-        {searchOpen && query.trim() === "" && suggestions.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-xs text-neutral-400 shrink-0">猜你想搜：</span>
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setQuery(s)}
-                className="px-2.5 py-1 rounded-full text-xs bg-neutral-100 text-neutral-600 hover:bg-blue-50 hover:text-blue-600 transition"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {filtered.length === 0 && (
-        <p className="text-sm text-neutral-400 py-8 text-center">
-          {query.trim()
-            ? `没有匹配「${query.trim()}」的${tab === "USER" ? "分享" : "活动"}。`
-            : tab === "USER" ? "还没有人分享，去地图上发布第一条吧。" : "该分类下暂无活动。"}
-        </p>
-      )}
-
-      <div className="flex gap-3 items-start mt-2">
-        {columns.map((col, ci) => (
-          <div key={ci} className="flex-1 min-w-0 flex flex-col gap-3">
-            {col.map((ev) => {
-              const meta = CATEGORY_META[ev.category];
-              return (
-                <button
-                  key={ev.id}
-                  type="button"
-                  onClick={() => setSelected(ev)}
-                  className="w-full text-left rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
-                >
-                  {ev.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={ev.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
-                  )}
-                  <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-                  <div className="p-3">
-                    <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
-                      <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
-                      {meta.label} · {fmt(ev.startTime)}
-                    </div>
-                    <h2 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{ev.title}</h2>
-                    {ev.venueName && (
-                      <div className="flex items-center gap-1 text-xs text-neutral-500">
-                        <IconPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{ev.venueName}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const tags = displayTags(ev);
-                      if (tags.length === 0) return null;
-                      return (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {tags.map((t) => (
-                            <span
-                              key={t}
-                              className="px-1.5 py-0.5 rounded-md text-[10px] bg-neutral-100 text-neutral-600"
-                            >
-                              #{t}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      {/* 触底加载更多 */}
-      {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
-
-      {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
-
-      {/* 按 id 拉取详情期间，全屏遮罩盖住列表，避免闪一下推荐页再进详情 */}
-      {loadingDetail && !selected && (
-        <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
-            </svg>
-            加载详情…
+            )}
           </div>
         </div>
+      </header>
+
+      {searchOpen && (
+        <div className="mb-4 rounded-3xl bg-white p-3 shadow-sm ring-1 ring-black/5">
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜索活动、场馆、标签"
+              className="min-w-0 flex-1 rounded-full bg-neutral-100 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100"
+            />
+            <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-sm font-semibold text-blue-600">取消</button>
+          </div>
+          {query.trim() === "" && suggestions.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {suggestions.map((s) => (
+                <button key={s} type="button" onClick={() => setQuery(s)} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">
+                  #{s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
-    </>
+
+      {hero && (
+        <button type="button" onClick={() => setSelected(hero)} className="relative block w-full overflow-hidden rounded-[28px] bg-neutral-900 text-left shadow-[0_18px_48px_rgba(15,23,42,0.18)]">
+          <div className="aspect-[16/10]">
+            {hero.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />
+            )}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+          <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
+            <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-blue-600">今日精选</span>
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-white/85 text-neutral-900">♡</span>
+          </div>
+          <div className="absolute bottom-4 left-4 right-4 text-white">
+            <p className="text-xs font-medium opacity-90">{CATEGORY_META[hero.category]?.label}</p>
+            <h2 className="mt-1 line-clamp-2 text-2xl font-black leading-tight">{hero.title}</h2>
+            <p className="mt-2 line-clamp-1 text-sm opacity-90">{hero.venueName ?? "东京"} · {attendeeCount(hero)}人想去</p>
+          </div>
+        </button>
+      )}
+
+      <section className="mt-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-black text-neutral-950">本周热门</h2>
+          <button type="button" onClick={() => setCat("ALL")} className="text-xs font-semibold text-neutral-400">查看全部</button>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {hot.map((ev) => {
+            const meta = CATEGORY_META[ev.category];
+            return (
+              <button key={ev.id} type="button" onClick={() => setSelected(ev)} className="w-36 shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
+                <div className="relative aspect-square bg-neutral-100">
+                  {ev.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  )}
+                  <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
+                </div>
+                <div className="p-2.5">
+                  <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-neutral-900">{ev.title}</h3>
+                  <p className="mt-1 text-xs font-semibold text-rose-500">♥ {attendeeCount(ev)}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="sticky top-0 z-20 -mx-4 mt-5 bg-white/95 px-4 py-3 backdrop-blur">
+        <div className="mb-3 flex items-center justify-center gap-10">
+          {TOP_TABS.map(({ k, label }) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              className={`relative pb-1 text-base font-bold ${tab === k ? "text-neutral-950" : "text-neutral-400"}`}
+            >
+              {label}
+              {tab === k && <span className="absolute bottom-0 left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full bg-blue-600" />}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button type="button" onClick={() => setCat("ALL")} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${cat === "ALL" ? "bg-blue-600 text-white" : "bg-neutral-100 text-neutral-500"}`}>
+            全部
+          </button>
+          {EVENT_CATEGORIES.map((c) => {
+            const meta = CATEGORY_META[c];
+            const active = cat === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCat(active ? "ALL" : c)}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${active ? "text-white" : "bg-neutral-100 text-neutral-500"}`}
+                style={active ? { backgroundColor: meta.color } : undefined}
+              >
+                <CategoryIcon category={c} className="h-3.5 w-3.5" />
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {filtered.length === 0 ? (
+        <p className="py-10 text-center text-sm text-neutral-400">没有找到匹配的内容。</p>
+      ) : (
+        <div className="mt-4 flex items-start gap-3">
+          {columns.map((col, ci) => (
+            <div key={ci} className="flex min-w-0 flex-1 flex-col gap-3">
+              {col.map((ev) => {
+                const meta = CATEGORY_META[ev.category];
+                const tags = displayTags(ev);
+                return (
+                  <button key={ev.id} type="button" onClick={() => setSelected(ev)} className="w-full overflow-hidden rounded-[20px] bg-white text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-md">
+                    {ev.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={ev.imageUrl} alt="" loading="lazy" className="max-h-48 w-full object-cover" />
+                    )}
+                    <div className="p-3">
+                      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: meta.color }}>
+                        <CategoryIcon category={ev.category} className="h-3.5 w-3.5" />
+                        {meta.label} · {fmt(ev.startTime)}
+                      </div>
+                      <h2 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h2>
+                      {ev.venueName && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-neutral-500">
+                          <IconPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{ev.venueName}</span>
+                        </div>
+                      )}
+                      {tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {tags.slice(0, 3).map((t) => (
+                            <span key={t} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">#{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
+      {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
+      {loadingDetail && !selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+          <div className="text-sm text-neutral-400">加载详情中...</div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -8,13 +8,12 @@ import type { EventDTO } from "@/lib/types";
 type Props = {
   events: EventDTO[];
   center: { lat: number; lng: number } | null;
-  anchored?: boolean; // center 是否来自用户落的探索锚点
+  anchored?: boolean;
   onClearAnchor?: () => void;
   onSelect: (ev: EventDTO) => void;
   onViewAll: () => void;
 };
 
-// 两点球面距离（km）
 function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -25,17 +24,25 @@ function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// 人气活动卡片：按距地图中心的距离取最近的几个活动。可折叠。
+function formatDistance(d: number | null): string {
+  if (d == null) return "东京周边";
+  return d < 10 ? `${d.toFixed(1)}km` : `${Math.round(d)}km`;
+}
+
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll }: Props) {
   const [open, setOpen] = useState(true);
 
   const nearest = useMemo<{ e: EventDTO; d: number | null }[]>(() => {
-    if (!center) return events.slice(0, 3).map((e) => ({ e, d: null }));
-    return [...events]
-      .map((e) => ({ e, d: distKm(center, e) }))
-      .sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
-      .slice(0, 3);
+    const source = center
+      ? [...events].map((e) => ({ e, d: distKm(center, e) })).sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
+      : events.map((e) => ({ e, d: null }));
+    return source.slice(0, 8);
   }, [events, center]);
+
+  const categories = useMemo(() => {
+    const ordered = nearest.map(({ e }) => e.category);
+    return Array.from(new Set(ordered)).slice(0, 5);
+  }, [nearest]);
 
   if (events.length === 0) return null;
 
@@ -44,76 +51,100 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute bottom-24 right-3 z-10 pointer-events-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur shadow-sm border border-black/10 text-xs text-neutral-700"
+        className="absolute bottom-24 left-1/2 z-20 -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/95 px-4 py-2 text-xs font-medium text-neutral-700 shadow-lg backdrop-blur"
       >
-        {anchored ? "📍 锚点周边" : "🔥 人气活动"}
+        <span className="h-2 w-2 rounded-full bg-blue-600" />
+        {anchored ? "锚点周边" : "附近活动"}
       </button>
     );
   }
 
   return (
-    <div className="absolute bottom-24 right-3 z-10 w-56 max-w-[70vw] pointer-events-auto rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-black/10 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-neutral-800">
-          {anchored ? "锚点周边" : "人气活动"}
-        </span>
+    <section className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-black/5 bg-white/95 px-4 pb-5 pt-3 shadow-[0_-18px_45px_rgba(15,23,42,0.14)] backdrop-blur">
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        aria-label="收起附近活动"
+        className="mx-auto mb-3 block h-1.5 w-14 rounded-full bg-neutral-300"
+      />
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-neutral-950">{anchored ? "锚点周边" : "附近活动"}</h2>
+          <p className="mt-0.5 text-xs text-neutral-500">
+            {anchored ? "以你点选的位置为中心" : "根据当前地图视野推荐"}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           {anchored && onClearAnchor && (
             <button
               type="button"
               onClick={onClearAnchor}
-              className="text-[11px] text-blue-600 hover:underline"
+              className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
             >
               重置
             </button>
           )}
           <button
             type="button"
-            onClick={() => setOpen(false)}
-            className="text-neutral-400 hover:text-neutral-600 text-base leading-none"
-            aria-label="收起"
+            onClick={onViewAll}
+            className="rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm"
           >
-            ×
+            全部
           </button>
         </div>
       </div>
-      {anchored && (
-        <p className="text-[11px] text-rose-500 mb-1.5 -mt-1">📍 以你点选的锚点为中心</p>
-      )}
 
-      <ul className="space-y-1.5">
-        {nearest.map(({ e: ev, d }) => {
-          const meta = CATEGORY_META[ev.category];
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <span className="shrink-0 rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white">全部</span>
+        {categories.map((category) => {
+          const meta = CATEGORY_META[category];
           return (
-            <li key={ev.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(ev)}
-                className="w-full flex items-center gap-2 text-left rounded-lg px-1.5 py-1.5 hover:bg-neutral-50 transition"
-              >
-                <span
-                  className="w-6 h-6 rounded-full grid place-items-center shrink-0"
-                  style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}
-                >
-                  <CategoryIcon category={ev.category} className="w-3.5 h-3.5" />
-                </span>
-                <span className="flex-1 min-w-0 text-xs text-neutral-700 truncate">{ev.title}</span>
-                {d != null && (
-                  <span className="text-[11px] text-neutral-400 shrink-0">{d < 10 ? d.toFixed(1) : Math.round(d)}km</span>
-                )}
-              </button>
-            </li>
+            <span
+              key={category}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3.5 py-1.5 text-xs font-medium text-neutral-600"
+            >
+              <CategoryIcon category={category} className="h-3.5 w-3.5" style={{ color: meta.color }} />
+              {meta.label}
+            </span>
           );
         })}
-      </ul>
+      </div>
 
-      <button
-        type="button"
-        onClick={onViewAll}
-        className="mt-2 w-full text-center text-xs text-blue-600 font-medium py-1"
-      >
-        查看全部 ›
-      </button>
-    </div>
+      <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {nearest.slice(0, 6).map(({ e: ev, d }) => {
+          const meta = CATEGORY_META[ev.category];
+          return (
+            <button
+              key={ev.id}
+              type="button"
+              onClick={() => onSelect(ev)}
+              className="group w-36 shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
+                {ev.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                ) : (
+                  <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${meta.color}33, #f8fafc)` }} />
+                )}
+                <span
+                  className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm"
+                  style={{ backgroundColor: meta.color }}
+                >
+                  {meta.label}
+                </span>
+              </div>
+              <div className="p-2.5">
+                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-neutral-900">{ev.title}</h3>
+                <p className="mt-1 truncate text-xs text-neutral-500">
+                  {formatDistance(d)} · {ev.venueName ?? "会场待定"}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
