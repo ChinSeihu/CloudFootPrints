@@ -6,6 +6,17 @@
 
 ## 2026-06-26
 
+### 改善个人页视觉与心情标签
+
+- **个人页头图升级**：将资料区改为更接近参考图的封面卡片风格，使用大封面、暗色渐层、浮层头像、状态胶囊和常住地胶囊，提升信息层级与氛围感。
+- **心情从评分改为标签选择**：新增 10 个心情标签（平静、治愈、开心、心动、兴奋、松弛、新鲜、怀念、惊喜、想再来）及线性 icon；新增/编辑足迹共用同一套标签选择器。
+- **足迹展示同步**：个人页足迹列表改用心情标签展示，并放大图片卡片；地图足迹弹窗也显示标签名，不再使用 1-5 爱心评分文案。
+- **兼容数据结构**：继续复用 `rating` 数字字段保存心情标签值，服务端校验范围从 1-5 扩展为 1-10，避免数据库迁移。
+
+**涉及文件：** `src/components/Me/ProfileHeader.tsx`、`src/components/Me/MeView.tsx`、`src/components/Me/EditDialogs.tsx`、`src/components/Map/CheckInDialog.tsx`、`src/components/Map/MapExplorer.tsx`、`src/components/common/MoodSelector.tsx`、`src/lib/moods.tsx`、`src/services/checkins.ts`
+
+---
+
 ### 提高 INS 风人物出镜比例并扩展地点池
 
 - **人物出镜比例提高**：模拟决策 prompt 调整为 INS 风生活博主视角，建议约 45% 主观环境/物品、35% 倒影/定时器/三脚架/手机放置延时/自然 pose、20% 朋友帮拍/合照；图片规则同步允许更高频率的合理出镜。

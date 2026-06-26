@@ -71,8 +71,8 @@ export async function createCheckin(
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     return { ok: false, error: "缺少或非法的经纬度" };
   }
-  if (input.rating != null && (input.rating < 1 || input.rating > 5)) {
-    return { ok: false, error: "rating 必须在 1–5 之间" };
+  if (input.rating != null && (input.rating < 1 || input.rating > 10)) {
+    return { ok: false, error: "rating 必须在 1–10 之间" };
   }
   const checkin = await createCheckinRow(input, userId);
   return { ok: true, checkin };
@@ -98,8 +98,8 @@ export async function updateCheckin(
   const existing = await prisma.checkIn.findUnique({ where: { id } });
   if (!existing) return { ok: false, error: "打卡记录不存在" };
   if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
-  if (input.rating != null && (input.rating < 1 || input.rating > 5)) {
-    return { ok: false, error: "rating 必须在 1–5 之间" };
+  if (input.rating != null && (input.rating < 1 || input.rating > 10)) {
+    return { ok: false, error: "rating 必须在 1–10 之间" };
   }
 
   const data: Record<string, unknown> = {};

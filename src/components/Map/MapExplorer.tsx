@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES } from "@/lib/categories";
 import { CATEGORY_GLYPH } from "@/lib/categoryIcons";
 import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter";
+import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 
@@ -1216,7 +1217,8 @@ export function MapExplorer() {
       let photos: string[] = [];
       try { photos = JSON.parse((p.photos as string) || "[]"); } catch { /* ignore */ }
       const rating = Number(p.rating ?? 0);
-      const stars = rating ? `<div class="tem-ci-rating">心情 ${"♥".repeat(rating)}${"♡".repeat(Math.max(0, 5 - rating))}</div>` : "";
+      const mood = MOOD_TAGS.find((item) => item.value === rating);
+      const stars = mood ? `<div class="tem-ci-rating">心情 · ${escapeHtml(mood.label)}</div>` : "";
       const gallery = photos.length
         ? `<div class="tem-ci-galwrap">
             <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>

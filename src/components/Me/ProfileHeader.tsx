@@ -5,10 +5,10 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { fieldCls } from "@/components/Map/formStyles";
-import { IconPin } from "@/components/icons";
+import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 
-function Avatar({ url, name, size = 56 }: { url: string | null; name: string; size?: number }) {
+function Avatar({ url, name, size = 72 }: { url: string | null; name: string; size?: number }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
@@ -23,7 +23,6 @@ function Avatar({ url, name, size = 56 }: { url: string | null; name: string; si
   );
 }
 
-// 个人页顶部：资料展示 + 内联编辑（头像 / 状态 / 签名 / 常住地）+ 登出。
 export function ProfileHeader() {
   const { user, setUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -46,8 +45,6 @@ export function ProfileHeader() {
     try {
       const blob = await compressImage(f);
       setAvatarUrl(await uploadToCloudinary(blob));
-    } catch {
-      /* 忽略 */
     } finally {
       setUploading(false);
     }
@@ -60,8 +57,6 @@ export function ProfileHeader() {
     try {
       const blob = await compressImage(f);
       setCoverUrl(await uploadToCloudinary(blob));
-    } catch {
-      /* 忽略 */
     } finally {
       setCoverUploading(false);
     }
@@ -87,98 +82,92 @@ export function ProfileHeader() {
   }
 
   function startEdit() {
-    setSignature(user!.signature ?? "");
-    setHometown(user!.hometown ?? "");
-    setStatus(user!.status ?? "");
-    setAvatarUrl(user!.avatarUrl ?? "");
-    setCoverUrl(user!.coverUrl ?? "");
+    if (!user) return;
+    setSignature(user.signature ?? "");
+    setHometown(user.hometown ?? "");
+    setStatus(user.status ?? "");
+    setAvatarUrl(user.avatarUrl ?? "");
+    setCoverUrl(user.coverUrl ?? "");
     setEditing(true);
   }
 
   const cover = editing ? coverUrl || null : user.coverUrl;
-  const hasCover = !!cover;
+  const avatar = editing ? avatarUrl || null : user.avatarUrl;
 
   return (
     <div className="px-4 pt-4 pb-2">
       <div
-        className={`relative overflow-hidden rounded-2xl border border-black/5 shadow-sm p-4 ${
-          hasCover ? "bg-neutral-800" : "bg-gradient-to-br from-blue-50 via-white to-rose-50/60"
-        }`}
-        style={hasCover ? { backgroundImage: `url("${cover}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+        className="relative min-h-[230px] overflow-hidden rounded-2xl border border-black/5 bg-neutral-900 shadow-sm"
+        style={cover ? { backgroundImage: `url("${cover}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       >
-        {/* 有背景图时压一层暗色遮罩保证文字可读；无背景时角落柔光 */}
-        {hasCover ? (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/30 to-black/25" />
-        ) : (
-          <div className="pointer-events-none absolute -top-10 -right-8 w-28 h-28 rounded-full bg-blue-200/30 blur-2xl" />
-        )}
+        {!cover && <div className="absolute inset-0 bg-gradient-to-br from-sky-400 via-blue-500 to-slate-900" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
 
-        <div className="relative flex items-start gap-3.5">
-          <div className="rounded-full ring-2 ring-white shadow-sm shrink-0">
-            <Avatar url={editing ? avatarUrl || null : user.avatarUrl} name={user.username} size={64} />
-          </div>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <div className={`font-semibold text-[17px] truncate ${hasCover ? "text-white drop-shadow" : "text-neutral-900"}`}>
-              {user.username}
-            </div>
-            {user.status && !editing && (
-              <div className={`text-xs mt-0.5 leading-snug line-clamp-2 break-words ${hasCover ? "text-white/85" : "text-neutral-500"}`}>
-                {user.status}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2.5 shrink-0 pt-1">
-            {editing ? (
-              <button type="button" onClick={() => setEditing(false)} className={`text-xs ${hasCover ? "text-white/80" : "text-neutral-400"}`}>取消</button>
-            ) : (
-              <>
-                <button type="button" onClick={startEdit} className={`text-xs font-medium ${hasCover ? "text-white" : "text-blue-600"}`}>编辑资料</button>
-                <button type="button" onClick={logout} className={`text-xs ${hasCover ? "text-white/70" : "text-neutral-400"}`}>登出</button>
-              </>
-            )}
-          </div>
+        <div className="relative flex items-start justify-between px-4 pt-4">
+          <button
+            type="button"
+            onClick={editing ? () => setEditing(false) : startEdit}
+            className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm backdrop-blur"
+          >
+            {editing ? "取消" : "编辑资料"}
+          </button>
+          {!editing && (
+            <button type="button" onClick={logout} className="rounded-full bg-black/25 px-3 py-1.5 text-xs text-white/85 backdrop-blur">
+              登出
+            </button>
+          )}
         </div>
 
-        {!editing && (user.signature || user.hometown) && (
-          <div className="relative mt-3">
-            {user.signature && (
-              <p className={`text-sm leading-relaxed ${hasCover ? "text-white/95 drop-shadow" : "text-neutral-600"}`}>{user.signature}</p>
-            )}
-            {user.hometown && (
-              <span
-                className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[11px] border ${
-                  hasCover ? "bg-white/20 text-white border-white/30" : "bg-white/70 text-neutral-500 border-black/5"
-                }`}
-              >
-                <IconPin className="w-3 h-3" />
-                常住地 · {user.hometown}
-              </span>
-            )}
-          </div>
-        )}
-
-        {editing && (
-          <div className="relative mt-3 space-y-2.5">
-            {canUpload && (
-              <div className="flex items-center gap-4">
-                <label className={`inline-flex items-center gap-2 text-xs cursor-pointer ${hasCover ? "text-white" : "text-blue-600"}`}>
-                  {uploading ? "头像上传中…" : "更换头像"}
-                  <input type="file" accept="image/*" onChange={pickAvatar} className="hidden" />
-                </label>
-                <label className={`inline-flex items-center gap-2 text-xs cursor-pointer ${hasCover ? "text-white" : "text-blue-600"}`}>
-                  {coverUploading ? "背景上传中…" : "更换背景"}
-                  <input type="file" accept="image/*" onChange={pickCover} className="hidden" />
-                </label>
-                {coverUrl && (
-                  <button type="button" onClick={() => setCoverUrl("")} className={`text-xs ${hasCover ? "text-white/70" : "text-neutral-400"}`}>
-                    移除背景
-                  </button>
-                )}
+        <div className="relative px-4 pt-12 pb-4">
+          <div className="flex items-end gap-3">
+            <div className="rounded-full bg-white/95 p-1 shadow-lg">
+              <Avatar url={avatar} name={user.username} size={74} />
+            </div>
+            <div className="min-w-0 pb-1 text-white">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-2xl font-semibold drop-shadow">{user.username}</h1>
+                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">Lv.5</span>
               </div>
-            )}
-            {/* 莫奈预设背景，可直接选 */}
-            <div>
-              <div className={`text-[11px] mb-1.5 ${hasCover ? "text-white/80" : "text-neutral-400"}`}>选择背景（莫奈）</div>
+              {user.status && !editing && (
+                <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-white/18 px-2 py-1 text-xs text-white/90 backdrop-blur">
+                  <IconSparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{user.status}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!editing && (
+            <div className="mt-4 space-y-2 text-white">
+              {user.signature && <p className="max-w-[92%] text-sm leading-relaxed text-white/92 drop-shadow">{user.signature}</p>}
+              {user.hometown && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/16 px-2.5 py-1 text-[11px] text-white/90 backdrop-blur">
+                  <IconPin className="h-3.5 w-3.5" />
+                  常住地 · {user.hometown}
+                </span>
+              )}
+            </div>
+          )}
+
+          {editing && (
+            <div className="mt-4 space-y-3 rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur">
+              {canUpload && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="cursor-pointer text-xs font-medium text-blue-600">
+                    {uploading ? "头像上传中..." : "更换头像"}
+                    <input type="file" accept="image/*" onChange={pickAvatar} className="hidden" />
+                  </label>
+                  <label className="cursor-pointer text-xs font-medium text-blue-600">
+                    {coverUploading ? "背景上传中..." : "更换背景"}
+                    <input type="file" accept="image/*" onChange={pickCover} className="hidden" />
+                  </label>
+                  {coverUrl && (
+                    <button type="button" onClick={() => setCoverUrl("")} className="text-xs text-neutral-400">
+                      移除背景
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {PRESET_COVERS.map((c) => (
                   <button
@@ -186,29 +175,29 @@ export function ProfileHeader() {
                     type="button"
                     onClick={() => setCoverUrl(c.url)}
                     title={c.name}
-                    className={`relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition ${
-                      coverUrl === c.url ? "border-blue-500" : hasCover ? "border-white/40" : "border-transparent"
+                    className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                      coverUrl === c.url ? "border-blue-500" : "border-transparent"
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.url} alt={c.name} loading="lazy" className="w-full h-full object-cover" />
+                    <img src={c.url} alt={c.name} loading="lazy" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
+              <input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="状态 / 此刻心情" className={fieldCls} />
+              <input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="个性签名" className={fieldCls} />
+              <input value={hometown} onChange={(e) => setHometown(e.target.value)} placeholder="常住地（可选）" className={fieldCls} />
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white shadow-sm disabled:opacity-40"
+              >
+                {saving ? "保存中..." : "保存资料"}
+              </button>
             </div>
-            <input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="状态 / 此刻心情" className={fieldCls} />
-            <input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="个性签名" className={fieldCls} />
-            <input value={hometown} onChange={(e) => setHometown(e.target.value)} placeholder="常住地（可选）" className={fieldCls} />
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium disabled:opacity-40"
-            >
-              {saving ? "保存中…" : "保存资料"}
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

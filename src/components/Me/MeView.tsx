@@ -13,6 +13,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
+import { moodTagOf } from "@/lib/moods";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 type Tab = "checkins" | "posts" | "favorites" | "messages";
@@ -221,7 +222,7 @@ function MeContent() {
               <div className="text-xs font-medium text-neutral-400 mb-2">{month} · {items.length} 处</div>
               <ol className="relative border-l border-neutral-200 ml-2">
               {items.map((c) => (
-                <li key={c.id} className="mb-5 ml-4">
+                <li key={c.id} className="mb-5 ml-4 rounded-2xl border border-neutral-100 bg-white p-3 shadow-sm">
                   <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-blue-600 border border-white" />
                   <div className="flex items-center gap-2">
                     <time className="text-[11px] text-neutral-400">
@@ -256,19 +257,23 @@ function MeContent() {
                       {CATEGORY_META[c.event.category].label} · {c.event.title}
                     </div>
                   )}
-                  {c.rating != null && (
-                    <div className="flex text-amber-500">
-                      {Array.from({ length: c.rating }).map((_, i) => (
-                        <IconHeart key={i} filled className="w-4 h-4" />
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const mood = moodTagOf(c.rating);
+                    if (!mood) return null;
+                    const { Icon } = mood;
+                    return (
+                      <div className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${mood.tone}`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {mood.label}
+                      </div>
+                    );
+                  })()}
                   {c.note && <p className="text-sm mt-0.5">{c.note}</p>}
                   {(() => {
                     const imgs = c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : [];
                     if (imgs.length === 0) return null;
                     return (
-                      <div className="flex flex-wrap gap-1 mt-1">
+                      <div className={`mt-3 grid gap-2 ${imgs.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
                         {imgs.map((src, i) => (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -277,7 +282,7 @@ function MeContent() {
                             alt=""
                             loading="lazy"
                             onClick={() => setLightbox({ images: imgs, index: i })}
-                            className="w-24 h-24 rounded-lg object-cover cursor-zoom-in"
+                            className={`w-full rounded-xl object-cover cursor-zoom-in ${imgs.length === 1 ? "aspect-[4/3]" : "aspect-square"}`}
                           />
                         ))}
                       </div>
