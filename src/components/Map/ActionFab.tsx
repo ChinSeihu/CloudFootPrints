@@ -21,7 +21,7 @@ export function ActionFab({
   }
 
   return (
-    <div className="absolute bottom-5 right-5 z-30 flex flex-col items-end gap-2">
+    <div className="absolute bottom-5 right-5 z-10 flex flex-col items-end gap-2">
       {open && (
         <>
           <button

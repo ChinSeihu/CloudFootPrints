@@ -6,6 +6,14 @@
 
 ## 2026-06-26
 
+### Fix map drawer filtering and layering
+- **Enable drawer category filtering**: nearby/anchor drawer category pills now filter the visible event cards, with an all-state reset.
+- **Tune drawer visual details**: reduced panel radius, card width, title size, badge text size, and softened shadows to better match the reference.
+- **Place post FAB below drawer**: lowered the map action FAB z-index so the plus button does not sit above the activity drawer.
+**Files:** `src/components/Map/PopularCard.tsx`, `src/components/Map/ActionFab.tsx`
+
+---
+
 ### Refine map drawer interaction
 - **Restore map control position**: moved map style, food, landmark, and station controls back to their original bottom-left placement.
 - **Add drag-down collapse**: the nearby/anchor activity drawer handle now follows a downward drag and collapses when released past the threshold.
