@@ -25,7 +25,7 @@ function fmtTime(iso: string | null): string {
 function dayInfo(key: string) {
   const d = new Date(`${key}T00:00:00+09:00`);
   const holiday = holidayName(key);
-  return { weekday: d.getDay(), holiday, isRed: d.getDay() === 0 || !!holiday };
+  return { weekday: d.getDay(), holiday, isRed: !!holiday };
 }
 
 function eventMatchesQuery(ev: EventDTO, query: string): boolean {
@@ -36,6 +36,17 @@ function eventMatchesQuery(ev: EventDTO, query: string): boolean {
     .join(" ")
     .toLowerCase()
     .includes(q);
+}
+
+function heatColor(count: number, max: number): { backgroundColor: string; color: string } {
+  if (count <= 0) return { backgroundColor: "#f8fafc", color: "#64748b" };
+  const ratio = Math.min(1, count / Math.max(1, max));
+  const lightness = 94 - ratio * 46;
+  const saturation = 82 + ratio * 8;
+  return {
+    backgroundColor: `hsl(213 ${saturation}% ${lightness}%)`,
+    color: ratio > 0.58 ? "#ffffff" : "#334155",
+  };
 }
 
 export function CalendarView({ events }: { events: EventDTO[] }) {
@@ -104,6 +115,10 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
     while (cells.length % 7 !== 0) cells.push(null);
     return cells;
   }, [monthDays, month, year]);
+  const heatMax = useMemo(
+    () => Math.max(1, ...monthDays.map((key) => byDate.get(key)?.length ?? 0)),
+    [byDate, monthDays],
+  );
 
   const selectedEvents = byDate.get(selected) ?? [];
   const { startingEvents, ongoingEvents } = useMemo(() => {
@@ -292,17 +307,22 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
             if (!key) return <span key={`blank-${i}`} />;
             const count = byDate.get(key)?.length ?? 0;
             const info = dayInfo(key);
-            const level = count === 0 ? "bg-slate-50" : count === 1 ? "bg-sky-100" : count <= 3 ? "bg-sky-200" : count <= 6 ? "bg-blue-400" : count <= 10 ? "bg-blue-600" : "bg-blue-800";
+            const ratio = count / heatMax;
+            const color = heatColor(count, heatMax);
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => setSelectedDate(key)}
                 title={`${Number(key.slice(8, 10))}日 ${count}个活动${info.holiday ? ` · ${info.holiday}` : ""}`}
-                className={`relative h-7 rounded-md text-[10px] font-semibold ${level} ${count > 3 ? "text-white" : info.isRed ? "text-rose-500" : "text-neutral-500"} ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}
+                className={`relative h-7 overflow-hidden rounded-md text-[10px] font-semibold ${
+                  info.isRed ? "border border-rose-400" : "border border-transparent"
+                } ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}
+                style={color}
               >
-                {Number(key.slice(8, 10))}
-                {info.holiday && <span className={`absolute right-0.5 top-0.5 h-1 w-1 rounded-full ${count > 3 ? "bg-white" : "bg-rose-500"}`} />}
+                {info.isRed && <span className="absolute inset-x-0 bottom-0 h-2 bg-rose-500/35" />}
+                <span className="relative z-10">{Number(key.slice(8, 10))}</span>
+                {info.holiday && <span className={`absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full ${ratio > 0.58 ? "bg-white" : "bg-rose-500"}`} />}
               </button>
             );
           })}

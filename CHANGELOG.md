@@ -6,6 +6,26 @@
 
 ## 2026-06-26
 
+### Strengthen calendar red-day markers
+- **Red-day heatmap overlay**: holiday heatmap cells now include a rose bottom overlay band with the date number kept above it for clearer recognition.
+**Files:** `src/components/Calendar/CalendarView.tsx`
+
+---
+
+### Smooth calendar heatmap gradient
+- **Continuous heatmap color scale**: heatmap cells now compute an HSL color from each day's activity count relative to the month's maximum, giving gradual depth changes instead of coarse two-tone buckets.
+- **Red days as overlay**: Japanese holidays keep visible red border/accent treatment while preserving the blue heat intensity underneath.
+**Files:** `src/components/Calendar/CalendarView.tsx`
+
+---
+
+### Rebalance calendar heatmap colors
+- **Dynamic heatmap baseline**: heatmap color levels now scale against the current month's maximum daily activity count, preventing most days from collapsing into the darkest color.
+- **Stronger red-day treatment**: Japanese holidays now use a rose-tinted base, red border, inset accent, and larger holiday dot in the heatmap.
+**Files:** `src/components/Calendar/CalendarView.tsx`
+
+---
+
 ### Refine calendar date navigation and holidays
 - **Default day strip positioning**: the horizontal date strip now scrolls the selected/today date into view on load and when the selected date changes.
 - **Separate month and day navigation**: month switching moved to the month label area, while the right-side arrows now move the selected day backward/forward.
