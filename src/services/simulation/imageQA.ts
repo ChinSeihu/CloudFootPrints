@@ -19,10 +19,10 @@ Acceptance criteria:
 3. Reject obvious AI aesthetics: CGI or 3D render feel, waxy/plastic skin, over-smoothed skin, over-sharpening, excessive HDR, studio lighting, commercial fashion-shoot look, influencer posing, overly perfect composition, melted background details, repeated textures or impossible objects.
 4. If people are visible, faces and expressions must be natural and restrained. Eyes, teeth, hair edges and facial proportions must not be visibly distorted.
 5. Hands and anatomy are hard checks. Reject images with extra or missing fingers, fused fingers, warped palms, twisted wrists, misplaced arms, broken joints, impossible body proportions, or implausible ways of holding objects. If hands are hidden, out of frame, or too blurred to judge and no clear defect is visible, that is acceptable.
-6. For first-person smartphone POV, reject images where both of the protagonist's hands are clearly visible in an implausible way, unless a tripod, mirror selfie, timer shot, or another photographer is explicitly implied.
+6. First-person viewpoint balance: the protagonist may appear if the capture method is plausible, such as selfie, mirror/window reflection, timer shot, tripod, phone placed on a table/floor, friend-taken snapshot, or group photo. Reject only when the image looks like an unexplained third-person portrait or both hands are clearly visible in an implausible POV.
 7. Reject text, watermark, logo, strange symbols or poster-like typography.
 
-When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, natural hands and anatomy, at most one hand visible in POV shots, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
+When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, plausible camera viewpoint, natural hands and anatomy, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
 
 function safeParse(text: string): unknown {
   let t = text.trim();
