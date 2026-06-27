@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconPin, IconPlus, CategoryIcon } from "@/components/icons";
+import { IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
@@ -127,12 +127,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   }
 
   return (
-    <BottomSheet title="发帖 · 标记这里有个活动" hint="拖动地图上的蓝色锚点定位" onClose={onCancel} onSnapChange={onSnapChange}>
-      <div className="inline-flex items-center gap-1 text-[11px] text-neutral-500 bg-neutral-100 rounded-full px-2.5 py-1 mb-5">
-        <IconPin className="w-3 h-3" />
-        {lat.toFixed(5)}, {lng.toFixed(5)}
-      </div>
-
+    <BottomSheet title="发布活动" hint="可拖动蓝色锚点重新定位" onClose={onCancel} onSnapChange={onSnapChange}>
       <div className="mb-5">
         <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input

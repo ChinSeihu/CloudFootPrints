@@ -21,26 +21,26 @@ export function ActionFab({
   }
 
   return (
-    <div className="absolute bottom-5 right-5 z-10 flex flex-col items-end gap-2">
+    <div className="absolute bottom-5 right-5 z-30 flex flex-col items-end gap-2">
       {open && (
-        <>
+        <div className="mb-1 grid w-64 grid-cols-2 gap-2 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-[0_14px_34px_rgba(15,23,42,0.16)] backdrop-blur">
           <button
             type="button"
             onClick={() => choose(onPost)}
-            className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-full bg-white text-neutral-800 text-sm shadow-lg border border-black/5"
+            className="flex flex-col items-center gap-1 rounded-xl bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700 transition active:scale-[0.98]"
           >
-            <IconPin className="w-4 h-4 text-blue-600" />
-            发帖 · 标记活动
+            <IconPin className="w-5 h-5" />
+            发布活动
           </button>
           <button
             type="button"
             onClick={() => choose(onCheckin)}
-            className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-full bg-white text-neutral-800 text-sm shadow-lg border border-black/5"
+            className="flex flex-col items-center gap-1 rounded-xl bg-rose-50 px-3 py-3 text-sm font-semibold text-rose-600 transition active:scale-[0.98]"
           >
-            <IconHeart className="w-4 h-4 text-amber-500" />
-            足迹 · 我来过
+            <IconHeart className="w-5 h-5" />
+            发布足迹
           </button>
-        </>
+        </div>
       )}
       <button
         type="button"

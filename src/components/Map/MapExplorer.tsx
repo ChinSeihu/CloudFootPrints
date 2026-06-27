@@ -475,6 +475,8 @@ export function MapExplorer() {
   const [mapMenuOpen, setMapMenuOpen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
   const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
   const pulseRafRef = useRef<number | null>(null);
@@ -574,6 +576,12 @@ export function MapExplorer() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  function rememberUserLocation(pos: { lat: number; lng: number }) {
+    userLocationRef.current = pos;
+    setUserLocation(pos);
+    setCenter(pos);
   }
 
   const filtered = useMemo(() => {
@@ -1694,6 +1702,16 @@ export function MapExplorer() {
       const lng = parseFloat(sp.get("lng") ?? "");
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         map.flyTo({ center: [lng, lat], zoom: 16 });
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            rememberUserLocation(current);
+            map.flyTo({ center: [current.lng, current.lat], zoom: 15 });
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
+        );
       }
     },
     [setupStations, setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
@@ -1708,10 +1726,12 @@ export function MapExplorer() {
     const mlg = maplibreRef.current;
     if (!map || !mlg || placingRef.current) return;
     const container = map.getContainer();
-    const c = map.unproject([container.clientWidth / 2, container.clientHeight * 0.3]);
+    const current = userLocationRef.current ?? userLocation;
+    const c = current ? new mlg.LngLat(current.lng, current.lat) : map.unproject([container.clientWidth / 2, container.clientHeight * 0.3]);
     const marker = new mlg.Marker({ element: anchorMarkerEl(), draggable: true, anchor: "bottom" })
       .setLngLat(c)
       .addTo(map);
+    if (current) map.flyTo({ center: [current.lng, current.lat], zoom: Math.max(map.getZoom(), 15) });
     marker.on("drag", () => {
       const p = marker.getLngLat();
       setDialogAt({ lat: p.lat, lng: p.lng });
@@ -1914,8 +1934,8 @@ export function MapExplorer() {
       <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       <WeatherPanel />
 
-      <div className="absolute bottom-7 left-3 right-3 z-20 pointer-events-none">
-        <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 rounded-[24px] border border-white/80 bg-white/90 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+      <div className="absolute bottom-7 left-3 right-24 z-20 pointer-events-none">
+        <div className="pointer-events-auto mx-auto flex max-w-[22rem] items-center justify-between gap-1 overflow-x-auto rounded-[24px] border border-white/80 bg-white/90 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="relative">
             <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex min-w-[3.25rem] flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>

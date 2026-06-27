@@ -6,6 +6,22 @@
 
 ## 2026-06-27
 
+### Refine posting and check-in forms
+- **Split post actions**: the floating post menu now shows two side-by-side actions, "publish activity" on the left and "publish footprint" on the right.
+- **Hide coordinates**: post and footprint sheets no longer display raw latitude/longitude values while keeping draggable anchor repositioning.
+- **Remove agreement copy**: posting forms remain free of user-agreement/privacy text until those documents exist.
+**Files:** `src/components/Map/ActionFab.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`
+
+---
+
+### Default map actions to current location
+- **Initial geolocation**: the map now tries to center on the user's current location on load unless an explicit target is supplied in the URL.
+- **Post anchor default**: publish activity and footprint anchors now default to the current location when available.
+- **Avoid FAB overlap**: the bottom map toolbar now reserves right-side space for the floating publish button.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/components/Map/ActionFab.tsx`
+
+---
+
 ### Reduce map top-control overlap
 - **Hide activity-count capsule**: removed the map top activity-count capsule so filter/date controls have more room.
 - **Move weather control**: restored the weather button to the right-side control column area so it does not cover top filters or core map controls.
