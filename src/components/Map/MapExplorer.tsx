@@ -967,14 +967,14 @@ export function MapExplorer() {
       const detailHint = `${detailText}${/[。.!?！？]$/.test(detailText) ? "" : "。"}点击查看详情`;
       const image = ev.imageUrl
         ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /><div class="tem-card-imgshade"></div></div>`
-        : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"><div class="tem-card-imgshade"></div></div>`;
+        : "";
       const del = ev.sourceType === "USER"
         ? `<button class="tem-card-del" data-action="delete">删除</button>`
         : "";
       const srcBadge = ev.sourceType === "USER"
         ? `<span class="tem-card-src tem-src-user">个人</span>`
         : `<span class="tem-card-src tem-src-official">官方</span>`;
-      return `<div class="tem-card ${ev.sourceType === "USER" ? "tem-card-user" : "tem-card-official"}" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
+      return `<div class="tem-card ${ev.sourceType === "USER" ? "tem-card-user" : "tem-card-official"} ${ev.imageUrl ? "" : "tem-card-noimage"}" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
         ${image}
         <div class="tem-card-badges">
           ${srcBadge}

@@ -98,6 +98,26 @@ function SourceIconBadge({ sourceType }: { sourceType: string }) {
   );
 }
 
+function EventImagePlaceholder({ title, color }: { title: string; color: string }) {
+  return (
+    <div
+      className="relative flex h-full w-full items-center justify-center overflow-hidden px-4 pb-8 pt-9 text-center text-white"
+      style={{
+        background:
+          `radial-gradient(circle at 20% 18%, ${color}66, transparent 34%), ` +
+          `radial-gradient(circle at 86% 12%, rgba(255,255,255,0.32), transparent 30%), ` +
+          `linear-gradient(135deg, ${color}, #1d4ed8 56%, #0f172a)`,
+      }}
+    >
+      <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(120deg,rgba(255,255,255,.28)_1px,transparent_1px),linear-gradient(30deg,rgba(255,255,255,.2)_1px,transparent_1px)] [background-size:18px_18px]" />
+      <div className="absolute -bottom-5 -right-4 h-20 w-20 rounded-full border border-white/30 bg-white/10" />
+      <p className="relative z-10 line-clamp-3 text-[13px] font-black leading-tight drop-shadow-[0_2px_8px_rgba(15,23,42,0.34)]">
+        {title}
+      </p>
+    </div>
+  );
+}
+
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
@@ -331,7 +351,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                 ) : (
-                  <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${meta.color}33, #f8fafc)` }} />
+                  <EventImagePlaceholder title={ev.title} color={meta.color} />
                 )}
                 <span
                   className="absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm"

@@ -238,7 +238,7 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
             </div>
             <div className="absolute bottom-5 left-3 right-3 text-white">
               <p className="text-[11px] font-semibold opacity-90">{CATEGORY_META[hero.category]?.label} · {fmt(hero.startTime)}</p>
-              <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight">{hero.title}</h2>
+              <h2 className="mt-1 line-clamp-2 text-[14px] font-black leading-tight">{hero.title}</h2>
               <p className="mt-1 line-clamp-1 text-xs opacity-90">{hero.venueName ?? "东京"} · {pickReason(hero)}</p>
             </div>
           </button>

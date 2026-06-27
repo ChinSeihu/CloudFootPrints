@@ -570,6 +570,13 @@ body {
   align-items: center;
   gap: 6px;
 }
+.tem-card-noimage .tem-card-badges {
+  position: static;
+  padding: 11px 12px 0;
+}
+.tem-card-noimage .tem-card-body {
+  padding-top: 8px;
+}
 .tem-card-cat {
   display: inline-flex;
   align-items: center;

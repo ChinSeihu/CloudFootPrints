@@ -6,6 +6,14 @@
 
 ## 2026-06-27
 
+### Refine image-less activity cards
+- **Map popup no-image cards**: activity popups no longer render an empty image area when an activity has no image.
+- **Nearby placeholder art**: nearby activity cards now show a designed HTML placeholder with the activity title and category color when image data is missing, with title placement adjusted away from source/category badges.
+- **Recommend hero title sizing**: recommendation hero titles use the smaller local title size that was already staged in the working tree.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`, `src/components/Recommend/RecommendList.tsx`, `src/app/globals.css`
+
+---
+
 ### Scale mixed cluster rings by count
 - **Mixed cluster scaling**: segmented mixed-source cluster rings now grow more clearly with activity count while keeping ordinary source-only clusters as simple numeric circles.
 **Files:** `src/components/Map/MapExplorer.tsx`
