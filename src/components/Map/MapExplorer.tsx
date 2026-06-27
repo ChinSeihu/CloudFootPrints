@@ -889,6 +889,7 @@ export function MapExplorer() {
     });
 
     // 分类白色图标叠在单点上（图标更大，辨识度更高）
+    await loadUserPostBadge(map);
     await loadCategoryGlyphIcons(map);
     map.addLayer({
       id: "event-glyph",
@@ -896,8 +897,8 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "cluster-user", ["concat", "glyph-", ["get", "category"]]],
-        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.86, 0.85],
+        "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "userpost-badge", ["concat", "glyph-", ["get", "category"]]],
+        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 1.25, 0.85],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         // 放大到一定尺度后，图标下方显示一句活动摘要（截断加省略号）

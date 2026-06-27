@@ -6,6 +6,12 @@
 
 ## 2026-06-27
 
+### Round user post map marker
+- **Circular user post marker**: individual user posts now use the dedicated round purple camera marker instead of the drop-shaped cluster marker, making the single-post marker visually rounder and closer to official activity marker weight.
+**Files:** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### Restore standard cluster circles
 - **Standard cluster circles**: official-only and user-only activity clusters return to simple numeric circles without icons, with source color distinction preserved.
 - **Mixed cluster ring**: mixed-source clusters keep the segmented ring badge and now load as a square image to avoid oval distortion.
