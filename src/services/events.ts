@@ -154,6 +154,7 @@ export type CreateUserEventInput = {
   endTime?: string | null; // ISO
   tags?: string[];
   signupEnabled?: boolean;
+  eventId?: string | null;
   lat: number;
   lng: number;
 };
@@ -170,6 +171,7 @@ export type CreateUserEventResult =
 
 async function createUserEventRow(input: CreateUserEventInput, userId: string): Promise<NormalizedEvent> {
   const imageUrls = (input.imageUrls ?? []).filter(Boolean);
+  const linkedEvent = input.eventId ? await prisma.event.findUnique({ where: { id: input.eventId }, select: { id: true } }) : null;
   const post = await prisma.post.create({
     data: {
       title: input.title.trim(),
@@ -184,6 +186,7 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
       endTime: parseISO(input.endTime),
       tags: input.tags ?? [],
       signupEnabled: input.signupEnabled ?? false,
+      eventId: linkedEvent?.id ?? null,
       userId,
     },
   });

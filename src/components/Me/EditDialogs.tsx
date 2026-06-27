@@ -203,6 +203,7 @@ export function EditCheckInDialog({
 }) {
   const [note, setNote] = useState(checkin.note ?? "");
   const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
+  const [isPublic, setIsPublic] = useState(checkin.isPublic);
   const [visitedAt, setVisitedAt] = useState(isoToLocal(checkin.createdAt));
   const [keptUrls, setKeptUrls] = useState<string[]>(checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : []);
   const [files, setFiles] = useState<File[]>([]);
@@ -248,7 +249,7 @@ export function EditCheckInDialog({
         }
       }
       const photoUrls = [...keptUrls, ...newUrls];
-      const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, visitedAt: toISO(visitedAt) };
+      const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, isPublic, visitedAt: toISO(visitedAt) };
       const res = await fetch(`/api/checkins/${checkin.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -259,7 +260,7 @@ export function EditCheckInDialog({
         setError(d.error || "保存失败");
         return;
       }
-      onSaved({ note: patch.note, rating: patch.rating, moodTags, photoUrls, photoUrl: photoUrls[0] ?? null, createdAt: patch.visitedAt ?? checkin.createdAt });
+      onSaved({ note: patch.note, rating: patch.rating, moodTags, photoUrls, photoUrl: photoUrls[0] ?? null, isPublic, createdAt: patch.visitedAt ?? checkin.createdAt });
       onClose();
     } catch {
       setError("网络错误，请稍后再试");
@@ -314,6 +315,18 @@ export function EditCheckInDialog({
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">未配置图床，暂不能上传图片。</p>
         )}
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+        <button type="button" onClick={() => setIsPublic((value) => !value)} className="flex w-full items-center justify-between gap-4 text-left">
+          <span>
+            <span className="block text-sm font-medium text-neutral-900">{isPublic ? "公开足迹" : "隐藏足迹"}</span>
+            <span className="mt-1 block text-xs text-neutral-500">{isPublic ? "会显示在地图和相关活动聚合中" : "仅自己可见"}</span>
+          </span>
+          <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${isPublic ? "bg-blue-600" : "bg-neutral-200"}`}>
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${isPublic ? "left-6" : "left-1"}`} />
+          </span>
+        </button>
       </div>
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}

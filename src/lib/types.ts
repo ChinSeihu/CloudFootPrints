@@ -64,6 +64,7 @@ export type CheckInDTO = {
   id: string;
   userId: string;
   eventId: string | null;
+  postId: string | null;
   lat: number;
   lng: number;
   note: string | null;
@@ -71,6 +72,8 @@ export type CheckInDTO = {
   photoUrls: string[];
   rating: number | null;
   moodTags: number[];
+  isPublic: boolean;
+  isMine?: boolean;
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;
 };

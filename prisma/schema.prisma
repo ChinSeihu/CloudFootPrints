@@ -53,6 +53,7 @@ model Event {
   featuredToday Boolean     @default(false)
   rawText     String?       // 保留原始文本，便于以后重新解析
 
+  posts       Post[]
   checkIns    CheckIn[]
   comments    Comment[]
   reactions   Reaction[]
@@ -84,6 +85,8 @@ model Post {
   endTime       DateTime?
   tags          String[]      @default([])
   signupEnabled Boolean       @default(false)
+  eventId       String?
+  event         Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   userId        String        // 作者（User.id）。发帖必有作者。
 
   checkIns      CheckIn[]
@@ -93,6 +96,7 @@ model Post {
   updatedAt     DateTime      @updatedAt
 
   @@index([lat, lng])
+  @@index([eventId, createdAt])
   @@index([userId, createdAt])
   @@index([startTime])
   @@index([category])
@@ -160,9 +164,13 @@ model CheckIn {
   photoUrls String[] @default([]) // 多张打卡照片
   rating    Int? // legacy primary mood tag
   moodTags  Int[] @default([]) // selected mood tag values
+  isPublic  Boolean @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([postId, createdAt])
+  @@index([isPublic, createdAt])
 }
 
 model Comment {

@@ -11,6 +11,16 @@ function normalizeMoodTags(moodTags?: number[], fallbackRating?: number | null):
   return [...new Set(raw.map((value) => Math.round(Number(value))).filter((value) => Number.isFinite(value)))].slice(0, 6);
 }
 
+function serializeCheckin(row: any, currentUserId?: string | null) {
+  const { post, ...checkin } = row;
+  return {
+    ...checkin,
+    postId: row.postId ?? null,
+    event: row.event ?? post ?? null,
+    isMine: currentUserId ? row.userId === currentUserId : false,
+  };
+}
+
 export async function listCheckins(userId: string = CURRENT_USER_ID) {
   const rows = await prisma.checkIn.findMany({
     where: { userId },
@@ -21,7 +31,20 @@ export async function listCheckins(userId: string = CURRENT_USER_ID) {
     },
   });
   // 关联目标可能是官方活动或用户发帖；统一暴露为 event 字段（前端不区分），并去掉 post。
-  return rows.map(({ post, ...c }) => ({ ...c, event: c.event ?? post ?? null }));
+  return rows.map((row) => serializeCheckin(row, userId));
+}
+
+export async function listVisibleCheckins(userId?: string | null) {
+  const rows = await prisma.checkIn.findMany({
+    where: userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    include: {
+      event: { select: { id: true, title: true, category: true } },
+      post: { select: { id: true, title: true, category: true } },
+    },
+  });
+  return rows.map((row) => serializeCheckin(row, userId));
 }
 
 export type CreateCheckinInput = {
@@ -32,6 +55,7 @@ export type CreateCheckinInput = {
   photoUrls?: string[];
   rating?: number | null;
   moodTags?: number[];
+  isPublic?: boolean;
   visitedAt?: string | null; // ISO；用户自选打卡时间，默认现在
   eventId?: string | null;
 };
@@ -66,6 +90,7 @@ async function createCheckinRow(data: CreateCheckinInput, userId: string) {
       photoUrls,
       rating: moodTags[0] ?? null,
       moodTags,
+      isPublic: data.isPublic === true,
       ...(target ?? {}),
       ...(visited && !Number.isNaN(visited.getTime()) ? { createdAt: visited } : {}),
     },
@@ -93,6 +118,7 @@ export type UpdateCheckinInput = {
   rating?: number | null;
   moodTags?: number[];
   photoUrls?: string[];
+  isPublic?: boolean;
   visitedAt?: string | null; // ISO
 };
 
@@ -128,6 +154,7 @@ export async function updateCheckin(
     data.photoUrls = photoUrls;
     data.photoUrl = photoUrls[0] ?? null; // 封面 = 首图
   }
+  if (input.isPublic !== undefined) data.isPublic = input.isPublic;
   if (input.visitedAt !== undefined) {
     const v = input.visitedAt ? new Date(input.visitedAt) : null;
     if (v && !Number.isNaN(v.getTime())) data.createdAt = v;

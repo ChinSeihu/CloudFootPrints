@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { createCheckin, listCheckins } from "@/services/checkins";
+import { createCheckin, listCheckins, listVisibleCheckins } from "@/services/checkins";
 import { getCurrentUserId } from "@/lib/auth";
 
 // GET /api/checkins —— 当前登录用户的打卡列表（未登录返回空，打卡属个人足迹）
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
     const userId = await getCurrentUserId();
+    if (url.searchParams.get("map") === "1") {
+      const checkins = await listVisibleCheckins(userId);
+      return NextResponse.json({ checkins });
+    }
     if (!userId) return NextResponse.json({ checkins: [] });
     const checkins = await listCheckins(userId);
     return NextResponse.json({ checkins });
@@ -37,6 +42,7 @@ export async function POST(request: Request) {
       photoUrls: Array.isArray(b.photoUrls) ? b.photoUrls.filter((u): u is string => typeof u === "string") : [],
       rating: b.rating == null ? null : Number(b.rating),
       moodTags: Array.isArray(b.moodTags) ? b.moodTags.map(Number) : undefined,
+      isPublic: b.isPublic === true,
       visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
       eventId: typeof b.eventId === "string" ? b.eventId : null,
     },

@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       startTime: typeof b.startTime === "string" ? b.startTime : null,
       endTime: typeof b.endTime === "string" ? b.endTime : null,
       tags: normalizeTags(b.tags),
+      eventId: typeof b.eventId === "string" ? b.eventId : null,
       lat: Number(b.lat),
       lng: Number(b.lng),
     },

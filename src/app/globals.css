@@ -376,6 +376,15 @@ body {
 .tem-ci-body { padding: 10px 12px 11px; }
 .tem-ci-titlerow { display: flex; align-items: center; gap: 6px; }
 .tem-ci-title { font-weight: 600; font-size: 13px; color: #1f2937; }
+.tem-ci-visibility {
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(251, 113, 133, 0.12);
+  color: #e11d48;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 6px;
+}
 .tem-ci-seq {
   font-size: 10.5px;
   font-weight: 500;
@@ -545,6 +554,10 @@ body {
 .tem-card-act.act-nav:hover { background: rgba(37, 99, 235, 0.18); }
 .tem-card-act.act-guide { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
 .tem-card-act.act-guide:hover { background: rgba(124, 58, 237, 0.18); }
+.tem-card-act.act-checkin { background: rgba(251, 113, 133, 0.12); color: #e11d48; }
+.tem-card-act.act-checkin:hover { background: rgba(251, 113, 133, 0.2); }
+.tem-card-act.act-post { background: rgba(168, 85, 247, 0.12); color: #7c3aed; }
+.tem-card-act.act-post:hover { background: rgba(168, 85, 247, 0.2); }
 .tem-card-act.act-fav { background: rgba(15, 23, 42, 0.06); color: #475569; }
 .tem-card-act.act-fav:hover,
 .tem-card-act.act-fav.active { background: rgba(37, 99, 235, 0.12); color: #2563eb; }

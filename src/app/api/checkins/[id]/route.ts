@@ -20,6 +20,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     rating: b.rating === null || typeof b.rating === "number" ? (b.rating as number | null) : undefined,
     moodTags: Array.isArray(b.moodTags) ? b.moodTags.map(Number) : undefined,
     photoUrls: Array.isArray(b.photoUrls) ? (b.photoUrls as string[]) : undefined,
+    isPublic: typeof b.isPublic === "boolean" ? b.isPublic : undefined,
     visitedAt: b.visitedAt === null || typeof b.visitedAt === "string" ? (b.visitedAt as string | null) : undefined,
   });
   if (!result.ok) {

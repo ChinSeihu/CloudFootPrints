@@ -82,9 +82,9 @@ async function loadCategoryGlyphIcons(map: maplibregl.Map): Promise<void> {
   );
 }
 
-// 个人发帖角标：琥珀圆底 + 白色人形，叠在活动点右上角，让「个人发帖 vs 官方活动」一眼可辨。
+// 个人发帖角标：紫色相机，叠在活动点右上角，让「个人发帖 vs 官方活动」一眼可辨。
 function userPostBadgeSvg(): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.2" fill="#f59e0b" stroke="#ffffff" stroke-width="2.6"/><circle cx="14" cy="11" r="3.2" fill="#ffffff"/><path d="M7.8 21c0-4 3-5.7 6.2-5.7s6.2 1.7 6.2 5.7Z" fill="#ffffff"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.2" fill="#a855f7" stroke="#ffffff" stroke-width="2.6"/><g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.7" y="10.1" width="12.6" height="8.9" rx="2.1"/><path d="M10.5 10.1l1.2-2h4.6l1.2 2"/><circle cx="14" cy="14.6" r="2.2"/></g></svg>`;
 }
 
 async function loadUserPostBadge(map: maplibregl.Map): Promise<void> {
@@ -342,8 +342,12 @@ function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poi
         geometry: { type: "Point", coordinates: [c.lng, c.lat] },
         properties: {
           id: c.id,
+          eventId: c.eventId ?? "",
+          postId: c.postId ?? "",
           title: c.event?.title ?? "",
           note: c.note ?? "",
+          isPublic: c.isPublic ? 1 : 0,
+          isMine: c.isMine ? 1 : 0,
           rating: c.rating ?? 0,
           moodTags: JSON.stringify(c.moodTags?.length ? c.moodTags : c.rating ? [c.rating] : []),
           seq: seqOf.get(c.id) ?? 0,
@@ -401,6 +405,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
 }
 
 type Mode = "checkin" | "post";
+type PlacementTarget = { id: string; title: string; lat?: number; lng?: number } | null;
 
 export function MapExplorer() {
   const router = useRouter();
@@ -462,6 +467,7 @@ export function MapExplorer() {
   });
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
+  const [checkinTarget, setCheckinTarget] = useState<PlacementTarget>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [theme, setTheme] = useState<MapTheme>("soft");
@@ -481,6 +487,7 @@ export function MapExplorer() {
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
   const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
 
   // 读取/持久化底图主题选择
@@ -678,7 +685,7 @@ export function MapExplorer() {
 
   const fetchCheckins = useCallback(async () => {
     try {
-      const res = await fetch("/api/checkins");
+      const res = await fetch("/api/checkins?map=1");
       if (!res.ok) return;
       const data = (await res.json()) as { checkins: CheckInDTO[] };
       checkinsRef.current = data.checkins ?? [];
@@ -811,10 +818,10 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": CATEGORY_COLOR_EXPR,
-        "circle-opacity": 0.16,
+        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
+        "circle-opacity": 0.14,
         "circle-blur": 0.5,
-        "circle-radius": 20,
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 18, 22],
       },
     });
     // 单个活动点：分类色填充圆 + 柔白边（略降透明，弱化突兀感）
@@ -824,12 +831,11 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": CATEGORY_COLOR_EXPR,
+        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
         "circle-opacity": 0.92,
-        "circle-radius": 14,
-        // 个人发帖：琥珀色描边 + 更粗，与官方活动（白边）区分
-        "circle-stroke-color": ["case", ["==", ["get", "sourceType"], "USER"], "#f59e0b", "#fff"],
-        "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 3.5, 2.5],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 12, 14],
+        "circle-stroke-color": "#fff",
+        "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 2.2, 2.8],
         "circle-stroke-opacity": 0.95,
       },
     });
@@ -856,7 +862,7 @@ export function MapExplorer() {
         "text-max-width": 12,
       },
       paint: {
-        "text-color": "#d6336c",
+        "text-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
         "text-halo-color": "#ffffff",
         "text-halo-width": 2,
         // 仅在放大后淡入，避免低缩放拥挤
@@ -943,6 +949,8 @@ export function MapExplorer() {
             <button class="tem-card-act act-detail"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button>
             <button class="tem-card-act act-nav" data-action="route"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>导航</button>
             <button class="tem-card-act act-guide" data-action="guide"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8z"/></svg>问导游</button>
+            <button class="tem-card-act act-checkin" data-action="checkin"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>足迹</button>
+            <button class="tem-card-act act-post" data-action="post"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>发帖</button>
             <button class="tem-card-act act-fav" data-action="favorite"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>收藏</button>
             ${source}${del}
           </div>
@@ -1006,6 +1014,20 @@ export function MapExplorer() {
                 startTime: pe.startTime || null,
               });
             }
+            return;
+          }
+          if (action === "checkin") {
+            ev.stopPropagation();
+            popup.remove();
+            const pe = evs.find((e) => e.id === id);
+            if (pe) openTargetCheckinRef.current({ id, title: pe.title, lat: coords[1], lng: coords[0] });
+            return;
+          }
+          if (action === "post") {
+            ev.stopPropagation();
+            popup.remove();
+            const pe = evs.find((e) => e.id === id);
+            if (pe) openPlacement("post", { id, title: pe.title, lat: coords[1], lng: coords[0] });
             return;
           }
           if (action === "favorite") {
@@ -1139,29 +1161,26 @@ export function MapExplorer() {
       paint: { "line-color": "#f59e0b", "line-width": 2.5, "line-opacity": 0.65, "line-dasharray": [1.5, 1.5] },
     });
 
-    // 足迹专属图标：白色小猫梅花脚印（大肉垫 + 四脚趾）。canvas 画一个注册成地图图标，
-    // 叠在单个足迹的琥珀圆上 → 与活动点一眼区分。
-    if (!map.hasImage("checkin-paw")) {
+    // 足迹专属图标：粉色线描爱心，小尺寸、低干扰，与活动/发帖明确分层。
+    if (!map.hasImage("checkin-heart")) {
       const s = 44;
       const cv = document.createElement("canvas");
       cv.width = s;
       cv.height = s;
       const cx = cv.getContext("2d");
       if (cx) {
-        cx.fillStyle = "#fff";
-        // 大肉垫
+        cx.strokeStyle = "#fb7185";
+        cx.lineWidth = 4.2;
+        cx.lineCap = "round";
+        cx.lineJoin = "round";
         cx.beginPath();
-        cx.ellipse(s * 0.5, s * 0.64, s * 0.2, s * 0.165, 0, 0, Math.PI * 2);
-        cx.fill();
-        // 四个脚趾（梅花瓣）
-        const toes: [number, number, number][] = [
-          [0.30, 0.45, 0.088],
-          [0.42, 0.30, 0.094],
-          [0.58, 0.30, 0.094],
-          [0.70, 0.45, 0.088],
-        ];
-        for (const [tx, ty, tr] of toes) { cx.beginPath(); cx.arc(s * tx, s * ty, s * tr, 0, Math.PI * 2); cx.fill(); }
-        map.addImage("checkin-paw", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
+        cx.moveTo(s * 0.5, s * 0.77);
+        cx.bezierCurveTo(s * 0.18, s * 0.55, s * 0.13, s * 0.33, s * 0.29, s * 0.23);
+        cx.bezierCurveTo(s * 0.39, s * 0.16, s * 0.47, s * 0.22, s * 0.5, s * 0.31);
+        cx.bezierCurveTo(s * 0.53, s * 0.22, s * 0.61, s * 0.16, s * 0.71, s * 0.23);
+        cx.bezierCurveTo(s * 0.87, s * 0.33, s * 0.82, s * 0.55, s * 0.5, s * 0.77);
+        cx.stroke();
+        map.addImage("checkin-heart", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
       }
     }
     loadCheckinPhotos(map, checkinsRef.current); // 注册有照片足迹的缩略图标
@@ -1172,9 +1191,9 @@ export function MapExplorer() {
       source: "checkins",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#f59e0b",
-        "circle-opacity": 0.2,
-        "circle-radius": ["step", ["get", "point_count"], 22, 5, 27, 10, 33],
+        "circle-color": "#fb7185",
+        "circle-opacity": 0.16,
+        "circle-radius": ["step", ["get", "point_count"], 18, 5, 23, 10, 29],
       },
     });
     map.addLayer({
@@ -1183,10 +1202,10 @@ export function MapExplorer() {
       source: "checkins",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#f59e0b",
+        "circle-color": "#fb7185",
         "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2.5,
-        "circle-radius": ["step", ["get", "point_count"], 15, 5, 19, 10, 24],
+        "circle-stroke-width": 2,
+        "circle-radius": ["step", ["get", "point_count"], 12, 5, 16, 10, 21],
       },
     });
     map.addLayer({
@@ -1201,29 +1220,30 @@ export function MapExplorer() {
       },
       paint: { "text-color": "#fff" },
     });
-    // 琥珀圆（所有单个足迹的底）：无照片显脚印、有照片则被缩略图盖住
+    // 透明点击热区：视觉由粉色线描心形承担。
     map.addLayer({
       id: "checkin-point",
       type: "circle",
       source: "checkins",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": "#f59e0b",
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2.5,
-        "circle-radius": 9,
+        "circle-color": "#fb7185",
+        "circle-opacity": 0.08,
+        "circle-stroke-color": "#fb7185",
+        "circle-stroke-width": 1,
+        "circle-stroke-opacity": 0.18,
+        "circle-radius": 13,
       },
     });
-    // 叠加图标：有照片缩略图(ci-photo-id，较大盖住圆)→ 否则白色梅花脚印
+    // 叠加图标：足迹统一使用粉色心形，降低地图干扰。
     map.addLayer({
       id: "checkin-tick-icon",
       type: "symbol",
       source: "checkins",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": ["coalesce", ["image", ["concat", "ci-photo-", ["get", "id"]]], ["image", "checkin-paw"]],
-        // 有照片的缩略图放大些更显眼；脚印保持原大小
-        "icon-size": ["case", ["==", ["get", "hasPhoto"], 1], 1.35, 0.72],
+        "icon-image": "checkin-heart",
+        "icon-size": 0.62,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -1255,6 +1275,8 @@ export function MapExplorer() {
       if (moodValues.length === 0 && rating > 0) moodValues = [rating];
       const moods = moodValues.map((value) => MOOD_TAGS.find((item) => item.value === value)).filter((item): item is (typeof MOOD_TAGS)[number] => !!item);
       const stars = moods.length ? `<div class="tem-ci-rating">心情 · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
+      const ownerTitle = Number(p.isMine ?? 0) === 1 ? "我的足迹" : "公开足迹";
+      const visibility = Number(p.isPublic ?? 0) === 1 ? "公开" : "隐藏";
       const gallery = photos.length
         ? `<div class="tem-ci-galwrap">
             <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>
@@ -1265,7 +1287,8 @@ export function MapExplorer() {
         ${gallery}
         <div class="tem-ci-body">
           <div class="tem-ci-titlerow">
-            <span class="tem-ci-title">我的足迹</span>
+            <span class="tem-ci-title">${ownerTitle}</span>
+            <span class="tem-ci-visibility">${visibility}</span>
             ${p.seq ? `<span class="tem-ci-seq">第 ${Number(p.seq)} 个</span>` : ""}
           </div>
           <div class="tem-ci-when">${escapeHtml(String(p.when ?? ""))}</div>
@@ -1719,7 +1742,7 @@ export function MapExplorer() {
     [setupStations, setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
   );
 
-  function openPlacement(m: Mode) {
+  function openPlacement(m: Mode, target: PlacementTarget = null) {
     if (!user) {
       showToast("请先到「个人」页登录后再记录足迹 / 发帖");
       return;
@@ -1730,13 +1753,15 @@ export function MapExplorer() {
     const container = map.getContainer();
     const current = userLocationRef.current ?? userLocation;
     const anchorScreenY = container.clientHeight * 0.22;
-    const c = current ? new mlg.LngLat(current.lng, current.lat) : map.unproject([container.clientWidth / 2, anchorScreenY]);
+    const targetCoords = target?.lat != null && target.lng != null ? { lat: target.lat, lng: target.lng } : null;
+    const anchorSource = targetCoords ?? current;
+    const c = anchorSource ? new mlg.LngLat(anchorSource.lng, anchorSource.lat) : map.unproject([container.clientWidth / 2, anchorScreenY]);
     const marker = new mlg.Marker({ element: anchorMarkerEl(), draggable: true, anchor: "bottom" })
       .setLngLat(c)
       .addTo(map);
-    if (current) {
+    if (anchorSource) {
       map.flyTo({
-        center: [current.lng, current.lat],
+        center: [anchorSource.lng, anchorSource.lat],
         zoom: Math.max(map.getZoom(), 15),
         offset: [0, anchorScreenY - container.clientHeight / 2],
       });
@@ -1747,8 +1772,13 @@ export function MapExplorer() {
     });
     placingRef.current = marker;
     setMode(m);
+    setCheckinTarget(target);
     setDialogAt({ lat: c.lat, lng: c.lng });
   }
+
+  useEffect(() => {
+    openTargetCheckinRef.current = (target) => openPlacement("checkin", target);
+  });
 
   function clearPlacing() {
     placingRef.current?.remove();
@@ -1757,6 +1787,7 @@ export function MapExplorer() {
   function cancelDialog() {
     clearPlacing();
     setDialogAt(null);
+    setCheckinTarget(null);
   }
   function anchorPos(fallback: { lat: number; lng: number }) {
     const p = placingRef.current?.getLngLat();
@@ -1768,10 +1799,11 @@ export function MapExplorer() {
     const res = await fetch("/api/checkins", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, moodTags: draft.moodTags, photoUrls: draft.photoUrls, eventId: draft.eventId ?? null }),
+      body: JSON.stringify({ lat, lng, note: draft.note || null, rating: draft.rating, moodTags: draft.moodTags, photoUrls: draft.photoUrls, isPublic: draft.isPublic, eventId: draft.eventId ?? null }),
     });
     clearPlacing();
     setDialogAt(null);
+    setCheckinTarget(null);
     if (res.ok) {
       showToast("已留下足迹");
       await fetchCheckins();
@@ -1785,10 +1817,11 @@ export function MapExplorer() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, lat, lng }),
+      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, eventId: draft.eventId ?? null, lat, lng }),
     });
     clearPlacing();
     setDialogAt(null);
+    setCheckinTarget(null);
     if (res.ok) {
       showToast("已发布");
       if (lastBboxRef.current) await fetchEvents(lastBboxRef.current);
@@ -2144,10 +2177,24 @@ export function MapExplorer() {
       />
       {/* 表单为全屏可吸附 sheet：默认 peek（露出地图拖锚点），上拉展开填写，下拉收起 */}
       {dialogAt && mode === "checkin" && (
-        <CheckInDialog lat={dialogAt.lat} lng={dialogAt.lng} onCancel={cancelDialog} onSubmit={submitCheckIn} />
+        <CheckInDialog
+          lat={dialogAt.lat}
+          lng={dialogAt.lng}
+          eventId={checkinTarget?.id ?? null}
+          targetTitle={checkinTarget?.title ?? null}
+          onCancel={cancelDialog}
+          onSubmit={submitCheckIn}
+        />
       )}
       {dialogAt && mode === "post" && (
-        <PostDialog lat={dialogAt.lat} lng={dialogAt.lng} onCancel={cancelDialog} onSubmit={submitPost} />
+        <PostDialog
+          lat={dialogAt.lat}
+          lng={dialogAt.lng}
+          eventId={checkinTarget?.id ?? null}
+          targetTitle={checkinTarget?.title ?? null}
+          onCancel={cancelDialog}
+          onSubmit={submitPost}
+        />
       )}
       {toast && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 bg-black/80 text-white text-sm px-4 py-2 rounded-full">

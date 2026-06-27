@@ -6,6 +6,15 @@
 
 ## 2026-06-27
 
+### Link posts and footprints to activities
+- **Activity-linked posts and footprints**: map activity popups now include actions to create a related post or footprint, and the forms carry the selected activity as their target.
+- **Footprint visibility**: footprints can now be public or hidden; hidden footprints stay private while public ones participate in map and activity aggregation.
+- **Aggregation data foundation**: added `Post.eventId`, `CheckIn.isPublic`, related indexes, and `/api/events/[id]/related` for future activity detail tabs.
+- **Map marker hierarchy**: official activities use blue markers, user posts use purple camera markers, and footprints use lightweight pink heart markers to match the new map legend direction.
+**Files:** `prisma/schema.prisma`, `prisma/migrations/20260627093000_add_checkin_visibility/migration.sql`, `src/services/events.ts`, `src/services/checkins.ts`, `src/app/api/events/route.ts`, `src/app/api/events/[id]/related/route.ts`, `src/app/api/checkins/route.ts`, `src/app/api/checkins/[id]/route.ts`, `src/components/Map/MapExplorer.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`, `src/components/Me/EditDialogs.tsx`, `src/lib/types.ts`, `src/app/globals.css`
+
+---
+
 ### Distinguish featured activity sources
 - **Source icons on featured cards**: nearby featured activity cards now show compact official/user source icons so scraped official events and user posts are easier to distinguish without adding text clutter.
 **Files:** `src/components/Map/PopularCard.tsx`

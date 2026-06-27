@@ -21,11 +21,14 @@ export type PostDraft = {
   endTime: string | null; // ISO
   tags: string[];
   signupEnabled: boolean;
+  eventId?: string | null;
 };
 
 type Props = {
   lat: number;
   lng: number;
+  eventId?: string | null;
+  targetTitle?: string | null;
   onCancel: () => void;
   onSubmit: (draft: PostDraft) => Promise<void>;
   onSnapChange?: (snap: "peek" | "full") => void;
@@ -34,7 +37,7 @@ type Props = {
 const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
 // 锚点发帖："这里有个活动"——在地图上标记并发布一个活动（sourceType=USER）。
-export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props) {
+export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<EventCategory>("OTHER");
   const [description, setDescription] = useState("");
@@ -120,6 +123,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         endTime: toISO(end),
         tags,
         signupEnabled,
+        eventId: eventId ?? null,
       });
     } finally {
       setSubmitting(false);
@@ -127,7 +131,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   }
 
   return (
-    <BottomSheet title="发布活动" hint="把附近正在发生或即将开始的活动分享给大家" onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet title="发布活动" hint={targetTitle ? `关联到「${targetTitle}」` : "把附近正在发生或即将开始的活动分享给大家"} onClose={onCancel} onSnapChange={onSnapChange}>
       <div className="mb-5">
         <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input
