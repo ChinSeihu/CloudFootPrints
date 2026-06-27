@@ -834,7 +834,7 @@ export function MapExplorer() {
       filter: ["all", ["has", "point_count"], [">", ["coalesce", ["get", "officialCount"], 0], 0], [">", ["coalesce", ["get", "userCount"], 0], 0]],
       layout: {
         "icon-image": "cluster-mixed",
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.74, 10, 0.9, 30, 1.12, 80, 1.38, 160, 1.56],
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.84, 10, 1.04, 30, 1.34, 80, 1.72, 160, 1.96],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -1314,20 +1314,10 @@ export function MapExplorer() {
       filter: ["has", "point_count"],
       paint: {
         "circle-color": "#fb7185",
-        "circle-opacity": 0.01,
+        "circle-opacity": 0.92,
         "circle-radius": ["step", ["get", "point_count"], 16, 5, 20, 10, 25],
-      },
-    });
-    map.addLayer({
-      id: "checkin-cluster-badge",
-      type: "symbol",
-      source: "checkins",
-      filter: ["has", "point_count"],
-      layout: {
-        "icon-image": "cluster-footprint",
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.48, 10, 0.6, 30, 0.72],
-        "icon-allow-overlap": true,
-        "icon-ignore-placement": true,
+        "circle-stroke-color": "rgba(255,255,255,0.96)",
+        "circle-stroke-width": 2.6,
       },
     });
     map.addLayer({
@@ -1342,7 +1332,11 @@ export function MapExplorer() {
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
-      paint: { "text-color": "#fb7185" },
+      paint: {
+        "text-color": "#fff",
+        "text-halo-color": "rgba(136,19,55,0.18)",
+        "text-halo-width": 0.7,
+      },
     });
     // 透明点击热区：视觉由粉色线描心形承担。
     map.addLayer({

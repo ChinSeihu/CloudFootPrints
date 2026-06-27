@@ -42,6 +42,12 @@ const SYSTEM_PROMPT = `你是一个活动信息抽取器。从给定的东京活
 - 一页可能含多个活动；没有具体活动时返回空数组。`;
 
 // 抽取器返回的原始对象（未经 zod 校验）。
+const TIME_EXTRACTION_RULES = `Time extraction rules:
+- If the page text contains times such as 10:00, 10時, 午後2時, 開場18:30, 10:00-18:00, use those hours/minutes in startTime/endTime.
+- Use Asia/Tokyo offset (+09:00) when the page omits a timezone.
+- Only use T00:00:00+09:00 when the page truly provides a date but no time anywhere near that event.
+- For ranges, startTime is the opening/start time and endTime is the closing/end time on the same date unless another date is explicitly shown.`;
+
 export type RawExtractedEvent = {
   title?: unknown;
   description?: unknown;
@@ -110,7 +116,7 @@ async function extractViaAnthropic(pageText: string): Promise<RawExtractedEvent[
   const res = await getAnthropic().messages.create({
     model,
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: `${SYSTEM_PROMPT}\n\n${TIME_EXTRACTION_RULES}`,
     tools: [EXTRACT_TOOL],
     tool_choice: { type: "tool", name: "emit_events" },
     messages: [{ role: "user", content: `网页文本：\n"""\n${pageText}\n"""` }],
@@ -151,7 +157,7 @@ async function extractViaOpenAICompatible(pageText: string): Promise<RawExtracte
     body: JSON.stringify({
       model,
       messages: [
-        { role: "system", content: `${SYSTEM_PROMPT}\n\n${JSON_INSTRUCTION}` },
+        { role: "system", content: `${SYSTEM_PROMPT}\n\n${TIME_EXTRACTION_RULES}\n\n${JSON_INSTRUCTION}` },
         { role: "user", content: `网页文本：\n"""\n${pageText}\n"""` },
       ],
       response_format: { type: "json_object" },

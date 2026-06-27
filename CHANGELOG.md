@@ -6,6 +6,14 @@
 
 ## 2026-06-27
 
+### Refine clusters and extracted event times
+- **Mixed cluster sizing**: mixed-source cluster rings scale up more aggressively with activity count so center numbers have more room.
+- **Footprint cluster simplification**: footprint clusters now render as numeric pink circles only, without the heart icon badge over the count.
+- **Extraction time recovery**: LLM extraction prompts now emphasize exact time capture, and ingestion infers missing hours from nearby source text when extracted timestamps default to midnight.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/lib/llm.ts`, `src/services/extraction/ingest.ts`
+
+---
+
 ### Refine image-less activity cards
 - **Map popup no-image cards**: activity popups no longer render an empty image area when an activity has no image.
 - **Nearby placeholder art**: nearby activity cards now show a designed HTML placeholder with the activity title and category color when image data is missing, with title placement adjusted away from source/category badges.

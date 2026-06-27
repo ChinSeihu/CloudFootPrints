@@ -31,6 +31,67 @@ function parseDate(s: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+type TimeRange = { startHour: number; startMinute: number; endHour?: number; endMinute?: number };
+
+function isMidnight(d: Date): boolean {
+  const h = d.getUTCHours();
+  return (h === 0 || h === 15) && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+}
+
+function tokyoDateWithTime(dateLike: string | null, hour: number, minute: number): Date | null {
+  const m = dateLike?.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!m) return null;
+  const hh = String(hour).padStart(2, "0");
+  const mm = String(minute).padStart(2, "0");
+  return parseDate(`${m[1]}T${hh}:${mm}:00+09:00`);
+}
+
+function normalizeJapaneseHour(prefix: string, rawHour: string): number {
+  let hour = Number(rawHour);
+  if (/午後|PM/i.test(prefix) && hour < 12) hour += 12;
+  if (/午前|AM/i.test(prefix) && hour === 12) hour = 0;
+  return hour;
+}
+
+function inferTimeRange(title: string, rawText: string | null): TimeRange | null {
+  if (!rawText) return null;
+  const compactTitle = title.trim();
+  const index = compactTitle ? rawText.indexOf(compactTitle) : -1;
+  const context = index >= 0
+    ? rawText.slice(Math.max(0, index - 600), Math.min(rawText.length, index + compactTitle.length + 900))
+    : rawText.slice(0, 5000);
+  const pattern = /((?:午前|午後|AM|PM|開場|開演|開始|時間|開催時間|Start|Open|Close|OPEN|START|CLOSE)?\s*)([01]?\d|2[0-3])\s*(?:[:：時]\s*([0-5]\d)?)?\s*(?:[〜~\-–—－]\s*((?:午前|午後|AM|PM)?\s*)([01]?\d|2[0-3])\s*(?:[:：時]\s*([0-5]\d)?)?)?/g;
+  for (const match of context.matchAll(pattern)) {
+    const matchIndex = match.index ?? 0;
+    const token = match[0] ?? "";
+    const before = context.slice(Math.max(0, matchIndex - 2), matchIndex);
+    const after = context.slice(matchIndex + token.length, matchIndex + token.length + 2);
+    if (/\d/.test(before) || /\d/.test(after)) continue;
+    if (!/[:：時〜~\-–—－午前午後]|AM|PM|開場|開演|開始|時間|開催時間|Start|Open|Close/i.test(token)) continue;
+    const startHour = normalizeJapaneseHour(match[1] ?? "", match[2]);
+    const startMinute = match[3] ? Number(match[3]) : 0;
+    if (startHour < 5 || startHour > 23) continue;
+    const endHour = match[5] ? normalizeJapaneseHour(match[4] ?? match[1] ?? "", match[5]) : undefined;
+    const endMinute = match[6] ? Number(match[6]) : endHour === undefined ? undefined : 0;
+    return { startHour, startMinute, endHour, endMinute };
+  }
+  return null;
+}
+
+function parseDateWithInferredTime(s: string | null, title: string, rawText: string | null, part: "start" | "end"): Date | null {
+  const d = parseDate(s);
+  if (!d || !isMidnight(d)) return d;
+  const inferred = inferTimeRange(title, rawText);
+  if (!inferred) return d;
+  if (part === "end" && inferred.endHour !== undefined) {
+    return tokyoDateWithTime(s, inferred.endHour, inferred.endMinute ?? 0) ?? d;
+  }
+  if (part === "start") {
+    return tokyoDateWithTime(s, inferred.startHour, inferred.startMinute) ?? d;
+  }
+  return d;
+}
+
 // 把一批已抽取的活动（含来源元数据）落库：
 //  1) 必填校验  2) 地理编码（无地址或失败则跳过该条）  3) 简单去重  4) 写入。
 // 去重：用 (title + sourceUrl) 判同一条。**不含 startTime**——日期来源无时区，
@@ -48,7 +109,7 @@ export async function ingestEvents(
   };
 
   for (const ev of events) {
-    const startTime = parseDate(ev.startTime);
+    const startTime = parseDateWithInferredTime(ev.startTime, ev.title, rawText, "start");
 
     if (!ev.address) {
       stats.geocodeFailed++;
@@ -112,7 +173,7 @@ export async function ingestEvents(
         lat: coords.lat,
         lng: coords.lng,
         startTime,
-        endTime: parseDate(ev.endTime),
+        endTime: parseDateWithInferredTime(ev.endTime, ev.title, rawText, "end"),
         sourceType: source.sourceType,
         sourceUrl: eventSourceUrl,
         trustLevel: source.trustLevel,
