@@ -6,6 +6,17 @@
 
 ## 2026-06-27
 
+### Align map markers and activity popup tabs
+- **User post marker shape**: user posts now use a purple camera bubble marker instead of a standard activity circle with a corner badge.
+- **Category-colored official activities**: official activity markers again use category colors so event types are easier to distinguish on the map.
+- **Count-based cluster sizing**: map clusters size by aggregated count again, with larger mixed clusters so numbers remain readable when zoomed out.
+- **Activity popup tabs**: activity cards now use `详情 / 发帖 / 足迹` tabs; related posts and public footprints load inline, with publish actions at the top of their tabs.
+- **Public footprint authors**: public footprint data now includes author information for map and related-content displays.
+- **Viewport-safe date picker**: the map filter date picker is fixed within the viewport so it no longer opens off-screen.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/components/Map/Filters.tsx`, `src/app/api/events/[id]/related/route.ts`, `src/services/checkins.ts`, `src/lib/types.ts`, `src/app/globals.css`
+
+---
+
 ### Improve map popup close affordance
 - **Visible popup close button**: MapLibre popups now use a circular white close button with border, shadow, and higher contrast so activity, footprint, landmark, station, and food cards are easier to dismiss.
 **Files:** `src/app/globals.css`

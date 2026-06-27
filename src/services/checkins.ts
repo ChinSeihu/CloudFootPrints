@@ -11,13 +11,14 @@ function normalizeMoodTags(moodTags?: number[], fallbackRating?: number | null):
   return [...new Set(raw.map((value) => Math.round(Number(value))).filter((value) => Number.isFinite(value)))].slice(0, 6);
 }
 
-function serializeCheckin(row: any, currentUserId?: string | null) {
+function serializeCheckin(row: any, currentUserId?: string | null, authors?: Map<string, { id: string; username: string; avatarUrl: string | null }>) {
   const { post, ...checkin } = row;
   return {
     ...checkin,
     postId: row.postId ?? null,
     event: row.event ?? post ?? null,
     isMine: currentUserId ? row.userId === currentUserId : false,
+    author: authors?.get(row.userId) ?? null,
   };
 }
 
@@ -31,7 +32,8 @@ export async function listCheckins(userId: string = CURRENT_USER_ID) {
     },
   });
   // 关联目标可能是官方活动或用户发帖；统一暴露为 event 字段（前端不区分），并去掉 post。
-  return rows.map((row) => serializeCheckin(row, userId));
+  const authors = await loadCheckinAuthors(rows);
+  return rows.map((row) => serializeCheckin(row, userId, authors));
 }
 
 export async function listVisibleCheckins(userId?: string | null) {
@@ -44,7 +46,18 @@ export async function listVisibleCheckins(userId?: string | null) {
       post: { select: { id: true, title: true, category: true } },
     },
   });
-  return rows.map((row) => serializeCheckin(row, userId));
+  const authors = await loadCheckinAuthors(rows);
+  return rows.map((row) => serializeCheckin(row, userId, authors));
+}
+
+async function loadCheckinAuthors(rows: Array<{ userId: string }>) {
+  const ids = [...new Set(rows.map((row) => row.userId).filter(Boolean))];
+  if (ids.length === 0) return new Map<string, { id: string; username: string; avatarUrl: string | null }>();
+  const users = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, username: true, avatarUrl: true },
+  });
+  return new Map(users.map((user) => [user.id, user]));
 }
 
 export type CreateCheckinInput = {

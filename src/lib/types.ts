@@ -74,6 +74,7 @@ export type CheckInDTO = {
   moodTags: number[];
   isPublic: boolean;
   isMine?: boolean;
+  author?: UserBrief | null;
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;
 };

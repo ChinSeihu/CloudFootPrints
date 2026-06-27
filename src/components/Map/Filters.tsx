@@ -61,10 +61,10 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
+          className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
             open || activeCount > 0
               ? "bg-blue-600 text-white border-transparent"
-              : "bg-white/95 text-neutral-800 border-white/80"
+              : "bg-white/95 text-neutral-600 border-white/80"
           }`}
         >
           <IconFilter className="w-4 h-4" />
@@ -81,9 +81,9 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
           <button
             type="button"
             onClick={() => setDateOpen((v) => !v)}
-            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
+            className={`shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-semibold shadow-[0_8px_24px_rgba(15,23,42,0.10)] border transition ${
               isAllDates(value.dateRange)
-                ? "bg-white/95 text-neutral-800 border-white/80"
+                ? "bg-white/95 text-neutral-600 border-white/80"
                 : "bg-blue-600 text-white border-transparent"
             }`}
           >
@@ -92,7 +92,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
             <svg viewBox="0 0 24 24" className={`w-3 h-3 transition ${dateOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
           </button>
           {dateOpen && (
-            <div className="absolute right-0 top-full mt-2 rounded-3xl border border-black/5 bg-white p-3 shadow-[0_16px_42px_rgba(15,23,42,0.14)] z-30">
+            <div className="fixed left-1/2 top-16 z-50 max-w-[calc(100vw-1rem)] -translate-x-1/2 overflow-x-auto rounded-3xl border border-black/5 bg-white p-3 shadow-[0_16px_42px_rgba(15,23,42,0.14)]">
               <CalendarRangePicker
                 value={value.dateRange}
                 onChange={(dr) => onChange({ ...value, dateRange: dr })}

@@ -41,6 +41,14 @@ export async function GET(_request: Request, ctx: Ctx) {
         },
       }),
     ]);
+    const authorIds = [...new Set(checkins.map((checkin) => checkin.userId).filter(Boolean))];
+    const authors = authorIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, username: true, avatarUrl: true },
+        })
+      : [];
+    const authorMap = new Map(authors.map((author) => [author.id, author]));
 
     return NextResponse.json({
       posts: posts.map(normalizePost),
@@ -48,6 +56,7 @@ export async function GET(_request: Request, ctx: Ctx) {
         ...checkin,
         event: checkin.event ?? linkedPost ?? null,
         isMine: userId ? checkin.userId === userId : false,
+        author: authorMap.get(checkin.userId) ?? null,
       })),
     });
   } catch (err) {

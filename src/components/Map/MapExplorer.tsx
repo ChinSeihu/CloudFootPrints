@@ -343,6 +343,7 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
         sourceType: ev.sourceType,
         sourceUrl: ev.sourceUrl ?? "",
         imageUrl: ev.imageUrl ?? "",
+        description: ev.description ?? "",
         // 供聚合按「地理分散度」计算半径用（同点活动不放大，分散才放大）
         lng: ev.lng,
         lat: ev.lat,
@@ -373,6 +374,8 @@ function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poi
           note: c.note ?? "",
           isPublic: c.isPublic ? 1 : 0,
           isMine: c.isMine ? 1 : 0,
+          authorName: c.author?.username ?? "",
+          authorAvatar: c.author?.avatarUrl ?? "",
           rating: c.rating ?? 0,
           moodTags: JSON.stringify(c.moodTags?.length ? c.moodTags : c.rating ? [c.rating] : []),
           seq: seqOf.get(c.id) ?? 0,
@@ -784,13 +787,8 @@ export function MapExplorer() {
 
     // 圆大小按「地理分散度」（经纬包围盒边长，单位度）而非数量：
     // 同一地点的多活动 → spread≈0 → 小圆；不同地点分散 → 越散越大。
-    const spread: maplibregl.ExpressionSpecification = [
-      "max",
-      ["-", ["get", "maxLng"], ["get", "minLng"]],
-      ["-", ["get", "maxLat"], ["get", "minLat"]],
-    ] as unknown as maplibregl.ExpressionSpecification;
-    const mainRadius = ["interpolate", ["linear"], spread, 0, 15, 0.004, 21, 0.02, 27] as unknown as maplibregl.ExpressionSpecification;
-    const haloRadius = ["interpolate", ["linear"], spread, 0, 22, 0.004, 30, 0.02, 38] as unknown as maplibregl.ExpressionSpecification;
+    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 17, 10, 24, 30, 32, 80, 42] as unknown as maplibregl.ExpressionSpecification;
+    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 10, 36, 30, 48, 80, 62] as unknown as maplibregl.ExpressionSpecification;
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
@@ -831,7 +829,7 @@ export function MapExplorer() {
           ["==", ["coalesce", ["get", "userCount"], 0], 0], "cluster-official",
           "cluster-mixed",
         ],
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.5, 15, 0.62, 50, 0.74],
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.64, 10, 0.78, 30, 0.94, 80, 1.1],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -844,7 +842,7 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 12, 15, 14, 50, 16],
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 13, 10, 15, 30, 17, 80, 19],
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
@@ -862,10 +860,10 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
-        "circle-opacity": 0.14,
+        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
+        "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.08, 0.18],
         "circle-blur": 0.5,
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 18, 22],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 20, 20],
       },
     });
     // 单个活动点：分类色填充圆 + 柔白边（略降透明，弱化突兀感）
@@ -875,11 +873,11 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
-        "circle-opacity": 0.92,
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 12, 14],
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 2.2, 2.8],
+        "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
+        "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.01, 0.92],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 14, 14],
+        "circle-stroke-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#fff"],
+        "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 0, 2.8],
         "circle-stroke-opacity": 0.95,
       },
     });
@@ -892,8 +890,8 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": ["concat", "glyph-", ["get", "category"]],
-        "icon-size": 0.85,
+        "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "cluster-user", ["concat", "glyph-", ["get", "category"]]],
+        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.36, 0.85],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         // 放大到一定尺度后，图标下方显示一句活动摘要（截断加省略号）
@@ -906,7 +904,7 @@ export function MapExplorer() {
         "text-max-width": 12,
       },
       paint: {
-        "text-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#2563eb"],
+        "text-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
         "text-halo-color": "#ffffff",
         "text-halo-width": 2,
         // 仅在放大后淡入，避免低缩放拥挤
@@ -914,29 +912,14 @@ export function MapExplorer() {
       },
     });
 
-    // 个人发帖专属角标：只对 sourceType=USER 的单点显示，叠在右上角，醒目区分官方/个人。
-    await loadUserPostBadge(map);
-    map.addLayer({
-      id: "event-userbadge",
-      type: "symbol",
-      source: "events",
-      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "sourceType"], "USER"]],
-      layout: {
-        "icon-image": "userpost-badge",
-        "icon-size": 0.62,
-        "icon-allow-overlap": true,
-        "icon-ignore-placement": true,
-        // ×icon-size(0.62) ≈ (13.6, -13.6)px：落在半径 14 圆点的右上角
-        "icon-offset": [22, -22],
-      },
-    });
+    // 用户发帖直接使用紫色气泡相机 marker，不再是普通圆点角标。
 
     // ── 单个活动的轻量类型（来自 GeoJSON properties，已序列化为字符串） ──
     type PopupEvent = {
       id: string; title: string; category: string;
       venueName: string; address: string;
       startTime: string; sourceType: string; sourceUrl: string;
-      imageUrl: string;
+      imageUrl: string; description: string;
     };
     const toPopupEvent = (p: Record<string, unknown>): PopupEvent => ({
       id: String(p.id ?? ""),
@@ -948,6 +931,7 @@ export function MapExplorer() {
       sourceType: String(p.sourceType ?? ""),
       sourceUrl: String(p.sourceUrl ?? ""),
       imageUrl: String(p.imageUrl ?? ""),
+      description: String(p.description ?? ""),
     });
 
     // 复制/对勾小图标（弹窗是原生 HTML，无法用 React 图标组件）
@@ -970,9 +954,7 @@ export function MapExplorer() {
             <button class="tem-card-copy" data-action="copy" data-copy="${escapeHtml(copyText)}" aria-label="复制地址" title="复制地址">${COPY_SVG}</button>
           </div>`
         : "";
-      const source = ev.sourceUrl
-        ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>`
-        : "";
+      const detailText = (ev.description || ev.venueName || ev.address || "暂无更多详情。").trim();
       const image = ev.imageUrl
         ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /><div class="tem-card-imgshade"></div></div>`
         : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"><div class="tem-card-imgshade"></div></div>`;
@@ -995,14 +977,26 @@ export function MapExplorer() {
             <span class="tem-card-time">${when}</span>
             ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">用户发帖</span>` : `<span class="tem-card-sourcehint">官方活动</span>`}
           </div>
-          <div class="tem-card-foot">
-            <button class="tem-card-act act-detail"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button>
-            <button class="tem-card-act act-nav" data-action="route"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>导航</button>
-            <button class="tem-card-act act-guide" data-action="guide"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8z"/></svg>问导游</button>
-            <button class="tem-card-act act-checkin" data-action="checkin"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>足迹</button>
-            <button class="tem-card-act act-post" data-action="post"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>发帖</button>
-            <button class="tem-card-act act-fav" data-action="favorite"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>收藏</button>
-            ${source}${del}
+          <div class="tem-card-tabs" role="tablist">
+            <button class="tem-card-tab active" data-tab="detail" type="button">详情</button>
+            <button class="tem-card-tab" data-tab="posts" type="button">发帖</button>
+            <button class="tem-card-tab" data-tab="checkins" type="button">足迹</button>
+          </div>
+          <div class="tem-card-panel active" data-panel="detail">
+            <p class="tem-card-desc">${escapeHtml(detailText)}</p>
+            <div class="tem-card-inline-actions">
+              ${ev.sourceUrl ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>` : ""}
+              <button class="tem-card-mini" data-action="favorite" type="button">收藏</button>
+              ${del}
+            </div>
+          </div>
+          <div class="tem-card-panel" data-panel="posts">
+            <button class="tem-card-create act-post" data-action="post" type="button">发布相关发帖</button>
+            <div class="tem-card-related" data-related="posts">切换后加载相关发帖</div>
+          </div>
+          <div class="tem-card-panel" data-panel="checkins">
+            <button class="tem-card-create act-checkin" data-action="checkin" type="button">发布足迹</button>
+            <div class="tem-card-related" data-related="checkins">切换后加载公开足迹</div>
           </div>
         </div>
       </div>`;
@@ -1021,11 +1015,66 @@ export function MapExplorer() {
       const root = popup.getElement();
       root?.querySelectorAll<HTMLElement>(".tem-card").forEach((card) => {
         const id = card.getAttribute("data-event-id") ?? "";
+        const renderRelated = async (kind: "posts" | "checkins") => {
+          const box = card.querySelector<HTMLElement>(`[data-related="${kind}"]`);
+          if (!box || box.dataset.loaded === "1") return;
+          box.textContent = "加载中...";
+          try {
+            const res = await fetch(`/api/events/${encodeURIComponent(id)}/related`);
+            if (!res.ok) throw new Error("failed");
+            const data = (await res.json()) as {
+              posts?: Array<{ id: string; title: string; imageUrl?: string | null; venueName?: string | null; createdAt?: string }>;
+              checkins?: Array<{ id: string; note?: string | null; photoUrl?: string | null; photoUrls?: string[]; createdAt: string; author?: { username: string; avatarUrl: string | null } | null }>;
+            };
+            if (kind === "posts") {
+              const posts = data.posts ?? [];
+              box.innerHTML = posts.length
+                ? posts.slice(0, 3).map((post) => `<div class="tem-related-row" data-action="open-related" data-event-id="${escapeHtml(post.id)}">
+                    ${post.imageUrl ? `<img src="${escapeHtml(post.imageUrl)}" alt="" />` : `<span class="tem-related-thumb"></span>`}
+                    <span><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.venueName ?? "相关发帖")}</small></span>
+                  </div>`).join("")
+                : `<div class="tem-related-empty">还没有相关发帖</div>`;
+            } else {
+              const checkins = data.checkins ?? [];
+              box.innerHTML = checkins.length
+                ? checkins.slice(0, 3).map((checkin) => {
+                    const photo = checkin.photoUrls?.[0] ?? checkin.photoUrl ?? "";
+                    const author = checkin.author?.username ?? "用户";
+                    return `<div class="tem-related-row">
+                      ${photo ? `<img src="${escapeHtml(photo)}" alt="" />` : `<span class="tem-related-heart">♡</span>`}
+                      <span><strong>${escapeHtml(author)}</strong><small>${escapeHtml(checkin.note || "留下了足迹")}</small></span>
+                    </div>`;
+                  }).join("")
+                : `<div class="tem-related-empty">还没有公开足迹</div>`;
+            }
+            box.dataset.loaded = "1";
+          } catch {
+            box.innerHTML = `<div class="tem-related-empty">加载失败，稍后再试</div>`;
+          }
+        };
         card.addEventListener("click", (ev) => {
           const target = ev.target as HTMLElement;
+          const tabEl = target.closest<HTMLElement>("[data-tab]");
+          if (tabEl) {
+            ev.stopPropagation();
+            const tab = tabEl.dataset.tab ?? "detail";
+            card.querySelectorAll<HTMLElement>("[data-tab]").forEach((el) => el.classList.toggle("active", el === tabEl));
+            card.querySelectorAll<HTMLElement>("[data-panel]").forEach((el) => el.classList.toggle("active", el.dataset.panel === tab));
+            if (tab === "posts" || tab === "checkins") renderRelated(tab);
+            return;
+          }
           const actionEl = target.closest("[data-action]");
           const action = actionEl?.getAttribute("data-action");
           if (action === "source") return;            // 让 <a> 自己开新标签页
+          if (action === "open-related") {
+            ev.stopPropagation();
+            const relatedId = actionEl?.getAttribute("data-event-id") ?? "";
+            if (relatedId) {
+              popup.remove();
+              routerRef.current.push(`/recommend?event=${encodeURIComponent(relatedId)}`);
+            }
+            return;
+          }
           if (action === "copy") {
             ev.stopPropagation();
             const text = actionEl?.getAttribute("data-copy") ?? "";
@@ -1340,6 +1389,14 @@ export function MapExplorer() {
       const stars = moods.length ? `<div class="tem-ci-rating">心情 · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
       const ownerTitle = Number(p.isMine ?? 0) === 1 ? "我的足迹" : "公开足迹";
       const visibility = Number(p.isPublic ?? 0) === 1 ? "公开" : "隐藏";
+      const authorName = String(p.authorName ?? "");
+      const authorAvatar = String(p.authorAvatar ?? "");
+      const author = authorName
+        ? `<div class="tem-ci-author">
+            ${authorAvatar ? `<img src="${escapeHtml(authorAvatar)}" alt="" />` : `<span class="tem-ci-avatar-fallback">${escapeHtml(authorName.slice(0, 1))}</span>`}
+            <span>${escapeHtml(authorName)}</span>
+          </div>`
+        : "";
       const gallery = photos.length
         ? `<div class="tem-ci-galwrap">
             <div class="tem-ci-gallery">${photos.map((u) => `<img class="tem-ci-photo" src="${escapeHtml(u)}" alt="" loading="lazy" />`).join("")}</div>
@@ -1354,6 +1411,7 @@ export function MapExplorer() {
             <span class="tem-ci-visibility">${visibility}</span>
             ${p.seq ? `<span class="tem-ci-seq">第 ${Number(p.seq)} 个</span>` : ""}
           </div>
+          ${author}
           <div class="tem-ci-when">${escapeHtml(String(p.when ?? ""))}</div>
           ${p.title ? `<div class="tem-ci-event">${escapeHtml(String(p.title))}</div>` : ""}
           ${stars}
@@ -2079,7 +2137,7 @@ export function MapExplorer() {
       <WeatherPanel />
 
       <div className={`absolute bottom-7 left-3 right-3 pointer-events-none ${mapMenuOpen ? "z-[70]" : "z-[30]"}`}>
-        <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-2 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+        <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-2 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative">
             <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>
