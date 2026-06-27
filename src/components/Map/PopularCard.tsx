@@ -197,7 +197,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2.5 text-xs font-semibold text-neutral-700 shadow-[0_10px_30px_rgba(15,23,42,0.16)] backdrop-blur"
+        className="absolute bottom-28 left-1/2 z-[40] -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2.5 text-xs font-semibold text-neutral-700 shadow-[0_10px_30px_rgba(15,23,42,0.16)] backdrop-blur"
       >
         <span className="h-2 w-2 rounded-full bg-blue-600" />
         {anchored ? "锚点周边" : "附近活动"}
@@ -208,7 +208,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
   return (
     <section
       ref={sheetRef}
-      className="absolute inset-x-0 bottom-0 z-20 pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl will-change-transform"
+      className="absolute inset-x-0 bottom-0 z-[40] pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl will-change-transform"
     >
       <button
         type="button"

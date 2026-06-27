@@ -6,6 +6,17 @@
 
 ## 2026-06-27
 
+### Move map posting entry into toolbar
+- **Centered toolbar publish button**: the map page no longer uses a separate floating plus button; posting now lives as a purple "发帖" action in the middle of the bottom map toolbar.
+- **Reference-style publish drawer**: tapping "发帖" opens a bottom drawer for publishing an activity or leaving a footprint, above nearby activity cards.
+- **Balanced bottom controls**: the bottom toolbar restores full width since it no longer needs to reserve space for the old floating publish button.
+- **Visible secondary menus**: bottom toolbar overflow no longer clips the "更多" and "发帖" popover menus.
+- **Higher menu layer and compact drawer**: the bottom toolbar now sits above nearby cards, and the publish drawer supports drag-to-dismiss with tighter, more distinct action cards.
+- **Nearby drawer priority**: nearby activity drawers now sit above the toolbar by default, while the toolbar only raises above them when the "更多" menu is open.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Restyle posting sheets and date range picker
 - **Reference-style sheets**: publish activity and footprint sheets now use larger titles, softer rounded fields, horizontal image strips, and stronger primary buttons matching the provided mobile form reference.
 - **Activity category grid**: publish activity categories are presented as compact icon cards instead of small wrapping pills.

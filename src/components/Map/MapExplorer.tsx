@@ -1,11 +1,10 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type maplibregl from "maplibre-gl";
 import { MapView } from "./MapView";
 import { Filters, type FilterState } from "./Filters";
-import { ActionFab } from "./ActionFab";
 import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
@@ -473,6 +472,9 @@ export function MapExplorer() {
   const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
   const [foodMenuOpen, setFoodMenuOpen] = useState(false);
   const [mapMenuOpen, setMapMenuOpen] = useState(false);
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
+  const [publishDragY, setPublishDragY] = useState(0);
+  const publishDragStartRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -1928,23 +1930,62 @@ export function MapExplorer() {
     return !filters.mineOnly && filters.categories.size === 1 && filters.categories.has(category);
   }
 
+  function renderQuickCategory(category: EventCategory) {
+    const meta = CATEGORY_META[category];
+    const active = isQuickCategoryActive(category);
+    return (
+      <button key={category} type="button" onClick={() => setQuickCategory(category)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+        <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)]" : "bg-blue-50"}`} style={active ? { backgroundColor: meta.color } : { color: meta.color }}>
+          <CategoryIcon category={category} className="h-5 w-5" />
+        </span>
+        {meta.label}
+      </button>
+    );
+  }
+
+  function openPublishPlacement(nextMode: Mode) {
+    setPublishMenuOpen(false);
+    setPublishDragY(0);
+    openPlacement(nextMode);
+  }
+
+  function startPublishDrag(e: PointerEvent<HTMLDivElement>) {
+    publishDragStartRef.current = e.clientY;
+    setPublishDragY(0);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function movePublishDrag(e: PointerEvent<HTMLDivElement>) {
+    if (publishDragStartRef.current == null) return;
+    setPublishDragY(Math.max(0, e.clientY - publishDragStartRef.current));
+  }
+
+  function endPublishDrag() {
+    if (publishDragStartRef.current == null) return;
+    publishDragStartRef.current = null;
+    if (publishDragY > 72) {
+      setPublishMenuOpen(false);
+    }
+    setPublishDragY(0);
+  }
+
   return (
     <div className="absolute inset-0">
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
       <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       <WeatherPanel />
 
-      <div className="absolute bottom-7 left-3 right-24 z-20 pointer-events-none">
-        <div className="pointer-events-auto mx-auto flex max-w-[22rem] items-center justify-between gap-1 overflow-x-auto rounded-[24px] border border-white/80 bg-white/90 px-3 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className={`absolute bottom-7 left-3 right-3 pointer-events-none ${mapMenuOpen ? "z-[70]" : "z-[30]"}`}>
+        <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-2 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative">
-            <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex min-w-[3.25rem] flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+            <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 3v6a2 2 0 0 0 4 0V3" /><path d="M6 9v12" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9" /></svg>
               </span>
               美食
             </button>
             {foodMenuOpen && (
-              <div className="absolute bottom-full left-0 mb-3 w-32 rounded-2xl border border-black/10 bg-white p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
+              <div className="absolute bottom-full left-0 z-50 mb-3 w-32 rounded-2xl border border-black/10 bg-white p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
                 {([["ALL", "全部"], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", "不显示"]] as const).map(([val, label]) => {
                   const active = foodFilter === val;
                   return (
@@ -1962,35 +2003,55 @@ export function MapExplorer() {
             )}
           </div>
 
-          {(["EXHIBITION", "LIVE", "FESTIVAL"] as const).map((category) => {
-            const meta = CATEGORY_META[category];
-            const active = isQuickCategoryActive(category);
-            return (
-              <button key={category} type="button" onClick={() => setQuickCategory(category)} className="flex min-w-[3.25rem] flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
-                <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)]" : "bg-blue-50"}`} style={active ? { backgroundColor: meta.color } : { color: meta.color }}>
-                  <CategoryIcon category={category} className="h-5 w-5" />
-                </span>
-                {meta.label}
-              </button>
-            );
-          })}
-
-          <button type="button" onClick={() => setShowStations((v) => !v)} className="flex min-w-[3.25rem] flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+          <button type="button" onClick={() => setShowStations((v) => !v)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
             <span className={`grid h-9 w-9 place-items-center rounded-full ${showStations ? "bg-blue-50 text-blue-600" : "bg-neutral-100 text-neutral-400"}`}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
             </span>
             车站
           </button>
 
+          {renderQuickCategory("FESTIVAL")}
+
           <div className="relative">
-            <button type="button" onClick={() => setMapMenuOpen((v) => !v)} className="flex min-w-[3.25rem] flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+            <button
+              type="button"
+              onClick={() => {
+                setPublishMenuOpen((v) => !v);
+                setMapMenuOpen(false);
+                setFoodMenuOpen(false);
+              }}
+              aria-label="发帖"
+              className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-600 text-white shadow-[0_10px_22px_rgba(124,58,237,0.32)]">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </span>
+              发帖
+            </button>
+          </div>
+
+          {renderQuickCategory("EXHIBITION")}
+          {renderQuickCategory("LIVE")}
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setMapMenuOpen((v) => !v);
+                setPublishMenuOpen(false);
+              }}
+              className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700"
+            >
               <span className={`grid h-9 w-9 place-items-center rounded-full ${mapMenuOpen || showLandmarks ? "bg-slate-100 text-slate-600" : "bg-neutral-100 text-neutral-400"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
               </span>
               更多
             </button>
             {mapMenuOpen && (
-              <div className="absolute bottom-full right-0 mb-3 w-44 rounded-2xl border border-black/10 bg-white p-2 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
+              <div className="absolute bottom-full right-0 z-50 mb-3 w-44 rounded-2xl border border-black/10 bg-white p-2 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
                 <button
                   type="button"
                   onClick={() => setShowLandmarks((v) => !v)}
@@ -2006,6 +2067,64 @@ export function MapExplorer() {
         </div>
       </div>
 
+      {publishMenuOpen && (
+        <div className="fixed inset-0 z-[80] pointer-events-auto" onClick={() => setPublishMenuOpen(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[1.75rem] bg-white px-4 pb-5 pt-2 shadow-[0_-18px_60px_rgba(15,23,42,0.22)] will-change-transform"
+            style={{
+              transform: publishDragY > 0 ? `translate3d(0, ${publishDragY}px, 0)` : "translate3d(0, 0, 0)",
+              transition: publishDragStartRef.current == null ? "transform 180ms cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="cursor-grab touch-none select-none pb-2 active:cursor-grabbing"
+              onPointerDown={startPublishDrag}
+              onPointerMove={movePublishDrag}
+              onPointerUp={endPublishDrag}
+              onPointerCancel={endPublishDrag}
+            >
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-neutral-300" />
+            </div>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-black text-neutral-950">发布内容</h2>
+              <button type="button" onClick={() => setPublishMenuOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-neutral-400 hover:bg-neutral-100" aria-label="关闭">×</button>
+            </div>
+            <button
+              type="button"
+              onClick={() => openPublishPlacement("post")}
+              className="mb-2.5 flex w-full items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/80 px-3.5 py-3 text-left shadow-[0_8px_22px_rgba(37,99,235,0.08)] transition active:scale-[0.99]"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-blue-600 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-neutral-950">发帖 · 标记活动</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">分享即将或正在进行的活动</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openPublishPlacement("checkin")}
+              className="flex w-full items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50/85 px-3.5 py-3 text-left shadow-[0_8px_22px_rgba(249,115,22,0.08)] transition active:scale-[0.99]"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-orange-500 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8Z" />
+                </svg>
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-neutral-950">足迹 · 我来过</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">记录你去过的地点和心情</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <PopularCard
         events={filtered}
         center={exploreAnchor ?? center}
@@ -2015,10 +2134,6 @@ export function MapExplorer() {
         onViewAll={() => router.push("/recommend")}
         onPlanRoute={openNearbyRouteGuide}
         onRecommendIntent={openRecommendIntentGuide}
-      />
-      <ActionFab
-        onCheckin={() => openPlacement("checkin")}
-        onPost={() => openPlacement("post")}
       />
       {/* 表单为全屏可吸附 sheet：默认 peek（露出地图拖锚点），上拉展开填写，下拉收起 */}
       {dialogAt && mode === "checkin" && (
