@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import { personaRefIndex, type PersonaV2 } from "@/lib/personas";
+import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, type PersonaFashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 
@@ -44,6 +44,48 @@ export async function fetchT(url: string, init: RequestInit, ms: number): Promis
   }
 }
 
+function fashionClause(persona: PersonaV2, world: ImageRequest["world"]): string {
+  const fashion = persona.fashionStyle as PersonaFashionStyle | undefined;
+
+  if (!fashion) {
+    return [
+      "[Fashion Direction]",
+      `Season/weather: ${world.season} / ${world.weather}.`,
+      "Create a fresh age-appropriate contemporary Tokyo outfit for this image.",
+      "Use the identity reference only for face, hairstyle, body type and overall identity.",
+      "Do not copy clothing from the reference image.",
+      "The outfit should match the person's job, age, scene, season and weather.",
+      "Vary colors, layers, accessories, bag, shoes and silhouette.",
+      "If multiple people appear, give each person clearly different outfits, colors and silhouettes.",
+    ].join(" ");
+  }
+
+  const primary = FASHION_STYLE_PROMPTS[fashion.primary];
+  const secondary = fashion.secondary
+    .map((s) => FASHION_STYLE_PROMPTS[s])
+    .filter(Boolean)
+    .join(" ");
+
+  return [
+    "[Fashion Direction]",
+    `Season/weather: ${world.season} / ${world.weather}.`,
+    "Create a fresh outfit for this image.",
+    "Use the identity reference ONLY for face, hairstyle, body type and overall identity.",
+    "Do NOT copy clothing from the reference image.",
+    "Do NOT reuse the same outfit repeatedly.",
+    "Keep the outfit consistent with this person's personal fashion taste.",
+    `Primary fashion identity: ${primary}`,
+    `Secondary styles that may be mixed subtly when appropriate: ${secondary}`,
+    "The outfit should match the person's job, age, personality, location, season, weather and activity.",
+    "The outfit should feel young, current, wearable, natural and Tokyo-realistic.",
+    "Vary colors, layers, outerwear, accessories, bag, shoes and silhouette.",
+    "The outfit should make this person recognizable even without seeing the face, because of their consistent personal fashion taste.",
+    "If multiple people appear, every person must wear clearly different outfits, colors and silhouettes.",
+    "Do not make two people wear matching clothes unless explicitly requested.",
+  ].join(" ");
+}
+
+
 // 视角语气：
 // casual / hobby：偏 INS 生活博主，允许经常出镜，但只描述“最终成片”，不描述“拍照过程”。
 // pro：可客观构图，但仍保持真实生活感。
@@ -55,7 +97,7 @@ function povClause(persona: PersonaV2): string {
       "Deliberate framing and natural available light.",
       "Feels like refined Japanese lifestyle photography, but still realistic and grounded in everyday life.",
       "The image represents the final published photo, not the behind-the-scenes process of capturing it.",
-      "Avoid commercial advertising, luxury editorial, studio portrait, or overly cinematic drama."
+      "Avoid commercial advertising, luxury editorial, studio portrait, or overly cinematic drama.",
     ].join(" ");
   }
 
@@ -71,7 +113,7 @@ function povClause(persona: PersonaV2): string {
     "Avoid unexplained third-person portraits that look like a stranger is constantly following them.",
     "For first-person shots, show at most one hand unless the scene is physically plausible.",
     "Slightly imperfect framing.",
-    "Feels spontaneous rather than planned."
+    "Feels spontaneous rather than planned.",
   ].join(" ");
 }
 
@@ -125,14 +167,21 @@ function shouldUseIdentityReference(req: ImageRequest): boolean {
   ].some((keyword) => text.includes(keyword));
 }
 
+const outfitSeed = [
+  "cream cardigan, navy pleated skirt, brown loafers, small canvas tote",
+  "light denim jacket, white tee, olive wide-leg pants, black sneakers",
+  "beige trench coat, striped knit, straight jeans, leather shoulder bag",
+  "soft blue shirt, charcoal skirt, silver earrings, white sneakers"
+][Math.floor(Math.random() * 4)];
+
 // Agnes 无负向提示参数，所以把负向约束写进正向 prompt 里。
 // 重点：强调“最终发布照片”，避免生成拍摄过程本身。
-function buildRules(persona: PersonaV2): string {
+function buildRules(persona: PersonaV2, world: World): string {
   return [
     "[Constraints]",
 
     povClause(persona),
-
+    fashionClause(persona, world),
     "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo.",
     "Authentic Japanese lifestyle photography with a subtle Japanese drama daily-life atmosphere.",
     "Inspired by contemporary Japanese lifestyle magazines and everyday photo diaries, but not a professional shoot.",
@@ -146,9 +195,9 @@ function buildRules(persona: PersonaV2): string {
     "An unaware candid instant.",
     "Ordinary happiness rather than dramatic emotion.",
 
-    `Recurring individual — keep the SAME face, hairstyle, body type, height and overall identity consistent (identity: ${persona.appearance}).`,
+    `Recurring individual — keep the SAME face, body type, height and overall identity consistent (identity: ${persona.appearance}).`,
     "The face must remain recognizable across different images.",
-    "Do not change the person's facial identity, hairstyle, height, body type, or overall impression.",
+    "Do not change the person's facial identity, height, body type, or overall impression.",
 
     "Every image should feature a fresh outfit when the protagonist appears.",
     "Choose age-appropriate contemporary Japanese street fashion that naturally matches the season, weather, location and activity.",
@@ -282,6 +331,10 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
    - 可以参考日系生活写真或日剧日常穿搭的感觉，但不要变成电影海报或商业写真。
    - 不要描述人物长相。
    - 不要改变人物身份特征。
+   - 不要复制参考图里的衣服。
+   - 必须为每个出镜人物分别指定不同穿搭。
+   - 不要让两个人穿相同颜色或相同单品。
+   - 发型可以改变，但长度不能改，比如短发变长发了。
 
 7. 如果人物不出镜：
    重点描述环境、物品、光线、道具和当下氛围。
@@ -368,12 +421,52 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   }
 }
 
+function outfitClause(persona: PersonaV2, world: ImageRequest["world"]): string {
+  const outfitSeed = Math.floor(Math.random() * 1_000_000);
+
+  return [
+    "[Outfit Variation]",
+    `Outfit seed: ${outfitSeed}.`,
+    `Season/weather: ${world.season} / ${world.weather}.`,
+
+    "Create today's outfit as a fresh variation based on this person's fashion identity.",
+    "Use the fashion direction above as the person's long-term wardrobe taste.",
+    "Do not treat the identity reference image as an outfit reference.",
+    "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
+    "Do NOT copy clothing, colors, shoes, bag or accessories from the identity reference.",
+
+    "Today's outfit must feel different from previous images.",
+    "Avoid repeating the same clothing combination, color palette, silhouette, bag, shoes or accessories.",
+    "Choose clothing that naturally fits today's scene, location, season, weather and activity.",
+
+    "If the protagonist appears, describe or imply a complete coordinated outfit: top, outerwear if needed, bottoms, shoes, bag and small accessories.",
+    "The outfit should feel wearable, realistic, youthful and stylish for a young person living in Tokyo.",
+    "The outfit should not look like a costume, fashion editorial, luxury campaign or idol stage outfit.",
+
+    "If multiple people appear, give every person clearly different clothing colors, silhouettes and accessories.",
+    "Do not make two people wear matching outfits unless the scene explicitly asks for matching clothes.",
+    "Avoid duplicated outfits between the protagonist and background people."
+  ].join(" ");
+}
+
 // 组合最终 prompt = LLM 专业场景描述 + 我们的生图规则。LLM 失败则回退（photoDesc + 规则）。
 export async function composePrompt(req: ImageRequest): Promise<string> {
   const scene = await scenePromptLLM(req);
-  const rules = buildRules(req.persona);
-  if (scene) return `${scene}\n\n${rules}`;
-  return `Scene: ${req.photoDesc}. Season ${req.world.season}, ${req.world.weather}.\n\n${rules}`;
+
+  const fashion = fashionClause(req.persona, req.world);
+  const outfit = outfitClause(req.persona, req.world);
+  const rules = buildRules(req.persona, req.world);
+
+  const baseScene =
+    scene ??
+    `Scene: ${req.photoDesc}. Season ${req.world.season}, ${req.world.weather}.`;
+
+  return [
+    baseScene,
+    fashion,
+    outfit,
+    rules,
+  ].join("\n\n");
 }
 
 // 把生成图（远程 URL 或 data URI）上传 Cloudinary（服务端抓取），得到自带 CORS 的持久链接。

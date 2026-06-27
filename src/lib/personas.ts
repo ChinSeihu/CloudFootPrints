@@ -119,7 +119,153 @@ export interface PersonaV2 {
     recentMemories: string[]
     upcomingPlans: string[]
   }
+
+  fashionStyle: PersonaFashionStyle
 }
+
+export type PersonaFashionStyle = {
+  primary: FashionStyle;
+  secondary: FashionStyle[];
+};
+
+export type FashionStyle =
+  | "sweet_soft"
+  | "intellectual"
+  | "light_sensual"
+  | "normcore_minimal"
+  | "french_vintage"
+  | "athflow"
+  | "modern_chinese"
+  | "japanese_mori"
+  | "clean_girl"
+  | "japanese_fresh"
+  | "campus_academic"
+  | "korean_casual"
+  | "city_boy"
+  | "workwear"
+  | "vintage_used"
+  | "street_livehouse"
+  | "office_chic";
+
+export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
+  sweet_soft:
+    "Soft sweet Japanese feminine style: pastel colors, light cardigans, puff sleeves, pleated skirts, Mary Jane shoes, ribbons, pearl accessories, cute but not childish.",
+
+  intellectual:
+    "Intellectual elegant style: crisp shirts, fine knitwear, straight trousers, pencil skirts, cardigans, loafers, muted colors, clean lines, minimal jewelry, bookish and refined.",
+
+  light_sensual:
+    "Light sensual mature style: fitted knitwear, satin camisole layered with cardigan or jacket, slim skirt, delicate heels or boots, subtle skin exposure, feminine but tasteful, never vulgar.",
+
+  normcore_minimal:
+    "Japanese minimalist normcore style: oversized shirts, plain T-shirts, wide trousers, simple sneakers, trench coats, monochrome or neutral palette, effortless and understated.",
+
+  french_vintage:
+    "French vintage inspired style: wrap dress, square-neck blouse, striped tops, vintage denim, leather shoulder bag, silk scarf, basket bag, wine red, moss green, beige and soft earthy colors.",
+
+  athflow:
+    "Athflow casual style: stylish comfort wear, hoodies, sweatshirts, relaxed pants, leggings, baseball cap, dad sneakers, canvas tote, navy, gray and clean sporty colors.",
+
+  modern_chinese:
+    "Modern Chinese-inspired style: contemporary cuts with subtle traditional details, mandarin collar, frog buttons, flowing skirt, jade-like accessories, ink black, ivory, cinnabar red or celadon green.",
+
+  japanese_mori:
+    "Japanese Mori Girl natural style: linen dresses, loose blouses, layered cardigans, overalls, canvas bags, knitted hats, earth tones, moss green, oatmeal, ivory, soft natural textures.",
+
+  clean_girl:
+    "Clean girl Japanese lifestyle style: natural makeup, simple coordinated outfit, neat hair accessories, minimal jewelry, soft cardigan or shirt, fresh polished look, clean and approachable.",
+
+  japanese_fresh:
+    "Fresh Japanese casual style: white shirts, light denim, simple skirts, canvas sneakers, soft blue, beige, ivory, gentle youthful colors, clean and airy daily-life feeling.",
+
+  campus_academic:
+    "Campus academic style: oxford shirts, knit vests, pleated skirts, straight pants, loafers, messenger bags, wool coats, navy, gray, brown and calm scholarly colors.",
+
+  korean_casual:
+    "Korean casual style: cropped cardigan, simple knit top, high-waisted trousers, long skirt, small shoulder bag, clean makeup, soft neutral colors, modern and photogenic.",
+
+  city_boy:
+    "Tokyo city boy style: relaxed shirts, work jackets, cargo pants, denim, beanies or caps, canvas sneakers, camera bag, POPEYE magazine inspired, casual but considered.",
+
+  workwear:
+    "Japanese workwear style: chore jacket, utility vest, denim, cargo pants, sturdy sneakers or boots, canvas bag, earthy colors, practical and stylish.",
+
+  vintage_used:
+    "Vintage used-clothing style: thrifted jackets, patterned shirts, retro denim, colorful knitwear, berets, long coats, unique bags, layered and personal, slightly quirky but tasteful.",
+
+  street_livehouse:
+    "Live house street style: black denim, band T-shirt, oversized jacket, leather details, boots or Converse, silver accessories, darker palette, cool but not costume-like.",
+
+  office_chic:
+    "Tokyo office chic style: blazer, neat blouse, straight pants, pencil skirt, trench coat, leather tote, loafers or low heels, polished but modern, suitable for Omotesando office life.",
+};
+
+  export const PERSONA_FASHION_STYLE: Record<string, PersonaFashionStyle> = {
+  C01: {
+    primary: "intellectual",
+    secondary: ["french_vintage", "campus_academic", "normcore_minimal"],
+  },
+
+  C02: {
+    primary: "normcore_minimal",
+    secondary: ["korean_casual", "intellectual", "french_vintage"],
+  },
+
+  C03: {
+    primary: "japanese_mori",
+    secondary: ["clean_girl", "french_vintage", "sweet_soft"],
+  },
+
+  C04: {
+    primary: "office_chic",
+    secondary: ["intellectual", "light_sensual", "athflow"],
+  },
+
+  C05: {
+    primary: "japanese_fresh",
+    secondary: ["athflow", "japanese_mori", "french_vintage"],
+  },
+
+  C06: {
+    primary: "french_vintage",
+    secondary: ["japanese_fresh", "athflow", "sweet_soft"],
+  },
+
+  C07: {
+    primary: "japanese_mori",
+    secondary: ["modern_chinese", "french_vintage", "intellectual"],
+  },
+
+  C08: {
+    primary: "street_livehouse",
+    secondary: ["athflow", "city_boy", "normcore_minimal"],
+  },
+
+  C09: {
+    primary: "vintage_used",
+    secondary: ["french_vintage", "japanese_mori", "athflow"],
+  },
+
+  C10: {
+    primary: "city_boy",
+    secondary: ["normcore_minimal", "workwear", "athflow"],
+  },
+
+  C11: {
+    primary: "campus_academic",
+    secondary: ["clean_girl", "modern_chinese", "sweet_soft"],
+  },
+
+  C12: {
+    primary: "sweet_soft",
+    secondary: ["clean_girl", "athflow", "french_vintage"],
+  },
+
+  C13: {
+    primary: "french_vintage",
+    secondary: ["sweet_soft", "intellectual", "clean_girl"],
+  },
+};
 
 const PERSONA_SPOTS: Record<string, LatLng[]> = {
   C01: [
@@ -486,7 +632,9 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal: "尝试重新建立社交连接",
     recentMemories: [],
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C01"]
 },
 {
   id: "C02",
@@ -643,7 +791,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"保持喜欢的生活节奏",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C02"]
+
 },
 {
   id:"C04",
@@ -798,7 +949,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"升职",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C04"]
+
 },
 {
   id: "C05",
@@ -964,7 +1118,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal: "寻找新的东京路线",
     recentMemories: [],
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C05"]
+
 },
   {
   id: "C06",
@@ -1129,7 +1286,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal: "策划夏季旅行路线",
     recentMemories: [],
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C06"]
+
 },
   {
   id: "C07",
@@ -1292,7 +1452,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal: "筹备线上课程",
     recentMemories: [],
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C07"]
+
 },
   {
   id: "C08",
@@ -1456,7 +1619,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal: "寻找值得推荐的新乐队",
     recentMemories: [],
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C08"]
+
 },
   {
   id: "C09",
@@ -1614,7 +1780,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"寻找下一件值得分享的旧物",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C09"]
+
 },
   {
   id: "C10",
@@ -1777,7 +1946,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"寻找新的拍摄主题",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C10"]
+
 },
   {
   id: "C11",
@@ -1941,7 +2113,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"准备毕业方向",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C11"]
+
 },
   {
   id: "C12",
@@ -2102,7 +2277,10 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"寻找宠物友好场所",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C12"]
+
 },
 {
   id: "C13",
@@ -2263,7 +2441,9 @@ export const PERSONAS: PersonaV2[] = [
     currentGoal:"寻找夏季限定甜品",
     recentMemories:[],
     upcomingPlans:[]
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C13"]
 },
 {
   id: "C03",
@@ -2456,7 +2636,9 @@ export const PERSONAS: PersonaV2[] = [
     recentMemories: [],
 
     upcomingPlans: []
-  }
+  },
+
+  fashionStyle: PERSONA_FASHION_STYLE["C03"]
 }
 ];
 export const RELATIONSHIP_GRAPH = {
