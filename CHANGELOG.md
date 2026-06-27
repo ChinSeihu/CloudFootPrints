@@ -6,6 +6,12 @@
 
 ## 2026-06-27
 
+### Improve map popup close affordance
+- **Visible popup close button**: MapLibre popups now use a circular white close button with border, shadow, and higher contrast so activity, footprint, landmark, station, and food cards are easier to dismiss.
+**Files:** `src/app/globals.css`
+
+---
+
 ### Refine map aggregation shapes and popup cards
 - **Semantic cluster markers**: map clusters now use distinct SVG badge shapes for official activity clusters, user-post clusters, mixed clusters, and footprint clusters instead of plain circles.
 - **Activity popup cards**: map activity popups now use image-led detail cards with overlaid source/category badges, clearer metadata, and separated actions.

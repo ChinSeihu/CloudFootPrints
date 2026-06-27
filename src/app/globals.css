@@ -37,13 +37,26 @@ body {
   box-shadow: 0 6px 22px rgba(15, 23, 42, 0.18) !important;
 }
 .maplibregl-popup-close-button {
-  font-size: 18px;
-  padding: 2px 8px;
-  color: #94a3b8;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #475569;
+  font-size: 19px;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
 }
 .maplibregl-popup-close-button:hover {
-  background: transparent;
-  color: #475569;
+  background: #ffffff;
+  color: #0f172a;
 }
 
 /* 探索锚点：玫红脉冲点（区别于发帖蓝色水滴针） */
