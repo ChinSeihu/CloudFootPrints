@@ -3,6 +3,7 @@
 import { type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, type EventCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
+import { isUserPost } from "@/components/common/EventSource";
 import type { EventDTO } from "@/lib/types";
 
 type Props = {
@@ -71,6 +72,30 @@ function rankForIntent(items: { e: EventDTO; d: number | null }[], intent: Recom
   const ranked = [...items].sort((a, b) => intentScore(b.e, intent) - intentScore(a.e, intent) || (a.d ?? 999) - (b.d ?? 999));
   const matched = ranked.filter(({ e }) => intentScore(e, intent) > 0);
   return matched.length >= 3 ? matched : ranked;
+}
+
+function SourceIconBadge({ sourceType }: { sourceType: string }) {
+  const user = isUserPost(sourceType);
+  return (
+    <span
+      className={`absolute bottom-2 left-2 grid h-6 w-6 place-items-center rounded-full border border-white/80 shadow-sm backdrop-blur ${
+        user ? "bg-amber-100/95 text-amber-700" : "bg-sky-100/95 text-sky-700"
+      }`}
+      aria-label={user ? "个人发布" : "官方活动"}
+      title={user ? "个人发布" : "官方活动"}
+    >
+      {user ? (
+        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4Z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m9 12 2 2 4-4" />
+          <path d="M12 3l2.3 1.7 2.8-.2 1 2.7 2.4 1.5-.8 2.7.8 2.7-2.4 1.5-1 2.7-2.8-.2L12 21l-2.3-1.7-2.8.2-1-2.7L3.5 15.5l.8-2.7-.8-2.7 2.4-1.5 1-2.7 2.8.2z" />
+        </svg>
+      )}
+    </span>
+  );
 }
 
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
@@ -314,6 +339,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
                 >
                   {meta.label}
                 </span>
+                <SourceIconBadge sourceType={ev.sourceType} />
                 <button
                   type="button"
                   aria-label={favorited ? "取消收藏" : "收藏活动"}

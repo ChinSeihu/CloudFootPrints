@@ -6,6 +6,12 @@
 
 ## 2026-06-27
 
+### Distinguish featured activity sources
+- **Source icons on featured cards**: nearby featured activity cards now show compact official/user source icons so scraped official events and user posts are easier to distinguish without adding text clutter.
+**Files:** `src/components/Map/PopularCard.tsx`
+
+---
+
 ### Refine map posting sheet details
 - **Half-height form sheet**: publish activity and footprint forms now open as a true half-height sheet with a scrollable content area, while still supporting full expansion.
 - **Softer form header**: posting sheet titles are smaller and lighter, status helper copy was removed, and the close button is more visible.
