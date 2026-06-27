@@ -1820,6 +1820,11 @@ export function MapExplorer() {
       category: "AI 规划路线",
       description: `地图附近候选活动：\n${list}`,
       routePrompt: prompt,
+      routeActions: [
+        { label: "规划附近游玩路线", description: "按顺路和节奏生成路线卡片", prompt, mode: "route" },
+        { label: "推荐值得优先去的活动", description: "先帮我挑 3-5 个重点", prompt: `请从这些附近活动里选出最值得优先去的 3-5 个，并说明适合谁、为什么值得去。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: "找附近休息和顺路点", description: "补充咖啡、休息、拍照建议", prompt: `请基于这些附近活动，帮我找适合穿插休息、咖啡、拍照或短暂停留的顺路建议。\n\n附近活动：\n${list}`, mode: "chat" },
+      ],
       routeCandidates: candidates.slice(0, 10).map((event) => ({
         id: event.id,
         title: event.title,
@@ -1845,12 +1850,35 @@ export function MapExplorer() {
       return `${index + 1}. ${event.title}｜${category}｜${event.venueName ?? "地点待定"}｜${time}｜${event.summary ?? event.description ?? ""}`;
     }).join("\n");
     const prompt = `${intent.prompt}\n\n请基于下面这些地图附近活动给出推荐。要求：先说明推荐思路，再选出适合的 3-5 个点；如果适合形成路线，就按顺序给出路线和停留建议；语气像东京本地导游，不要提系统或数据来源。\n\n附近活动：\n${list}`;
+    const actionMap: Record<RecommendIntent["id"], Array<{ label: string; description: string; prompt: string; mode?: "route" | "chat" }>> = {
+      relax: [
+        { label: "规划放松路线", description: "慢一点逛，留出休息时间", prompt, mode: "route" },
+        { label: "推荐治愈活动", description: "挑轻松、不赶场的点", prompt: `请从这些附近活动里挑适合放松、治愈、慢慢逛的活动，并说明推荐理由。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: "找休息和咖啡点", description: "给路线中间安排喘口气", prompt: `请围绕这些附近活动，建议适合穿插休息、咖啡、安静停留的安排。\n\n附近活动：\n${list}`, mode: "chat" },
+      ],
+      solo: [
+        { label: "规划独处路线", description: "一个人也舒服的顺路安排", prompt, mode: "route" },
+        { label: "推荐一个人去的活动", description: "安静、自在、不尴尬", prompt: `请从这些附近活动里挑适合一个人去的活动，说明为什么一个人也舒服。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: "避开拥挤时段", description: "给我更自在的时间建议", prompt: `请根据这些附近活动，帮我安排更适合一个人去、尽量避开拥挤的时间和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
+      ],
+      photo: [
+        { label: "规划拍照路线", description: "按出片顺序生成路线卡片", prompt, mode: "route" },
+        { label: "推荐出片活动", description: "优先视觉强和有图的地点", prompt: `请从这些附近活动里挑最适合拍照出片的活动，说明画面感和拍摄建议。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: "找附近咖啡休息点", description: "拍照中途休息和整理照片", prompt: `请围绕这些附近活动，建议适合拍照中途休息、喝咖啡、整理照片的顺路安排。\n\n附近活动：\n${list}`, mode: "chat" },
+      ],
+      night: [
+        { label: "规划夜间路线", description: "傍晚后更顺的玩法", prompt, mode: "route" },
+        { label: "推荐夜间活动", description: "Live、祭典和夜间氛围优先", prompt: `请从这些附近活动里挑适合傍晚或夜间去的活动，说明氛围和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: "安排晚餐后去哪里", description: "把餐后散步和活动串起来", prompt: `请基于这些附近活动，帮我安排适合晚餐后继续逛的路线和节奏。\n\n附近活动：\n${list}`, mode: "chat" },
+      ],
+    };
     openGuideRef.current({
       kind: "route",
       title: intent.title,
       category: "AI 意图推荐",
       description: `用户意图：${intent.title} - ${intent.subtitle}\n地图附近候选活动：\n${list}`,
       routePrompt: prompt,
+      routeActions: actionMap[intent.id],
       routeCandidates: candidates.slice(0, 10).map((event) => ({
         id: event.id,
         title: event.title,

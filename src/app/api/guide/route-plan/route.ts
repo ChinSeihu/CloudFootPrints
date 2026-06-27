@@ -92,7 +92,7 @@ function normalizePlan(raw: unknown, candidates: GuideRouteCandidate[]): GuideRo
   };
 }
 
-async function llmPlan(candidates: GuideRouteCandidate[]): Promise<GuideRoutePlan | null> {
+async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string): Promise<GuideRoutePlan | null> {
   const key = apiKey();
   if (!key) return null;
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
@@ -120,6 +120,7 @@ async function llmPlan(candidates: GuideRouteCandidate[]): Promise<GuideRoutePla
               totalMinutes: 180,
               stops: [{ id: "event id", note: "why this stop", stayMinutes: 35 }],
             },
+            userIntent: intentPrompt || "规划一条附近游玩路线",
             rules: ["从候选中选 3 到 5 个 id", "尽量避免同类型连续出现", "note 用中文且不要超过 40 字", "不要编造候选外地点"],
             candidates: candidates.slice(0, 10).map((event) => ({
               id: event.id,
@@ -140,7 +141,7 @@ async function llmPlan(candidates: GuideRouteCandidate[]): Promise<GuideRoutePla
 }
 
 export async function POST(req: Request) {
-  let body: { candidates?: GuideRouteCandidate[] };
+  let body: { candidates?: GuideRouteCandidate[]; intentPrompt?: string };
   try {
     body = await req.json();
   } catch {
@@ -150,6 +151,7 @@ export async function POST(req: Request) {
     ? body.candidates.filter((event) => event?.id && event?.title && Number.isFinite(event.lat) && Number.isFinite(event.lng)).slice(0, 12)
     : [];
   if (candidates.length < 2) return NextResponse.json({ error: "附近活动不足，暂时无法规划路线" }, { status: 400 });
-  const plan = await llmPlan(candidates).catch(() => null);
+  const intentPrompt = typeof body.intentPrompt === "string" ? body.intentPrompt.trim() : "";
+  const plan = await llmPlan(candidates, intentPrompt).catch(() => null);
   return NextResponse.json({ plan: plan ?? fallbackPlan(candidates) });
 }

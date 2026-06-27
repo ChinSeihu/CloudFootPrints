@@ -177,7 +177,7 @@ export function GuideChat() {
     }
   }
 
-  async function planNearbyRoute() {
+  async function planNearbyRoute(intentPrompt?: string) {
     const candidates = topicRef.current?.routeCandidates ?? [];
     if (loading || candidates.length < 2) return;
     const next: UIMessage[] = [...messages, { role: "user", content: "AI 规划附近游玩路线" }];
@@ -187,7 +187,7 @@ export function GuideChat() {
       const res = await fetch("/api/guide/route-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidates }),
+        body: JSON.stringify({ candidates, intentPrompt }),
       });
       const data = await res.json();
       if (!res.ok || !data.plan) throw new Error(data.error ?? "规划失败");
@@ -313,16 +313,27 @@ export function GuideChat() {
 
       {messages.length === 0 && (
         <div className="shrink-0 px-4 pb-2 flex flex-col gap-2">
-          {topic?.kind === "route" && topic.routePrompt && (
-            <button
-              type="button"
-              onClick={planNearbyRoute}
-              className="text-left rounded-2xl border border-violet-200 bg-violet-600 px-3.5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)]"
-            >
-              <span className="block">AI 规划附近游玩路线</span>
-              <span className="mt-1 block text-xs font-normal text-white/75">根据附近活动，给我一条顺路、有节奏的 City Walk</span>
-            </button>
-          )}
+          {topic?.kind === "route" && topic.routeActions && topic.routeActions.map((action, index) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => action.mode === "chat" ? send(action.prompt) : planNearbyRoute(action.prompt)}
+                className={`text-left rounded-2xl border px-3.5 py-3 text-sm font-semibold shadow-[0_10px_24px_rgba(124,58,237,0.18)] ${index === 0 ? "border-violet-200 bg-violet-600 text-white" : "border-violet-200 bg-violet-50 text-violet-700"}`}
+              >
+                <span className="block">{action.label}</span>
+                {action.description && <span className={`mt-1 block text-xs font-normal ${index === 0 ? "text-white/75" : "text-violet-500"}`}>{action.description}</span>}
+              </button>
+            ))}
+          {topic?.kind === "route" && !topic.routeActions && topic.routePrompt && (
+              <button
+                type="button"
+                onClick={() => planNearbyRoute(topic.routePrompt ?? undefined)}
+                className="text-left rounded-2xl border border-violet-200 bg-violet-600 px-3.5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)]"
+              >
+                <span className="block">AI 规划附近游玩路线</span>
+                <span className="mt-1 block text-xs font-normal text-white/75">根据附近活动，给我一条顺路、有节奏的 City Walk</span>
+              </button>
+            )}
           {quick.map((q) => (
             <button
               key={q}

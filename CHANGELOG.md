@@ -15,8 +15,9 @@
 
 ### Convert map recommendation chips into AI intents
 - **Remove fake counts**: "for you" recommendation chips no longer show static activity counts.
-- **Intent-based guide entry**: tapping a recommendation chip now opens AI guide with nearby activity context and a matching planning prompt.
-**Files:** `src/components/Map/PopularCard.tsx`, `src/components/Map/MapExplorer.tsx`
+- **Intent-based guide entry**: tapping a recommendation chip now opens AI guide with nearby activity context and matching bottom actions such as route planning, activity picks, and rest/cafe suggestions.
+- **Intent-aware drawer sorting**: nearby activity cards now immediately filter or reorder around the selected intent without leaving the map page.
+**Files:** `src/components/Map/PopularCard.tsx`, `src/components/Map/MapExplorer.tsx`, `src/components/Guide/GuideChat.tsx`, `src/components/Guide/GuideContext.tsx`, `src/app/api/guide/route-plan/route.ts`
 
 ---
 

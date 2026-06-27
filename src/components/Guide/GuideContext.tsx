@@ -16,6 +16,12 @@ export type GuideTopic = {
   description?: string | null;
   routePrompt?: string | null;
   routeCandidates?: GuideRouteCandidate[];
+  routeActions?: Array<{
+    label: string;
+    description?: string;
+    prompt: string;
+    mode?: "route" | "chat";
+  }>;
 };
 
 type GuideContextValue = {
