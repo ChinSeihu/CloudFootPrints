@@ -599,7 +599,7 @@ export async function generateCheckinImage(req: ImageRequest): Promise<string | 
     if (!qaOn) break;
     const qa = await judgeImage(raw, req.photoDesc, basePrompt);
     if (qa.ok) break; // 合格
-    if (qa.improvedPrompt && attempt < retries) { prompt = `${qa.improvedPrompt}\n\n${buildRules(req.persona)}`; continue; } // 改进 prompt + 规则重生成
+    if (qa.improvedPrompt && attempt < retries) { prompt = `${qa.improvedPrompt}\n\n${buildRules(req.persona, req.world)}`; continue; } // 改进 prompt + 规则重生成
     break; // 重试用尽：保留最后一张（兜底，有图胜过无图）
   }
   if (!lastRaw) return null;
