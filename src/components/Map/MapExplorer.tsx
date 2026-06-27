@@ -116,7 +116,7 @@ async function loadClusterBadges(map: maplibregl.Map): Promise<void> {
   await Promise.all(kinds.map((kind) => new Promise<void>((resolve) => {
     const name = `cluster-${kind}`;
     if (map.hasImage(name)) return resolve();
-    const img = new Image(76, 86);
+    const img = kind === "user" ? new Image(76, 86) : new Image(76, 76);
     img.onload = () => { if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 }); resolve(); };
     img.onerror = () => resolve();
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(clusterBadgeSvg(kind));
@@ -785,9 +785,9 @@ export function MapExplorer() {
       },
     });
 
-    // 聚合视觉回到最初的轻量 badge 版本：主圆保持极低透明度，数字和图标由 badge 承载。
-    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 17, 10, 24, 30, 32, 80, 42] as unknown as maplibregl.ExpressionSpecification;
-    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 10, 36, 30, 48, 80, 62] as unknown as maplibregl.ExpressionSpecification;
+    // 普通聚合回到原始数字圆；混合聚合保留分段圆环来表达类型构成。
+    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 15, 10, 17, 30, 20, 80, 24] as unknown as maplibregl.ExpressionSpecification;
+    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 23, 10, 26, 30, 31, 80, 37] as unknown as maplibregl.ExpressionSpecification;
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
@@ -809,9 +809,20 @@ export function MapExplorer() {
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#2563eb",
-        "circle-opacity": 0.01,
-        "circle-radius": ["+", 8, mainRadius],
+        "circle-color": [
+          "case",
+          ["all", [">", ["coalesce", ["get", "officialCount"], 0], 0], [">", ["coalesce", ["get", "userCount"], 0], 0]], "#2563eb",
+          ["==", ["coalesce", ["get", "officialCount"], 0], 0], "#a855f7",
+          ["interpolate", ["linear"], ["get", "point_count"], 2, "#93c5fd", 10, "#3b82f6", 30, "#2563eb"],
+        ],
+        "circle-opacity": [
+          "case",
+          ["all", [">", ["coalesce", ["get", "officialCount"], 0], 0], [">", ["coalesce", ["get", "userCount"], 0], 0]], 0,
+          0.92,
+        ],
+        "circle-radius": mainRadius,
+        "circle-stroke-color": "rgba(255,255,255,0.96)",
+        "circle-stroke-width": 2.8,
       },
     });
 
@@ -820,19 +831,15 @@ export function MapExplorer() {
       id: "event-cluster-badge",
       type: "symbol",
       source: "events",
-      filter: ["has", "point_count"],
+      filter: ["all", ["has", "point_count"], [">", ["coalesce", ["get", "officialCount"], 0], 0], [">", ["coalesce", ["get", "userCount"], 0], 0]],
       layout: {
-        "icon-image": [
-          "case",
-          ["==", ["coalesce", ["get", "officialCount"], 0], 0], "cluster-user",
-          ["==", ["coalesce", ["get", "userCount"], 0], 0], "cluster-official",
-          "cluster-mixed",
-        ],
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.64, 10, 0.78, 30, 0.94, 80, 1.1],
+        "icon-image": "cluster-mixed",
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.74, 10, 0.82, 30, 0.92, 80, 1.04],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
     });
+
     map.addLayer({
       id: "event-cluster-count",
       type: "symbol",
@@ -841,7 +848,7 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 13, 10, 15, 30, 17, 80, 19],
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 12, 10, 13.5, 30, 15, 80, 17],
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
@@ -862,7 +869,7 @@ export function MapExplorer() {
         "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
         "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.14, 0.18],
         "circle-blur": 0.5,
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 26, 20],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 30, 20],
       },
     });
     // 单个活动点：分类色填充圆 + 柔白边（略降透明，弱化突兀感）
@@ -874,7 +881,7 @@ export function MapExplorer() {
       paint: {
         "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
         "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.01, 0.92],
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 18, 14],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 22, 14],
         "circle-stroke-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#fff"],
         "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 0, 2.8],
         "circle-stroke-opacity": 0.95,
@@ -890,7 +897,7 @@ export function MapExplorer() {
       filter: ["!", ["has", "point_count"]],
       layout: {
         "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "cluster-user", ["concat", "glyph-", ["get", "category"]]],
-        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.52, 0.85],
+        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.86, 0.85],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         // 放大到一定尺度后，图标下方显示一句活动摘要（截断加省略号）
@@ -989,7 +996,7 @@ export function MapExplorer() {
             <div class="tem-card-detail-actions">
               <button class="tem-card-act act-nav" data-action="route" type="button">${ROUTE_SVG}导航</button>
               <button class="tem-card-act act-guide" data-action="guide" type="button">${SPARKLE_SVG}问导游</button>
-              <button class="tem-card-mini act-fav" data-action="favorite" type="button">收藏</button>
+              <button class="tem-card-act act-fav" data-action="favorite" type="button">收藏</button>
               ${ev.sourceUrl ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>` : ""}
               ${del}
             </div>

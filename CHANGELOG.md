@@ -6,6 +6,14 @@
 
 ## 2026-06-27
 
+### Restore standard cluster circles
+- **Standard cluster circles**: official-only and user-only activity clusters return to simple numeric circles without icons, with source color distinction preserved.
+- **Mixed cluster ring**: mixed-source clusters keep the segmented ring badge and now load as a square image to avoid oval distortion.
+- **Marker/action polish**: user post single markers are enlarged further, and the favorite action now shares the same pill style as navigation and AI guide buttons.
+**Files:** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### Restore map cluster badge style
 - **Cluster visual rollback**: activity clusters return to the earlier badge-led style with a subtle halo instead of the heavier visible colored main circle.
 - **Mixed cluster donut**: mixed activity clusters now use a segmented ring with white dividers and a blue center count, matching the provided reference style.
