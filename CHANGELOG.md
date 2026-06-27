@@ -6,6 +6,13 @@
 
 ## 2026-06-27
 
+### Refine map aggregation shapes and popup cards
+- **Semantic cluster markers**: map clusters now use distinct SVG badge shapes for official activity clusters, user-post clusters, mixed clusters, and footprint clusters instead of plain circles.
+- **Activity popup cards**: map activity popups now use image-led detail cards with overlaid source/category badges, clearer metadata, and separated actions.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/app/globals.css`
+
+---
+
 ### Link posts and footprints to activities
 - **Activity-linked posts and footprints**: map activity popups now include actions to create a related post or footprint, and the forms carry the selected activity as their target.
 - **Footprint visibility**: footprints can now be public or hidden; hidden footprints stay private while public ones participate in map and activity aggregation.

@@ -98,6 +98,31 @@ async function loadUserPostBadge(map: maplibregl.Map): Promise<void> {
   });
 }
 
+function clusterBadgeSvg(kind: "official" | "user" | "mixed" | "footprint"): string {
+  if (kind === "user") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="86" viewBox="0 0 76 86"><defs><filter id="s" x="-25%" y="-20%" width="150%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#7c3aed" flood-opacity=".22"/></filter></defs><g filter="url(#s)"><path d="M38 78c-8-12-25-20-25-42C13 18 24 7 38 7s25 11 25 29c0 22-17 30-25 42Z" fill="#a855f7" stroke="#fff" stroke-width="5"/><g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="25" y="29" width="26" height="18" rx="4"/><path d="M30 29l3-5h10l3 5"/><circle cx="38" cy="38" r="5"/></g></g></svg>`;
+  }
+  if (kind === "mixed") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#2563eb" flood-opacity=".22"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="31" fill="#2563eb" stroke="#fff" stroke-width="5"/><path d="M38 7a31 31 0 0 1 31 31H38Z" fill="#a855f7"/><path d="M38 69A31 31 0 0 1 7 38h31Z" fill="#fb7185" opacity=".9"/><circle cx="38" cy="38" r="23" fill="#fff" opacity=".18"/></g></svg>`;
+  }
+  if (kind === "footprint") {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#fb7185" flood-opacity=".2"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="31" fill="#fff" stroke="#fb7185" stroke-width="5"/><path d="M38 55C21 43 18 31 26 25c5-4 10-1 12 4 2-5 7-8 12-4 8 6 5 18-12 30Z" fill="#fb7185"/></g></svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#2563eb" flood-opacity=".24"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="31" fill="#2563eb" stroke="#fff" stroke-width="5"/><g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="25" y="27" width="26" height="22" rx="3"/><path d="M25 34h26"/><path d="M32 27v-5M44 27v-5"/><path d="M33 42h10"/></g></g></svg>`;
+}
+
+async function loadClusterBadges(map: maplibregl.Map): Promise<void> {
+  const kinds = ["official", "user", "mixed", "footprint"] as const;
+  await Promise.all(kinds.map((kind) => new Promise<void>((resolve) => {
+    const name = `cluster-${kind}`;
+    if (map.hasImage(name)) return resolve();
+    const img = new Image(76, 86);
+    img.onload = () => { if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 }); resolve(); };
+    img.onerror = () => resolve();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(clusterBadgeSvg(kind));
+  })));
+}
+
 // ── 地标（名胜/公园）图标与数据 ──
 function landmarkIconSvg(kind: LandmarkKind): string {
   const color = LANDMARK_KIND_META[kind].color;
@@ -442,7 +467,7 @@ export function MapExplorer() {
     const map = mapRef.current;
     if (!map) return;
     const vis = routePanel ? "none" : "visible";
-    for (const id of ["event-cluster-halo", "event-clusters", "event-cluster-count", "event-point-halo", "event-point", "event-glyph", "event-userbadge"]) {
+    for (const id of ["event-cluster-halo", "event-clusters", "event-cluster-badge", "event-cluster-count", "event-point-halo", "event-point", "event-glyph", "event-userbadge"]) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
     }
   }, [routePanel]);
@@ -752,6 +777,8 @@ export function MapExplorer() {
         maxLng: ["max", ["get", "lng"]],
         minLat: ["min", ["get", "lat"]],
         maxLat: ["max", ["get", "lat"]],
+        userCount: ["+", ["case", ["==", ["get", "sourceType"], "USER"], 1, 0]],
+        officialCount: ["+", ["case", ["==", ["get", "sourceType"], "USER"], 0, 1]],
       },
     });
 
@@ -785,17 +812,28 @@ export function MapExplorer() {
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": [
-          "interpolate", ["linear"], ["get", "point_count"],
-          2, "#aacbf8",
-          15, "#88aaef",
-          50, "#7191e3",
+        "circle-color": "#2563eb",
+        "circle-opacity": 0.01,
+        "circle-radius": ["+", 8, mainRadius],
+      },
+    });
+
+    await loadClusterBadges(map);
+    map.addLayer({
+      id: "event-cluster-badge",
+      type: "symbol",
+      source: "events",
+      filter: ["has", "point_count"],
+      layout: {
+        "icon-image": [
+          "case",
+          ["==", ["coalesce", ["get", "officialCount"], 0], 0], "cluster-user",
+          ["==", ["coalesce", ["get", "userCount"], 0], 0], "cluster-official",
+          "cluster-mixed",
         ],
-        "circle-opacity": 0.9,
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 1.5,
-        "circle-stroke-opacity": 0.7,
-        "circle-radius": mainRadius,
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.5, 15, 0.62, 50, 0.74],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
       },
     });
     map.addLayer({
@@ -806,9 +844,15 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": 14,
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 12, 15, 14, 50, 16],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
       },
-      paint: { "text-color": "#fff" },
+      paint: {
+        "text-color": "#fff",
+        "text-halo-color": "rgba(15,23,42,0.12)",
+        "text-halo-width": 0.6,
+      },
     });
 
     // 单点柔光（分类色，低透明，垫底，让点更柔和灵动）
@@ -930,21 +974,27 @@ export function MapExplorer() {
         ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>`
         : "";
       const image = ev.imageUrl
-        ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /></div>`
-        : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"></div>`;
+        ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /><div class="tem-card-imgshade"></div></div>`
+        : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"><div class="tem-card-imgshade"></div></div>`;
       const del = ev.sourceType === "USER"
         ? `<button class="tem-card-del" data-action="delete">删除</button>`
         : "";
       const srcBadge = ev.sourceType === "USER"
         ? `<span class="tem-card-src tem-src-user">个人</span>`
         : `<span class="tem-card-src tem-src-official">官方</span>`;
-      return `<div class="tem-card" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
+      return `<div class="tem-card ${ev.sourceType === "USER" ? "tem-card-user" : "tem-card-official"}" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
         ${image}
+        <div class="tem-card-badges">
+          ${srcBadge}
+          <span class="tem-card-cat" style="color:${color}">${escapeHtml(label)}</span>
+        </div>
         <div class="tem-card-body">
-          <div class="tem-card-cat" style="color:${color}">${srcBadge}${escapeHtml(label)}</div>
           <div class="tem-card-title">${escapeHtml(ev.title)}</div>
           ${venueRow}
-          <div class="tem-card-time">${when}</div>
+          <div class="tem-card-meta">
+            <span class="tem-card-time">${when}</span>
+            ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">用户发帖</span>` : `<span class="tem-card-sourcehint">官方活动</span>`}
+          </div>
           <div class="tem-card-foot">
             <button class="tem-card-act act-detail"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button>
             <button class="tem-card-act act-nav" data-action="route"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>导航</button>
@@ -963,7 +1013,7 @@ export function MapExplorer() {
       if (evs.length === 0) return;
       const head = evs.length > 1 ? `<div class="tem-pop-head">此处有 ${evs.length} 个活动</div>` : "";
       const html = `<div class="tem-pop">${head}${evs.map(cardHtml).join("")}</div>`;
-      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "280px" })
+      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "340px" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
@@ -1203,9 +1253,20 @@ export function MapExplorer() {
       filter: ["has", "point_count"],
       paint: {
         "circle-color": "#fb7185",
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 2,
-        "circle-radius": ["step", ["get", "point_count"], 12, 5, 16, 10, 21],
+        "circle-opacity": 0.01,
+        "circle-radius": ["step", ["get", "point_count"], 16, 5, 20, 10, 25],
+      },
+    });
+    map.addLayer({
+      id: "checkin-cluster-badge",
+      type: "symbol",
+      source: "checkins",
+      filter: ["has", "point_count"],
+      layout: {
+        "icon-image": "cluster-footprint",
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.48, 10, 0.6, 30, 0.72],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
       },
     });
     map.addLayer({
@@ -1216,9 +1277,11 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": 12,
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 11, 10, 13, 30, 15],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
       },
-      paint: { "text-color": "#fff" },
+      paint: { "text-color": "#fb7185" },
     });
     // 透明点击热区：视觉由粉色线描心形承担。
     map.addLayer({
