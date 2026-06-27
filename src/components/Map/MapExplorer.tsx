@@ -834,7 +834,7 @@ export function MapExplorer() {
       filter: ["all", ["has", "point_count"], [">", ["coalesce", ["get", "officialCount"], 0], 0], [">", ["coalesce", ["get", "userCount"], 0], 0]],
       layout: {
         "icon-image": "cluster-mixed",
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.74, 10, 0.82, 30, 0.92, 80, 1.04],
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.74, 10, 0.9, 30, 1.12, 80, 1.38, 160, 1.56],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },

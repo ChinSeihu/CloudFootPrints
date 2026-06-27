@@ -6,6 +6,12 @@
 
 ## 2026-06-27
 
+### Scale mixed cluster rings by count
+- **Mixed cluster scaling**: segmented mixed-source cluster rings now grow more clearly with activity count while keeping ordinary source-only clusters as simple numeric circles.
+**Files:** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### Round user post map marker
 - **Circular user post marker**: individual user posts now use the dedicated round purple camera marker instead of the drop-shaped cluster marker, making the single-post marker visually rounder and closer to official activity marker weight.
 **Files:** `src/components/Map/MapExplorer.tsx`
