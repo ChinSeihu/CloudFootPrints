@@ -6,6 +6,14 @@
 
 ## 2026-06-27
 
+### Restore map cluster badge style
+- **Cluster visual rollback**: activity clusters return to the earlier badge-led style with a subtle halo instead of the heavier visible colored main circle.
+- **Mixed cluster donut**: mixed activity clusters now use a segmented ring with white dividers and a blue center count, matching the provided reference style.
+- **Larger user post marker**: individual user posts now use a larger purple camera bubble and touch target so they match official activity marker weight more closely.
+**Files:** `src/components/Map/MapExplorer.tsx`
+
+---
+
 ### Polish map clusters and popup detail surfaces
 - **Larger count-based clusters**: activity clusters now scale more visibly with aggregate count, including mixed clusters, so the count remains readable when zoomed out.
 - **Round popup close buttons**: popup close controls now keep a circular, card-colored background across activity, footprint, landmark, and food cards.

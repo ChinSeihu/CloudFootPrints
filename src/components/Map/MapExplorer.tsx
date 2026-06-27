@@ -103,7 +103,7 @@ function clusterBadgeSvg(kind: "official" | "user" | "mixed" | "footprint"): str
     return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="86" viewBox="0 0 76 86"><defs><filter id="s" x="-25%" y="-20%" width="150%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#7c3aed" flood-opacity=".22"/></filter></defs><g filter="url(#s)"><path d="M38 78c-8-12-25-20-25-42C13 18 24 7 38 7s25 11 25 29c0 22-17 30-25 42Z" fill="#a855f7" stroke="#fff" stroke-width="5"/><g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="25" y="29" width="26" height="18" rx="4"/><path d="M30 29l3-5h10l3 5"/><circle cx="38" cy="38" r="5"/></g></g></svg>`;
   }
   if (kind === "mixed") {
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#2563eb" flood-opacity=".22"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="31" fill="#2563eb" stroke="#fff" stroke-width="5"/><path d="M38 7a31 31 0 0 1 31 31H38Z" fill="#a855f7"/><path d="M38 69A31 31 0 0 1 7 38h31Z" fill="#fb7185" opacity=".9"/><circle cx="38" cy="38" r="23" fill="#fff" opacity=".18"/></g></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#2563eb" flood-opacity=".22"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="34" fill="rgba(219,234,254,.62)"/><circle cx="38" cy="38" r="30" fill="#fff"/><g transform="rotate(-90 38 38)" fill="none" stroke-width="16" stroke-linecap="butt"><circle cx="38" cy="38" r="23.5" pathLength="100" stroke="#60a5fa" stroke-dasharray="33 67" stroke-dashoffset="0"/><circle cx="38" cy="38" r="23.5" pathLength="100" stroke="#8b5cf6" stroke-dasharray="27 73" stroke-dashoffset="-36"/><circle cx="38" cy="38" r="23.5" pathLength="100" stroke="#fb923c" stroke-dasharray="34 66" stroke-dashoffset="-66"/></g><g fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M38 8v18"/><path d="M15 52l16-9"/><path d="M61 52l-16-9"/></g><circle cx="38" cy="38" r="18" fill="#2563eb" stroke="#fff" stroke-width="3"/></g></svg>`;
   }
   if (kind === "footprint") {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76"><defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#fb7185" flood-opacity=".2"/></filter></defs><g filter="url(#s)"><circle cx="38" cy="38" r="31" fill="#fff" stroke="#fb7185" stroke-width="5"/><path d="M38 55C21 43 18 31 26 25c5-4 10-1 12 4 2-5 7-8 12-4 8 6 5 18-12 30Z" fill="#fb7185"/></g></svg>`;
@@ -785,9 +785,9 @@ export function MapExplorer() {
       },
     });
 
-    // 圆大小按聚合数量放大；缩小时也能保留足够的数字可读性。
-    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 20, 10, 30, 30, 42, 80, 56, 160, 68] as unknown as maplibregl.ExpressionSpecification;
-    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 30, 10, 44, 30, 60, 80, 78, 160, 92] as unknown as maplibregl.ExpressionSpecification;
+    // 聚合视觉回到最初的轻量 badge 版本：主圆保持极低透明度，数字和图标由 badge 承载。
+    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 17, 10, 24, 30, 32, 80, 42] as unknown as maplibregl.ExpressionSpecification;
+    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 10, 36, 30, 48, 80, 62] as unknown as maplibregl.ExpressionSpecification;
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
@@ -809,16 +809,9 @@ export function MapExplorer() {
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": [
-          "case",
-          ["==", ["coalesce", ["get", "officialCount"], 0], 0], "#a855f7",
-          ["==", ["coalesce", ["get", "userCount"], 0], 0], "#2563eb",
-          "#7c3aed",
-        ],
-        "circle-opacity": 0.18,
-        "circle-radius": mainRadius,
-        "circle-stroke-color": "rgba(255,255,255,0.92)",
-        "circle-stroke-width": 2,
+        "circle-color": "#2563eb",
+        "circle-opacity": 0.01,
+        "circle-radius": ["+", 8, mainRadius],
       },
     });
 
@@ -835,7 +828,7 @@ export function MapExplorer() {
           ["==", ["coalesce", ["get", "userCount"], 0], 0], "cluster-official",
           "cluster-mixed",
         ],
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.8, 10, 0.98, 30, 1.18, 80, 1.36, 160, 1.5],
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.64, 10, 0.78, 30, 0.94, 80, 1.1],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -848,7 +841,7 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 14, 10, 16, 30, 18, 80, 20, 160, 22],
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 13, 10, 15, 30, 17, 80, 19],
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
@@ -867,9 +860,9 @@ export function MapExplorer() {
       filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
-        "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.08, 0.18],
+        "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.14, 0.18],
         "circle-blur": 0.5,
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 20, 20],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 26, 20],
       },
     });
     // 单个活动点：分类色填充圆 + 柔白边（略降透明，弱化突兀感）
@@ -881,7 +874,7 @@ export function MapExplorer() {
       paint: {
         "circle-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", CATEGORY_COLOR_EXPR],
         "circle-opacity": ["case", ["==", ["get", "sourceType"], "USER"], 0.01, 0.92],
-        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 14, 14],
+        "circle-radius": ["case", ["==", ["get", "sourceType"], "USER"], 18, 14],
         "circle-stroke-color": ["case", ["==", ["get", "sourceType"], "USER"], "#a855f7", "#fff"],
         "circle-stroke-width": ["case", ["==", ["get", "sourceType"], "USER"], 0, 2.8],
         "circle-stroke-opacity": 0.95,
@@ -897,7 +890,7 @@ export function MapExplorer() {
       filter: ["!", ["has", "point_count"]],
       layout: {
         "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "cluster-user", ["concat", "glyph-", ["get", "category"]]],
-        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.36, 0.85],
+        "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 0.52, 0.85],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         // 放大到一定尺度后，图标下方显示一句活动摘要（截断加省略号）
