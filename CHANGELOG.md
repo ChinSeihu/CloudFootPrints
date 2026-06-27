@@ -6,6 +6,16 @@
 
 ## 2026-06-27
 
+### Polish map clusters and popup detail surfaces
+- **Larger count-based clusters**: activity clusters now scale more visibly with aggregate count, including mixed clusters, so the count remains readable when zoomed out.
+- **Round popup close buttons**: popup close controls now keep a circular, card-colored background across activity, footprint, landmark, and food cards.
+- **Detail tab actions**: activity detail tabs now end with "点击查看详情" and expose navigation / AI guide actions inside the detail panel.
+- **Food card footer layout**: food popup footer actions use a stable grid so route, guide, and details no longer collide.
+- **Landmark tab surface**: landmark popups now mirror activity cards with detail / post / footprint tabs and related publish entry points.
+**Files:** `src/components/Map/MapExplorer.tsx`, `src/app/globals.css`
+
+---
+
 ### Align map markers and activity popup tabs
 - **User post marker shape**: user posts now use a purple camera bubble marker instead of a standard activity circle with a corner badge.
 - **Category-colored official activities**: official activity markers again use category colors so event types are easier to distinguish on the map.

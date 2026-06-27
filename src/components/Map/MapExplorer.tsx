@@ -785,10 +785,9 @@ export function MapExplorer() {
       },
     });
 
-    // 圆大小按「地理分散度」（经纬包围盒边长，单位度）而非数量：
-    // 同一地点的多活动 → spread≈0 → 小圆；不同地点分散 → 越散越大。
-    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 17, 10, 24, 30, 32, 80, 42] as unknown as maplibregl.ExpressionSpecification;
-    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 10, 36, 30, 48, 80, 62] as unknown as maplibregl.ExpressionSpecification;
+    // 圆大小按聚合数量放大；缩小时也能保留足够的数字可读性。
+    const mainRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 20, 10, 30, 30, 42, 80, 56, 160, 68] as unknown as maplibregl.ExpressionSpecification;
+    const haloRadius = ["interpolate", ["linear"], ["get", "point_count"], 2, 30, 10, 44, 30, 60, 80, 78, 160, 92] as unknown as maplibregl.ExpressionSpecification;
 
     // 聚合圆外层光晕（柔和蓝，opacity 由呼吸动效轻微脉动）
     map.addLayer({
@@ -810,9 +809,16 @@ export function MapExplorer() {
       source: "events",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#2563eb",
-        "circle-opacity": 0.01,
-        "circle-radius": ["+", 8, mainRadius],
+        "circle-color": [
+          "case",
+          ["==", ["coalesce", ["get", "officialCount"], 0], 0], "#a855f7",
+          ["==", ["coalesce", ["get", "userCount"], 0], 0], "#2563eb",
+          "#7c3aed",
+        ],
+        "circle-opacity": 0.18,
+        "circle-radius": mainRadius,
+        "circle-stroke-color": "rgba(255,255,255,0.92)",
+        "circle-stroke-width": 2,
       },
     });
 
@@ -829,7 +835,7 @@ export function MapExplorer() {
           ["==", ["coalesce", ["get", "userCount"], 0], 0], "cluster-official",
           "cluster-mixed",
         ],
-        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.64, 10, 0.78, 30, 0.94, 80, 1.1],
+        "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 0.8, 10, 0.98, 30, 1.18, 80, 1.36, 160, 1.5],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
       },
@@ -842,7 +848,7 @@ export function MapExplorer() {
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
         "text-font": ["Open Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 13, 10, 15, 30, 17, 80, 19],
+        "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 14, 10, 16, 30, 18, 80, 20, 160, 22],
         "text-allow-overlap": true,
         "text-ignore-placement": true,
       },
@@ -937,6 +943,8 @@ export function MapExplorer() {
     // 复制/对勾小图标（弹窗是原生 HTML，无法用 React 图标组件）
     const COPY_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
     const CHECK_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+    const ROUTE_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`;
+    const SPARKLE_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>`;
 
     // 单张活动卡片 HTML（信息更详细，整卡可点）
     const cardHtml = (ev: PopupEvent): string => {
@@ -955,6 +963,7 @@ export function MapExplorer() {
           </div>`
         : "";
       const detailText = (ev.description || ev.venueName || ev.address || "暂无更多详情。").trim();
+      const detailHint = `${detailText}${/[。.!?！？]$/.test(detailText) ? "" : "。"}点击查看详情`;
       const image = ev.imageUrl
         ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /><div class="tem-card-imgshade"></div></div>`
         : `<div class="tem-card-image tem-card-image-empty" style="--tem-card-color:${color}"><div class="tem-card-imgshade"></div></div>`;
@@ -983,10 +992,12 @@ export function MapExplorer() {
             <button class="tem-card-tab" data-tab="checkins" type="button">足迹</button>
           </div>
           <div class="tem-card-panel active" data-panel="detail">
-            <p class="tem-card-desc">${escapeHtml(detailText)}</p>
-            <div class="tem-card-inline-actions">
+            <p class="tem-card-desc">${escapeHtml(detailHint)}</p>
+            <div class="tem-card-detail-actions">
+              <button class="tem-card-act act-nav" data-action="route" type="button">${ROUTE_SVG}导航</button>
+              <button class="tem-card-act act-guide" data-action="guide" type="button">${SPARKLE_SVG}问导游</button>
+              <button class="tem-card-mini act-fav" data-action="favorite" type="button">收藏</button>
               ${ev.sourceUrl ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>` : ""}
-              <button class="tem-card-mini" data-action="favorite" type="button">收藏</button>
               ${del}
             </div>
           </div>
@@ -1611,16 +1622,40 @@ export function MapExplorer() {
             <div class="tem-lm-kind" style="color:${color}">名胜 · ${escapeHtml(kindLabel)}</div>
           </div>
         </div>
-        <p class="tem-lm-desc">${escapeHtml(p.blurb ?? "")}</p>
-        <div class="tem-lm-actions">
-          <button class="tem-lm-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
-          <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+        <div class="tem-lm-tabs" role="tablist">
+          <button class="tem-lm-tab active" data-tab="detail" type="button">详情</button>
+          <button class="tem-lm-tab" data-tab="posts" type="button">发帖</button>
+          <button class="tem-lm-tab" data-tab="checkins" type="button">足迹</button>
+        </div>
+        <div class="tem-lm-panel active" data-panel="detail">
+          <p class="tem-lm-desc">${escapeHtml(p.blurb ?? "")}</p>
+          <div class="tem-lm-actions">
+            <button class="tem-lm-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+            <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+          </div>
+        </div>
+        <div class="tem-lm-panel" data-panel="posts">
+          <button class="tem-lm-create act-post" data-action="post" type="button">发布相关发帖</button>
+          <div class="tem-lm-empty">分享和这个景点相关的活动或照片。</div>
+        </div>
+        <div class="tem-lm-panel" data-panel="checkins">
+          <button class="tem-lm-create act-checkin" data-action="checkin" type="button">发布足迹</button>
+          <div class="tem-lm-empty">记录你来过这里，也可以选择公开或隐藏。</div>
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-lm-popup" })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
+      popup.getElement()?.querySelectorAll<HTMLElement>("[data-tab]").forEach((tabEl) => {
+        tabEl.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const root = popup.getElement();
+          const tab = tabEl.dataset.tab ?? "detail";
+          root?.querySelectorAll<HTMLElement>("[data-tab]").forEach((el) => el.classList.toggle("active", el === tabEl));
+          root?.querySelectorAll<HTMLElement>("[data-panel]").forEach((el) => el.classList.toggle("active", el.dataset.panel === tab));
+        });
+      });
       popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
         popup.remove();
         openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
@@ -1634,6 +1669,14 @@ export function MapExplorer() {
           venueName: p.name!,
           description: `东京名胜：${p.name}（${kindLabel}）。${p.blurb ?? ""}`,
         });
+      });
+      popup.getElement()?.querySelector('[data-action="post"]')?.addEventListener("click", () => {
+        popup.remove();
+        openPlacement("post", { id: "", title: p.name!, lat: coords[1], lng: coords[0] });
+      });
+      popup.getElement()?.querySelector('[data-action="checkin"]')?.addEventListener("click", () => {
+        popup.remove();
+        openPlacement("checkin", { id: "", title: p.name!, lat: coords[1], lng: coords[0] });
       });
       if (cover) {
         popup.getElement()?.querySelector('[data-action="lightbox"]')?.addEventListener("click", () => {
