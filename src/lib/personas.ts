@@ -121,6 +121,8 @@ export interface PersonaV2 {
   }
 
   fashionStyle: PersonaFashionStyle
+
+  writingDNA?: WritingDNA
 }
 
 export type PersonaFashionStyle = {
@@ -267,6 +269,297 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
   },
 };
 
+export type SentenceLength =
+  | "very_short"
+  | "short"
+  | "medium"
+  | "long";
+
+export type ParagraphStyle =
+  | "fragment"
+  | "diary"
+  | "observation"
+  | "review"
+  | "chatty"
+  | "poetic"
+  | "object_detail"
+  | "work_log";
+
+export type EndingStyle =
+  | "none"
+  | "emoji"
+  | "question"
+  | "reflection"
+  | "ellipsis"
+  | "punchline";
+
+export type WritingDNA = {
+  sentenceLength: SentenceLength;
+  paragraphStyle: ParagraphStyle;
+  emojiLevel: 0 | 1 | 2 | 3 | 4 | 5;
+  reflectionRate: 0 | 1 | 2 | 3 | 4 | 5;
+  dialogueRate: 0 | 1 | 2 | 3 | 4 | 5;
+  selfFocus: 0 | 1 | 2 | 3 | 4 | 5;
+  environmentFocus: 0 | 1 | 2 | 3 | 4 | 5;
+  objectFocus: 0 | 1 | 2 | 3 | 4 | 5;
+  foodDetail: 0 | 1 | 2 | 3 | 4 | 5;
+  humor: 0 | 1 | 2 | 3 | 4 | 5;
+  commonOpenings: string[];
+  commonEndings: string[];
+  favoriteWords: string[];
+  avoidWords: string[];
+  endingStyle: EndingStyle;
+};
+
+export const PERSONA_WRITING_DNA: Record<string, WritingDNA> = {
+  C01: {
+    // さくら：出版社编辑 / 文艺观察系
+    sentenceLength: "medium",
+    paragraphStyle: "observation",
+    emojiLevel: 0,
+    reflectionRate: 4,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 4,
+    objectFocus: 4,
+    foodDetail: 2,
+    humor: 1,
+    commonOpenings: ["帰り道に", "本屋を出たら", "ページを閉じたあと"],
+    commonEndings: ["そのまま少し歩いた。", "今日はここまで。", "鞄が少し重い。"],
+    favoriteWords: ["余白", "紙の匂い", "夕方", "静か", "読みかけ"],
+    avoidWords: ["絶了", "冲", "开心到转圈", "治愈爆了"],
+    endingStyle: "ellipsis",
+  },
+
+  C02: {
+    // 美咲：自由平面设计师 / 设计咖啡生活
+    sentenceLength: "medium",
+    paragraphStyle: "object_detail",
+    emojiLevel: 1,
+    reflectionRate: 2,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 4,
+    objectFocus: 5,
+    foodDetail: 3,
+    humor: 1,
+    commonOpenings: ["今日の配色", "この店のロゴ", "窓際の席で"],
+    commonEndings: ["この余白、好き。", "参考にしたい。", "メモしておく。"],
+    favoriteWords: ["余白", "質感", "配色", "ロゴ", "紙", "光"],
+    avoidWords: ["好喝到跺脚", "开心到转圈", "人生", "治愈"],
+    endingStyle: "none",
+  },
+
+  C03: {
+    // 遥：温柔系生活记录博主
+    sentenceLength: "short",
+    paragraphStyle: "poetic",
+    emojiLevel: 0,
+    reflectionRate: 5,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 5,
+    objectFocus: 3,
+    foodDetail: 2,
+    humor: 0,
+    commonOpenings: ["雨が止んだあと", "少しだけ遠回り", "花屋の前で"],
+    commonEndings: ["ゆっくり帰った。", "今日はそれで十分。", "少しだけ軽くなった。"],
+    favoriteWords: ["風", "花", "雨上がり", "湯気", "ゆっくり", "静か"],
+    avoidWords: ["笑死", "冲", "绝了", "爆买", "跺脚"],
+    endingStyle: "ellipsis",
+  },
+
+  C04: {
+    // 麻衣：广告公司职员 / 都市白领
+    sentenceLength: "very_short",
+    paragraphStyle: "chatty",
+    emojiLevel: 5,
+    reflectionRate: 1,
+    dialogueRate: 3,
+    selfFocus: 4,
+    environmentFocus: 2,
+    objectFocus: 2,
+    foodDetail: 3,
+    humor: 5,
+    commonOpenings: ["やばい", "聞いて", "今日ほんと無理かと思った"],
+    commonEndings: ["勝ち。", "明日も生きる。", "これはリピ。", "🍓"],
+    favoriteWords: ["冲", "笑死", "值", "救命", "可愛い", "ご褒美"],
+    avoidWords: ["余白", "静かに", "人生", "しみじみ"],
+    endingStyle: "emoji",
+  },
+
+  C05: {
+    // 遥香：City Walk 博主
+    sentenceLength: "medium",
+    paragraphStyle: "observation",
+    emojiLevel: 1,
+    reflectionRate: 3,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 5,
+    objectFocus: 4,
+    foodDetail: 2,
+    humor: 1,
+    commonOpenings: ["今日は一本裏の道へ", "歩いていたら", "地図を見ないで"],
+    commonEndings: ["また歩きに来たい。", "この道、覚えておく。", "足が少し疲れた。"],
+    favoriteWords: ["坂道", "路地", "看板", "古い建物", "曲がり角"],
+    avoidWords: ["爆笑", "冲", "老板娘", "治愈"],
+    endingStyle: "none",
+  },
+
+  C06: {
+    // 美月：旅行内容创作者
+    sentenceLength: "long",
+    paragraphStyle: "diary",
+    emojiLevel: 2,
+    reflectionRate: 3,
+    dialogueRate: 3,
+    selfFocus: 3,
+    environmentFocus: 4,
+    objectFocus: 3,
+    foodDetail: 2,
+    humor: 2,
+    commonOpenings: ["旅の話になると", "駅の名前を聞いた瞬間", "自由が丘で"],
+    commonEndings: ["またどこか行きたくなった。", "次の旅先を考えてる。", "地図を開いてしまった。"],
+    favoriteWords: ["旅", "駅", "知らない町", "写真", "遠く"],
+    avoidWords: ["好喝到跺脚", "绝了", "开心到转圈"],
+    endingStyle: "reflection",
+  },
+
+  C07: {
+    // 凛：油画教师 / 疗愈生活博主
+    sentenceLength: "medium",
+    paragraphStyle: "poetic",
+    emojiLevel: 0,
+    reflectionRate: 4,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 5,
+    objectFocus: 4,
+    foodDetail: 1,
+    humor: 0,
+    commonOpenings: ["絵の具を洗ったあと", "夕方の光が", "川沿いに座って"],
+    commonEndings: ["色だけ覚えている。", "呼吸が少し深くなった。", "明日は少し描けそう。"],
+    favoriteWords: ["色", "光", "影", "呼吸", "水音", "余韻"],
+    avoidWords: ["冲", "笑死", "爆买", "跺脚"],
+    endingStyle: "ellipsis",
+  },
+
+  C08: {
+    // 湊：音乐内容创作者 / Live House
+    sentenceLength: "short",
+    paragraphStyle: "fragment",
+    emojiLevel: 3,
+    reflectionRate: 1,
+    dialogueRate: 2,
+    selfFocus: 3,
+    environmentFocus: 3,
+    objectFocus: 4,
+    foodDetail: 1,
+    humor: 3,
+    commonOpenings: ["音がでかい。", "今日のベース", "下北、やっぱり"],
+    commonEndings: ["耳まだ鳴ってる。", "最高。", "帰れない。"],
+    favoriteWords: ["音", "ベース", "ギター", "箱", "爆音", "刺さる"],
+    avoidWords: ["治愈", "温柔", "芍药", "老板娘"],
+    endingStyle: "punchline",
+  },
+
+  C09: {
+    // 小林ゆい：古着生活博主
+    sentenceLength: "medium",
+    paragraphStyle: "object_detail",
+    emojiLevel: 1,
+    reflectionRate: 2,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 3,
+    objectFocus: 5,
+    foodDetail: 1,
+    humor: 2,
+    commonOpenings: ["棚の奥から", "タグを見た瞬間", "古い布って"],
+    commonEndings: ["こういう出会いがあるからやめられない。", "今日は当たり。", "少し直して着る。"],
+    favoriteWords: ["古着", "タグ", "金具", "布", "色褪せ", "一点もの"],
+    avoidWords: ["打卡", "网红", "爆款", "治愈"],
+    endingStyle: "none",
+  },
+
+  C10: {
+    // たけし：摄影师 / 东京街拍摄影博主
+    sentenceLength: "long",
+    paragraphStyle: "observation",
+    emojiLevel: 0,
+    reflectionRate: 2,
+    dialogueRate: 0,
+    selfFocus: 1,
+    environmentFocus: 5,
+    objectFocus: 4,
+    foodDetail: 0,
+    humor: 0,
+    commonOpenings: ["光が変わるまで", "路地の奥で", "シャッターを切る前に"],
+    commonEndings: ["一枚だけ残した。", "今日はこの光で十分。", "現像が楽しみ。"],
+    favoriteWords: ["光", "影", "反射", "構図", "路地", "粒子"],
+    avoidWords: ["开心", "冲", "笑死", "跺脚"],
+    endingStyle: "none",
+  },
+
+  C11: {
+    // 林雨晴：中国留学生生活博主
+    sentenceLength: "medium",
+    paragraphStyle: "diary",
+    emojiLevel: 2,
+    reflectionRate: 3,
+    dialogueRate: 2,
+    selfFocus: 4,
+    environmentFocus: 3,
+    objectFocus: 3,
+    foodDetail: 3,
+    humor: 2,
+    commonOpenings: ["本来只是想", "今天有点想家", "下课以后"],
+    commonEndings: ["算是今天的小奖励。", "明天继续写报告。", "突然没那么想家了。"],
+    favoriteWords: ["报告", "想家", "甜品", "图书馆", "限定", "一个人"],
+    avoidWords: ["治愈爆了", "老板娘", "人生啊"],
+    endingStyle: "reflection",
+  },
+
+  C12: {
+    // 莉子：宠物生活博主
+    sentenceLength: "short",
+    paragraphStyle: "chatty",
+    emojiLevel: 4,
+    reflectionRate: 1,
+    dialogueRate: 2,
+    selfFocus: 1,
+    environmentFocus: 2,
+    objectFocus: 3,
+    foodDetail: 2,
+    humor: 4,
+    commonOpenings: ["モカ今日", "犬ってほんと", "散歩中に"],
+    commonEndings: ["かわいすぎた。", "はい優勝。", "また行こうね🐾"],
+    favoriteWords: ["モカ", "しっぽ", "肉球", "おやつ", "散歩", "かわいい"],
+    avoidWords: ["知性", "余白", "構図", "人生"],
+    endingStyle: "emoji",
+  },
+
+  C13: {
+    // 真理：甜品探店博主
+    sentenceLength: "medium",
+    paragraphStyle: "review",
+    emojiLevel: 2,
+    reflectionRate: 1,
+    dialogueRate: 1,
+    selfFocus: 2,
+    environmentFocus: 2,
+    objectFocus: 4,
+    foodDetail: 5,
+    humor: 1,
+    commonOpenings: ["今日の一口目", "断面がきれいで", "クリームが"],
+    commonEndings: ["これはまた食べたい。", "甘さはかなり控えめ。", "次は焼き菓子も買う。"],
+    favoriteWords: ["外側", "内側", "香り", "酸味", "余韵", "クリーム", "焼き色"],
+    avoidWords: ["开心到转圈", "冲", "救命", "人生感悟"],
+    endingStyle: "none",
+  },
+};
+
 const PERSONA_SPOTS: Record<string, LatLng[]> = {
   C01: [
     { name: "Shibuya home base", lat: 35.659, lng: 139.698 },
@@ -387,13 +680,32 @@ export function personaInterestList(persona: PersonaV2): string[] {
 }
 
 export function personaVoiceText(persona: PersonaV2): string {
+  const dna = persona.writingDNA ?? PERSONA_WRITING_DNA[persona.id];
+
+  if (!dna) {
+    return "自然、第一人称、像真实社交媒体发言，不要营销腔。";
+  }
+
   return [
-    `length=${persona.voice.length}`,
-    `emoji=${persona.voice.emojiUsage}`,
-    `tone=${persona.voice.toneKeywords.join("/")}`,
-    `features=${persona.voice.writingFeatures.join("/")}`,
+    // `length=${persona.voice.length}`,
+    // `emoji=${persona.voice.emojiUsage}`,
+    // `tone=${persona.voice.toneKeywords.join("/")}`,
+    // `features=${persona.voice.writingFeatures.join("/")}`,
+    `句长：${dna.sentenceLength}。`,
+    `段落节奏：${dna.paragraphStyle}。`,
+    `emoji 使用强度：${dna.emojiLevel}/5。`,
+    `自我关注：${dna.selfFocus}/5；环境关注：${dna.environmentFocus}/5；物品细节：${dna.objectFocus}/5；食物细节：${dna.foodDetail}/5。`,
+    `对话比例：${dna.dialogueRate}/5；感悟比例：${dna.reflectionRate}/5；幽默感：${dna.humor}/5。`,
+    `常见开头参考：${dna.commonOpenings.join(" / ")}。`,
+    `常见结尾参考：${dna.commonEndings.join(" / ")}。`,
+    `常用词气质：${dna.favoriteWords.join("、")}。`,
+    `避免词：${dna.avoidWords.join("、")}。`,
+    `结尾方式：${dna.endingStyle}。`,
+    "不要机械复用参考开头/结尾，只学习这个人的语言节奏。",
   ].join("; ");
 }
+
+
 
 const AREA_COORDS: Record<string, Omit<LatLng, "name">> = {
   Shibuya: { lat: 35.659, lng: 139.698 },
