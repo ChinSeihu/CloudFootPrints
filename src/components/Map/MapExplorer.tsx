@@ -1729,11 +1729,18 @@ export function MapExplorer() {
     if (!map || !mlg || placingRef.current) return;
     const container = map.getContainer();
     const current = userLocationRef.current ?? userLocation;
-    const c = current ? new mlg.LngLat(current.lng, current.lat) : map.unproject([container.clientWidth / 2, container.clientHeight * 0.3]);
+    const anchorScreenY = container.clientHeight * 0.22;
+    const c = current ? new mlg.LngLat(current.lng, current.lat) : map.unproject([container.clientWidth / 2, anchorScreenY]);
     const marker = new mlg.Marker({ element: anchorMarkerEl(), draggable: true, anchor: "bottom" })
       .setLngLat(c)
       .addTo(map);
-    if (current) map.flyTo({ center: [current.lng, current.lat], zoom: Math.max(map.getZoom(), 15) });
+    if (current) {
+      map.flyTo({
+        center: [current.lng, current.lat],
+        zoom: Math.max(map.getZoom(), 15),
+        offset: [0, anchorScreenY - container.clientHeight / 2],
+      });
+    }
     marker.on("drag", () => {
       const p = marker.getLngLat();
       setDialogAt({ lat: p.lat, lng: p.lng });

@@ -11,7 +11,8 @@
 - **Softer form header**: posting sheet titles are smaller and lighter, status helper copy was removed, and the close button is more visible.
 - **Compact category cards**: activity category cards are shorter with clearer selected states.
 - **Purple placement anchor**: the draggable map anchor now uses the same purple tone as the publish action.
-**Files:** `src/components/Map/BottomSheet.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`, `src/components/Map/markers.ts`
+- **Upper anchor placement**: when opening publish or footprint placement, the map anchor now appears in the upper half of the map instead of the covered center area.
+**Files:** `src/components/Map/BottomSheet.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`, `src/components/Map/markers.ts`, `src/components/Map/MapExplorer.tsx`
 
 ---
 
