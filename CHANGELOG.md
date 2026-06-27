@@ -6,6 +6,15 @@
 
 ## 2026-06-27
 
+### Refine map posting sheet details
+- **Half-height form sheet**: publish activity and footprint forms now open as a true half-height sheet with a scrollable content area, while still supporting full expansion.
+- **Softer form header**: posting sheet titles are smaller and lighter, status helper copy was removed, and the close button is more visible.
+- **Compact category cards**: activity category cards are shorter with clearer selected states.
+- **Purple placement anchor**: the draggable map anchor now uses the same purple tone as the publish action.
+**Files:** `src/components/Map/BottomSheet.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`, `src/components/Map/markers.ts`
+
+---
+
 ### Move map posting entry into toolbar
 - **Centered toolbar publish button**: the map page no longer uses a separate floating plus button; posting now lives as a purple "发帖" action in the middle of the bottom map toolbar.
 - **Reference-style publish drawer**: tapping "发帖" opens a bottom drawer for publishing an activity or leaving a footprint, above nearby activity cards.

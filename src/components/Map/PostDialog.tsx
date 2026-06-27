@@ -127,8 +127,8 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   }
 
   return (
-    <BottomSheet title="发布活动" hint="可拖动蓝色锚点重新定位" onClose={onCancel} onSnapChange={onSnapChange}>
-      <div className="mb-6">
+    <BottomSheet title="发布活动" hint="把附近正在发生或即将开始的活动分享给大家" onClose={onCancel} onSnapChange={onSnapChange}>
+      <div className="mb-5">
         <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input
           value={title}
@@ -139,9 +139,9 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         />
       </div>
 
-      <div className="mb-6">
+      <div className="mb-5">
         <label className={labelCls}>分类</label>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           {EVENT_CATEGORIES.map((c) => {
             const active = c === category;
             const meta = CATEGORY_META[c];
@@ -150,14 +150,20 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
                 key={c}
                 type="button"
                 onClick={() => setCategory(c)}
-                className={`flex h-[5.3rem] flex-col items-center justify-center gap-2 rounded-2xl border text-xs font-semibold transition active:scale-[0.98] ${
+                className={`relative flex h-[4.05rem] flex-col items-center justify-center gap-1.5 rounded-2xl border text-[11px] font-semibold transition active:scale-[0.98] ${
                   active
-                    ? "border-transparent bg-blue-50 text-blue-700 shadow-[0_8px_22px_rgba(37,99,235,0.14)]"
+                    ? "bg-white text-neutral-950 shadow-[0_8px_22px_rgba(15,23,42,0.12)]"
                     : "border-neutral-200 bg-white text-neutral-700 shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
                 }`}
+                style={active ? { borderColor: meta.color, boxShadow: `0 0 0 2px ${meta.color}33, 0 8px 22px rgba(15,23,42,0.12)` } : undefined}
               >
-                <span className="grid h-8 w-8 place-items-center rounded-xl" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>
-                  <CategoryIcon category={c} className="h-5 w-5" />
+                {active && (
+                  <span className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: meta.color }}>
+                    ✓
+                  </span>
+                )}
+                <span className="grid h-7 w-7 place-items-center rounded-xl" style={{ color: active ? "#fff" : meta.color, backgroundColor: active ? meta.color : `${meta.color}14` }}>
+                  <CategoryIcon category={c} className="h-4 w-4" />
                 </span>
                 {meta.label}
               </button>
@@ -166,7 +172,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-5">
         <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
         <DateRangeDropdown start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
       </div>

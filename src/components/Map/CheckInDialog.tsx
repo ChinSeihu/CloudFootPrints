@@ -91,7 +91,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
   }
 
   return (
-    <BottomSheet title="足迹 · 我来过" hint="可拖动蓝色锚点重新定位" onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet title="留下足迹" hint="记录这次到访的感受，只有你自己可见" onClose={onCancel} onSnapChange={onSnapChange}>
       <div className="mb-6">
         <label className={labelCls}>想说点什么</label>
         <textarea

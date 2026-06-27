@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 
-// 可吸附底部 sheet：两档 peek（最小化，露出地图便于拖锚点）/ full（完整表单）。
-//  - 打开默认 peek：只露出标题栏，地图可见 → 拖动锚点定位
-//  - 上拉 → full（填表单）；从 full 下拉 → 回 peek（重新定位）；从 peek 再下拉 → 关闭
-const HEADER_PX = 96; // peek 时露出的高度（抓手 + 标题）
+// 可吸附底部 sheet：两档 half（默认半屏）/ full（完整表单）。
+//  - 打开默认 half：表单和地图都可见，锚点仍可调整
+//  - 上拉 → full；从 full 下拉 → 回 half
 const UP_THRESHOLD = 56; // 上拉超过则展开
 const DOWN_THRESHOLD = 110; // 下拉超过则收起/关闭
 
@@ -40,9 +39,8 @@ export function BottomSheet({
     if (snap === "full") {
       setDragY(Math.max(0, dy)); // full 只能往下拖（回 peek）
     } else {
-      // peek：下拖随意；上拖最多到 full 位置，不越过顶部留给抓手的空间
-      const sheetH = sheetRef.current?.offsetHeight ?? 0;
-      setDragY(Math.max(dy, -(sheetH - HEADER_PX)));
+      // half：上拖展开；下拖回弹。
+      setDragY(dy);
     }
   }
   function onPointerUp() {
@@ -61,16 +59,17 @@ export function BottomSheet({
     }
   }
 
-  const base = snap === "peek" ? `100% - ${HEADER_PX}px` : "0px";
+  const sheetHeight = snap === "peek" ? "56dvh" : "100dvh";
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[999] flex justify-center pointer-events-none">
       <div
         ref={sheetRef}
-        className="relative flex h-[100dvh] w-full flex-col rounded-t-[2rem] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] pointer-events-auto sm:max-w-md"
+        className="relative flex w-full flex-col rounded-t-[2rem] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] pointer-events-auto sm:max-w-md"
         style={{
-          transform: `translateY(calc(${base} + ${dragY}px))`,
-          transition: dragging ? "none" : "transform 0.22s ease-out",
+          height: sheetHeight,
+          transform: dragY > 0 || snap === "peek" ? `translateY(${Math.max(0, dragY)}px)` : `translateY(${dragY}px)`,
+          transition: dragging ? "none" : "height 0.22s ease-out, transform 0.22s ease-out",
         }}
       >
         {/* 关闭按钮：拖动不会取消，明确关闭走这里（onPointerDown 阻止冒泡，避免触发拖动） */}
@@ -79,7 +78,7 @@ export function BottomSheet({
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="关闭"
-          className="absolute right-5 top-6 z-10 grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-neutral-400 hover:bg-neutral-100"
+          className="absolute right-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full bg-neutral-100 text-2xl leading-none text-neutral-500 shadow-sm hover:bg-neutral-200"
         >
           ×
         </button>
@@ -89,21 +88,18 @@ export function BottomSheet({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          className="shrink-0 cursor-grab select-none px-7 pb-4 pt-4 touch-none active:cursor-grabbing"
+          className="shrink-0 cursor-grab select-none px-6 pb-3 pt-4 touch-none active:cursor-grabbing"
         >
-          <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-neutral-300" />
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
           <div className="flex items-start justify-between gap-3 pr-9">
             <div>
-              <h2 className="text-2xl font-black tracking-normal text-neutral-950">{title}</h2>
-              {hint && <p className="mt-1 text-sm text-neutral-500">{hint}</p>}
+              <h2 className="text-xl font-bold tracking-normal text-neutral-950">{title}</h2>
+              {hint && <p className="mt-1 text-xs leading-relaxed text-neutral-500">{hint}</p>}
             </div>
-            <span className="mt-1 shrink-0 text-xs font-semibold text-blue-600">
-              {snap === "peek" ? "上拉填写" : "下拉定位"}
-            </span>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {children}
         </div>
       </div>
