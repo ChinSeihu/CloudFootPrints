@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "
 // 可吸附底部 sheet：两档 peek（最小化，露出地图便于拖锚点）/ full（完整表单）。
 //  - 打开默认 peek：只露出标题栏，地图可见 → 拖动锚点定位
 //  - 上拉 → full（填表单）；从 full 下拉 → 回 peek（重新定位）；从 peek 再下拉 → 关闭
-const HEADER_PX = 76; // peek 时露出的高度（抓手 + 标题）
+const HEADER_PX = 96; // peek 时露出的高度（抓手 + 标题）
 const UP_THRESHOLD = 56; // 上拉超过则展开
 const DOWN_THRESHOLD = 110; // 下拉超过则收起/关闭
 
@@ -67,7 +67,7 @@ export function BottomSheet({
     <div className="fixed inset-x-0 bottom-0 z-[999] flex justify-center pointer-events-none">
       <div
         ref={sheetRef}
-        className="relative w-full sm:max-w-md h-[100dvh] flex flex-col bg-white rounded-t-2xl shadow-2xl pointer-events-auto"
+        className="relative flex h-[100dvh] w-full flex-col rounded-t-[2rem] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] pointer-events-auto sm:max-w-md"
         style={{
           transform: `translateY(calc(${base} + ${dragY}px))`,
           transition: dragging ? "none" : "transform 0.22s ease-out",
@@ -79,7 +79,7 @@ export function BottomSheet({
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="关闭"
-          className="absolute top-2.5 right-3 z-10 w-7 h-7 grid place-items-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100"
+          className="absolute right-5 top-6 z-10 grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-neutral-400 hover:bg-neutral-100"
         >
           ×
         </button>
@@ -89,21 +89,21 @@ export function BottomSheet({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          className="shrink-0 px-5 pt-2.5 pb-3 border-b border-black/5 cursor-grab active:cursor-grabbing touch-none select-none"
+          className="shrink-0 cursor-grab select-none px-7 pb-4 pt-4 touch-none active:cursor-grabbing"
         >
-          <div className="mx-auto mb-3 w-9 h-1 rounded-full bg-neutral-300" />
-          <div className="flex items-center justify-between gap-2 pr-7">
-            <h2 className="text-[15px] font-semibold text-neutral-900">{title}</h2>
-            <span className="shrink-0 text-[11px] text-blue-600">
-              {snap === "peek" ? "上拉填写 ›" : "下拉重新定位"}
+          <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-neutral-300" />
+          <div className="flex items-start justify-between gap-3 pr-9">
+            <div>
+              <h2 className="text-2xl font-black tracking-normal text-neutral-950">{title}</h2>
+              {hint && <p className="mt-1 text-sm text-neutral-500">{hint}</p>}
+            </div>
+            <span className="mt-1 shrink-0 text-xs font-semibold text-blue-600">
+              {snap === "peek" ? "上拉填写" : "下拉定位"}
             </span>
           </div>
-          {hint && snap === "peek" && (
-            <p className="text-[11px] text-neutral-400 mt-1">{hint}</p>
-          )}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {children}
         </div>
       </div>

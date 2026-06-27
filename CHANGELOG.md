@@ -6,6 +6,14 @@
 
 ## 2026-06-27
 
+### Restyle posting sheets and date range picker
+- **Reference-style sheets**: publish activity and footprint sheets now use larger titles, softer rounded fields, horizontal image strips, and stronger primary buttons matching the provided mobile form reference.
+- **Activity category grid**: publish activity categories are presented as compact icon cards instead of small wrapping pills.
+- **Single-line date range**: activity time range is now one calendar dropdown for selecting a date range, while preserving ISO start/end values for submission.
+**Files:** `src/components/Map/BottomSheet.tsx`, `src/components/Map/PostDialog.tsx`, `src/components/Map/CheckInDialog.tsx`, `src/components/Map/DateRangeDropdown.tsx`
+
+---
+
 ### Refine posting and check-in forms
 - **Split post actions**: the floating post menu now shows two side-by-side actions, "publish activity" on the left and "publish footprint" on the right.
 - **Hide coordinates**: post and footprint sheets no longer display raw latitude/longitude values while keeping draggable anchor repositioning.

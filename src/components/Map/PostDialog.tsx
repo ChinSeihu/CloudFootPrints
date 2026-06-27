@@ -6,7 +6,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { BottomSheet } from "./BottomSheet";
-import { DateTimeField } from "@/components/common/DateTimeField";
+import { DateRangeDropdown } from "./DateRangeDropdown";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type PostDraft = {
@@ -84,7 +84,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
     if (!start) {
-      setError("请选择活动开始时间");
+      setError("请选择活动日期");
       return;
     }
     if (start && end && new Date(end) < new Date(start)) {
@@ -128,19 +128,20 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
 
   return (
     <BottomSheet title="发布活动" hint="可拖动蓝色锚点重新定位" onClose={onCancel} onSnapChange={onSnapChange}>
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className={fieldCls}
+          maxLength={50}
+          className={`${fieldCls} h-12 rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
           placeholder="例如：下北沢古着市集"
         />
       </div>
 
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>分类</label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-4 gap-3">
           {EVENT_CATEGORIES.map((c) => {
             const active = c === category;
             const meta = CATEGORY_META[c];
@@ -149,14 +150,15 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
                 key={c}
                 type="button"
                 onClick={() => setCategory(c)}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition ${
+                className={`flex h-[5.3rem] flex-col items-center justify-center gap-2 rounded-2xl border text-xs font-semibold transition active:scale-[0.98] ${
                   active
-                    ? "text-white border-transparent shadow-sm"
-                    : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-300"
+                    ? "border-transparent bg-blue-50 text-blue-700 shadow-[0_8px_22px_rgba(37,99,235,0.14)]"
+                    : "border-neutral-200 bg-white text-neutral-700 shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
                 }`}
-                style={active ? { backgroundColor: meta.color } : undefined}
               >
-                <CategoryIcon category={c} className="w-4 h-4" />
+                <span className="grid h-8 w-8 place-items-center rounded-xl" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>
+                  <CategoryIcon category={c} className="h-5 w-5" />
+                </span>
                 {meta.label}
               </button>
             );
@@ -164,40 +166,39 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         </div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
-        <div className="space-y-2">
-          <DateTimeField value={start} onChange={setStart} placeholder="开始时间（必选）" />
-          <DateTimeField value={end} onChange={setEnd} placeholder="结束时间（可选）" />
-        </div>
+        <DateRangeDropdown start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
       </div>
 
       {/* 图片（可选，可多张，客户端压缩后上传图床） */}
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
         {canUpload ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {files.length < MAX_IMAGES && (
+              <label className="grid h-24 w-24 shrink-0 cursor-pointer place-items-center rounded-2xl border border-dashed border-neutral-300 bg-white text-neutral-400 shadow-[0_6px_18px_rgba(15,23,42,0.04)] transition hover:border-blue-400 hover:text-blue-500">
+                <span className="flex flex-col items-center gap-1 text-[11px]">
+                  <IconPlus className="h-6 w-6" />
+                  添加图片
+                </span>
+                <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
+              </label>
+            )}
             {previews.map((src, i) => (
-              <div key={i} className="relative aspect-square">
+              <div key={i} className="relative h-24 w-24 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
+                <img src={src} alt="" className="h-full w-full rounded-2xl object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur"
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur"
                   aria-label="移除图片"
                 >
                   ×
                 </button>
               </div>
             ))}
-            {files.length < MAX_IMAGES && (
-              <label className="aspect-square flex flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
-                <IconPlus className="w-6 h-6" />
-                <span className="text-[11px]">添加</span>
-                <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
-              </label>
-            )}
           </div>
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
@@ -211,7 +212,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         <input
           value={venueName}
           onChange={(e) => setVenueName(e.target.value)}
-          className={fieldCls}
+          className={`${fieldCls} h-12 rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
           placeholder="场馆 / 地点名"
         />
       </div>
@@ -222,7 +223,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className={`${fieldCls} resize-none`}
+          className={`${fieldCls} resize-none rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
           placeholder="内容、票价…"
         />
       </div>
@@ -245,13 +246,13 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
             placeholder="如 免费、亲子、夜场…回车添加"
-            className={`${fieldCls} flex-1 min-w-0`}
+            className={`${fieldCls} h-12 min-w-0 flex-1 rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
           />
           <button
             type="button"
             onClick={addTag}
             disabled={!tagInput.trim() || tags.length >= 8}
-            className="px-4 rounded-xl bg-neutral-100 text-neutral-600 text-sm disabled:opacity-40"
+            className="rounded-2xl bg-neutral-100 px-4 text-sm text-neutral-600 disabled:opacity-40"
           >
             添加
           </button>
@@ -263,7 +264,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
         <button
           type="button"
           onClick={() => setSignupEnabled((v) => !v)}
-          className="w-full flex items-center justify-between rounded-xl bg-neutral-50 border border-neutral-200 px-3.5 py-3"
+          className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3"
         >
           <span className="text-left">
             <span className="block text-sm text-neutral-800">开启报名</span>
@@ -277,12 +278,12 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
-      <div className="flex gap-3 pt-1">
+      <div className="flex items-center gap-4 pt-1">
         <button
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="px-5 py-3 text-sm rounded-xl text-neutral-500 hover:bg-neutral-100 transition"
+          className="px-4 py-3 text-sm text-neutral-500 transition hover:text-neutral-800"
         >
           取消
         </button>
@@ -290,7 +291,7 @@ export function PostDialog({ lat, lng, onCancel, onSubmit, onSnapChange }: Props
           type="button"
           onClick={handleSubmit}
           disabled={submitting || !title.trim() || !start}
-          className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
+          className="flex h-[3.25rem] flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition active:scale-[0.99] disabled:opacity-40"
         >
           {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布活动"}
         </button>

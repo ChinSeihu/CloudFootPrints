@@ -92,47 +92,51 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
 
   return (
     <BottomSheet title="足迹 · 我来过" hint="可拖动蓝色锚点重新定位" onClose={onCancel} onSnapChange={onSnapChange}>
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>想说点什么</label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
-          className={`${fieldCls} resize-none`}
+          maxLength={200}
+          className={`${fieldCls} min-h-28 resize-none rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
           placeholder="这家展览的灯光很好..."
         />
+        <div className="mt-1 text-right text-[11px] text-neutral-400">{note.length}/200</div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>心情</label>
         <MoodSelector value={moodTags} onChange={setMoodTags} />
       </div>
 
-      <div className="mb-5">
+      <div className="mb-6">
         <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
         {canUpload ? (
-          <div className="grid grid-cols-3 gap-2">
-            {previews.map((src, index) => (
-              <div key={src} className="relative aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur"
-                  aria-label="移除图片"
-                >
-                  x
-                </button>
-              </div>
-            ))}
+          <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {files.length < MAX_IMAGES && (
-              <label className="aspect-square flex flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
-                <IconPlus className="w-6 h-6" />
-                <span className="text-[11px]">添加</span>
+              <label className="grid h-24 w-24 shrink-0 cursor-pointer place-items-center rounded-2xl border border-dashed border-neutral-300 bg-white text-neutral-400 shadow-[0_6px_18px_rgba(15,23,42,0.04)] transition hover:border-blue-400 hover:text-blue-500">
+                <span className="flex flex-col items-center gap-1 text-[11px]">
+                  <IconPlus className="h-6 w-6" />
+                  添加图片
+                </span>
                 <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
               </label>
             )}
+            {previews.map((src, index) => (
+              <div key={src} className="relative h-24 w-24 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-full w-full rounded-2xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur"
+                  aria-label="移除图片"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
@@ -143,12 +147,16 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
-      <div className="flex gap-3 pt-1">
+      <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-relaxed text-blue-700">
+        你的足迹仅对自己可见，不会公开显示在地图中。
+      </div>
+
+      <div className="flex items-center gap-4 pt-1">
         <button
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="px-5 py-3 text-sm rounded-xl text-neutral-500 hover:bg-neutral-100 transition"
+          className="px-4 py-3 text-sm text-neutral-500 transition hover:text-neutral-800"
         >
           取消
         </button>
@@ -156,7 +164,7 @@ export function CheckInDialog({ lat, lng, eventId, onCancel, onSubmit, onSnapCha
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40"
+          className="flex h-[3.25rem] flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition active:scale-[0.99] disabled:opacity-40"
         >
           {phase === "uploading" ? "上传图片..." : submitting ? "保存中..." : "留下足迹"}
         </button>
