@@ -44,30 +44,32 @@ export async function fetchT(url: string, init: RequestInit, ms: number): Promis
   }
 }
 
-// 视角语气：casual 日常一律主观；hobby 平时主观（作品才客观，这里日常按主观）；pro 客观构图。
+// 视角语气：
+// casual / hobby：偏 INS 生活博主，允许经常出镜，但只描述“最终成片”，不描述“拍照过程”。
+// pro：可客观构图，但仍保持真实生活感。
 function povClause(persona: PersonaV2): string {
   if (persona.photoSkill === "pro") {
     return [
       "Photographed with a photographer's eye.",
       "Thoughtful composition and natural environmental storytelling.",
-      "Deliberate framing and use of available light.",
-      "Still realistic, candid and grounded in everyday life.",
-      "Not commercial photography."
+      "Deliberate framing and natural available light.",
+      "Feels like refined Japanese lifestyle photography, but still realistic and grounded in everyday life.",
+      "The image represents the final published photo, not the behind-the-scenes process of capturing it.",
+      "Avoid commercial advertising, luxury editorial, studio portrait, or overly cinematic drama."
     ].join(" ");
   }
 
   return [
-    "First-person perspective.",
-    "Casual smartphone snapshot.",
-    "The account feels like an Instagram-style lifestyle blogger, so the protagonist can appear often when the capture method is plausible.",
-    "Captured naturally during daily life.",
-    "The scene as seen by the person.",
-    "Prefer what the person is looking at: food, drinks, tickets, books, shop interiors, streets, stage, park, train window, hands or objects.",
-    "For first-person shots, show at most one hand unless a tripod, timer, phone placed on a table/floor, mirror reflection, or another photographer is explicitly described.",
-    "The protagonist may appear frequently, but not in every image.",
-    "If the protagonist appears, prefer plausible no-phone-in-frame methods: mirror/window reflection without a visible phone, back view, side view, timer shot, tripod shot, phone placed on a table/floor, friend-taken snapshot, or group photo.",
-    "Avoid showing the protagonist holding a phone to take a picture unless the scene explicitly requires it.",
-    "Avoid making every image look like another person is following them around taking portraits.",
+    "Instagram-style casual lifestyle snapshot.",
+    "The image represents the final published photo, not the behind-the-scenes process of capturing it.",
+    "The protagonist may appear often because this is an Instagram-style lifestyle account, but not in every image.",
+    "Prefer natural daily-life framing: food, drinks, tickets, books, shop interiors, streets, stage, park, train window, hands, objects, reflections, back view, side view, or relaxed full-body moments.",
+    "When the protagonist appears, the framing should naturally imply a plausible capture method, such as a friend-taken photo, timer photo, reflection, side view, back view, group photo, or a phone placed somewhere out of frame.",
+    "These capture methods should be implied only.",
+    "Do not explicitly show cameras, phones, selfie sticks, tripods, ring lights, or the act of taking a photo unless the scene specifically requires it.",
+    "Avoid showing the protagonist holding a phone to take a picture unless the scene explicitly requires a mirror selfie.",
+    "Avoid unexplained third-person portraits that look like a stranger is constantly following them.",
+    "For first-person shots, show at most one hand unless the scene is physically plausible.",
     "Slightly imperfect framing.",
     "Feels spontaneous rather than planned."
   ].join(" ");
@@ -75,7 +77,9 @@ function povClause(persona: PersonaV2): string {
 
 function shouldUseIdentityReference(req: ImageRequest): boolean {
   const text = `${req.photoDesc} ${req.persona.photoSkill}`.toLowerCase();
+
   if (req.persona.photoSkill === "pro") return true;
+
   return [
     "selfie",
     "portrait",
@@ -92,6 +96,11 @@ function shouldUseIdentityReference(req: ImageRequest): boolean {
     "photo of me",
     "me in the frame",
     "my face",
+    "mirror",
+    "reflection",
+    "back view",
+    "side view",
+    "group photo",
     "自拍",
     "合照",
     "定时",
@@ -110,35 +119,51 @@ function shouldUseIdentityReference(req: ImageRequest): boolean {
     "侧脸",
     "镜子",
     "倒影",
+    "全身",
+    "穿搭",
+    "ootd",
   ].some((keyword) => text.includes(keyword));
 }
 
-// 我们的「生图规则」：附加在 LLM 写的场景 prompt 之后，强制写实 / 表情自然 / 视角 / 外观一致 / 无水印。
-// Agnes 无负向提示参数，这些约束全靠措辞。
+// Agnes 无负向提示参数，所以把负向约束写进正向 prompt 里。
+// 重点：强调“最终发布照片”，避免生成拍摄过程本身。
 function buildRules(persona: PersonaV2): string {
   return [
     "[Constraints]",
+
     povClause(persona),
+
     "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo.",
-    "Authentic Japanese lifestyle photography.",
-    "Ordinary young Asian people living in Tokyo.",
-    "Balance image viewpoints for an Instagram-style lifestyle blogger: frequent plausible subject visibility via timer, tripod, reflection, back view, natural pose, friend-taken snapshot, group photo, or phone placed on a table/floor, mixed with POV environment and object shots.",
-    "Avoid unexplained third-person portraits that look like a stranger is constantly following the recurring individual.",
+    "Authentic Japanese lifestyle photography with a subtle Japanese drama daily-life atmosphere.",
+    "Inspired by contemporary Japanese lifestyle magazines and everyday photo diaries, but not a professional shoot.",
+    "Looks like a real final photo shared on Threads or Instagram by a young person living in Tokyo.",
+    "The image should depict the captured moment itself, not the process of taking the photo.",
+
+    "People are ordinary young Asian people living in Tokyo.",
     "Calm, natural and subtle expressions.",
-    "Relaxed natural poses are allowed, like walking, looking aside, leaning on a railing, sitting at a cafe table, adjusting hair, or holding a drink.",
+    "Relaxed natural poses are allowed, like walking, looking aside, leaning on a railing, sitting at a cafe table, adjusting hair, holding a drink, or casually talking with friends.",
+    "Unposed moment.",
     "An unaware candid instant.",
     "Ordinary happiness rather than dramatic emotion.",
-    `Recurring individual — keep the SAME face, body type, height and overall appearance consistent (identity: ${persona.appearance}).`,
+
+    `Recurring individual — keep the SAME face, hairstyle, body type, height and overall identity consistent (identity: ${persona.appearance}).`,
     "The face must remain recognizable across different images.",
+    "Do not change the person's facial identity, hairstyle, height, body type, or overall impression.",
+
+    "Every image should feature a fresh outfit when the protagonist appears.",
+    "Choose age-appropriate contemporary Japanese street fashion that naturally matches the season, weather, location and activity.",
+    "The outfit should feel young, current, tasteful and effortlessly stylish rather than overly fashionable.",
+    "Looks like what a real stylish young person in Tokyo would genuinely wear that day.",
+    "Vary clothing colors, layers, outerwear, accessories, bags and shoes.",
+    "Include thoughtful styling details such as layered outfits, seasonal outerwear, jewelry, hair accessories, manicured nails, bags or shoes when appropriate.",
+    "Avoid repeating similar outfits or color combinations across images.",
+
     "Natural hands and anatomy.",
     "If hands are visible, fingers should be relaxed, correctly counted, naturally posed, and realistically holding objects.",
-    "For close-up hands, show young feminine hands: slender fingers, soft skin texture, neat nails, not rough, oversized, bulky, or masculine.",
-    "In first-person smartphone POV, avoid showing both of the protagonist's hands at the same time.",
+    "For close-up hands, show young natural hands with slender fingers, soft skin texture, neat nails, not rough, oversized, bulky, or masculine.",
+    "In first-person smartphone POV, avoid showing both of the protagonist's hands at the same time unless it is physically plausible.",
     "Avoid showing detailed hands unless they are necessary for the scene.",
-    "Clothing, outfit colors, accessories, bags and shoes should vary naturally according to season, weather and activity.",
-    "Outfits, hair and makeup should be more stylish and current for a Tokyo Instagram lifestyle blogger while still feeling wearable and realistic.",
-    "Include thoughtful styling details such as layered outfits, seasonal outerwear, jewelry, hair accessories, manicured nails, bags or shoes when appropriate.",
-    "Do not reuse the same outfit repeatedly.",
+
     "Natural available light.",
     "Realistic skin texture with minor imperfections.",
     "Realistic smartphone camera quality.",
@@ -155,6 +180,7 @@ function buildRules(persona: PersonaV2): string {
     "Gentle halation in highlights.",
     "Mild lens softness.",
     "Atmospheric storytelling.",
+
     "Avoid AI-generated appearance.",
     "No CGI.",
     "No 3D render.",
@@ -165,14 +191,20 @@ function buildRules(persona: PersonaV2): string {
     "No malformed hands.",
     "No extra fingers.",
     "No fused fingers.",
-    "No two-handed POV unless explicitly plausible.",
-    "No phone-taking-photo gesture unless explicitly required.",
     "No twisted wrists.",
     "No broken anatomy.",
     "No impossible object grip.",
+    "No two-handed POV unless explicitly plausible.",
+    "No phone-taking-photo gesture unless explicitly required.",
+    "No visible camera equipment.",
+    "No visible tripod.",
+    "No visible selfie stick.",
+    "No visible ring light.",
+    "No behind-the-scenes shooting setup.",
     "No cinematic dramatic lighting.",
     "No studio portrait.",
     "No glossy fashion editorial.",
+    "No luxury brand campaign.",
     "No advertisement.",
     "No exaggerated influencer pose.",
     "No professional model pose.",
@@ -186,85 +218,150 @@ function buildRules(persona: PersonaV2): string {
   ].join(" ");
 }
 
-// 用 LLM 写一段「专业、详细」的英文场景 prompt（只描述画面：主体/动作/构图/景别/光线/镜头/环境/氛围）。
-// 不含风格约束——约束由 buildRules 附加。LLM 失败返回 null（上层回退）。
+// 用 LLM 写一段英文场景 prompt。
+// 注意：这里也禁止 LLM 描述“正在自拍 / 正在架三脚架 / 正在被拍”这种过程。
+// 只描述最终照片画面。
 async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   const { persona, photoDesc, world } = req;
   const key = process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
+
   const provider = (process.env.LLM_PROVIDER || "").toLowerCase();
-  const useAnthropic = provider === "anthropic" || provider === "claude" || (process.env.LLM_MODEL || "").toLowerCase().startsWith("claude");
+  const useAnthropic =
+    provider === "anthropic" ||
+    provider === "claude" ||
+    (process.env.LLM_MODEL || "").toLowerCase().startsWith("claude");
+
   const system = `
-  你是专业摄影导演。
+你是专业摄影导演兼生活方式内容策划。
 
-  根据给定生活场景生成一段英文图片描述。
+根据给定生活场景生成一段英文图片描述。
 
-  只描述：
+目标：
+生成一张像东京年轻 INS 生活博主真实发布出来的最终照片，而不是拍照过程、拍摄现场、幕后花絮。
 
-  - 场景
-  - 主体
-  - 动作
-  - 环境
-  - 道具
-  - 时间
-  - 天气
-  - 构图
-  - 景别
-  - 前景与背景关系
-  - 光线方向与环境氛围
+只描述最终画面本身：
 
-  如果人物出镜：
+- 场景
+- 主体
+- 动作
+- 环境
+- 道具
+- 时间
+- 天气
+- 构图
+- 景别
+- 前景与背景关系
+- 光线方向与环境氛围
+- 人物是否出镜
+- 合理但隐含的成片视角
 
-  - 为人物安排符合季节、天气和场景的具体穿搭
-  - 穿搭应尽量与之前不同
-  - 不要描述人物长相
-  - 不要描述摄影风格
+重要规则：
 
-  不要输出：
+1. 可以让人物较常出镜，因为这是 INS 风格生活博主账号。
 
-  - photorealistic
-  - candid
-  - smartphone photo
-  - POV
-  - Kodak
-  - film grain
-  - CGI
-  - professional photography
-  - quality tags
-  - negative prompt
+2. 如果人物出镜：
+   - 只描述最终照片里的状态。
+   - 可以是自然站立、走路、坐着、看向旁边、背影、侧脸、镜中倒影、窗中倒影、朋友视角、定时成片感、桌边自然全身或半身构图。
+   - 不要描述“正在自拍”“正在摆三脚架”“朋友正在拍她”“有人拿着相机拍她”。
+   - 不要让手机、三脚架、自拍杆、相机、补光灯出现在画面里，除非场景明确需要镜子自拍。
 
-  这些内容由系统统一附加。
+3. 如果内容主要是食物、咖啡、票、书、物品：
+   优先描述物品或桌面视角，人物可以不出镜，也可以只出现手或衣袖。
 
-  输出 60~120 词英文画面描述。
+4. 如果内容主要是街道、公园、河边、演出、天空、夜景：
+   优先描述环境或自然生活场景，人物可以不出镜，也可以是背影、侧影或自然远景。
 
-  只输出英文 prompt。
-  `;
+5. 如果内容是“看到情侣、朋友、路人、老夫妻、排队的人”等：
+   这些人是被观察到的人，不是发帖人本人。
+   不要让用户误会成发帖人的恋爱或朋友关系。
+
+6. 如果人物出镜：
+   - 为人物安排符合季节、天气、地点和场景的具体穿搭。
+   - 穿搭要年轻、自然、有东京生活感。
+   - 可以参考日系生活写真或日剧日常穿搭的感觉，但不要变成电影海报或商业写真。
+   - 不要描述人物长相。
+   - 不要改变人物身份特征。
+
+7. 如果人物不出镜：
+   重点描述环境、物品、光线、道具和当下氛围。
+
+不要输出以下风格词：
+
+- photorealistic
+- candid
+- smartphone photo
+- Kodak
+- film grain
+- CGI
+- professional photography
+- negative prompt
+- quality tags
+- masterpiece
+- best quality
+- 8k
+
+这些内容由系统统一附加。
+
+输出 70~130 词英文画面描述。
+
+只输出英文 prompt，不要解释，不要加标题，不要加引号。
+`;
+
   const user = `场景（中文）：${photoDesc}
-人物：${persona.age}岁 ${persona.occupation}；视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "第一人称手机随手拍"}。
-季节天气：${world.season} / ${world.weather}。
+人物：${persona.age}岁 ${persona.occupation}
+账号定位：东京 INS 风格生活博主，允许较常出镜，但画面必须是最终发布照片，不是拍摄过程。
+视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "自然生活成片 / 本人可出镜 / 朋友视角成片感 / 主观物品或环境视角"}
+季节天气：${world.season} / ${world.weather}
+
 请写英文图片生成 prompt。`;
+
   try {
     if (useAnthropic) {
       const client = new Anthropic({ apiKey: key });
       const res = await client.messages.create({
         model: process.env.LLM_MODEL || "claude-haiku-4-5",
-        max_tokens: 400, system, messages: [{ role: "user", content: user }],
+        max_tokens: 500,
+        system,
+        messages: [{ role: "user", content: user }],
       });
-      const t = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+
+      const t = res.content.find(
+        (b): b is Anthropic.TextBlock => b.type === "text"
+      );
+
       return t?.text.trim() || null;
     }
+
     const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-    const res = await fetchT(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: process.env.LLM_MODEL || "deepseek-chat",
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        temperature: 0.7, max_tokens: 400,
-      }),
-    }, 45000);
+
+    const res = await fetchT(
+      `${baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: process.env.LLM_MODEL || "deepseek-chat",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.75,
+          max_tokens: 500,
+        }),
+      },
+      45000
+    );
+
     if (!res.ok) return null;
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
     return (data.choices?.[0]?.message?.content ?? "").trim() || null;
   } catch {
     return null;
