@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, type PersonaFashionStyle } from "@/lib/personas";
+import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS,PERSONA_FASHION_STYLE,type FashionTrendTag,  type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 
@@ -44,44 +44,37 @@ export async function fetchT(url: string, init: RequestInit, ms: number): Promis
   }
 }
 
-function fashionClause(persona: PersonaV2, world: ImageRequest["world"]): string {
-  const fashion = persona.fashionStyle as PersonaFashionStyle | undefined;
+export function fashionClause(
+  persona: PersonaV2,
+  world: ImageRequest["world"]
+): string {
+  const fashion =
+    (persona.fashionStyle as PersonaFashionStyle | undefined) ??
+    PERSONA_FASHION_STYLE[persona.id];
 
   if (!fashion) {
     return [
       "[Fashion Direction]",
       `Season/weather: ${world.season} / ${world.weather}.`,
-      "Create a fresh age-appropriate contemporary Tokyo outfit for this image.",
-      "Use the identity reference only for face, hairstyle, body type and overall identity.",
-      "Do not copy clothing from the reference image.",
-      "The outfit should match the person's job, age, scene, season and weather.",
-      "Vary colors, layers, accessories, bag, shoes and silhouette.",
-      "If multiple people appear, give each person clearly different outfits, colors and silhouettes.",
+      "Create a fresh contemporary Tokyo outfit.",
+      "Use the identity reference only for face, hairstyle, body type and identity.",
+      "Do not copy the reference outfit.",
     ].join(" ");
   }
-
-  const primary = FASHION_STYLE_PROMPTS[fashion.primary];
-  const secondary = fashion.secondary
-    .map((s) => FASHION_STYLE_PROMPTS[s])
-    .filter(Boolean)
-    .join(" ");
 
   return [
     "[Fashion Direction]",
     `Season/weather: ${world.season} / ${world.weather}.`,
-    "Create a fresh outfit for this image.",
-    "Use the identity reference ONLY for face, hairstyle, body type and overall identity.",
-    "Do NOT copy clothing from the reference image.",
-    "Do NOT reuse the same outfit repeatedly.",
-    "Keep the outfit consistent with this person's personal fashion taste.",
-    `Primary fashion identity: ${primary}`,
-    `Secondary styles that may be mixed subtly when appropriate: ${secondary}`,
-    "The outfit should match the person's job, age, personality, location, season, weather and activity.",
-    "The outfit should feel young, current, wearable, natural and Tokyo-realistic.",
-    "Vary colors, layers, outerwear, accessories, bag, shoes and silhouette.",
-    "The outfit should make this person recognizable even without seeing the face, because of their consistent personal fashion taste.",
-    "If multiple people appear, every person must wear clearly different outfits, colors and silhouettes.",
-    "Do not make two people wear matching clothes unless explicitly requested.",
+    `Fashion level: ${fashion.fashionLevel}.`,
+    `Primary fashion identity: ${FASHION_STYLE_PROMPTS[fashion.primary]}.`,
+    `Secondary styles: ${fashion.secondary
+      .map((s) => FASHION_STYLE_PROMPTS[s])
+      .join(" / ")}.`,
+    `Current trend tags to use when suitable: ${fashion.trendTags.join(", ")}.`,
+    "Keep this person's fashion taste consistent across images.",
+    "Create a fresh outfit every time.",
+    "Do not copy the identity reference outfit.",
+    "The outfit should be recognizable as this person's taste even when the face is not visible.",
   ].join(" ");
 }
 
@@ -167,12 +160,27 @@ function shouldUseIdentityReference(req: ImageRequest): boolean {
   ].some((keyword) => text.includes(keyword));
 }
 
-const outfitSeed = [
-  "cream cardigan, navy pleated skirt, brown loafers, small canvas tote",
-  "light denim jacket, white tee, olive wide-leg pants, black sneakers",
-  "beige trench coat, striped knit, straight jeans, leather shoulder bag",
-  "soft blue shirt, charcoal skirt, silver earrings, white sneakers"
-][Math.floor(Math.random() * 4)];
+const anatomyRules = [
+  "Natural hands and anatomy.",
+  "Only show hands that clearly belong to visible people in the frame.",
+  "Do not show anonymous extra hands entering from outside the frame.",
+  "Do not show a random third hand near the protagonist.",
+  "Do not show disembodied hands, floating hands, cropped stranger hands, or unexplained hands.",
+  "If the protagonist is alone, only the protagonist's own hands may appear.",
+  "If another person's hand appears, that person's body or arm connection must be clearly visible and physically plausible.",
+  "If hands are visible, fingers should be relaxed, correctly counted, naturally posed, and realistically holding objects.",
+  "Avoid showing detailed hands unless they are necessary for the scene.",
+  "No malformed hands.",
+  "No extra fingers.",
+  "No fused fingers.",
+  "No twisted wrists.",
+  "No broken anatomy.",
+  "No impossible object grip.",
+  "No random extra hands.",
+  "No disembodied hands.",
+  "No floating hands.",
+  "No stranger's hand entering the frame without context.",
+];
 
 // Agnes 无负向提示参数，所以把负向约束写进正向 prompt 里。
 // 重点：强调“最终发布照片”，避免生成拍摄过程本身。
@@ -212,6 +220,8 @@ function buildRules(persona: PersonaV2, world: World): string {
     "For close-up hands, show young natural hands with slender fingers, soft skin texture, neat nails, not rough, oversized, bulky, or masculine.",
     "In first-person smartphone POV, avoid showing both of the protagonist's hands at the same time unless it is physically plausible.",
     "Avoid showing detailed hands unless they are necessary for the scene.",
+
+    ...anatomyRules,
 
     "Natural available light.",
     "Realistic skin texture with minor imperfections.",
@@ -421,7 +431,162 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
   }
 }
 
-function outfitClause(persona: PersonaV2, world: ImageRequest["world"]): string {
+type OutfitPalette = {
+  id: string;
+  text: string;
+  styles?: FashionStyle[];
+};
+
+type OutfitSilhouette = {
+  id: string;
+  text: string;
+  styles?: FashionStyle[];
+  tags?: FashionTrendTag[];
+};
+
+export type DailyOutfit = {
+  palette: string;
+  silhouette: string;
+  items: string;
+};
+
+const PALETTES: OutfitPalette[] = [
+  { id: "clear_white_blush", text: "clear white, blush pink and soft beige", styles: ["clean_girl", "sweet_soft", "japanese_fresh"] },
+  { id: "ivory_greige_brown", text: "ivory, greige and warm brown", styles: ["intellectual", "office_chic", "french_vintage"] },
+  { id: "cream_sage_oatmeal", text: "cream, sage green and oatmeal", styles: ["natural_clean", "clean_girl", "japanese_fresh"] },
+  { id: "soft_blue_white_gray", text: "soft blue, white and light gray", styles: ["japanese_fresh", "campus_academic", "clean_girl"] },
+  { id: "dusty_pink_mocha", text: "dusty pink, mocha brown and ivory", styles: ["sweet_soft", "korean_casual", "light_sensual"] },
+  { id: "black_ivory_gold", text: "black, ivory and muted gold", styles: ["light_sensual", "office_chic", "french_vintage"] },
+  { id: "navy_white_silver", text: "navy, white and silver", styles: ["intellectual", "campus_academic", "minimal_chic"] },
+  { id: "wine_beige_black", text: "wine red, beige and black", styles: ["french_vintage", "light_sensual", "vintage_used"] },
+  { id: "charcoal_denim_black", text: "charcoal, denim blue and black", styles: ["street_livehouse", "city_boy", "workwear"] },
+  { id: "celadon_ivory_ink", text: "celadon green, ivory and ink black", styles: ["modern_chinese", "natural_clean", "intellectual"] },
+  { id: "all_white_texture", text: "mostly white with subtle lace, knit or sheer texture differences", styles: ["clean_girl", "sweet_soft", "japanese_fresh"] },
+  { id: "rose_brown_cream", text: "rose brown, cream and soft cocoa", styles: ["french_vintage", "sweet_soft", "korean_casual"] },
+  { id: "olive_gray_black", text: "olive, gray and black", styles: ["athflow", "workwear", "street_livehouse"] },
+  { id: "camel_black_ivory", text: "camel, black and ivory", styles: ["office_chic", "intellectual", "minimal_chic"] },
+];
+
+const SILHOUETTES: OutfitSilhouette[] = [
+  { id: "lace_blouse_mermaid_skirt", text: "lace blouse with a clean mermaid skirt", styles: ["clean_girl", "sweet_soft", "light_sensual"], tags: ["lace", "mermaid_skirt"] },
+  { id: "sheer_blouse_wide_trousers", text: "sheer blouse with elegant wide-leg trousers", styles: ["office_chic", "clean_girl", "intellectual"], tags: ["sheer", "wide_pants"] },
+  { id: "cropped_cardigan_satin_skirt", text: "cropped cardigan with a satin long skirt", styles: ["korean_casual", "sweet_soft", "light_sensual"], tags: ["cropped_cardigan", "satin_skirt"] },
+  { id: "soft_blazer_lace_inner", text: "soft blazer with a delicate lace inner top and straight bottoms", styles: ["office_chic", "intellectual", "clean_girl"], tags: ["lace"] },
+  { id: "knit_mermaid_skirt", text: "fine knit top with a mermaid skirt", styles: ["clean_girl", "light_sensual", "korean_clean"], tags: ["knit", "mermaid_skirt"] },
+  { id: "one_piece_sheer_cardigan", text: "simple one-piece dress with a sheer cardigan", styles: ["japanese_fresh", "sweet_soft", "clean_girl"], tags: ["sheer_cardigan"] },
+  { id: "lace_top_denim", text: "lace top with straight denim", styles: ["french_vintage", "japanese_fresh", "vintage_used"], tags: ["lace", "denim"] },
+  { id: "blouse_pleated_skirt", text: "clean blouse with a long pleated skirt", styles: ["campus_academic", "intellectual", "clean_girl"], tags: ["pleated_skirt"] },
+  { id: "wrap_dress_light_cardigan", text: "wrap dress with a light cardigan", styles: ["french_vintage", "sweet_soft"], tags: ["cropped_cardigan"] },
+  { id: "linen_dress_light_outerwear", text: "linen dress with light outerwear", styles: ["natural_clean", "japanese_fresh"], tags: ["linen"] },
+  { id: "trench_knit_skirt", text: "trench coat with a fine knit and long skirt", styles: ["office_chic", "french_vintage", "intellectual"], tags: ["trench", "knit", "long_skirt"] },
+  { id: "oxford_knit_vest", text: "oxford shirt with a knit vest and straight bottoms", styles: ["campus_academic", "intellectual"], tags: ["knit"] },
+  { id: "minimal_set_up", text: "minimal matching set-up with relaxed lines", styles: ["minimal_chic", "office_chic", "city_boy"] },
+  { id: "band_tee_black_denim", text: "band T-shirt with black denim and a light outer layer", styles: ["street_livehouse", "vintage_used"], tags: ["band_tshirt", "denim"] },
+  { id: "work_jacket_cargo", text: "work jacket with cargo pants", styles: ["workwear", "city_boy"], tags: ["cargo"] },
+  { id: "mandarin_blouse_skirt", text: "modern mandarin-collar blouse with a flowing skirt", styles: ["modern_chinese", "intellectual"] },
+  { id: "hoodie_clean_skirt", text: "clean hoodie with a simple skirt", styles: ["athflow", "japanese_fresh"], tags: ["hoodie"] },
+];
+
+function pickOne<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function personaFashionStyles(persona: PersonaV2): FashionStyle[] {
+  const fashion =
+    (persona.fashionStyle as PersonaFashionStyle | undefined) ??
+    PERSONA_FASHION_STYLE[persona.id];
+
+  if (!fashion) return [];
+
+  return [fashion.primary, ...fashion.secondary];
+}
+
+function personaTrendTags(persona: PersonaV2): FashionTrendTag[] {
+  const fashion =
+    (persona.fashionStyle as PersonaFashionStyle | undefined) ??
+    PERSONA_FASHION_STYLE[persona.id];
+
+  return fashion?.trendTags ?? [];
+}
+
+function filterByPersonaStyle<T extends { styles?: FashionStyle[] }>(
+  items: T[],
+  persona: PersonaV2
+): T[] {
+  const styles = personaFashionStyles(persona);
+  if (!styles.length) return items;
+
+  const matched = items.filter((item) =>
+    item.styles?.some((s) => styles.includes(s))
+  );
+
+  return matched.length ? matched : items;
+}
+
+function filterByTrendTags(
+  items: OutfitSilhouette[],
+  persona: PersonaV2
+): OutfitSilhouette[] {
+  const tags = personaTrendTags(persona);
+  if (!tags.length) return items;
+
+  const matched = items.filter((item) =>
+    item.tags?.some((tag) => tags.includes(tag))
+  );
+
+  return matched.length ? matched : items;
+}
+
+function pickUnused<T extends { id: string }>(
+  items: T[],
+  used: Set<string>
+): T {
+  const unused = items.filter((item) => !used.has(item.id));
+  return pickOne(unused.length ? unused : items);
+}
+
+export function buildDailyOutfitPlan(
+  requests: ImageRequest[]
+): Record<string, DailyOutfit> {
+  const usedPalette = new Set<string>();
+  const usedSilhouette = new Set<string>();
+  const plan: Record<string, DailyOutfit> = {};
+
+  for (const req of requests) {
+    const paletteCandidates = filterByPersonaStyle(PALETTES, req.persona);
+
+    const styleMatchedSilhouettes = filterByPersonaStyle(SILHOUETTES, req.persona);
+    const trendMatchedSilhouettes = filterByTrendTags(
+      styleMatchedSilhouettes,
+      req.persona
+    );
+
+    const palette = pickUnused(paletteCandidates, usedPalette);
+    const silhouette = pickUnused(trendMatchedSilhouettes, usedSilhouette);
+
+    usedPalette.add(palette.id);
+    usedSilhouette.add(silhouette.id);
+
+    plan[req.persona.id] = {
+      palette: palette.text,
+      silhouette: silhouette.text,
+      items: [
+        `Use a ${silhouette.text} outfit.`,
+        `Color palette: ${palette.text}.`,
+        "Use ONE contemporary Japanese fashion highlight only.",
+        "Everything else should stay simple, clean and balanced.",
+      ].join(" "),
+    };
+  }
+
+  return plan;
+}
+
+export function outfitClause(
+  persona: PersonaV2,
+  world: ImageRequest["world"],
+  outfit?: DailyOutfit
+): string {
   const outfitSeed = Math.floor(Math.random() * 1_000_000);
 
   return [
@@ -429,46 +594,52 @@ function outfitClause(persona: PersonaV2, world: ImageRequest["world"]): string 
     `Outfit seed: ${outfitSeed}.`,
     `Season/weather: ${world.season} / ${world.weather}.`,
 
-    "Create today's outfit as a fresh variation based on this person's fashion identity.",
-    "Use the fashion direction above as the person's long-term wardrobe taste.",
+    outfit
+      ? `Today's assigned outfit direction: ${outfit.items}`
+      : "Create today's outfit as a fresh variation based on this person's fashion identity.",
+
+    "This assigned outfit direction is mandatory when the protagonist appears.",
+    "The outfit should feel like current Tokyo Instagram fashion, especially around Omotesando, Daikanyama, Nakameguro, Ebisu and Jiyugaoka.",
+    "Aim for a clean, feminine, slightly eye-catching look when suitable.",
     "Do not treat the identity reference image as an outfit reference.",
     "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
     "Do NOT copy clothing, colors, shoes, bag or accessories from the identity reference.",
 
-    "Today's outfit must feel different from previous images.",
-    "Avoid repeating the same clothing combination, color palette, silhouette, bag, shoes or accessories.",
-    "Choose clothing that naturally fits today's scene, location, season, weather and activity.",
+    "The outfit must be simple, well-balanced and realistically stylish.",
+    "Use a clean coordinated outfit, not a pile of fashion elements.",
+    "Choose ONE main fashion focus only.",
+    "Choose at most ONE small accessory.",
+    "Keep the color palette limited to 2 or 3 harmonious colors.",
+    "Do not combine too many statement pieces, excessive layering, mixed patterns, or mismatched colors.",
 
-    "If the protagonist appears, describe or imply a complete coordinated outfit: top, outerwear if needed, bottoms, shoes, bag and small accessories.",
-    "The outfit should feel wearable, realistic, youthful and stylish for a young person living in Tokyo.",
-    "The outfit should not look like a costume, fashion editorial, luxury campaign or idol stage outfit.",
+    "If multiple people appear, every person must wear clearly different clothing colors, silhouettes and accessories.",
+    "Do not make two people wear matching outfits unless explicitly requested.",
+    "Avoid duplicated outfits between the protagonist and background people.",
 
-    "If multiple people appear, give every person clearly different clothing colors, silhouettes and accessories.",
-    "Do not make two people wear matching outfits unless the scene explicitly asks for matching clothes.",
-    "Avoid duplicated outfits between the protagonist and background people."
+    "Not runway fashion.",
+    "Not cosplay.",
+    "Not idol costume.",
+    "Not luxury campaign.",
   ].join(" ");
 }
-
 // 组合最终 prompt = LLM 专业场景描述 + 我们的生图规则。LLM 失败则回退（photoDesc + 规则）。
-export async function composePrompt(req: ImageRequest): Promise<string> {
+export async function composePrompt(
+  req: ImageRequest,
+  outfit?: DailyOutfit
+): Promise<string> {
   const scene = await scenePromptLLM(req);
-
   const fashion = fashionClause(req.persona, req.world);
-  const outfit = outfitClause(req.persona, req.world);
+  const outfitText = outfitClause(req.persona, req.world, outfit);
   const rules = buildRules(req.persona, req.world);
 
-  const baseScene =
-    scene ??
-    `Scene: ${req.photoDesc}. Season ${req.world.season}, ${req.world.weather}.`;
-
   return [
-    baseScene,
+    scene ??
+      `Scene: ${req.photoDesc}. Season ${req.world.season}, ${req.world.weather}.`,
     fashion,
-    outfit,
+    outfitText,
     rules,
   ].join("\n\n");
 }
-
 // 把生成图（远程 URL 或 data URI）上传 Cloudinary（服务端抓取），得到自带 CORS 的持久链接。
 // 未配置 Cloudinary 时：若是 http(s) URL 直接返回原链；data URI 无法直接展示则返回 null。
 export async function persistToCloudinary(src: string): Promise<string | null> {

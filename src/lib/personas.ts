@@ -125,23 +125,19 @@ export interface PersonaV2 {
   writingDNA?: WritingDNA
 }
 
-export type PersonaFashionStyle = {
-  primary: FashionStyle;
-  secondary: FashionStyle[];
-};
-
 export type FashionStyle =
   | "sweet_soft"
   | "intellectual"
   | "light_sensual"
-  | "normcore_minimal"
+  | "minimal_chic"
   | "french_vintage"
   | "athflow"
   | "modern_chinese"
-  | "japanese_mori"
+  | "natural_clean"
   | "clean_girl"
   | "japanese_fresh"
   | "campus_academic"
+  | "korean_clean"
   | "korean_casual"
   | "city_boy"
   | "workwear"
@@ -149,123 +145,161 @@ export type FashionStyle =
   | "street_livehouse"
   | "office_chic";
 
+export type FashionTrendTag =
+  | "lace"
+  | "sheer"
+  | "sheer_cardigan"
+  | "mermaid_skirt"
+  | "satin_skirt"
+  | "cropped_cardigan"
+  | "wide_pants"
+  | "long_skirt"
+  | "pleated_skirt"
+  | "trench"
+  | "denim"
+  | "loafers"
+  | "boots"
+  | "sneakers"
+  | "baseball_cap"
+  | "hoodie"
+  | "cargo"
+  | "leather"
+  | "band_tshirt"
+  | "camera_bag"
+  | "linen"
+  | "knit"
+  | "ribbon"
+  | "gold_jewelry"
+  | "canvas_bag"
+  | "silver_accessories";
+
+export type FashionLevel = "normal" | "stylish" | "fashionista";
+
+export type PersonaFashionStyle = {
+  primary: FashionStyle;
+  secondary: FashionStyle[];
+  trendTags: FashionTrendTag[];
+  fashionLevel: FashionLevel;
+};
+
 export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
   sweet_soft:
-    "Soft sweet Japanese feminine style: pastel colors, light cardigans, puff sleeves, pleated skirts, Mary Jane shoes, ribbons, pearl accessories, cute but not childish.",
-
+    "soft sweet Japanese feminine style with gentle colors, lace, cardigans, pleated skirts and delicate details, cute but not childish",
   intellectual:
-    "Intellectual elegant style: crisp shirts, fine knitwear, straight trousers, pencil skirts, cardigans, loafers, muted colors, clean lines, minimal jewelry, bookish and refined.",
-
+    "intellectual elegant style with shirts, fine knitwear, straight trousers, long skirts, loafers and muted colors",
   light_sensual:
-    "Light sensual mature style: fitted knitwear, satin camisole layered with cardigan or jacket, slim skirt, delicate heels or boots, subtle skin exposure, feminine but tasteful, never vulgar.",
-
-  normcore_minimal:
-    "Japanese minimalist normcore style: oversized shirts, plain T-shirts, wide trousers, simple sneakers, trench coats, monochrome or neutral palette, effortless and understated.",
-
+    "light sensual mature style with fitted knitwear, satin textures, mermaid skirts and subtle skin exposure, feminine but tasteful",
+  minimal_chic:
+    "minimal chic Tokyo style with clean silhouettes, neutral colors, wide trousers, simple tops and refined accessories",
   french_vintage:
-    "French vintage inspired style: wrap dress, square-neck blouse, striped tops, vintage denim, leather shoulder bag, silk scarf, basket bag, wine red, moss green, beige and soft earthy colors.",
-
+    "French vintage inspired style with wrap dresses, lace blouses, denim, silk scarf, leather bag and retro colors",
   athflow:
-    "Athflow casual style: stylish comfort wear, hoodies, sweatshirts, relaxed pants, leggings, baseball cap, dad sneakers, canvas tote, navy, gray and clean sporty colors.",
-
+    "athflow casual style with hoodies, relaxed pants, sneakers, baseball caps and comfortable sporty layers",
   modern_chinese:
-    "Modern Chinese-inspired style: contemporary cuts with subtle traditional details, mandarin collar, frog buttons, flowing skirt, jade-like accessories, ink black, ivory, cinnabar red or celadon green.",
-
-  japanese_mori:
-    "Japanese Mori Girl natural style: linen dresses, loose blouses, layered cardigans, overalls, canvas bags, knitted hats, earth tones, moss green, oatmeal, ivory, soft natural textures.",
-
+    "modern Chinese-inspired style with subtle mandarin collars, flowing skirts, jade-like accessories and elegant colors",
+  natural_clean:
+    "natural clean style with linen, knitwear, long skirts, soft textures and calm colors",
   clean_girl:
-    "Clean girl Japanese lifestyle style: natural makeup, simple coordinated outfit, neat hair accessories, minimal jewelry, soft cardigan or shirt, fresh polished look, clean and approachable.",
-
+    "clean girl Tokyo lifestyle style with polished hair, natural makeup, simple coordinated outfits, lace or sheer details used subtly",
   japanese_fresh:
-    "Fresh Japanese casual style: white shirts, light denim, simple skirts, canvas sneakers, soft blue, beige, ivory, gentle youthful colors, clean and airy daily-life feeling.",
-
+    "fresh Japanese casual style with white shirts, light denim, simple skirts, sneakers and airy colors",
   campus_academic:
-    "Campus academic style: oxford shirts, knit vests, pleated skirts, straight pants, loafers, messenger bags, wool coats, navy, gray, brown and calm scholarly colors.",
-
+    "campus academic style with oxford shirts, knit vests, pleated skirts, loafers and scholarly colors",
+  korean_clean:
+    "Korean clean feminine style with cropped cardigans, mermaid skirts, sheer blouses, soft knits and neat silhouettes",
   korean_casual:
-    "Korean casual style: cropped cardigan, simple knit top, high-waisted trousers, long skirt, small shoulder bag, clean makeup, soft neutral colors, modern and photogenic.",
-
+    "Korean casual style with cropped cardigans, high-waisted bottoms, long skirts, small shoulder bags and soft neutral colors",
   city_boy:
-    "Tokyo city boy style: relaxed shirts, work jackets, cargo pants, denim, beanies or caps, canvas sneakers, camera bag, POPEYE magazine inspired, casual but considered.",
-
+    "Tokyo city boy style with relaxed shirts, work jackets, denim, caps, sneakers and practical bags",
   workwear:
-    "Japanese workwear style: chore jacket, utility vest, denim, cargo pants, sturdy sneakers or boots, canvas bag, earthy colors, practical and stylish.",
-
+    "Japanese workwear style with chore jackets, utility vests, denim, cargo pants and earthy colors",
   vintage_used:
-    "Vintage used-clothing style: thrifted jackets, patterned shirts, retro denim, colorful knitwear, berets, long coats, unique bags, layered and personal, slightly quirky but tasteful.",
-
+    "vintage used-clothing style with thrifted jackets, denim, patterned shirts, retro textures and personal layering",
   street_livehouse:
-    "Live house street style: black denim, band T-shirt, oversized jacket, leather details, boots or Converse, silver accessories, darker palette, cool but not costume-like.",
-
+    "live house street style with black denim, band T-shirts, oversized jackets, boots and silver accessories",
   office_chic:
-    "Tokyo office chic style: blazer, neat blouse, straight pants, pencil skirt, trench coat, leather tote, loafers or low heels, polished but modern, suitable for Omotesando office life.",
+    "Tokyo office chic style with blazers, neat blouses, straight pants, pencil skirts, leather totes and low heels",
 };
+
 
   export const PERSONA_FASHION_STYLE: Record<string, PersonaFashionStyle> = {
   C01: {
     primary: "intellectual",
-    secondary: ["french_vintage", "campus_academic", "normcore_minimal"],
+    secondary: ["french_vintage", "clean_girl"],
+    trendTags: ["lace", "long_skirt", "trench", "loafers"],
+    fashionLevel: "stylish",
   },
-
   C02: {
-    primary: "normcore_minimal",
-    secondary: ["korean_casual", "intellectual", "french_vintage"],
+    primary: "minimal_chic",
+    secondary: ["clean_girl", "french_vintage"],
+    trendTags: ["sheer", "wide_pants", "silver_accessories"],
+    fashionLevel: "fashionista",
   },
-
   C03: {
-    primary: "japanese_mori",
-    secondary: ["clean_girl", "french_vintage", "sweet_soft"],
+    primary: "clean_girl",
+    secondary: ["sweet_soft", "japanese_fresh"],
+    trendTags: ["lace", "sheer_cardigan", "mermaid_skirt", "long_skirt"],
+    fashionLevel: "stylish",
   },
-
   C04: {
-    primary: "office_chic",
-    secondary: ["intellectual", "light_sensual", "athflow"],
+    primary: "korean_clean",
+    secondary: ["light_sensual", "office_chic"],
+    trendTags: ["lace", "mermaid_skirt", "cropped_cardigan", "boots"],
+    fashionLevel: "fashionista",
   },
-
   C05: {
-    primary: "japanese_fresh",
-    secondary: ["athflow", "japanese_mori", "french_vintage"],
-  },
-
-  C06: {
     primary: "french_vintage",
-    secondary: ["japanese_fresh", "athflow", "sweet_soft"],
+    secondary: ["clean_girl", "minimal_chic"],
+    trendTags: ["denim", "lace", "loafers", "trench"],
+    fashionLevel: "stylish",
   },
-
+  C06: {
+    primary: "japanese_fresh",
+    secondary: ["clean_girl", "athflow"],
+    trendTags: ["baseball_cap", "wide_pants", "hoodie", "sneakers"],
+    fashionLevel: "stylish",
+  },
   C07: {
-    primary: "japanese_mori",
-    secondary: ["modern_chinese", "french_vintage", "intellectual"],
+    primary: "natural_clean",
+    secondary: ["minimal_chic", "french_vintage"],
+    trendTags: ["linen", "knit", "long_skirt"],
+    fashionLevel: "normal",
   },
-
   C08: {
     primary: "street_livehouse",
-    secondary: ["athflow", "city_boy", "normcore_minimal"],
+    secondary: ["workwear", "city_boy"],
+    trendTags: ["band_tshirt", "cargo", "leather", "boots"],
+    fashionLevel: "stylish",
   },
-
   C09: {
     primary: "vintage_used",
-    secondary: ["french_vintage", "japanese_mori", "athflow"],
+    secondary: ["workwear", "street_livehouse"],
+    trendTags: ["denim", "leather", "camera_bag"],
+    fashionLevel: "stylish",
   },
-
   C10: {
     primary: "city_boy",
-    secondary: ["normcore_minimal", "workwear", "athflow"],
+    secondary: ["minimal_chic", "workwear"],
+    trendTags: ["camera_bag", "denim", "baseball_cap"],
+    fashionLevel: "stylish",
   },
-
   C11: {
-    primary: "campus_academic",
-    secondary: ["clean_girl", "modern_chinese", "sweet_soft"],
+    primary: "korean_casual",
+    secondary: ["clean_girl", "sweet_soft"],
+    trendTags: ["lace", "cropped_cardigan", "pleated_skirt", "ribbon"],
+    fashionLevel: "stylish",
   },
-
   C12: {
-    primary: "sweet_soft",
-    secondary: ["clean_girl", "athflow", "french_vintage"],
+    primary: "clean_girl",
+    secondary: ["athflow", "sweet_soft"],
+    trendTags: ["hoodie", "baseball_cap", "wide_pants", "canvas_bag"],
+    fashionLevel: "stylish",
   },
-
   C13: {
     primary: "french_vintage",
-    secondary: ["sweet_soft", "intellectual", "clean_girl"],
+    secondary: ["light_sensual", "clean_girl"],
+    trendTags: ["lace", "satin_skirt", "mermaid_skirt", "gold_jewelry"],
+    fashionLevel: "fashionista",
   },
 };
 
@@ -705,7 +739,38 @@ export function personaVoiceText(persona: PersonaV2): string {
   ].join("; ");
 }
 
+export type ActivityType =
+  | "coffee"
+  | "dessert"
+  | "bookstore"
+  | "walk"
+  | "gallery"
+  | "livehouse"
+  | "restaurant"
+  | "shopping"
+  | "park"
+  | "pet"
+  | "travel"
+  | "work"
+  | "study"
+  | "home"
+  | "random";
 
+export type AreaHint =
+  | "near_home"
+  | "central_tokyo"
+  | "east_tokyo"
+  | "west_tokyo"
+  | "quiet_area"
+  | "busy_area"
+  | "any";
+
+export type SpotLike = {
+  index: number;
+  name: string;
+  tags?: string[];
+  area?: string;
+};
 
 const AREA_COORDS: Record<string, Omit<LatLng, "name">> = {
   Shibuya: { lat: 35.659, lng: 139.698 },
@@ -2997,31 +3062,309 @@ export const COMMUNITY_CLUSTERS = {
     "C04"
   ]
 }
-export const INITIAL_MEMORY_SEEDS = [
+
+export type MemoryKind =
+  | "relationship"
+  | "goal"
+  | "place"
+  | "habit"
+  | "life"
+  | "work"
+  | "interest";
+
+export type InitialMemorySeed = {
+  personaId: string;
+  kind: MemoryKind;
+  memory: string;
+};
+
+export const INITIAL_MEMORY_SEEDS: InitialMemorySeed[] = [
+  // C01 さくら｜出版社编辑
   {
-    personaId:"C01",
-    memory:
-      "春天在神保町旧书店偶然认识了美咲"
+    personaId: "C01",
+    kind: "relationship",
+    memory: "春天在神保町旧书店偶然认识了美咲，两个人因为同一本装帧设计集聊了很久，后来偶尔会互相分享书店和咖啡馆。",
+  },
+  {
+    personaId: "C01",
+    kind: "work",
+    memory: "最近负责一本新人作家的随笔集校对，很在意每一处标点、留白和纸张质感。",
+  },
+  {
+    personaId: "C01",
+    kind: "place",
+    memory: "常去代官山一家旧书店，店主知道她喜欢诗集和小众杂志，有时会帮她留书。",
+  },
+  {
+    personaId: "C01",
+    kind: "habit",
+    memory: "情绪乱的时候会去书店或咖啡馆坐一会儿，不一定买什么，只是想让自己安静下来。",
   },
 
+  // C02 美咲｜自由平面设计师
   {
-    personaId:"C06",
-    memory:
-      "第一次独自去热海拍摄旅行内容"
+    personaId: "C02",
+    kind: "relationship",
+    memory: "在神保町旧书店认识了さくら，后来发现两个人都喜欢纸张质感、装帧和安静的咖啡店。",
+  },
+  {
+    personaId: "C02",
+    kind: "work",
+    memory: "最近接了一个咖啡品牌的视觉设计案，经常在中目黒和代官山观察店铺招牌、菜单和包装设计。",
+  },
+  {
+    personaId: "C02",
+    kind: "goal",
+    memory: "一直想做一本自己的东京咖啡小册子，但总觉得还没找到足够明确的主题。",
+  },
+  {
+    personaId: "C02",
+    kind: "habit",
+    memory: "看到好看的字体、杯套、纸袋和菜单会忍不住拍下来，手机相册里有很多设计参考。",
   },
 
+  // C03 遥｜温柔系生活记录博主
   {
-    personaId:"C12",
-    memory:
-      "带豆柴モカ第一次去镰仓海边"
+    personaId: "C03",
+    kind: "life",
+    memory: "换工作后搬到三軒茶屋，开始习惯下班绕路买花，把玄关整理成每天回家能松口气的地方。",
+  },
+  {
+    personaId: "C03",
+    kind: "work",
+    memory: "最近在做一个生活方式品牌的内容企划，常常为了‘温柔但不做作’这个语气反复修改文案。",
+  },
+  {
+    personaId: "C03",
+    kind: "relationship",
+    memory: "和凛在自由が丘的香薰小店认识，之后偶尔会约着看展或去安静的咖啡馆。",
+  },
+  {
+    personaId: "C03",
+    kind: "habit",
+    memory: "喜欢记录花、雨、窗边光线和回家路上的小变化，照片里本人不一定出镜。",
   },
 
+  // C04 麻衣｜广告公司职员
   {
-    personaId:"C13",
-    memory:
-      "发现一家只营业三个月的甜品店"
-  }
-]
+    personaId: "C04",
+    kind: "work",
+    memory: "入职广告公司后第一次独立提案被客户认可，从那以后虽然常抱怨加班，但心里很想证明自己。",
+  },
+  {
+    personaId: "C04",
+    kind: "relationship",
+    memory: "和同事佐藤さん经常在表参道、銀座一带找甜品店，把‘熬夜后的奖励’当成工作续命方式。",
+  },
+  {
+    personaId: "C04",
+    kind: "interest",
+    memory: "最近关注草莓季限定甜品和清楚系穿搭，收藏夹里塞满了想去的小店和想买的裙子。",
+  },
+  {
+    personaId: "C04",
+    kind: "habit",
+    memory: "压力大时会突然冲去买甜品、奶茶或小饰品，发帖语气容易变得很兴奋。",
+  },
+
+  // C05 遥香｜City Walk 博主
+  {
+    personaId: "C05",
+    kind: "place",
+    memory: "搬到蔵前后开始认真记录东京的坡道、老建筑和小店招牌，慢慢形成了自己的 City Walk 路线。",
+  },
+  {
+    personaId: "C05",
+    kind: "relationship",
+    memory: "在神保町散步时认识了一个做地方史研究的老先生，对方告诉她很多东京旧地名的来历。",
+  },
+  {
+    personaId: "C05",
+    kind: "goal",
+    memory: "最近想把‘从蔵前走到清澄白河’做成一条完整的散步内容，但总觉得还缺一个收尾地点。",
+  },
+  {
+    personaId: "C05",
+    kind: "habit",
+    memory: "散步时很少直奔目的地，喜欢临时拐进小巷，拍旧看板、窗框和街角植物。",
+  },
+
+  // C06 美月｜旅行内容创作者
+  {
+    personaId: "C06",
+    kind: "life",
+    memory: "第一次独自去热海拍摄旅行内容时一开始很紧张，但在海边拍到的黄昏让她觉得自己可以继续做下去。",
+  },
+  {
+    personaId: "C06",
+    kind: "relationship",
+    memory: "常去自由が丘的小画廊，有个摄影爱好者小哥会和她聊无人车站、海边小镇和下一次旅行。",
+  },
+  {
+    personaId: "C06",
+    kind: "goal",
+    memory: "最近想挑战一个‘不用新干线也能到达的周末小旅行’系列，正在慢慢收集候选地点。",
+  },
+  {
+    personaId: "C06",
+    kind: "habit",
+    memory: "看到车站、海边、旧旅馆和地方小店时，会下意识想象这里适不适合拍成旅行内容。",
+  },
+
+  // C07 凛｜油画教师
+  {
+    personaId: "C07",
+    kind: "work",
+    memory: "在自由が丘开设小型油画教室后，她开始更珍惜慢一点的生活节奏，也常把学生的话记在心里。",
+  },
+  {
+    personaId: "C07",
+    kind: "relationship",
+    memory: "和遥在香薰小店认识，觉得遥说话很轻，像刚洗干净的白衬衫。",
+  },
+  {
+    personaId: "C07",
+    kind: "life",
+    memory: "最近因为一个学生突然退课有些失落，也开始重新思考自己想教给别人的是技巧还是感受颜色的方式。",
+  },
+  {
+    personaId: "C07",
+    kind: "habit",
+    memory: "喜欢观察光线、影子、水声和颜色变化，发帖常常不写完整故事，只留下一个安静的画面。",
+  },
+
+  // C08 湊｜Live House 博主
+  {
+    personaId: "C08",
+    kind: "relationship",
+    memory: "在下北沢 Live House 认识了Kenji，后来经常被他拉去排练室听新歌或帮忙拍演出短视频。",
+  },
+  {
+    personaId: "C08",
+    kind: "work",
+    memory: "最近在剪一个独立乐队采访视频，素材太多，电脑风扇每天像要起飞一样。",
+  },
+  {
+    personaId: "C08",
+    kind: "habit",
+    memory: "总说自己只是去听音乐，但每次路过唱片店还是会多待半小时。",
+  },
+  {
+    personaId: "C08",
+    kind: "interest",
+    memory: "对鼓点、贝斯线、旧音箱和小型 Live House 的空气感很敏感，容易被一段声音带走情绪。",
+  },
+
+  // C09 小林ゆい｜古着生活博主
+  {
+    personaId: "C09",
+    kind: "work",
+    memory: "在吉祥寺经营古着账号后，认识了不少店主和寄卖客，常常因为一件旧外套听到别人的故事。",
+  },
+  {
+    personaId: "C09",
+    kind: "place",
+    memory: "谷中的二手相机店老板曾从柜子底下拿出一台成色很好的 GR1v，她一直惦记着那种金属机身的手感。",
+  },
+  {
+    personaId: "C09",
+    kind: "goal",
+    memory: "最近想做一期‘旧衣服上的标签和年代感’内容，但拍了很多素材还没整理完。",
+  },
+  {
+    personaId: "C09",
+    kind: "habit",
+    memory: "比起新款，更容易被旧衣服的标签、金具、褪色和穿过的痕迹吸引。",
+  },
+
+  // C10 たけし｜摄影师
+  {
+    personaId: "C10",
+    kind: "place",
+    memory: "长期在浅草、谷中和上野一带街拍，最喜欢蓝调时刻和雨后路面的反光。",
+  },
+  {
+    personaId: "C10",
+    kind: "relationship",
+    memory: "和湊在一次 Live House 拍摄中认识，后来偶尔会帮独立乐队拍宣传照。",
+  },
+  {
+    personaId: "C10",
+    kind: "goal",
+    memory: "最近在整理一个‘东京傍晚的背影’系列，想拍普通人下班路上的疲惫和温度。",
+  },
+  {
+    personaId: "C10",
+    kind: "habit",
+    memory: "拍照时会等光线变化很久，常常只留一张，发帖也很少解释太多。",
+  },
+
+  // C11 林雨晴｜中国留学生
+  {
+    personaId: "C11",
+    kind: "life",
+    memory: "刚来东京读大学院时很不习惯一个人吃饭，后来慢慢开始记录留学生生活里的小奖励。",
+  },
+  {
+    personaId: "C11",
+    kind: "interest",
+    memory: "喜欢汉服、钢琴和画画，但平时更多是在图书馆、便利店和甜品店之间来回切换。",
+  },
+  {
+    personaId: "C11",
+    kind: "goal",
+    memory: "最近论文报告压力很大，她给自己定了一个规则：每完成一小节，就可以去试一家收藏夹里的甜品店。",
+  },
+  {
+    personaId: "C11",
+    kind: "habit",
+    memory: "想家的时候会买甜品、听中文歌，或者去高田馬場附近找熟悉的味道。",
+  },
+
+  // C12 莉子｜宠物生活博主
+  {
+    personaId: "C12",
+    kind: "life",
+    memory: "带豆柴モカ第一次去镰仓海边时，モカ被浪吓得直往她脚边躲，后来她一直想再带它去一次。",
+  },
+  {
+    personaId: "C12",
+    kind: "work",
+    memory: "她做 SNS 运营，习惯观察别人怎么写标题和拍短视频，但发モカ时反而最不想太刻意。",
+  },
+  {
+    personaId: "C12",
+    kind: "relationship",
+    memory: "常去代々木公园遛狗，认识了几位固定时间出现的狗友，其中一只柴犬叫こむぎ。",
+  },
+  {
+    personaId: "C12",
+    kind: "habit",
+    memory: "发帖时通常モカ才是主角，她自己只偶尔出镜，语气轻快又容易被狗的小动作逗笑。",
+  },
+
+  // C13 真理｜甜品探店博主
+  {
+    personaId: "C13",
+    kind: "place",
+    memory: "发现一家只营业三个月的甜品店，店主说每周都会换一种实验口味，她决定尽量每周都去一次。",
+  },
+  {
+    personaId: "C13",
+    kind: "habit",
+    memory: "写甜品时最在意味道层次，不喜欢只说‘好吃’，会认真记外壳、奶油、酸味和余韵。",
+  },
+  {
+    personaId: "C13",
+    kind: "relationship",
+    memory: "和麻衣在一次草莓甜品自助排队时聊过天，虽然两个人吃甜品的方式完全不同，但意外合拍。",
+  },
+  {
+    personaId: "C13",
+    kind: "goal",
+    memory: "想慢慢整理一份‘东京短期限定甜品地图’，但还没决定是做成文章、地图还是小册子。",
+  },
+];
 
 export function personaOf(username: string): PersonaV2 | undefined {
   return PERSONAS.find((p) => p.username === username);

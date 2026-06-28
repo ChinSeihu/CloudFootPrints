@@ -147,11 +147,18 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   }
 
   let posted = false;
-  if (decision.post) {
-    const idx = decision.post.spotIndex >= 0 && decision.post.spotIndex < coords.length ? decision.post.spotIndex : 0;
+  if (decision.post && coords.length) {
+    const idx =
+      typeof decision.post.spotIndex === "number" &&
+      decision.post.spotIndex >= 0 &&
+      decision.post.spotIndex < coords.length
+        ? decision.post.spotIndex
+        : 0;
+
     const base = coords[idx];
     const jLat = base.lat + (rnd() - 0.5) * 0.0016; // 轻微抖动，避免点完全重合
     const jLng = base.lng + (rnd() - 0.5) * 0.0016;
+
     const r = await createCheckin(
       { lat: jLat, lng: jLng, note: decision.post.note, rating: decision.post.rating, visitedAt: when.toISOString() },
       userId,
@@ -161,7 +168,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
       // 配图（仅 LLM 判定值得配图、且 IMAGE_PROVIDER 启用时）：生成→上传 Cloudinary→回填。
       if (decision.post.photo) {
         try {
-          const img = await generateCheckinImage({ persona, photoDesc: decision.post.photoDesc, world });
+          const img = await generateCheckinImage({ persona, photoDesc: decision.post.photoDesc ?? '', world });
           if (img) await prisma.checkIn.update({ where: { id: r.checkin.id }, data: { photoUrl: img, photoUrls: [img] } });
         } catch { /* 出图失败不影响足迹 */ }
       }
