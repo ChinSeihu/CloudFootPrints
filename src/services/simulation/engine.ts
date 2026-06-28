@@ -147,37 +147,71 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   }
 
   let posted = false;
-  if (decision.post && coords.length) {
-    const idx =
-      typeof decision.post.spotIndex === "number" &&
-      decision.post.spotIndex >= 0 &&
-      decision.post.spotIndex < coords.length
-        ? decision.post.spotIndex
-        : 0;
 
-    const base = coords[idx];
-    const jLat = base.lat + (rnd() - 0.5) * 0.0016; // 轻微抖动，避免点完全重合
-    const jLng = base.lng + (rnd() - 0.5) * 0.0016;
+if (decision.post && coords.length) {
+  const note =
+    typeof decision.post.note === "string"
+      ? decision.post.note.trim()
+      : "";
 
-    if ((!decision.post?.note && posted) || (!posted && decision.memoryText)) {
-       return { username, status: "no-decision" };
-    }
+  if (!note) {
+    // post 不合法，不写入 checkIn，只保留当天 memory
+    return {
+      username,
+      status: "memory",
+      note: decision.memoryText,
+    };
+  }
 
-    const r = await createCheckin(
-      { lat: jLat, lng: jLng, note: decision.post.note, rating: decision.post.rating, visitedAt: when.toISOString() },
-      userId,
-    );
-    if (r.ok) {
-      posted = true;
-      // 配图（仅 LLM 判定值得配图、且 IMAGE_PROVIDER 启用时）：生成→上传 Cloudinary→回填。
-      if (decision.post.photo) {
-        try {
-          const img = await generateCheckinImage({ persona, photoDesc: decision.post.photoDesc ?? '', world });
-          if (img) await prisma.checkIn.update({ where: { id: r.checkin.id }, data: { photoUrl: img, photoUrls: [img] } });
-        } catch { /* 出图失败不影响足迹 */ }
+  const idx =
+    typeof decision.post.spotIndex === "number" &&
+    decision.post.spotIndex >= 0 &&
+    decision.post.spotIndex < coords.length
+      ? decision.post.spotIndex
+      : 0;
+
+  const base = coords[idx];
+
+  const jLat = base.lat + (rnd() - 0.5) * 0.0016;
+  const jLng = base.lng + (rnd() - 0.5) * 0.0016;
+
+  const r = await createCheckin(
+    {
+      lat: jLat,
+      lng: jLng,
+      note,
+      rating: decision.post.rating,
+      visitedAt: when.toISOString(),
+    },
+    userId
+  );
+
+  if (r.ok) {
+    posted = true;
+
+    if (decision.post.photo && decision.post.photoDesc) {
+      try {
+        const img = await generateCheckinImage({
+          persona,
+          photoDesc: decision.post.photoDesc,
+          world,
+        });
+
+        if (img) {
+          await prisma.checkIn.update({
+            where: { id: r.checkin.id },
+            data: {
+              photoUrl: img,
+              photoUrls: [img],
+            },
+          });
+        }
+      } catch {
+        // 出图失败不影响足迹
       }
     }
   }
+}
 
   // 写当天记忆：模拟生成的记忆 sourceCheckInId 恒为 null，兼作「当天已跑」幂等标记
   //（回填自足迹的记忆 sourceCheckInId 非空，二者不混淆）。足迹本身即对外内容、无需再链接。
