@@ -15,6 +15,57 @@ import type { World } from "./world";
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
 
 export type SpotOption = { index: number; name: string };
+export type ImageCameraType =
+  | "pov"
+  | "object"
+  | "mirror"
+  | "reflection"
+  | "friend"
+  | "tripod"
+  | "timer"
+  | "back_view"
+  | "side_view"
+  | "group"
+  | "environment";
+
+export type ImageSubjectRole =
+  | "protagonist"
+  | "friends"
+  | "observed_people"
+  | "object"
+  | "environment";
+
+export type ImageSpec = {
+  summary: string;
+  camera: ImageCameraType;
+  subjectVisible: boolean;
+  subjectRole: ImageSubjectRole;
+  action: string;
+  environment: string;
+  outfit?: string;
+  props?: string[];
+  lighting?: string;
+  mood?: string;
+  avoid?: string[];
+};
+
+export type DecidePost = {
+  note: string;
+  rating: number | null;
+  activity: ActivityType;
+  areaHint?: AreaHint;
+  spotIndex?: number | null;
+  photo: boolean;
+  imageSpec?: ImageSpec;
+};
+
+export type DecideOutput = {
+  memoryText: string;
+  memoryImportance: 1 | 2 | 3;
+  moodDelta: Record<string, number>;
+  post: DecidePost | null;
+  people: { name: string; relation: string }[];
+};
 
 export type DecideInput = {
   persona: PersonaV2;
@@ -29,21 +80,6 @@ export type DecideInput = {
   cast: { name: string; relation: string }[]; // 系统外常出现的熟人（让"又见到某人"有连续性）
 };
 
-export type DecideOutput = {
-  memoryText: string;
-  memoryImportance: number; // 1..3
-  moodDelta: Record<string, number>; // 情绪增减（可空）
-  post: {
-    note: string;
-    rating: number | null;
-    activity: ActivityType;
-    areaHint?: AreaHint;
-    photo: boolean;
-    photoDesc?: string;
-    spotIndex?: number | null; // 后处理填入，不让 LLM 必填
-  };
-  people: { name: string; relation: string }[]; // 今天内容里出现的系统外的人（已有的或新出现的）
-};
 
 function getApiKey(): string {
   const k = process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY;
@@ -91,9 +127,24 @@ const SYSTEM = `
 - 不要频繁写“老板记得我 / 店员认出我 / 被送东西 / 被夸”
 - 最近发过的题材、地点、句式，今天尽量换角度
 
-配图规则：
-- note 只写正文，不要写拍摄方式
-- photoDesc 单独描述图片画面和拍摄方式
+图片规则：
+- note 只写正文，不要写拍摄方式。
+- 如果 photo=true，必须输出 imageSpec。
+- imageSpec 是图片生成规格，不是正文。
+- imageSpec 不要写心理活动，不要重复 note。
+- imageSpec 只描述最终照片应该看到什么。
+- imageSpec 必须明确：
+  - camera：pov / object / mirror / reflection / friend / tripod / timer / back_view / side_view / group / environment
+  - subjectVisible：主角是否出镜
+  - subjectRole：画面主体是谁
+  - action：画面里的动作
+  - environment：地点和背景
+  - outfit：主角出镜时的穿搭
+  - props：道具
+  - lighting：光线
+  - mood：氛围
+- 如果是情侣、路人、老夫妻、排队的人，subjectRole 必须是 observed_people，不要误写成 protagonist。
+- 生成的是最终发布照片，不是拍摄过程。不要让手机、三脚架、相机、自拍杆无意义入镜。
 
 只根据输入输出 JSON，不要解释。
 `;
@@ -256,14 +307,24 @@ const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围
   "memoryImportance": 1,
   "moodDelta": {"stress": -5, "loneliness": 3},
   "post": null,
-  // 或发足迹：
   "post": {
-    "note": "50~150字第一人称足迹",
+    "note": "30~150字第一人称足迹",
     "rating": 4,
     "activity": "dessert",
     "areaHint": "central_tokyo",
     "photo": true,
-    "photoDesc": "最终发布照片：窗边桌上的草莓拿铁和贴纸，杯子后方是表参道街景虚化，画面里不出现拍照动作"
+    "imageSpec": {
+      "summary": "表参道咖啡店窗边的草莓拿铁和贴纸",
+      "camera": "object",
+      "subjectVisible": false,
+      "subjectRole": "object",
+      "action": "桌上放着草莓拿铁、贴纸和小票",
+      "environment": "表参道的咖啡店窗边，街景在背景里虚化",
+      "props": ["草莓拿铁", "贴纸", "小票"],
+      "lighting": "午后自然光",
+      "mood": "轻松、周末感",
+      "avoid": ["不要出现拍照动作", "不要出现多余的手"]
+    }
   },
   "people": [{"name": "佐藤さん", "relation": "同事"}]
 }`;
@@ -315,10 +376,65 @@ const TOOL: Anthropic.Tool = {
             ],
           },
           photo: { type: "boolean" },
+          imageSpec: {
+            type: "object",
+            properties: {
+              summary: { type: "string" },
+              camera: {
+                type: "string",
+                enum: [
+                  "pov",
+                  "object",
+                  "mirror",
+                  "reflection",
+                  "friend",
+                  "tripod",
+                  "timer",
+                  "back_view",
+                  "side_view",
+                  "group",
+                  "environment",
+                ],
+              },
+              subjectVisible: { type: "boolean" },
+              subjectRole: {
+                type: "string",
+                enum: [
+                  "protagonist",
+                  "friends",
+                  "observed_people",
+                  "object",
+                  "environment",
+                ],
+              },
+              action: { type: "string" },
+              environment: { type: "string" },
+              outfit: { type: "string" },
+              props: {
+                type: "array",
+                items: { type: "string" },
+              },
+              lighting: { type: "string" },
+              mood: { type: "string" },
+              avoid: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "summary",
+              "camera",
+              "subjectVisible",
+              "subjectRole",
+              "action",
+              "environment",
+            ],
+            additionalProperties: false,
+          },
           photoDesc: { type: "string" },
           spotIndex: { type: "integer" },
         },
-        required: ["note", "activity"],
+        required: ["note", "activity", "photo"],
         additionalProperties: false,
       },
       people: {
@@ -374,6 +490,98 @@ function isAreaHint(v: string): v is AreaHint {
   ].includes(v);
 }
 
+export function imageSpecToText(spec: ImageSpec): string {
+  return [
+    `Summary: ${spec.summary}`,
+    `Camera: ${spec.camera}`,
+    `Subject visible: ${spec.subjectVisible}`,
+    `Subject role: ${spec.subjectRole}`,
+    `Action: ${spec.action}`,
+    `Environment: ${spec.environment}`,
+    spec.outfit ? `Outfit: ${spec.outfit}` : "",
+    spec.props?.length ? `Props: ${spec.props.join(", ")}` : "",
+    spec.lighting ? `Lighting: ${spec.lighting}` : "",
+    spec.mood ? `Mood: ${spec.mood}` : "",
+    spec.avoid?.length ? `Avoid: ${spec.avoid.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function isImageCameraType(v: string): v is ImageCameraType {
+  return [
+    "pov",
+    "object",
+    "mirror",
+    "reflection",
+    "friend",
+    "tripod",
+    "timer",
+    "back_view",
+    "side_view",
+    "group",
+    "environment",
+  ].includes(v);
+}
+
+function isImageSubjectRole(v: string): v is ImageSubjectRole {
+  return [
+    "protagonist",
+    "friends",
+    "observed_people",
+    "object",
+    "environment",
+  ].includes(v);
+}
+
+function normalizeImageSpec(raw: unknown): ImageSpec | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const o = raw as Record<string, unknown>;
+
+  const summary = typeof o.summary === "string" ? o.summary.trim() : "";
+  const camera = typeof o.camera === "string" ? o.camera : "";
+  const subjectRole =
+    typeof o.subjectRole === "string" ? o.subjectRole : "";
+  const action = typeof o.action === "string" ? o.action.trim() : "";
+  const environment =
+    typeof o.environment === "string" ? o.environment.trim() : "";
+
+  if (
+    !summary ||
+    !isImageCameraType(camera) ||
+    !isImageSubjectRole(subjectRole) ||
+    !action ||
+    !environment
+  ) {
+    return undefined;
+  }
+
+  return {
+    summary,
+    camera,
+    subjectVisible: o.subjectVisible === true,
+    subjectRole,
+    action,
+    environment,
+    outfit: typeof o.outfit === "string" ? o.outfit.trim() : undefined,
+    props: Array.isArray(o.props)
+      ? o.props
+          .filter((x): x is string => typeof x === "string")
+          .map((x) => x.trim())
+          .filter(Boolean)
+      : undefined,
+    lighting: typeof o.lighting === "string" ? o.lighting.trim() : undefined,
+    mood: typeof o.mood === "string" ? o.mood.trim() : undefined,
+    avoid: Array.isArray(o.avoid)
+      ? o.avoid
+          .filter((x): x is string => typeof x === "string")
+          .map((x) => x.trim())
+          .filter(Boolean)
+      : undefined,
+  };
+}
+
 function normalize(raw: unknown): DecideOutput | null {
   if (!raw || typeof raw !== "object") return null;
 
@@ -385,25 +593,27 @@ function normalize(raw: unknown): DecideOutput | null {
   if (!memoryText) return null;
 
   const imp = Number(o.memoryImportance);
-  const memoryImportance = imp >= 1 && imp <= 3 ? Math.round(imp) : 1;
+  const memoryImportance =
+    imp >= 1 && imp <= 3 ? (Math.round(imp) as 1 | 2 | 3) : 1;
 
   const moodDelta: Record<string, number> = {};
+
   if (o.moodDelta && typeof o.moodDelta === "object") {
-    for (const [k, v] of Object.entries(o.moodDelta as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(
+      o.moodDelta as Record<string, unknown>
+    )) {
       if (typeof v === "number" && Number.isFinite(v)) {
         moodDelta[k] = v;
       }
     }
   }
 
-  let post: DecideOutput["post"] = {} as DecideOutput["post"];
+  let post: DecideOutput["post"] = null;
 
   if (o.post && typeof o.post === "object") {
     const p = o.post as Record<string, unknown>;
 
     const note = typeof p.note === "string" ? p.note.trim() : "";
-    const photoDesc =
-      typeof p.photoDesc === "string" ? p.photoDesc.trim() : "";
 
     if (note) {
       const r = Number(p.rating);
@@ -419,6 +629,7 @@ function normalize(raw: unknown): DecideOutput | null {
           : "any";
 
       const rawSpotIndex = Number(p.spotIndex);
+      const imageSpec = normalizeImageSpec(p.imageSpec);
 
       post = {
         note,
@@ -428,8 +639,8 @@ function normalize(raw: unknown): DecideOutput | null {
         spotIndex: Number.isFinite(rawSpotIndex)
           ? Math.max(0, Math.round(rawSpotIndex))
           : undefined,
-        photo: p.photo === true && !!photoDesc,
-        photoDesc,
+        photo: p.photo === true && !!imageSpec,
+        imageSpec,
       };
     }
   }

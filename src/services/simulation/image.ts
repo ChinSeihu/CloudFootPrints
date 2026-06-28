@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS,PERSONA_FASHION_STYLE,type FashionTrendTag,  type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
+import { imageSpecToText, type ImageSpec } from "./decide"
 
 // 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 personV2.png 裁出）→ data URI。
 // 作为 Agnes img2img 的图参锁定人脸/外观。缺图返回 null（回退纯文本）。
@@ -110,54 +111,15 @@ function povClause(persona: PersonaV2): string {
   ].join(" ");
 }
 
-function shouldUseIdentityReference(req: ImageRequest): boolean {
-  const text = `${req.photoDesc} ${req.persona.photoSkill}`.toLowerCase();
+function shouldUseIdentityReference(req: GenerateCheckinImageInput): boolean {
+  const { persona, imageSpec } = req;
 
-  if (req.persona.photoSkill === "pro") return true;
+  if (persona.photoSkill === "pro") return true;
 
-  return [
-    "selfie",
-    "portrait",
-    "friend took",
-    "friends took",
-    "taken by a friend",
-    "timer shot",
-    "tripod",
-    "phone placed",
-    "placed on a table",
-    "placed on the table",
-    "placed on the floor",
-    "floor timer",
-    "photo of me",
-    "me in the frame",
-    "my face",
-    "mirror",
-    "reflection",
-    "back view",
-    "side view",
-    "group photo",
-    "自拍",
-    "合照",
-    "定时",
-    "延时",
-    "三脚架",
-    "手机放",
-    "放在桌",
-    "放在地",
-    "朋友拍",
-    "被朋友拍",
-    "帮我拍",
-    "我出镜",
-    "正面",
-    "露脸",
-    "背影",
-    "侧脸",
-    "镜子",
-    "倒影",
-    "全身",
-    "穿搭",
-    "ootd",
-  ].some((keyword) => text.includes(keyword));
+  if (!imageSpec.subjectVisible) return false;
+
+  return imageSpec.subjectRole === "protagonist" ||
+         imageSpec.subjectRole === "friends";
 }
 
 const anatomyRules = [
@@ -280,21 +242,25 @@ function buildRules(persona: PersonaV2, world: World): string {
 // 用 LLM 写一段英文场景 prompt。
 // 注意：这里也禁止 LLM 描述“正在自拍 / 正在架三脚架 / 正在被拍”这种过程。
 // 只描述最终照片画面。
-async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
-  const { persona, photoDesc, world } = req;
+async function scenePromptLLM(
+  req: ImagePromptRequest
+): Promise<string | null> {
+  const { persona, imageSpec, world } = req;
+
   const key = process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
 
   const provider = (process.env.LLM_PROVIDER || "").toLowerCase();
+
   const useAnthropic =
     provider === "anthropic" ||
     provider === "claude" ||
     (process.env.LLM_MODEL || "").toLowerCase().startsWith("claude");
 
   const system = `
-你是专业摄影导演兼生活方式内容策划。
+你是专业摄影导演兼 AI 图片提示词工程师。
 
-根据给定生活场景生成一段英文图片描述。
+根据结构化 imageSpec 生成一段英文图片生成 prompt。
 
 目标：
 生成一张像东京年轻 INS 生活博主真实发布出来的最终照片，而不是拍照过程、拍摄现场、幕后花絮。
@@ -315,73 +281,43 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
 - 人物是否出镜
 - 合理但隐含的成片视角
 
-重要规则：
+不要描述“正在自拍”“正在架三脚架”“朋友正在拍她”“有人拿着相机拍她”。
 
-1. 可以让人物较常出镜，因为这是 INS 风格生活博主账号。
+不要让手机、三脚架、自拍杆、相机、多余的手、补光灯无意义出现在画面里。
 
-2. 如果人物出镜：
-   - 只描述最终照片里的状态。
-   - 可以是自然站立、走路、坐着、看向旁边、背影、侧脸、镜中倒影、窗中倒影、朋友视角、定时成片感、桌边自然全身或半身构图。
-   - 不要描述“正在自拍”“正在摆三脚架”“朋友正在拍她”“有人拿着相机拍她”。
-   - 不要让手机、三脚架、自拍杆、相机、补光灯出现在画面里，除非场景明确需要镜子自拍。
+如果 imageSpec.subjectRole 是 observed_people：
+这些人是被观察到的人，不是发帖人本人。
 
-3. 如果内容主要是食物、咖啡、票、书、物品：
-   优先描述物品或桌面视角，人物可以不出镜，也可以只出现手或衣袖。
+如果主角出镜：
+可以描述穿搭、动作、姿态，但不要改变人物长相。
 
-4. 如果内容主要是街道、公园、河边、演出、天空、夜景：
-   优先描述环境或自然生活场景，人物可以不出镜，也可以是背影、侧影或自然远景。
+不要输出：
+photorealistic, candid, smartphone photo, Kodak, film grain, CGI,
+professional photography, negative prompt, quality tags, masterpiece, best quality, 8k。
 
-5. 如果内容是“看到情侣、朋友、路人、老夫妻、排队的人”等：
-   这些人是被观察到的人，不是发帖人本人。
-   不要让用户误会成发帖人的恋爱或朋友关系。
+这些由系统统一附加。
 
-6. 如果人物出镜：
-   - 为人物安排符合季节、天气、地点和场景的具体穿搭。
-   - 穿搭要年轻、自然、有东京生活感。
-   - 可以参考日系生活写真或日剧日常穿搭的感觉，但不要变成电影海报或商业写真。
-   - 不要描述人物长相。
-   - 不要改变人物身份特征。
-   - 不要复制参考图里的衣服。
-   - 必须为每个出镜人物分别指定不同穿搭。
-   - 不要让两个人穿相同颜色或相同单品。
-   - 发型可以改变，但长度不能改，比如短发变长发了。
-
-7. 如果人物不出镜：
-   重点描述环境、物品、光线、道具和当下氛围。
-
-不要输出以下风格词：
-
-- photorealistic
-- candid
-- smartphone photo
-- Kodak
-- film grain
-- CGI
-- professional photography
-- negative prompt
-- quality tags
-- masterpiece
-- best quality
-- 8k
-
-这些内容由系统统一附加。
-
-输出 70~130 词英文画面描述。
-
-只输出英文 prompt，不要解释，不要加标题，不要加引号。
+输出 70~130 词英文 prompt。
+只输出英文，不要解释，不要标题，不要引号。
 `;
 
-  const user = `场景（中文）：${photoDesc}
-人物：${persona.age}岁 ${persona.occupation}
-账号定位：东京 INS 风格生活博主，允许较常出镜，但画面必须是最终发布照片，不是拍摄过程。
-视角倾向：${persona.photoSkill === "pro" ? "讲究构图（摄影师）" : "自然生活成片 / 本人可出镜 / 朋友视角成片感 / 主观物品或环境视角"}
-季节天气：${world.season} / ${world.weather}
+  const user = `
+【ImageSpec】
+${imageSpecToText(imageSpec)}
 
-请写英文图片生成 prompt。`;
+【人物】
+${persona.age}岁 ${persona.occupation}
+
+【季节天气】
+${world.season} / ${world.weather}
+
+请生成英文图片 prompt。
+`;
 
   try {
     if (useAnthropic) {
       const client = new Anthropic({ apiKey: key });
+
       const res = await client.messages.create({
         model: process.env.LLM_MODEL || "claude-haiku-4-5",
         max_tokens: 500,
@@ -396,7 +332,9 @@ async function scenePromptLLM(req: ImageRequest): Promise<string | null> {
       return t?.text.trim() || null;
     }
 
-    const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
+    const baseUrl = (
+      process.env.LLM_BASE_URL || "https://api.deepseek.com"
+    ).replace(/\/$/, "");
 
     const res = await fetchT(
       `${baseUrl}/chat/completions`,
@@ -623,18 +561,24 @@ export function outfitClause(
   ].join(" ");
 }
 // 组合最终 prompt = LLM 专业场景描述 + 我们的生图规则。LLM 失败则回退（photoDesc + 规则）。
+type ImagePromptRequest = {
+  persona: PersonaV2;
+  imageSpec: ImageSpec;
+  world: ImageRequest["world"];
+};
+
 export async function composePrompt(
-  req: ImageRequest,
+  req: ImagePromptRequest,
   outfit?: DailyOutfit
 ): Promise<string> {
   const scene = await scenePromptLLM(req);
+
   const fashion = fashionClause(req.persona, req.world);
   const outfitText = outfitClause(req.persona, req.world, outfit);
   const rules = buildRules(req.persona, req.world);
 
   return [
-    scene ??
-      `Scene: ${req.photoDesc}. Season ${req.world.season}, ${req.world.weather}.`,
+    scene ?? imageSpecToText(req.imageSpec),
     fashion,
     outfitText,
     rules,
@@ -749,30 +693,73 @@ export function getImageProvider(): ImageProvider {
   return new NoopProvider();
 }
 
+type GenerateCheckinImageInput = {
+  persona: PersonaV2;
+  imageSpec: ImageSpec;
+  world: ImageRequest["world"];
+  outfit?: DailyOutfit;
+};
+
 // 高层入口：生成 →（可选）视觉质检 → 不合格用改进 prompt 重生成 → 持久化。引擎只调这个。
 // 质检默认开（IMAGE_QA != false），重试次数 IMAGE_QA_RETRIES（默认 2）。质检需 Agnes chat（agnes-2.0-flash）。
-export async function generateCheckinImage(req: ImageRequest): Promise<string | null> {
+export async function generateCheckinImage(
+  req: GenerateCheckinImageInput
+): Promise<string | null> {
   const provider = getImageProvider();
   if (provider.name === "none") return null;
 
-  const qaOn = (process.env.IMAGE_QA ?? "true").toLowerCase() !== "false";
-  const retries = qaOn ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 2)) : 0;
-  // 先让 LLM 写专业详细 prompt + 附加生图规则；并加载人物参考图（img2img 锁脸）
+  if (!req.imageSpec) return null;
+
+  const qaOn =
+    (process.env.IMAGE_QA ?? "true").toLowerCase() !== "false";
+
+  const retries = qaOn
+    ? Math.max(0, Number(process.env.IMAGE_QA_RETRIES ?? 2))
+    : 0;
+
+  // 先让 LLM 写专业详细 prompt + 附加生图规则；
+  // 并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req);
-  const refImage = shouldUseIdentityReference(req) ? loadRefImage(personaRefIndex(req.persona)) ?? undefined : undefined;
+
+  const refImage = shouldUseIdentityReference(req)
+    ? loadRefImage(personaRefIndex(req.persona)) ?? undefined
+    : undefined;
 
   let prompt = basePrompt;
   let lastRaw: string | null = null;
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     const raw = await provider.generate(prompt, refImage);
-    if (!raw) break; // 生成失败，不再重试
+
+    if (!raw) break;
+
     lastRaw = raw;
+
     if (!qaOn) break;
-    const qa = await judgeImage(raw, req.photoDesc, basePrompt);
-    if (qa.ok) break; // 合格
-    if (qa.improvedPrompt && attempt < retries) { prompt = `${qa.improvedPrompt}\n\n${buildRules(req.persona, req.world)}`; continue; } // 改进 prompt + 规则重生成
-    break; // 重试用尽：保留最后一张（兜底，有图胜过无图）
+
+    const qa = await judgeImage(
+      raw,
+      req.imageSpec,
+      prompt
+    );
+
+    if (qa.ok) break;
+
+    if (qa.improvedPrompt && attempt < retries) {
+      prompt = [
+        qa.improvedPrompt,
+        fashionClause(req.persona, req.world),
+        outfitClause(req.persona, req.world, req.outfit),
+        buildRules(req.persona, req.world),
+      ].join("\n\n");
+
+      continue;
+    }
+
+    break;
   }
+
   if (!lastRaw) return null;
+
   return persistToCloudinary(lastRaw);
 }

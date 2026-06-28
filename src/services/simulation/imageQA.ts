@@ -1,3 +1,5 @@
+import { imageSpecToText, type ImageSpec } from "./decide"
+
 async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
@@ -37,52 +39,110 @@ function safeParse(text: string): unknown {
   }
 }
 
-export async function judgeImage(imageRef: string, photoDesc: string, basePrompt: string): Promise<QAResult> {
+export async function judgeImage(
+  imageRef: string,
+  imageSpec: ImageSpec,
+  basePrompt: string
+): Promise<QAResult> {
   const base = process.env.AGNES_API_URL;
   const key = process.env.AGNES_API_KEY;
   const model = process.env.IMAGE_QA_MODEL || "agnes-2.0-flash";
-  if (!base || !key) return { ok: true, reason: "QA not configured, skipped", improvedPrompt: null };
+
+  if (!base || !key) {
+    return {
+      ok: true,
+      reason: "QA not configured, skipped",
+      improvedPrompt: null,
+    };
+  }
 
   const endpoint = `${base.replace(/\/$/, "")}/chat/completions`;
+
   const ask = [
-    `Intended scene: ${photoDesc}`,
-    `Original prompt: ${basePrompt}`,
+    `Intended image specification:\n${imageSpecToText(imageSpec)}`,
     "",
-    "Check scene match, camera viewpoint, whether the protagonist is photographer or subject, AI/CGI feel, skin texture, hands, two-handed POV problems, anatomy, face, teeth, eyes, hair, text/watermarks.",
+    `Original prompt:\n${basePrompt}`,
+    "",
+    "Check whether the generated image matches the intended image specification.",
+    "Check subject visibility, camera viewpoint, protagonist role, outfit, props, environment, lighting, mood, scene match, AI/CGI feel, skin texture, hands, two-handed POV problems, extra unrelated hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
     'Return JSON only: {"ok": true/false, "reason": "short Chinese reason; if rejected name the main defect", "improvedPrompt": "corrected English prompt when rejected, otherwise null"}',
   ].join("\n");
 
   try {
-    const res = await fetchT(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        max_tokens: 700,
-        messages: [
-          { role: "system", content: QA_SYSTEM },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: ask },
-              { type: "image_url", image_url: { url: imageRef } },
-            ],
-          },
-        ],
-      }),
-    }, 60000);
-    if (!res.ok) return { ok: true, reason: `QA request failed ${res.status}, skipped`, improvedPrompt: null };
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const parsed = safeParse(data.choices?.[0]?.message?.content ?? "") as { ok?: unknown; reason?: unknown; improvedPrompt?: unknown } | null;
-    if (!parsed) return { ok: true, reason: "QA parse failed, skipped", improvedPrompt: null };
+    const res = await fetchT(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 700,
+          messages: [
+            { role: "system", content: QA_SYSTEM },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: ask },
+                { type: "image_url", image_url: { url: imageRef } },
+              ],
+            },
+          ],
+        }),
+      },
+      60000
+    );
+
+    if (!res.ok) {
+      return {
+        ok: true,
+        reason: `QA request failed ${res.status}, skipped`,
+        improvedPrompt: null,
+      };
+    }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const parsed = safeParse(data.choices?.[0]?.message?.content ?? "") as {
+      ok?: unknown;
+      reason?: unknown;
+      improvedPrompt?: unknown;
+    } | null;
+
+    if (!parsed) {
+      return {
+        ok: true,
+        reason: "QA parse failed, skipped",
+        improvedPrompt: null,
+      };
+    }
 
     const ok = parsed.ok === true;
-    const reason = typeof parsed.reason === "string" ? parsed.reason : "";
-    const improvedPrompt = !ok && typeof parsed.improvedPrompt === "string" && parsed.improvedPrompt.trim()
-      ? parsed.improvedPrompt.trim()
-      : null;
-    return { ok, reason, improvedPrompt };
+
+    const reason =
+      typeof parsed.reason === "string" ? parsed.reason : "";
+
+    const improvedPrompt =
+      !ok &&
+      typeof parsed.improvedPrompt === "string" &&
+      parsed.improvedPrompt.trim()
+        ? parsed.improvedPrompt.trim()
+        : null;
+
+    return {
+      ok,
+      reason,
+      improvedPrompt,
+    };
   } catch {
-    return { ok: true, reason: "QA exception, skipped", improvedPrompt: null };
+    return {
+      ok: true,
+      reason: "QA exception, skipped",
+      improvedPrompt: null,
+    };
   }
 }

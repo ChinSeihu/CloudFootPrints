@@ -189,11 +189,11 @@ if (decision.post && coords.length) {
   if (r.ok) {
     posted = true;
 
-    if (decision.post.photo && decision.post.photoDesc) {
+    if (decision.post.photo && decision.post.imageSpec) {
       try {
         const img = await generateCheckinImage({
           persona,
-          photoDesc: decision.post.photoDesc,
+          imageSpec: decision.post.imageSpec,
           world,
         });
 
