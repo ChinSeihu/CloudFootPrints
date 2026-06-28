@@ -159,6 +159,10 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
     const jLat = base.lat + (rnd() - 0.5) * 0.0016; // 轻微抖动，避免点完全重合
     const jLng = base.lng + (rnd() - 0.5) * 0.0016;
 
+    if ((!decision.post?.note && posted) || (!posted && decision.memoryText)) {
+       return { username, status: "no-decision" };
+    }
+
     const r = await createCheckin(
       { lat: jLat, lng: jLng, note: decision.post.note, rating: decision.post.rating, visitedAt: when.toISOString() },
       userId,
