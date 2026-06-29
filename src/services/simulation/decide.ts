@@ -297,11 +297,12 @@ coffee / dessert / bookstore / walk / gallery / livehouse / restaurant / shoppin
 不要直接为了地点而出门。
 请先根据人物、心情、天气、最近记忆决定今天想做什么，再输出 activity。
 spotIndex 可以不填，系统会根据 activity 自动匹配地点。
+输出的内容要符合当前所在季节
 
 请决定这个人「今天/最近」过得怎样：必产出一条今天的记忆(memoryText, 第一人称, 简短一句)，给出情绪微调(moodDelta, 可空), 决定是否发一条足迹(post)，并把内容里出现的系统外的人填到 people。`;
 }
 
-const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围栏：
+const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围栏,下面是返回示例，不要被下面数据影响了输出结果：
 {
   "memoryText": "今天发生/感受的一句话（第一人称，简短）",
   "memoryImportance": 1,
