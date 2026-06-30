@@ -9,6 +9,7 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
+import { CopyButton } from "@/components/CopyButton";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -548,8 +549,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
         <section className="relative h-[48vh] min-h-[420px] overflow-hidden bg-neutral-900">
           {hero ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero} alt="" className="h-full w-full object-cover" />
+            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={hero} alt="" className="h-full w-full object-cover" />
+            </button>
           ) : (
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
@@ -583,17 +586,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           <section className="-mt-7 overflow-hidden rounded-[28px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-black/5">
             <div className="grid grid-cols-2 divide-x divide-neutral-100 px-6 py-6">
               <div>
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-400"><IconCalendar className="h-4 w-4" />活动时间</div>
-                <div className="space-y-1.5 text-base font-bold text-neutral-950">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconCalendar className="h-4 w-4" />活动时间</div>
+                <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
                   <div>{fmtCompact(event.startTime)}</div>
-                  {event.endTime && <><div className="text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
+                  {event.endTime && <><div className="text-xs text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
                 </div>
-                {durationLabel(event.startTime, event.endTime) && <span className="mt-3 inline-flex rounded-lg bg-violet-100 px-2.5 py-1 text-sm font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
+                {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
               </div>
               <div className="pl-10">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconPin className="h-4 w-4" />活动地点</div>
                 <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
-                  <div className="truncate">{event.venueName ?? "地点未定"}</div>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate">{event.venueName ?? "地点未定"}</span>
+                    <CopyButton text={event.address || event.venueName || ""} label="复制地点" className="h-5 w-5 rounded-full hover:bg-neutral-100" />
+                  </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
                 <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-indigo-500">查看地图 〉</button>

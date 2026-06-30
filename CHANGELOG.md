@@ -10,6 +10,7 @@
 - **Smaller detail typography**: reduced oversized official/user detail fonts and tightened dense statistic rows so labels no longer wrap on mobile.
 - **Real counts only**: removed placeholder engagement numbers from event details; likes, comments, favorites, and want-to-go counts now only use live reaction/comment data.
 - **Gallery and expand polish**: detail images now open in the lightbox, user-post multi-image galleries scroll horizontally, venue text is smaller, and expand/collapse uses SVG chevrons instead of text glyphs.
+- **Official detail polish**: official hero images are clickable for full-screen viewing, event time text is smaller, and venue rows now expose a copy action.
 **Files:** `src/components/Recommend/EventDetail.tsx`
 
 ---
