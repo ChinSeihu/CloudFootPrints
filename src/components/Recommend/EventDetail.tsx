@@ -26,6 +26,11 @@ function fmtCompact(value: string | null): string {
   return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtShortDate(value: string | null): string {
+  if (!value) return "未定";
+  return new Date(value).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function fmtCommentTime(value: string): string {
   return new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -41,7 +46,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-14 w-14 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_28px_rgba(15,23,42,0.18)] backdrop-blur transition active:scale-95",
+    "grid h-11 w-11 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_28px_rgba(15,23,42,0.18)] backdrop-blur transition active:scale-95",
     active && "text-rose-500",
   );
 }
@@ -90,6 +95,14 @@ function ImageIcon({ className = "h-5 w-5" }: { className?: string }) {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="8" cy="10" r="1.5" />
       <path d="m21 16-5-5L5 19" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "h-4 w-4", up = false }: { className?: string; up?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d={up ? "m6 15 6-6 6 6" : "m6 9 6 6 6-6"} />
     </svg>
   );
 }
@@ -299,13 +312,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-neutral-900">{c.author?.username ?? "用户"}</span>
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600">Lv.{isReply ? 2 : 3}</span>
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600">评论</span>
             <button type="button" onClick={() => toggleReaction("LIKE")} className="ml-auto inline-flex items-center gap-1 text-neutral-400 hover:text-rose-500">
               <IconHeart className="h-4 w-4" />
-              <span className="text-xs">{isReply ? 2 : 1}</span>
             </button>
           </div>
-          <div className="mt-1 text-[15px] leading-relaxed text-neutral-800">
+          <div className="mt-1 text-sm leading-relaxed text-neutral-800">
             {showAt && <span className="font-medium text-violet-600">@{atName} </span>}
             {c.text}
           </div>
@@ -327,9 +339,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <section className="border-t border-neutral-100 pt-6">
         <div className="mb-5 flex items-center gap-3">
-          <h3 className="border-l-4 border-violet-600 pl-3 text-xl font-bold text-neutral-950">评论 ({comments.length})</h3>
-          <button type="button" onClick={() => setSort("hot")} className={cx("ml-2 rounded-full px-5 py-2 text-sm font-medium", sort === "hot" ? "border border-violet-500 bg-white text-violet-600" : "bg-neutral-100 text-neutral-700")}>最热</button>
-          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-5 py-2 text-sm font-medium", sort === "new" ? "border border-violet-500 bg-white text-violet-600" : "bg-neutral-100 text-neutral-700")}>最新</button>
+          <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({comments.length})</h3>
+          <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-3 py-1.5 text-xs font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最热</button>
+          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-3 py-1.5 text-xs font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最新</button>
         </div>
         {loaded && comments.length === 0 && <p className="pb-4 text-sm text-neutral-400">还没有评论，来说两句。</p>}
         <ul className="space-y-5">
@@ -383,25 +395,25 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   function bottomActions(sourceLabel: string) {
     return (
       <div className="grid grid-cols-4 gap-3">
-        <button type="button" onClick={askGuide} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-base font-semibold text-white shadow-lg shadow-violet-500/25">
+        <button type="button" onClick={askGuide} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-sm font-semibold text-white shadow-lg shadow-violet-500/25">
           <IconSparkles className="h-5 w-5" />
           问导游
         </button>
-        <button type="button" onClick={jumpToMap} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-neutral-950 text-base font-semibold text-white shadow-lg shadow-black/20">
+        <button type="button" onClick={jumpToMap} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-neutral-950 text-sm font-semibold text-white shadow-lg shadow-black/20">
           <IconMap className="h-5 w-5" />
           看地图
         </button>
-        <button type="button" onClick={shareEvent} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+        <button type="button" onClick={shareEvent} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
           <ShareIcon className="h-5 w-5" />
           分享
         </button>
         {event.sourceUrl ? (
-          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
             <IconExternalLink className="h-5 w-5" />
             {sourceLabel}
           </a>
         ) : (
-          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
             举报
           </button>
@@ -426,12 +438,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <Avatar user={event.author} size={64} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
-                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-sm font-bold text-violet-600">Lv.4</span>
+                <span className="text-base font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
+                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-600">用户发帖</span>
               </div>
-              <div className="mt-1 text-base text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
+              <div className="mt-1 text-sm text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
             </div>
-            <button type="button" className="rounded-full border border-violet-200 px-8 py-3 text-lg font-semibold text-violet-600">关注</button>
+            <button type="button" className="rounded-full border border-violet-200 px-5 py-2 text-sm font-semibold text-violet-600">关注</button>
           </div>
 
           <main className="mt-8 flex-1">
@@ -441,49 +453,54 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </div>
             <div className="flex items-start gap-5">
               <div className="min-w-0 flex-1">
-                <h1 className="text-[30px] font-black leading-tight tracking-normal text-neutral-950">{event.title}</h1>
-                {event.description && <p className="mt-4 text-xl leading-relaxed text-neutral-800">{event.description}</p>}
+                <h1 className="text-[19px] font-black leading-tight tracking-normal text-neutral-950">{event.title}</h1>
+                {event.description && <p className="mt-3 text-base leading-relaxed text-neutral-800">{event.description}</p>}
               </div>
               <div className="mt-4 flex shrink-0 items-center gap-3">
                 <button type="button" onClick={() => toggleReaction("LIKE")} className={cx("inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-white px-5 py-3 shadow-sm", reactions.likedByMe ? "text-rose-500" : "text-neutral-500")}>
                   <IconHeart filled={reactions.likedByMe} className="h-7 w-7" />
-                  <span className="text-lg">{reactions.likeCount || 12}</span>
+                  {reactions.likeCount > 0 && <span className="text-sm">{reactions.likeCount}</span>}
                 </button>
-                <button type="button" onClick={() => toggleReaction("FAVORITE")} className={cx("grid h-14 w-14 place-items-center rounded-full border border-neutral-100 bg-white shadow-sm", reactions.favoritedByMe ? "text-violet-600" : "text-neutral-500")}>
-                  <IconBookmark filled={reactions.favoritedByMe} className="h-7 w-7" />
+                <button type="button" onClick={() => toggleReaction("FAVORITE")} className={cx("grid h-11 w-11 place-items-center rounded-full border border-neutral-100 bg-white shadow-sm", reactions.favoritedByMe ? "text-violet-600" : "text-neutral-500")}>
+                  <IconBookmark filled={reactions.favoritedByMe} className="h-5 w-5" />
                 </button>
               </div>
             </div>
 
             {tags.length > 0 && (
               <div className="mt-6 flex flex-wrap gap-3">
-                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-4 py-2 text-base font-medium text-violet-600"># {tag}</span>)}
+                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-600"># {tag}</span>)}
               </div>
             )}
 
-            <div className="mt-8 space-y-4 text-lg text-neutral-700">
+            <div className="mt-6 space-y-2.5 text-xs text-neutral-700">
               <div className="flex items-center gap-3"><ClockIcon className="h-5 w-5 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
               {(event.venueName || event.address) && (
                 <div className="flex items-center gap-3">
                   <IconPin className="h-5 w-5 text-neutral-400" />
-                  <span>{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
-                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex items-center gap-1 text-base font-semibold text-violet-600"><IconMap className="h-5 w-5" />查看路线</button>
+                  <span className="min-w-0 flex-1 truncate">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-violet-600"><IconMap className="h-4 w-4" />查看路线</button>
                 </div>
               )}
             </div>
 
             {images.length > 0 && (
-              <div className="mt-8 grid h-[380px] grid-cols-[2fr_1fr] gap-4">
-                <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="overflow-hidden rounded-2xl bg-neutral-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={images[0]} alt="" className="h-full w-full object-cover" />
-                </button>
-                <div className="grid grid-rows-2 gap-4">
-                  {(images.length > 1 ? images.slice(1, 3) : [images[0], images[0]]).map((src, index) => (
-                    <button key={`${src}-${index}`} type="button" onClick={() => setLightbox({ images, index: Math.min(index + 1, images.length - 1) })} className="relative overflow-hidden rounded-2xl bg-neutral-100">
+              <div className="mt-7 -mx-7 overflow-x-auto px-7 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex snap-x snap-mandatory gap-3">
+                  {images.map((src, index) => (
+                    <button
+                      key={`${src}-${index}`}
+                      type="button"
+                      onClick={() => setLightbox({ images, index })}
+                      className="relative h-72 w-[82%] max-w-[520px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="h-full w-full object-cover" />
-                      {index === 1 && images.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-3xl font-bold text-white">+{images.length - 2}</span>}
+                      {images.length > 1 && (
+                        <span className="absolute bottom-3 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                          {index + 1}/{images.length}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -492,18 +509,19 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
             {event.description && (
               <div className="mt-8 overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white shadow-sm">
-                <div className="p-7 text-xl leading-relaxed text-neutral-800">
-                  <span className="mr-4 align-top text-5xl font-black leading-none text-violet-500">“</span>
+                <div className="p-5 text-base leading-relaxed text-neutral-800">
+                  <span className="mr-3 align-top text-3xl font-black leading-none text-violet-500">“</span>
                   {expanded ? event.description : event.description.slice(0, 80)}
                   {!expanded && event.description.length > 80 ? "..." : ""}
                   {event.description.length > 80 && (
-                    <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-3 text-base font-semibold text-violet-600">
-                      {expanded ? "收起⌃" : "展开⌄"}
+                    <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-3 inline-flex items-center gap-1 text-sm font-semibold text-violet-600">
+                      {expanded ? "收起" : "展开"}
+                      <ChevronDownIcon up={expanded} />
                     </button>
                   )}
                 </div>
                 <div className="flex items-center justify-between border-t border-violet-100 bg-white/65 px-7 py-4">
-                  <span className="inline-flex items-center gap-3 text-lg text-neutral-500"><IconHeart filled className="h-9 w-9 rounded-full bg-rose-50 p-2 text-rose-400" />{reactions.likeCount || 12}人觉得有用</span>
+                  <span className="inline-flex items-center gap-2 text-sm text-neutral-500"><IconHeart filled className="h-8 w-8 rounded-full bg-rose-50 p-2 text-rose-400" />{reactions.likeCount > 0 ? `${reactions.likeCount}人觉得有用` : "暂无有用反馈"}</span>
                   <div className="flex -space-x-2">
                     {[event.author, ...comments.slice(0, 3).map((c) => c.author)].map((author, index) => <Avatar key={index} user={author ?? null} size={34} />)}
                   </div>
@@ -536,22 +554,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
-          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-8 top-8 grid h-16 w-16 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
-            <IconChevronLeft className="h-8 w-8" />
+          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-6 top-6 grid h-12 w-12 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
+            <IconChevronLeft className="h-6 w-6" />
           </button>
           <div className="absolute right-8 top-8 flex gap-4">
             <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
-              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-7 w-7" /><span className="mt-1 text-xs">{reactions.likeCount || 128}</span></span>
+              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-5 w-5" />{reactions.likeCount > 0 && <span className="mt-1 text-[10px]">{reactions.likeCount}</span>}</span>
             </button>
             <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
-              <IconBookmark filled={reactions.favoritedByMe} className="h-7 w-7" />
+              <IconBookmark filled={reactions.favoritedByMe} className="h-5 w-5" />
             </button>
-            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-7 w-7" /></button>
+            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-5 w-5" /></button>
           </div>
           <div className="absolute bottom-16 left-8 right-8 text-white">
-            <span className="mb-4 inline-flex rounded-lg bg-violet-500 px-3 py-1.5 text-lg font-bold">限定</span>
-            <h1 className="max-w-[760px] text-[42px] font-black leading-tight tracking-normal drop-shadow-sm">{event.title}</h1>
-            {event.summary || event.description ? <p className="mt-5 max-w-[740px] text-2xl font-medium leading-relaxed drop-shadow-sm">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
+            <span className="mb-3 inline-flex rounded-lg bg-violet-500 px-3 py-1 text-sm font-bold">限定</span>
+            <h1 className="max-w-[760px] text-[24px] font-black leading-tight tracking-normal drop-shadow-sm">{event.title}</h1>
+            {event.summary || event.description ? <p className="mt-3 max-w-[740px] text-base font-medium leading-relaxed drop-shadow-sm">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
           </div>
           {images.length > 0 && (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-14 right-8 inline-flex items-center gap-2 rounded-xl bg-black/45 px-4 py-2 text-white backdrop-blur">
@@ -563,59 +581,65 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
         <main className="relative px-7 pb-7">
           <section className="-mt-7 overflow-hidden rounded-[28px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-black/5">
-            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-10 py-8">
+            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-6 py-6">
               <div>
-                <div className="mb-4 flex items-center gap-3 text-base font-semibold text-indigo-400"><IconCalendar className="h-5 w-5" />活动时间</div>
-                <div className="space-y-2 text-xl font-bold text-neutral-950">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-400"><IconCalendar className="h-4 w-4" />活动时间</div>
+                <div className="space-y-1.5 text-base font-bold text-neutral-950">
                   <div>{fmtCompact(event.startTime)}</div>
                   {event.endTime && <><div className="text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
                 </div>
-                {durationLabel(event.startTime, event.endTime) && <span className="mt-4 inline-flex rounded-lg bg-violet-100 px-3 py-1.5 text-base font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
+                {durationLabel(event.startTime, event.endTime) && <span className="mt-3 inline-flex rounded-lg bg-violet-100 px-2.5 py-1 text-sm font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
               </div>
               <div className="pl-10">
-                <div className="mb-4 flex items-center gap-3 text-base font-semibold text-indigo-400"><IconPin className="h-5 w-5" />活动地点</div>
-                <div className="space-y-2 text-xl font-bold text-neutral-950">
-                  <div>{event.venueName ?? "地点未定"}</div>
-                  {event.address && <div>{event.address}</div>}
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconPin className="h-4 w-4" />活动地点</div>
+                <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
+                  <div className="truncate">{event.venueName ?? "地点未定"}</div>
+                  {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
-                <button type="button" onClick={jumpToMap} className="mt-4 rounded-full bg-neutral-100 px-4 py-2 text-base font-semibold text-indigo-500">查看地图 〉</button>
+                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-indigo-500">查看地图 〉</button>
               </div>
             </div>
-            <div className="grid grid-cols-4 divide-x divide-neutral-100 border-t border-neutral-100 bg-neutral-50/70 px-8 py-5">
+            <div className="grid grid-cols-4 divide-x divide-neutral-100 border-t border-neutral-100 bg-neutral-50/70 px-2 py-3">
               {[
                 [meta.label, <CategoryIcon key="cat" category={event.category} className="h-5 w-5" />],
-                ["户外", <IconPin key="outdoor" className="h-5 w-5" />],
-                ["免费", <IconBookmark key="free" className="h-5 w-5" />],
-                [`${reactions.signupCount || "2.3k"} 想去`, <IconHeart key="want" className="h-5 w-5" />],
+                ["官方", <IconBookmark key="official" className="h-4 w-4" />],
+                [`评论 ${comments.length}`, <IconHeart key="comments" className="h-4 w-4" />],
+                [`想去 ${reactions.signupCount}`, <IconHeart key="want" className="h-4 w-4" />],
               ].map(([label, icon], index) => (
-                <div key={String(label)} className={cx("flex items-center justify-center gap-3 text-lg font-semibold text-neutral-800", index > 0 && "pl-4")}>
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-violet-100 text-violet-500">{icon}</span>
-                  {label}
+                <div key={String(label)} className={cx("flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-none text-neutral-800", index > 0 && "pl-1")}>
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-500">{icon}</span>
+                  <span className="max-w-full truncate whitespace-nowrap">{label}</span>
                 </div>
               ))}
             </div>
           </section>
 
           {event.description && (
-            <section className="px-5 py-8">
-              <p className={cx("text-xl leading-loose text-neutral-900", !expanded && "line-clamp-4")}>{event.description}</p>
+            <section className="px-4 py-6">
+              <p className={cx("text-sm leading-7 text-neutral-900", !expanded && "line-clamp-4")}>{event.description}</p>
               {event.description.length > 140 && (
-                <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-5 block text-base font-semibold text-violet-600">
-                  {expanded ? "收起更多⌃" : "展开更多⌄"}
+                <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-4 block text-sm font-semibold text-violet-600">
+                  <span className="inline-flex items-center gap-1">
+                    {expanded ? "收起更多" : "展开更多"}
+                    <ChevronDownIcon up={expanded} />
+                  </span>
                 </button>
               )}
             </section>
           )}
 
-          <section className="grid grid-cols-3 rounded-2xl bg-neutral-50 px-6 py-5 text-neutral-900">
+          <section className="grid grid-cols-3 rounded-2xl bg-neutral-50 px-3 py-3 text-neutral-900">
             {[
-              ["建议时长", "1-2小时", <ClockIcon key="clock" className="h-5 w-5" />],
-              ["最佳时段", "上午更佳", <ClockIcon key="time" className="h-5 w-5" />],
-              ["交通建议", event.venueName ? `${event.venueName}附近` : "到站后步行", <IconMap key="map" className="h-5 w-5" />],
+              ["开始", fmtShortDate(event.startTime), <ClockIcon key="clock" className="h-4 w-4" />],
+              ["收藏", `${reactions.favoriteCount}`, <IconBookmark key="fav" className="h-4 w-4" />],
+              ["评论", `${comments.length}`, <IconMap key="map" className="h-4 w-4" />],
             ].map(([label, value, icon], index) => (
-              <div key={String(label)} className={cx("flex items-center gap-4", index > 0 && "border-l border-neutral-200 pl-6")}>
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-indigo-400">{icon}</span>
-                <span><span className="block text-sm text-neutral-500">{label}</span><span className="block text-lg font-bold">{value}</span></span>
+              <div key={String(label)} className={cx("flex min-w-0 items-center justify-center gap-2 px-1", index > 0 && "border-l border-neutral-200")}>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-indigo-400">{icon}</span>
+                <span className="min-w-0">
+                  <span className="block whitespace-nowrap text-[10px] leading-tight text-neutral-500">{label}</span>
+                  <span className="block truncate whitespace-nowrap text-xs font-bold leading-tight">{value}</span>
+                </span>
               </div>
             ))}
           </section>

@@ -6,6 +6,14 @@
 
 ## 2026-06-30
 
+### Tighten event detail typography
+- **Smaller detail typography**: reduced oversized official/user detail fonts and tightened dense statistic rows so labels no longer wrap on mobile.
+- **Real counts only**: removed placeholder engagement numbers from event details; likes, comments, favorites, and want-to-go counts now only use live reaction/comment data.
+- **Gallery and expand polish**: detail images now open in the lightbox, user-post multi-image galleries scroll horizontally, venue text is smaller, and expand/collapse uses SVG chevrons instead of text glyphs.
+**Files:** `src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### Redesign activity detail pages
 - **Official activity detail**: rebuilt official event detail as an immersive image-led page with floating action buttons, elevated time/place card, category/meta strip, guidance chips, comment area, and bottom guide/map/share/source actions.
 - **User post detail**: added a separate social-post detail layout for personal posts with author header, follow affordance, tag chips, route row, collage gallery, quote card, comments, and bottom actions matching the supplied reference.
