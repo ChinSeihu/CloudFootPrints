@@ -5,7 +5,7 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { fieldCls } from "@/components/Map/formStyles";
-import { IconChevronRight, IconPin, IconSparkles } from "@/components/icons";
+import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 import type { PublicUser } from "@/lib/auth";
 
@@ -54,6 +54,8 @@ export function ProfileHeader() {
   const [followMode, setFollowMode] = useState<FollowMode | null>(null);
   const [followUsers, setFollowUsers] = useState<FollowListItem[]>([]);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followActionId, setFollowActionId] = useState<string | null>(null);
+  const [confirmUnfollow, setConfirmUnfollow] = useState<FollowListItem | null>(null);
 
   const canUpload = cloudinaryConfigured();
 
@@ -135,6 +137,41 @@ export function ProfileHeader() {
       }
     } finally {
       setFollowLoading(false);
+    }
+  }
+
+  async function followBack(item: FollowListItem) {
+    if (followActionId) return;
+    setFollowActionId(item.user.id);
+    try {
+      const res = await fetch("/api/users/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: item.user.id, active: true }),
+      });
+      if (!res.ok) return;
+      setFollowUsers((prev) => prev.map((row) => (row.user.id === item.user.id ? { ...row, mutual: true } : row)));
+      setFollowStats((prev) => ({ ...prev, followingCount: prev.followingCount + 1 }));
+    } finally {
+      setFollowActionId(null);
+    }
+  }
+
+  async function unfollow(item: FollowListItem) {
+    if (followActionId) return;
+    setFollowActionId(item.user.id);
+    try {
+      const res = await fetch("/api/users/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: item.user.id, active: false }),
+      });
+      if (!res.ok) return;
+      setFollowUsers((prev) => prev.filter((row) => row.user.id !== item.user.id));
+      setFollowStats((prev) => ({ ...prev, followingCount: Math.max(0, prev.followingCount - 1) }));
+      setConfirmUnfollow(null);
+    } finally {
+      setFollowActionId(null);
     }
   }
 
@@ -325,11 +362,63 @@ export function ProfileHeader() {
                       <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{item.user.status || item.user.signature}</p>
                     )}
                   </div>
-                  <IconChevronRight className="h-4 w-4 text-neutral-300" />
+                  {followMode === "following" ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmUnfollow(item)}
+                      className="shrink-0 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      取消关注
+                    </button>
+                  ) : item.mutual ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-600">
+                      <KnotIcon />
+                      互相关注
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => followBack(item)}
+                      disabled={followActionId === item.user.id}
+                      className="shrink-0 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-violet-500/20 disabled:opacity-50"
+                    >
+                      {followActionId === item.user.id ? "处理中" : "回关"}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           </div>
+          {confirmUnfollow && (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-black/25 px-6" onClick={() => setConfirmUnfollow(null)}>
+              <div className="w-full max-w-xs rounded-3xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-3">
+                  <Avatar url={confirmUnfollow.user.avatarUrl} name={confirmUnfollow.user.username} size={42} />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-neutral-950">取消关注 {confirmUnfollow.user.username}？</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-500">取消后，对方会保留在粉丝列表中；需要时可以再回关。</p>
+                  </div>
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmUnfollow(null)}
+                    className="h-10 rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-600"
+                  >
+                    保留
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => unfollow(confirmUnfollow)}
+                    disabled={followActionId === confirmUnfollow.user.id}
+                    className="h-10 rounded-2xl bg-rose-500 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+                  >
+                    {followActionId === confirmUnfollow.user.id ? "处理中" : "取消关注"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

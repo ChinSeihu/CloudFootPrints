@@ -9,6 +9,7 @@
 ### Add follow and follower system
 - **Follow graph**: added `UserFollow` storage, follow stats, follow list API, and follow/unfollow support for user profiles.
 - **Profile social lists**: personal profile cards now show following / follower buttons in the lower-right corner, opening lists with a knot badge for mutual follows.
+- **List actions**: follower lists now show a follow-back button for non-mutual followers and a knot badge for mutual follows; following lists expose cancel follow with a confirmation dialog.
 - **Persona friends**: PersonaV2 friend pairs are synced as mutual follows for demo users, while existing simulation `Relationship` data remains separate.
 - **User post follow action**: user-post detail follow buttons now create real follow relationships instead of acting as static UI.
 **Files:** `prisma/schema.prisma`, `prisma/migrations/20260630113000_add_user_follows/migration.sql`, `src/services/follows.ts`, `src/services/users.ts`, `src/app/api/users/follows/route.ts`, `src/components/Me/ProfileHeader.tsx`, `src/components/Recommend/EventDetail.tsx`, `scripts/sync-demo-users.ts`
