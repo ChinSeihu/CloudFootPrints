@@ -113,6 +113,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<CommentSort>("hot");
+  const [authorFollowActive, setAuthorFollowActive] = useState(false);
 
   const [reactions, setReactions] = useState<ReactionState>({
     likeCount: 0,
@@ -163,6 +164,15 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       .catch(() => {});
   }, [event.id]);
 
+  useEffect(() => {
+    const authorId = event.author?.id;
+    if (!isUserPost || !user || !authorId || user.id === authorId) return;
+    fetch(`/api/users/follows?userId=${authorId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setAuthorFollowActive(!!d?.active))
+      .catch(() => {});
+  }, [event.author?.id, isUserPost, user]);
+
   async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP") {
     setErr(null);
     setReactions((prev) => {
@@ -199,6 +209,28 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       );
     } catch {
       setErr("网络错误，请稍后再试");
+    }
+  }
+
+  async function toggleAuthorFollow() {
+    const authorId = event.author?.id;
+    if (!authorId) return;
+    if (!user) {
+      setErr("请先到「个人」页登录后再关注");
+      return;
+    }
+    if (user.id === authorId) return;
+    const next = !authorFollowActive;
+    setAuthorFollowActive(next);
+    try {
+      const res = await fetch("/api/users/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: authorId, active: next }),
+      });
+      if (!res.ok) setAuthorFollowActive(!next);
+    } catch {
+      setAuthorFollowActive(!next);
     }
   }
 
@@ -438,7 +470,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
               <div className="mt-1 text-xs text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
             </div>
-            <button type="button" className="rounded-full border border-violet-200 px-4 py-1.5 text-xs font-semibold text-violet-600">关注</button>
+            {event.author?.id && user?.id !== event.author.id && (
+              <button
+                type="button"
+                onClick={toggleAuthorFollow}
+                className={cx(
+                  "rounded-full border px-4 py-1.5 text-xs font-semibold transition",
+                  authorFollowActive
+                    ? "border-neutral-200 bg-neutral-50 text-neutral-500"
+                    : "border-violet-200 bg-white text-violet-600",
+                )}
+              >
+                {authorFollowActive ? "已关注" : "关注"}
+              </button>
+            )}
           </div>
 
           <main className="mt-6 flex-1">

@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { fieldCls } from "@/components/Map/formStyles";
-import { IconPin, IconSparkles } from "@/components/icons";
+import { IconChevronRight, IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
+import type { PublicUser } from "@/lib/auth";
+
+type FollowMode = "following" | "followers";
+type FollowStats = { followingCount: number; followerCount: number };
+type FollowListItem = { user: PublicUser; mutual: boolean };
 
 function Avatar({ url, name, size = 68 }: { url: string | null; name: string; size?: number }) {
   if (url) {
@@ -23,6 +28,16 @@ function Avatar({ url, name, size = 68 }: { url: string | null; name: string; si
   );
 }
 
+function KnotIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 8c2.6-3.2 7.4-3.2 10 0 2.2 2.7.2 7-3.4 7H10.4C6.8 15 4.8 10.7 7 8Z" />
+      <path d="M9 16c1.6 2.3 4.4 2.3 6 0" />
+      <path d="M8 12h8" />
+    </svg>
+  );
+}
+
 export function ProfileHeader() {
   const { user, setUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -35,8 +50,21 @@ export function ProfileHeader() {
   const [uploading, setUploading] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [followStats, setFollowStats] = useState<FollowStats>({ followingCount: 0, followerCount: 0 });
+  const [followMode, setFollowMode] = useState<FollowMode | null>(null);
+  const [followUsers, setFollowUsers] = useState<FollowListItem[]>([]);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const canUpload = cloudinaryConfigured();
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/users/follows")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data?.stats && setFollowStats(data.stats))
+      .catch(() => {});
+  }, [user?.id]);
+
   if (!user) return null;
 
   async function pickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -91,6 +119,23 @@ export function ProfileHeader() {
     setCoverUrl(user.coverUrl ?? "");
     setMenuOpen(false);
     setEditing(true);
+  }
+
+  async function openFollowList(mode: FollowMode) {
+    setFollowMode(mode);
+    setFollowLoading(true);
+    try {
+      const res = await fetch(`/api/users/follows?type=${mode}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setFollowUsers(data.users ?? []);
+        if (data.stats) setFollowStats(data.stats);
+      } else {
+        setFollowUsers([]);
+      }
+    } finally {
+      setFollowLoading(false);
+    }
   }
 
   const cover = editing ? coverUrl || null : user.coverUrl;
@@ -176,6 +221,25 @@ export function ProfileHeader() {
             </div>
           )}
 
+          {!editing && (
+            <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openFollowList("following")}
+                className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/25"
+              >
+                关注 {followStats.followingCount}
+              </button>
+              <button
+                type="button"
+                onClick={() => openFollowList("followers")}
+                className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/25"
+              >
+                粉丝 {followStats.followerCount}
+              </button>
+            </div>
+          )}
+
           {editing && (
             <div className="mt-3 space-y-3 rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur">
               {canUpload && (
@@ -226,6 +290,48 @@ export function ProfileHeader() {
           )}
         </div>
       </div>
+      {followMode && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-4 pb-4 backdrop-blur-sm" onClick={() => setFollowMode(null)}>
+          <div className="max-h-[72vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-bold text-neutral-950">{followMode === "following" ? "关注" : "粉丝"}</h2>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {followMode === "following" ? `${followStats.followingCount} 个关注` : `${followStats.followerCount} 个粉丝`}
+                </p>
+              </div>
+              <button type="button" onClick={() => setFollowMode(null)} className="grid h-8 w-8 place-items-center rounded-full bg-neutral-100 text-neutral-500">
+                ×
+              </button>
+            </div>
+            <div className="max-h-[56vh] overflow-y-auto px-3 py-2">
+              {followLoading && <div className="py-8 text-center text-xs text-neutral-400">加载中...</div>}
+              {!followLoading && followUsers.length === 0 && (
+                <div className="py-10 text-center text-sm text-neutral-400">{followMode === "following" ? "还没有关注的人" : "还没有粉丝"}</div>
+              )}
+              {!followLoading && followUsers.map((item) => (
+                <div key={item.user.id} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-neutral-50">
+                  <Avatar url={item.user.avatarUrl} name={item.user.username} size={42} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-neutral-900">{item.user.username}</span>
+                      {item.mutual && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600" title="互相关注">
+                          <KnotIcon />
+                        </span>
+                      )}
+                    </div>
+                    {(item.user.status || item.user.signature) && (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{item.user.status || item.user.signature}</p>
+                    )}
+                  </div>
+                  <IconChevronRight className="h-4 w-4 text-neutral-300" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

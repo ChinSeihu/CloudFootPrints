@@ -240,6 +240,21 @@ model User {
   charState    CharacterState?
   relationsA   Relationship[]  @relation("relA")
   relationsB   Relationship[]  @relation("relB")
+  following    UserFollow[]     @relation("UserFollowing")
+  followers    UserFollow[]     @relation("UserFollowers")
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User    @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 // ───────────────────────── 社区模拟（V7 Agent Architecture）─────────────────────────

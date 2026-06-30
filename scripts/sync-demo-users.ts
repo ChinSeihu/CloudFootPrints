@@ -8,6 +8,7 @@ import {
   personaGoals,
   personaLifeStageText,
 } from "../src/lib/personas";
+import { ensureDemoMutualFollows } from "../src/services/follows";
 
 const DEMO_PASSWORD = "demo-pass-1234";
 
@@ -92,8 +93,10 @@ async function main() {
     relationships++;
   }
 
+  const follows = await ensureDemoMutualFollows();
+
   console.log(
-    `PersonaV2 demo users synced: ${created} created, ${updated} updated, ${states} character states, ${relationships} relationships.`,
+    `PersonaV2 demo users synced: ${created} created, ${updated} updated, ${states} character states, ${relationships} relationships, ${follows} new mutual follows.`,
   );
 }
 

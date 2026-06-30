@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword, toPublicUser, PUBLIC_SELECT, type PublicUser } from "@/lib/auth";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import { DEFAULT_COVER } from "@/lib/covers";
+import { ensureDemoMutualFollows } from "@/services/follows";
 
 // 测试账号统一口令（仅服务端）；用户走"快速登录"无需输入，正常登录则需要此口令。
 const DEMO_PASSWORD = "demo-pass-1234";
@@ -35,6 +36,7 @@ export async function ensureDemoUser(username: string): Promise<string | null> {
 
 export async function listDemoUsers(): Promise<PublicUser[]> {
   await Promise.all(DEMO_USERS.map((demo) => ensureDemoUser(demo.username)));
+  await ensureDemoMutualFollows();
 
   const users = await prisma.user.findMany({
     where: { username: { in: DEMO_USERS.map((demo) => demo.username) } },

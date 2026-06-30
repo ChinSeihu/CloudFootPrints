@@ -6,6 +6,15 @@
 
 ## 2026-06-30
 
+### Add follow and follower system
+- **Follow graph**: added `UserFollow` storage, follow stats, follow list API, and follow/unfollow support for user profiles.
+- **Profile social lists**: personal profile cards now show following / follower buttons in the lower-right corner, opening lists with a knot badge for mutual follows.
+- **Persona friends**: PersonaV2 friend pairs are synced as mutual follows for demo users, while existing simulation `Relationship` data remains separate.
+- **User post follow action**: user-post detail follow buttons now create real follow relationships instead of acting as static UI.
+**Files:** `prisma/schema.prisma`, `prisma/migrations/20260630113000_add_user_follows/migration.sql`, `src/services/follows.ts`, `src/services/users.ts`, `src/app/api/users/follows/route.ts`, `src/components/Me/ProfileHeader.tsx`, `src/components/Recommend/EventDetail.tsx`, `scripts/sync-demo-users.ts`
+
+---
+
 ### Tighten event detail typography
 - **Smaller detail typography**: reduced oversized official/user detail fonts and tightened dense statistic rows so labels no longer wrap on mobile.
 - **Real counts only**: removed placeholder engagement numbers from event details; likes, comments, favorites, and want-to-go counts now only use live reaction/comment data.
