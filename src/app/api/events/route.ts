@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       endTime: typeof b.endTime === "string" ? b.endTime : null,
       tags: normalizeTags(b.tags),
       eventId: typeof b.eventId === "string" ? b.eventId : null,
+      imageSpec: b.imageSpec && typeof b.imageSpec === "object" ? JSON.parse(JSON.stringify(b.imageSpec)) : null,
       lat: Number(b.lat),
       lng: Number(b.lng),
     },

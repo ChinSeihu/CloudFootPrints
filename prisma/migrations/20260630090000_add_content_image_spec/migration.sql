@@ -1,0 +1,2 @@
+ALTER TABLE "Post" ADD COLUMN "imageSpec" JSONB;
+ALTER TABLE "CheckIn" ADD COLUMN "imageSpec" JSONB;

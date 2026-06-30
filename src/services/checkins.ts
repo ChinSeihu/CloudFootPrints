@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 
 // 领域逻辑：打卡查询/写入。
 
@@ -71,6 +72,7 @@ export type CreateCheckinInput = {
   isPublic?: boolean;
   visitedAt?: string | null; // ISO；用户自选打卡时间，默认现在
   eventId?: string | null;
+  imageSpec?: Prisma.InputJsonValue | null;
 };
 
 export type CreateCheckinResult =
@@ -101,6 +103,7 @@ async function createCheckinRow(data: CreateCheckinInput, userId: string) {
       note: data.note ?? null,
       photoUrl: photoUrls[0] ?? data.photoUrl ?? null,
       photoUrls,
+      imageSpec: data.imageSpec ?? undefined,
       rating: moodTags[0] ?? null,
       moodTags,
       isPublic: data.isPublic === true,

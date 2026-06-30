@@ -155,6 +155,7 @@ export type CreateUserEventInput = {
   tags?: string[];
   signupEnabled?: boolean;
   eventId?: string | null;
+  imageSpec?: Prisma.InputJsonValue | null;
   lat: number;
   lng: number;
 };
@@ -180,6 +181,7 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
       venueName: input.venueName?.trim() || null,
       imageUrl: imageUrls[0] ?? input.imageUrl ?? null, // 封面 = 首图
       imageUrls,
+      imageSpec: input.imageSpec ?? undefined,
       lat: input.lat,
       lng: input.lng,
       startTime: parseISO(input.startTime),

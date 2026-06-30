@@ -6,6 +6,14 @@
 
 ## 2026-06-30
 
+### Persist image specs for regeneration
+- **Image memory fields**: added `imageSpec` JSON storage to user posts and footprints so the original structured image intent is kept with the content.
+- **Persona-locked regeneration**: demo PersonaV2 accounts can regenerate post/footprint images from the personal page, reusing the saved image spec and the character model reference.
+- **Simulation write-through**: community simulation now saves `decision.post.imageSpec` when it creates a footprint, so future regenerations use the original visual memory instead of inferring from text.
+**Files:** `prisma/schema.prisma`, `prisma/migrations/20260630090000_add_content_image_spec/migration.sql`, `src/services/simulation/engine.ts`, `src/services/simulation/regenerate.ts`, `src/services/checkins.ts`, `src/services/events.ts`, `src/app/api/checkins/route.ts`, `src/app/api/checkins/[id]/regenerate-image/route.ts`, `src/app/api/events/route.ts`, `src/app/api/events/[id]/regenerate-image/route.ts`, `src/components/Me/MeView.tsx`
+
+---
+
 ### Add Vercel Speed Insights
 - **Speed Insights**: added `@vercel/speed-insights` and mounted the global `<SpeedInsights />` component alongside Web Analytics so Core Web Vitals are collected after production deployment.
 **Files:** `package.json`, `yarn.lock`, `src/app/layout.tsx`

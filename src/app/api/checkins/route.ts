@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       isPublic: b.isPublic === true,
       visitedAt: typeof b.visitedAt === "string" ? b.visitedAt : null,
       eventId: typeof b.eventId === "string" ? b.eventId : null,
+      imageSpec: b.imageSpec && typeof b.imageSpec === "object" ? JSON.parse(JSON.stringify(b.imageSpec)) : null,
     },
     userId,
   );

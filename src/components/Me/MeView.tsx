@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
 import { moodTagOf } from "@/lib/moods";
+import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 type Tab = "checkins" | "posts" | "favorites" | "messages";
@@ -40,7 +41,9 @@ function MeContent() {
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
+  const [regeneratingImage, setRegeneratingImage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const canRegenerateImages = !!user && DEMO_USERS.some((demo) => demo.username === user.username);
 
   useEffect(() => {
     (async () => {
@@ -125,6 +128,53 @@ function MeContent() {
         if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
       },
     });
+  }
+
+  async function regenerateCheckin(id: string) {
+    const key = `checkin:${id}`;
+    setRegeneratingImage(key);
+    try {
+      const res = await fetch(`/api/checkins/${id}/regenerate-image`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.imageUrl) {
+        window.alert(data?.error ?? "重新生图失败");
+        return;
+      }
+      setCheckins((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, photoUrl: data.imageUrl, photoUrls: data.imageUrls ?? [data.imageUrl] }
+            : item,
+        ),
+      );
+    } finally {
+      setRegeneratingImage(null);
+    }
+  }
+
+  async function regeneratePost(id: string) {
+    const key = `post:${id}`;
+    setRegeneratingImage(key);
+    try {
+      const res = await fetch(`/api/events/${id}/regenerate-image`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.imageUrl) {
+        window.alert(data?.error ?? "重新生图失败");
+        return;
+      }
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] }
+            : item,
+        ),
+      );
+      setSelected((prev) =>
+        prev?.id === id ? { ...prev, imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] } : prev,
+      );
+    } finally {
+      setRegeneratingImage(null);
+    }
   }
 
   return (
@@ -215,6 +265,16 @@ function MeContent() {
                       <IconMap className="w-3.5 h-3.5" />
                       在地图
                     </button>
+                    {canRegenerateImages && (
+                      <button
+                        type="button"
+                        disabled={regeneratingImage === `checkin:${c.id}`}
+                        onClick={() => regenerateCheckin(c.id)}
+                        className="text-[11px] text-violet-500 hover:text-violet-600 transition disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {regeneratingImage === `checkin:${c.id}` ? "生图中..." : "重新生图"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setEditingCheckin(c)}
@@ -323,6 +383,16 @@ function MeContent() {
                         <IconMap className="w-3.5 h-3.5" />
                         在地图上查看
                       </button>
+                      {canRegenerateImages && (
+                        <button
+                          type="button"
+                          disabled={regeneratingImage === `post:${p.id}`}
+                          onClick={() => regeneratePost(p.id)}
+                          className="text-xs text-violet-500 hover:text-violet-600 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {regeneratingImage === `post:${p.id}` ? "生图中..." : "重新生图"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setEditingPost(p)}

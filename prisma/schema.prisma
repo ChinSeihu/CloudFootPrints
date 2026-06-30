@@ -79,6 +79,7 @@ model Post {
   venueName     String?
   imageUrl      String?       // 封面图（= imageUrls[0]）
   imageUrls     String[]      @default([]) // 多图
+  imageSpec     Json?
   lat           Float
   lng           Float
   startTime     DateTime?
@@ -162,6 +163,7 @@ model CheckIn {
   note      String?
   photoUrl  String?  // 封面照片（= photoUrls[0]，向后兼容）
   photoUrls String[] @default([]) // 多张打卡照片
+  imageSpec Json?
   rating    Int? // legacy primary mood tag
   moodTags  Int[] @default([]) // selected mood tag values
   isPublic  Boolean @default(false)

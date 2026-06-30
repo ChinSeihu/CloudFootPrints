@@ -16,6 +16,7 @@ import { compressMemories } from "./memory";
 import { refreshStatus, refreshSignature } from "./signature";
 import { generateCheckinImage } from "./image";
 import { maybeLifeEvent } from "./lifeEvents";
+import type { Prisma } from "@prisma/client";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
 // 每个角色：参与度掷点 → (参与才调 LLM) → 决策 → 写 Memory + 可选 CheckIn + 更新情绪/活跃。
@@ -23,6 +24,10 @@ import { maybeLifeEvent } from "./lifeEvents";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+function asJsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
 
 type CastEntry = { name: string; relation: string };
 const CAST_CAP = 8;
@@ -182,6 +187,7 @@ if (decision.post && coords.length) {
       note,
       rating: decision.post.rating,
       visitedAt: when.toISOString(),
+      imageSpec: decision.post.imageSpec ? asJsonValue(decision.post.imageSpec) : null,
     },
     userId
   );
