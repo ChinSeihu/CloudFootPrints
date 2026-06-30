@@ -6,6 +6,12 @@
 
 ## 2026-06-30
 
+### Add Vercel Speed Insights
+- **Speed Insights**: added `@vercel/speed-insights` and mounted the global `<SpeedInsights />` component alongside Web Analytics so Core Web Vitals are collected after production deployment.
+**Files:** `package.json`, `yarn.lock`, `src/app/layout.tsx`
+
+---
+
 ### Activate Vercel Web Analytics
 - **Vercel Analytics**: added `@vercel/analytics` and mounted the global `<Analytics />` component in the App Router root layout so page views are collected after deployment on Vercel.
 **Files:** `package.json`, `yarn.lock`, `src/app/layout.tsx`
