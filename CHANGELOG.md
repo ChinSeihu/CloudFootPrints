@@ -6,6 +6,13 @@
 
 ## 2026-06-30
 
+### Move image regeneration into edit dialogs
+- **Edit-first regeneration**: moved demo-only post and footprint image regeneration from the personal page list actions into the edit dialogs, so users can review the regenerated image without closing the editor.
+- **Inline preview refresh**: regenerated post covers and footprint photos update immediately inside the edit modal and sync back to the personal page list.
+**Files:** `src/components/Me/EditDialogs.tsx`, `src/components/Me/MeView.tsx`
+
+---
+
 ### Persist image specs for regeneration
 - **Image memory fields**: added `imageSpec` JSON storage to user posts and footprints so the original structured image intent is kept with the content.
 - **Persona-locked regeneration**: demo PersonaV2 accounts can regenerate post/footprint images from the personal page, reusing the saved image spec and the character model reference.

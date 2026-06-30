@@ -41,7 +41,6 @@ function MeContent() {
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
-  const [regeneratingImage, setRegeneratingImage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const canRegenerateImages = !!user && DEMO_USERS.some((demo) => demo.username === user.username);
 
@@ -130,37 +129,35 @@ function MeContent() {
     });
   }
 
-  async function regenerateCheckin(id: string) {
-    const key = `checkin:${id}`;
-    setRegeneratingImage(key);
+  async function regenerateCheckin(id: string): Promise<{ imageUrl: string; imageUrls: string[] } | null> {
     try {
       const res = await fetch(`/api/checkins/${id}/regenerate-image`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.imageUrl) {
         window.alert(data?.error ?? "重新生图失败");
-        return;
+        return null;
       }
       setCheckins((prev) =>
         prev.map((item) =>
           item.id === id
             ? { ...item, photoUrl: data.imageUrl, photoUrls: data.imageUrls ?? [data.imageUrl] }
-            : item,
+          : item,
         ),
       );
-    } finally {
-      setRegeneratingImage(null);
+      return { imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] };
+    } catch {
+      window.alert("重新生图失败");
+      return null;
     }
   }
 
-  async function regeneratePost(id: string) {
-    const key = `post:${id}`;
-    setRegeneratingImage(key);
+  async function regeneratePost(id: string): Promise<{ imageUrl: string; imageUrls: string[] } | null> {
     try {
       const res = await fetch(`/api/events/${id}/regenerate-image`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.imageUrl) {
         window.alert(data?.error ?? "重新生图失败");
-        return;
+        return null;
       }
       setPosts((prev) =>
         prev.map((item) =>
@@ -172,8 +169,10 @@ function MeContent() {
       setSelected((prev) =>
         prev?.id === id ? { ...prev, imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] } : prev,
       );
-    } finally {
-      setRegeneratingImage(null);
+      return { imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] };
+    } catch {
+      window.alert("重新生图失败");
+      return null;
     }
   }
 
@@ -265,16 +264,6 @@ function MeContent() {
                       <IconMap className="w-3.5 h-3.5" />
                       在地图
                     </button>
-                    {canRegenerateImages && (
-                      <button
-                        type="button"
-                        disabled={regeneratingImage === `checkin:${c.id}`}
-                        onClick={() => regenerateCheckin(c.id)}
-                        className="text-[11px] text-violet-500 hover:text-violet-600 transition disabled:cursor-wait disabled:opacity-60"
-                      >
-                        {regeneratingImage === `checkin:${c.id}` ? "生图中..." : "重新生图"}
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => setEditingCheckin(c)}
@@ -383,16 +372,6 @@ function MeContent() {
                         <IconMap className="w-3.5 h-3.5" />
                         在地图上查看
                       </button>
-                      {canRegenerateImages && (
-                        <button
-                          type="button"
-                          disabled={regeneratingImage === `post:${p.id}`}
-                          onClick={() => regeneratePost(p.id)}
-                          className="text-xs text-violet-500 hover:text-violet-600 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {regeneratingImage === `post:${p.id}` ? "生图中..." : "重新生图"}
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setEditingPost(p)}
@@ -552,6 +531,8 @@ function MeContent() {
           event={editingPost}
           onClose={() => setEditingPost(null)}
           onSaved={(patch) => setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, ...patch } : p)))}
+          canRegenerateImage={canRegenerateImages}
+          onRegenerateImage={() => regeneratePost(editingPost.id)}
         />
       )}
 
@@ -560,6 +541,8 @@ function MeContent() {
           checkin={editingCheckin}
           onClose={() => setEditingCheckin(null)}
           onSaved={(patch) => setCheckins((prev) => prev.map((c) => (c.id === editingCheckin.id ? { ...c, ...patch } : c)))}
+          canRegenerateImage={canRegenerateImages}
+          onRegenerateImage={() => regenerateCheckin(editingCheckin.id)}
         />
       )}
 

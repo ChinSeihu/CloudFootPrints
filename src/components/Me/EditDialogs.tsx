@@ -44,11 +44,16 @@ export function EditPostDialog({
   event,
   onClose,
   onSaved,
+  canRegenerateImage = false,
+  onRegenerateImage,
 }: {
   event: EventDTO;
   onClose: () => void;
   onSaved: (patch: Partial<EventDTO>) => void;
+  canRegenerateImage?: boolean;
+  onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
 }) {
+  const [imageUrl, setImageUrl] = useState(event.imageUrl);
   const [title, setTitle] = useState(event.title);
   const [category, setCategory] = useState<EventCategory>(event.category);
   const [description, setDescription] = useState(event.description ?? "");
@@ -59,6 +64,7 @@ export function EditPostDialog({
   const [tagInput, setTagInput] = useState("");
   const [signupEnabled, setSignupEnabled] = useState(event.signupEnabled ?? false);
   const [saving, setSaving] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function addTag() {
@@ -104,8 +110,45 @@ export function EditPostDialog({
     }
   }
 
+  async function regenerateImage() {
+    if (!onRegenerateImage || regenerating) return;
+    setError(null);
+    setRegenerating(true);
+    try {
+      const result = await onRegenerateImage();
+      if (result?.imageUrl) setImageUrl(result.imageUrl);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   return (
     <Modal title="编辑发帖" onClose={onClose}>
+      {canRegenerateImage && (
+        <div className="mb-5 rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
+          <div className="flex items-center gap-3">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
+            ) : (
+              <div className="h-14 w-14 rounded-xl bg-white/80 border border-violet-100" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-neutral-900">发帖图片</div>
+              <div className="mt-0.5 text-xs text-neutral-500">按该条内容保存的图片记忆和角色模型重新生成。</div>
+            </div>
+            <button
+              type="button"
+              onClick={regenerateImage}
+              disabled={regenerating || saving}
+              className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+            >
+              {regenerating ? "生图中…" : "重新生图"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-5">
         <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder="活动名称" />
@@ -196,10 +239,14 @@ export function EditCheckInDialog({
   checkin,
   onClose,
   onSaved,
+  canRegenerateImage = false,
+  onRegenerateImage,
 }: {
   checkin: CheckInDTO;
   onClose: () => void;
   onSaved: (patch: Partial<CheckInDTO>) => void;
+  canRegenerateImage?: boolean;
+  onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
 }) {
   const [note, setNote] = useState(checkin.note ?? "");
   const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
@@ -209,6 +256,7 @@ export function EditCheckInDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [phase, setPhase] = useState<"" | "uploading">("");
   const [error, setError] = useState<string | null>(null);
 
@@ -269,6 +317,22 @@ export function EditCheckInDialog({
     }
   }
 
+  async function regenerateImage() {
+    if (!onRegenerateImage || regenerating) return;
+    setError(null);
+    setRegenerating(true);
+    try {
+      const result = await onRegenerateImage();
+      if (!result?.imageUrl) return;
+      for (const src of previews) URL.revokeObjectURL(src);
+      setPreviews([]);
+      setFiles([]);
+      setKeptUrls(result.imageUrls?.length ? result.imageUrls : [result.imageUrl]);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   return (
     <Modal title="编辑足迹" onClose={onClose}>
       <div className="mb-5">
@@ -287,7 +351,19 @@ export function EditCheckInDialog({
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>图片（最多 {MAX_IMAGES} 张）</label>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <label className={labelCls}>图片（最多 {MAX_IMAGES} 张）</label>
+          {canRegenerateImage && (
+            <button
+              type="button"
+              onClick={regenerateImage}
+              disabled={regenerating || saving}
+              className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-600 transition hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60"
+            >
+              {regenerating ? "生图中…" : "重新生图"}
+            </button>
+          )}
+        </div>
         {canUpload ? (
           <div className="grid grid-cols-3 gap-2">
             {keptUrls.map((src, i) => (
