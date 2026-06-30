@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-06-30
+
+### Activate Vercel Web Analytics
+- **Vercel Analytics**: added `@vercel/analytics` and mounted the global `<Analytics />` component in the App Router root layout so page views are collected after deployment on Vercel.
+**Files:** `package.json`, `yarn.lock`, `src/app/layout.tsx`
+
+---
+
 ## 2026-06-27
 
 ### Refine clusters and extracted event times
