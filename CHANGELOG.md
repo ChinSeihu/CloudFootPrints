@@ -16,6 +16,14 @@
 
 ---
 
+### Tighten post detail mobile spacing
+- **Post detail density**: reduced mobile padding, image spacing, comment composer height, and bottom action sizing so user-post detail pages feel closer to the supplied reference.
+- **Scroll tail fix**: removed sticky bottom action blocks from detail pages and reduced bottom padding to prevent extra blank space when scrolled to the end.
+- **Official detail mobile fit**: shortened the official hero and tightened the floating info card on mobile while preserving the larger desktop spacing.
+**Files:** `src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### Tighten event detail typography
 - **Smaller detail typography**: reduced oversized official/user detail fonts and tightened dense statistic rows so labels no longer wrap on mobile.
 - **Real counts only**: removed placeholder engagement numbers from event details; likes, comments, favorites, and want-to-go counts now only use live reaction/comment data.

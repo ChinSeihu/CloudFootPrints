@@ -42,7 +42,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur transition active:scale-95",
+    "grid h-8 w-8 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur transition active:scale-95 sm:h-9 sm:w-9",
     active && "text-rose-500",
   );
 }
@@ -326,17 +326,17 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     const showAt = !!parent && !!parent.parentId;
     const atName = parent?.author?.username ?? "用户";
     return (
-      <div className={cx("flex gap-3", isReply && "ml-9 border-l border-neutral-100 pl-4")}>
-        <Avatar user={c.author} size={isReply ? 30 : 42} />
+      <div className={cx("flex gap-2.5", isReply && "ml-8 border-l border-neutral-100 pl-3")}>
+        <Avatar user={c.author} size={isReply ? 28 : 38} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-neutral-900">{c.author?.username ?? "用户"}</span>
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600">评论</span>
+            <span className="text-sm font-semibold text-neutral-900">{c.author?.username ?? "用户"}</span>
+            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600">评论</span>
             <button type="button" onClick={() => toggleReaction("LIKE")} className="ml-auto inline-flex items-center gap-1 text-neutral-400 hover:text-rose-500">
-              <IconHeart className="h-4 w-4" />
+              <IconHeart className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="mt-1 text-sm leading-relaxed text-neutral-800">
+          <div className="mt-1 text-[13px] leading-6 text-neutral-800">
             {showAt && <span className="font-medium text-violet-600">@{atName} </span>}
             {c.text}
           </div>
@@ -356,23 +356,23 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   function commentSection() {
     return (
-      <section className="border-t border-neutral-100 pt-6">
-        <div className="mb-5 flex items-center gap-3">
+      <section className="border-t border-neutral-100 pt-5">
+        <div className="mb-4 flex items-center gap-2.5">
           <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({comments.length})</h3>
-          <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-3 py-1.5 text-xs font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最热</button>
-          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-3 py-1.5 text-xs font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最新</button>
+          <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最热</button>
+          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最新</button>
         </div>
-        {loaded && comments.length === 0 && <p className="pb-4 text-sm text-neutral-400">还没有评论，来说两句。</p>}
-        <ul className="space-y-5">
+        {loaded && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
+        <ul className="space-y-4">
           {threads.slice(0, 3).map(({ comment, replies }) => (
-            <li key={comment.id} className="space-y-4">
+            <li key={comment.id} className="space-y-3.5">
               {renderComment(comment, false)}
               {replies.slice(0, 2).map((reply) => <div key={reply.id}>{renderComment(reply, true)}</div>)}
             </li>
           ))}
         </ul>
         {comments.length > 0 && (
-          <button type="button" className="mt-6 w-full rounded-full bg-neutral-50 py-4 text-sm font-medium text-neutral-700">
+          <button type="button" className="mt-5 w-full rounded-full bg-neutral-50 py-3 text-[13px] font-medium text-neutral-700">
             查看全部评论 〉
           </button>
         )}
@@ -390,20 +390,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <button type="button" onClick={() => setReplyTo(null)}>取消</button>
           </div>
         )}
-        <div className="flex items-center gap-3">
-          <Avatar user={user} size={42} />
-          <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-neutral-200 bg-white px-4 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <Avatar user={user} size={36} />
+          <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-neutral-200 bg-white px-3 shadow-sm">
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addComment(); }}
               placeholder={replyTo ? `回复 @${replyTo.username}…` : "写下你的评论…"}
-              className="h-12 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              className="h-10 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-neutral-400"
             />
-            <ImageIcon className="h-5 w-5 text-indigo-400" />
-            <SmileIcon className="ml-3 h-5 w-5 text-indigo-400" />
+            <ImageIcon className="h-4 w-4 text-indigo-400" />
+            <SmileIcon className="ml-2.5 h-4 w-4 text-indigo-400" />
           </div>
-          <button type="button" onClick={addComment} disabled={posting || !text.trim()} className="h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-400 px-6 text-sm font-semibold text-white shadow-sm disabled:opacity-40">
+          <button type="button" onClick={addComment} disabled={posting || !text.trim()} className="h-10 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-400 px-4 text-[13px] font-semibold text-white shadow-sm disabled:opacity-40">
             发送
           </button>
         </div>
@@ -413,27 +413,27 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   function bottomActions(sourceLabel: string) {
     return (
-      <div className="grid grid-cols-4 gap-2.5">
-        <button type="button" onClick={askGuide} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-500 text-xs font-semibold text-white shadow-md shadow-violet-500/20">
-          <IconSparkles className="h-4 w-4" />
+      <div className="grid grid-cols-4 gap-2">
+        <button type="button" onClick={askGuide} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-500 text-[11px] font-semibold text-white shadow-md shadow-violet-500/20">
+          <IconSparkles className="h-3.5 w-3.5" />
           问导游
         </button>
-        <button type="button" onClick={jumpToMap} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-neutral-950 text-xs font-semibold text-white shadow-md shadow-black/15">
-          <IconMap className="h-4 w-4" />
+        <button type="button" onClick={jumpToMap} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-neutral-950 text-[11px] font-semibold text-white shadow-md shadow-black/15">
+          <IconMap className="h-3.5 w-3.5" />
           看地图
         </button>
-        <button type="button" onClick={shareEvent} className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
-          <ShareIcon className="h-4 w-4" />
+        <button type="button" onClick={shareEvent} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
+          <ShareIcon className="h-3.5 w-3.5" />
           分享
         </button>
         {event.sourceUrl ? (
-          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
-            <IconExternalLink className="h-4 w-4" />
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
+            <IconExternalLink className="h-3.5 w-3.5" />
             {sourceLabel}
           </a>
         ) : (
-          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
+          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
             举报
           </button>
         )}
@@ -444,8 +444,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   if (isUserPost) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
-        <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-7 pb-7 pt-8">
-          <div className="mb-7 flex items-center">
+        <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-5 pb-3 pt-5 sm:px-7 sm:pb-5 sm:pt-8">
+          <div className="mb-5 flex items-center sm:mb-7">
             <button type="button" onClick={onClose} aria-label="返回" className="grid h-10 w-10 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50">
               <IconChevronLeft className="h-5 w-5" />
             </button>
@@ -462,20 +462,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <Avatar user={event.author} size={44} />
+          <div className="flex items-start gap-2.5">
+            <Avatar user={event.author} size={40} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
               </div>
-              <div className="mt-1 text-xs text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
+              <div className="mt-0.5 line-clamp-1 text-[11px] text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
             </div>
             {event.author?.id && user?.id !== event.author.id && (
               <button
                 type="button"
                 onClick={toggleAuthorFollow}
                 className={cx(
-                  "rounded-full border px-4 py-1.5 text-xs font-semibold transition",
+                  "rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
                   authorFollowActive
                     ? "border-neutral-200 bg-neutral-50 text-neutral-500"
                     : "border-violet-200 bg-white text-violet-600",
@@ -486,16 +486,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             )}
           </div>
 
-          <main className="mt-6 flex-1">
+          <main className="mt-4 flex-1 sm:mt-6">
             {images.length > 0 && (
-              <div className="-mx-7 overflow-x-auto px-7 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex snap-x snap-mandatory gap-3">
+              <div className="-mx-5 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:-mx-7 sm:px-7 [&::-webkit-scrollbar]:hidden">
+                <div className="flex snap-x snap-mandatory gap-2.5 sm:gap-3">
                   {images.map((src, index) => (
                     <button
                       key={`${src}-${index}`}
                       type="button"
                       onClick={() => setLightbox({ images, index })}
-                      className="relative h-72 w-[calc(100vw-56px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100"
+                      className="relative h-[260px] w-[calc(100vw-40px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100 sm:h-72 sm:w-[calc(100vw-56px)]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -510,14 +510,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
-            <h1 className="mt-5 text-[17px] font-black leading-snug tracking-normal text-neutral-950">{event.title}</h1>
+            <h1 className="mt-4 text-base font-black leading-snug tracking-normal text-neutral-950 sm:mt-5 sm:text-[17px]">{event.title}</h1>
 
             {event.description && (
-              <p className="mt-5 text-sm leading-7 text-neutral-800">
+              <p className="mt-3 text-[13px] leading-6 text-neutral-800 sm:mt-5 sm:text-sm sm:leading-7">
                 {expanded ? event.description : event.description.slice(0, 120)}
                 {!expanded && event.description.length > 120 ? "..." : ""}
                 {event.description.length > 120 && (
-                  <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-2 inline-flex items-center gap-1 text-sm font-semibold text-violet-600">
+                  <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-2 inline-flex items-center gap-1 text-[13px] font-semibold text-violet-600">
                     {expanded ? "收起" : "展开"}
                     <ChevronDownIcon up={expanded} />
                   </button>
@@ -526,26 +526,26 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             )}
 
             {tags.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-600"># {tag}</span>)}
+              <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-5 sm:gap-2">
+                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-600 sm:px-3 sm:py-1.5 sm:text-xs"># {tag}</span>)}
               </div>
             )}
 
-            <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
+            <div className="mt-4 space-y-2 rounded-2xl bg-neutral-50 px-3 py-3 text-[12px] text-neutral-700 sm:mt-5 sm:space-y-2.5 sm:bg-transparent sm:px-0 sm:py-0 sm:text-xs">
               <div className="flex items-center gap-2.5"><ClockIcon className="h-4 w-4 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
               {(event.venueName || event.address) && (
                 <div className="flex items-center gap-2.5">
                   <IconPin className="h-4 w-4 text-neutral-400" />
                   <span className="line-clamp-2 min-w-0 flex-1">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
-                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-violet-600"><IconMap className="h-4 w-4" />查看路线</button>
+                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-violet-600 sm:text-xs"><IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />查看路线</button>
                 </div>
               )}
             </div>
 
-            <div className="mt-8">{commentSection()}</div>
+            <div className="mt-6 sm:mt-8">{commentSection()}</div>
           </main>
 
-          <div className="sticky bottom-0 mt-6 space-y-5 border-t border-neutral-100 bg-white/95 py-5 backdrop-blur">
+          <div className="mt-5 space-y-4 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:space-y-5 sm:py-5">
             {commentComposer()}
             {bottomActions("举报")}
           </div>
@@ -559,7 +559,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
-        <section className="relative h-[48vh] min-h-[420px] overflow-hidden bg-neutral-900">
+        <section className="relative h-[42vh] min-h-[340px] overflow-hidden bg-neutral-900 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -581,22 +581,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </button>
             <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
           </div>
-          <div className="absolute bottom-16 left-8 right-8 text-white">
-            <span className="mb-3 inline-flex rounded-lg bg-violet-500 px-3 py-1 text-sm font-bold">限定</span>
-            <h1 className="max-w-[760px] text-[24px] font-black leading-tight tracking-normal drop-shadow-sm">{event.title}</h1>
-            {event.summary || event.description ? <p className="mt-3 max-w-[740px] text-base font-medium leading-relaxed drop-shadow-sm">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
+          <div className="absolute bottom-12 left-5 right-5 text-white sm:bottom-16 sm:left-8 sm:right-8">
+            <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-xs font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
+            <h1 className="max-w-[760px] text-[21px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>
+            {event.summary || event.description ? <p className="mt-2 max-w-[740px] text-[13px] font-medium leading-6 drop-shadow-sm sm:mt-3 sm:text-base sm:leading-relaxed">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
           </div>
           {images.length > 0 && (
-            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-14 right-8 inline-flex items-center gap-2 rounded-xl bg-black/45 px-4 py-2 text-white backdrop-blur">
-              <ImageIcon className="h-5 w-5" />
+            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-10 right-5 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-base">
+              <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               1/{images.length}
             </button>
           )}
         </section>
 
-        <main className="relative px-7 pb-7">
-          <section className="-mt-7 overflow-hidden rounded-[28px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-black/5">
-            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-6 py-6">
+        <main className="relative px-5 pb-3 sm:px-7 sm:pb-5">
+          <section className="-mt-6 overflow-hidden rounded-[24px] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.13)] ring-1 ring-black/5 sm:-mt-7 sm:rounded-[28px]">
+            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-4 py-4 sm:px-6 sm:py-6">
               <div>
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconCalendar className="h-4 w-4" />活动时间</div>
                 <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
@@ -605,7 +605,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 </div>
                 {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
               </div>
-              <div className="pl-10">
+              <div className="pl-4 sm:pl-10">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconPin className="h-4 w-4" />活动地点</div>
                 <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
                   <div className="flex min-w-0 items-start gap-1.5">
@@ -646,9 +646,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </section>
           )}
 
-          <div className="mt-8">{commentSection()}</div>
+          <div className="mt-6 sm:mt-8">{commentSection()}</div>
 
-          <div className="sticky bottom-0 mt-6 space-y-5 border-t border-neutral-100 bg-white/95 py-5 backdrop-blur">
+          <div className="mt-5 space-y-4 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:space-y-5 sm:py-5">
             {commentComposer()}
             {bottomActions("来源")}
           </div>
