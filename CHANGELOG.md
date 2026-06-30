@@ -6,6 +6,14 @@
 
 ## 2026-06-30
 
+### Redesign activity detail pages
+- **Official activity detail**: rebuilt official event detail as an immersive image-led page with floating action buttons, elevated time/place card, category/meta strip, guidance chips, comment area, and bottom guide/map/share/source actions.
+- **User post detail**: added a separate social-post detail layout for personal posts with author header, follow affordance, tag chips, route row, collage gallery, quote card, comments, and bottom actions matching the supplied reference.
+- **Detail data**: exposed `createdAt` / `updatedAt` on event detail DTO responses so user posts can show publish time consistently.
+**Files:** `src/components/Recommend/EventDetail.tsx`, `src/lib/types.ts`, `src/app/api/events/[id]/route.ts`
+
+---
+
 ### Move image regeneration into edit dialogs
 - **Edit-first regeneration**: moved demo-only post and footprint image regeneration from the personal page list actions into the edit dialogs, so users can review the regenerated image without closing the editor.
 - **Inline preview refresh**: regenerated post covers and footprint photos update immediately inside the edit modal and sync back to the personal page list.

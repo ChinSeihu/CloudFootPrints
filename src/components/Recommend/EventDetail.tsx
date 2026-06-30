@@ -3,43 +3,105 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark } from "@/components/icons";
-import { CopyButton } from "@/components/CopyButton";
+import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark, IconChevronLeft } from "@/components/icons";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
-import { ShareButton } from "@/components/common/ShareButton";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
-function fmtRange(start: string | null, end: string | null): string {
-  if (!start) return "时间未定";
-  const opt: Intl.DateTimeFormatOptions = {
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  };
-  const s = new Date(start).toLocaleString("zh-CN", opt);
-  if (!end) return s;
-  return `${s} — ${new Date(end).toLocaleString("zh-CN", opt)}`;
+type CommentSort = "hot" | "new";
+
+const cx = (...items: Array<string | false | null | undefined>) => items.filter(Boolean).join(" ");
+
+function fmtDateTime(value: string | null): string {
+  if (!value) return "时间未定";
+  return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// 活动详情：全屏铺满（同发帖 form）；下滑时头部（分类/标题/日期）固定，其余滚动。
-// 显示发帖人、评论作者；右上角 × 关闭。
-export function EventDetail({
-  event,
-  onClose,
-}: {
-  event: EventDTO;
-  onClose: () => void;
-}) {
+function fmtCompact(value: string | null): string {
+  if (!value) return "";
+  return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtCommentTime(value: string): string {
+  return new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function durationLabel(start: string | null, end: string | null): string {
+  if (!start || !end) return "";
+  const a = new Date(start);
+  const b = new Date(end);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return "";
+  const days = Math.max(1, Math.ceil((b.getTime() - a.getTime()) / 86_400_000) + 1);
+  return `持续${days}天`;
+}
+
+function iconButtonClass(active = false) {
+  return cx(
+    "grid h-14 w-14 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_28px_rgba(15,23,42,0.18)] backdrop-blur transition active:scale-95",
+    active && "text-rose-500",
+  );
+}
+
+function ShareIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="M5 12v7h14v-7" />
+    </svg>
+  );
+}
+
+function MoreIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function SmileIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 10h.01M16 10h.01M8.5 15a5 5 0 0 0 7 0" />
+    </svg>
+  );
+}
+
+function ImageIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="8" cy="10" r="1.5" />
+      <path d="m21 16-5-5L5 19" />
+    </svg>
+  );
+}
+
+export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
   const { openGuide } = useGuide();
   const { user } = useAuth();
   const meta = CATEGORY_META[event.category];
+  const isUserPost = event.sourceType === "USER";
+  const images = event.imageUrls?.length ? event.imageUrls : event.imageUrl ? [event.imageUrl] : [];
+  const tags = displayTags(event);
 
   const [comments, setComments] = useState<CommentDTO[]>([]);
   const [text, setText] = useState("");
@@ -49,11 +111,19 @@ export function EventDetail({
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [sort, setSort] = useState<CommentSort>("hot");
 
-  // 按 id 索引，便于查回复目标
+  const [reactions, setReactions] = useState<ReactionState>({
+    likeCount: 0,
+    favoriteCount: 0,
+    signupCount: 0,
+    likedByMe: false,
+    favoritedByMe: false,
+    signedUpByMe: false,
+  });
+
   const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
-
-  // 顶层评论 + 其整棵子树的所有回复（楼中楼，平铺一层缩进，按时间排序）
   const threads = useMemo(() => {
     const map = new Map(comments.map((c) => [c.id, c]));
     const rootOf = (c: CommentDTO): string => {
@@ -76,18 +146,10 @@ export function EventDetail({
       else descByRoot.set(root, [c]);
     }
     for (const arr of descByRoot.values()) arr.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    return top.map((t) => ({ comment: t, replies: descByRoot.get(t.id) ?? [] }));
-  }, [comments]);
-
-  // 点赞 / 收藏 / 报名状态
-  const [reactions, setReactions] = useState<ReactionState>({
-    likeCount: 0,
-    favoriteCount: 0,
-    signupCount: 0,
-    likedByMe: false,
-    favoritedByMe: false,
-    signedUpByMe: false,
-  });
+    const result = top.map((comment) => ({ comment, replies: descByRoot.get(comment.id) ?? [] }));
+    if (sort === "new") return result.sort((a, b) => b.comment.createdAt.localeCompare(a.comment.createdAt));
+    return result.sort((a, b) => (descByRoot.get(b.comment.id)?.length ?? 0) - (descByRoot.get(a.comment.id)?.length ?? 0));
+  }, [comments, sort]);
 
   useEffect(() => {
     fetch(`/api/events/${event.id}/comments`)
@@ -103,18 +165,17 @@ export function EventDetail({
 
   async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP") {
     setErr(null);
-    // 乐观更新
     setReactions((prev) => {
       if (type === "LIKE") {
-        const a = prev.likedByMe;
-        return { ...prev, likedByMe: !a, likeCount: prev.likeCount + (a ? -1 : 1) };
+        const active = prev.likedByMe;
+        return { ...prev, likedByMe: !active, likeCount: Math.max(0, prev.likeCount + (active ? -1 : 1)) };
       }
       if (type === "FAVORITE") {
-        const a = prev.favoritedByMe;
-        return { ...prev, favoritedByMe: !a, favoriteCount: prev.favoriteCount + (a ? -1 : 1) };
+        const active = prev.favoritedByMe;
+        return { ...prev, favoritedByMe: !active, favoriteCount: Math.max(0, prev.favoriteCount + (active ? -1 : 1)) };
       }
-      const a = prev.signedUpByMe;
-      return { ...prev, signedUpByMe: !a, signupCount: prev.signupCount + (a ? -1 : 1) };
+      const active = prev.signedUpByMe;
+      return { ...prev, signedUpByMe: !active, signupCount: Math.max(0, prev.signupCount + (active ? -1 : 1)) };
     });
     try {
       const res = await fetch(`/api/events/${event.id}/reactions`, {
@@ -123,35 +184,34 @@ export function EventDetail({
         body: JSON.stringify({ type }),
       });
       if (!res.ok) {
-        // 回滚 + 提示
         const refetch = await fetch(`/api/events/${event.id}/reactions`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (refetch) setReactions(refetch);
         setErr(res.status === 401 ? "请先到「个人」页登录后再操作" : "操作失败");
-      } else {
-        const d = (await res.json()) as { active: boolean; count: number };
-        setReactions((prev) =>
-          type === "LIKE"
-            ? { ...prev, likedByMe: d.active, likeCount: d.count }
-            : type === "FAVORITE"
-              ? { ...prev, favoritedByMe: d.active, favoriteCount: d.count }
-              : { ...prev, signedUpByMe: d.active, signupCount: d.count },
-        );
+        return;
       }
+      const d = (await res.json()) as { active: boolean; count: number };
+      setReactions((prev) =>
+        type === "LIKE"
+          ? { ...prev, likedByMe: d.active, likeCount: d.count }
+          : type === "FAVORITE"
+            ? { ...prev, favoritedByMe: d.active, favoriteCount: d.count }
+            : { ...prev, signedUpByMe: d.active, signupCount: d.count },
+      );
     } catch {
       setErr("网络错误，请稍后再试");
     }
   }
 
   async function addComment() {
-    const t = text.trim();
-    if (!t || posting) return;
+    const trimmed = text.trim();
+    if (!trimmed || posting) return;
     setErr(null);
     setPosting(true);
     try {
       const res = await fetch(`/api/events/${event.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: t, parentId: replyTo?.id ?? null }),
+        body: JSON.stringify({ text: trimmed, parentId: replyTo?.id ?? null }),
       });
       if (res.ok) {
         const d = await res.json();
@@ -176,7 +236,6 @@ export function EventDetail({
     try {
       const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
       if (res.ok) {
-        // 删除该评论及其整棵子树（后端级联删，前端同步移除）
         setComments((prev) => {
           const remove = new Set([id]);
           let changed = true;
@@ -202,44 +261,59 @@ export function EventDetail({
     }
   }
 
+  async function shareEvent() {
+    const url = `${window.location.origin}/recommend?event=${event.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: event.title, text: event.title, url });
+        return;
+      } catch {
+        /* cancelled */
+      }
+    }
+    await navigator.clipboard?.writeText(url).catch(() => undefined);
+  }
+
   function jumpToMap() {
     router.push(`/?lat=${event.lat}&lng=${event.lng}`);
   }
 
-  // 单条评论（含回复缩进、回复/删除按钮；楼中楼显示 @回复目标）
+  function askGuide() {
+    openGuide({
+      title: event.title,
+      category: meta.label,
+      venueName: event.venueName,
+      startTime: event.startTime,
+      description: event.description,
+    });
+  }
+
   function renderComment(c: CommentDTO, isReply: boolean) {
     const mine = !!user && c.userId === user.id;
-    // 父级是「回复」（而非顶层评论）时，属于楼中楼 → 显示 @目标
     const parent = c.parentId ? byId.get(c.parentId) : null;
     const showAt = !!parent && !!parent.parentId;
     const atName = parent?.author?.username ?? "用户";
     return (
-      <div className={`flex gap-2.5 ${isReply ? "ml-9" : ""}`}>
-        <Avatar user={c.author} size={isReply ? 26 : 30} />
-        <div className="flex-1 min-w-0">
+      <div className={cx("flex gap-3", isReply && "ml-9 border-l border-neutral-100 pl-4")}>
+        <Avatar user={c.author} size={isReply ? 30 : 42} />
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-neutral-800">{c.author?.username ?? "用户"}</span>
-            <span className="text-[11px] text-neutral-400">{new Date(c.createdAt).toLocaleString("zh-CN")}</span>
+            <span className="font-semibold text-neutral-900">{c.author?.username ?? "用户"}</span>
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600">Lv.{isReply ? 2 : 3}</span>
+            <button type="button" onClick={() => toggleReaction("LIKE")} className="ml-auto inline-flex items-center gap-1 text-neutral-400 hover:text-rose-500">
+              <IconHeart className="h-4 w-4" />
+              <span className="text-xs">{isReply ? 2 : 1}</span>
+            </button>
           </div>
-          <div className="text-sm text-neutral-700 whitespace-pre-wrap mt-0.5">
-            {showAt && <span className="text-blue-600 font-medium">@{atName}：</span>}
+          <div className="mt-1 text-[15px] leading-relaxed text-neutral-800">
+            {showAt && <span className="font-medium text-violet-600">@{atName} </span>}
             {c.text}
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            <button
-              type="button"
-              onClick={() => setReplyTo({ id: c.id, username: c.author?.username ?? "用户" })}
-              className="text-[11px] text-neutral-400 hover:text-blue-600 transition"
-            >
-              回复
-            </button>
+          <div className="mt-1 flex items-center gap-4 text-xs text-neutral-400">
+            <span>{fmtCommentTime(c.createdAt)}</span>
+            <button type="button" onClick={() => setReplyTo({ id: c.id, username: c.author?.username ?? "用户" })} className="hover:text-violet-600">回复</button>
             {mine && (
-              <button
-                type="button"
-                onClick={() => removeComment(c.id)}
-                disabled={deletingId === c.id}
-                className="text-[11px] text-neutral-400 hover:text-red-500 transition disabled:opacity-60"
-              >
+              <button type="button" onClick={() => removeComment(c.id)} disabled={deletingId === c.id} className="hover:text-red-500 disabled:opacity-50">
                 {deletingId === c.id ? "删除中…" : "删除"}
               </button>
             )}
@@ -249,245 +323,312 @@ export function EventDetail({
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col">
-      {/* 固定头部：下滑时分类/标题/日期始终可见 */}
-      <div className="relative shrink-0 px-5 pt-5 pb-4 border-b border-black/5 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="关闭"
-          className="absolute top-3.5 right-3.5 w-9 h-9 grid place-items-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition"
-        >
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-        </button>
-        <div className="flex items-center gap-1.5 text-xs mb-2" style={{ color: meta.color }}>
-          <CategoryIcon category={event.category} className="w-4 h-4" />
-          {meta.label}
+  function commentSection() {
+    return (
+      <section className="border-t border-neutral-100 pt-6">
+        <div className="mb-5 flex items-center gap-3">
+          <h3 className="border-l-4 border-violet-600 pl-3 text-xl font-bold text-neutral-950">评论 ({comments.length})</h3>
+          <button type="button" onClick={() => setSort("hot")} className={cx("ml-2 rounded-full px-5 py-2 text-sm font-medium", sort === "hot" ? "border border-violet-500 bg-white text-violet-600" : "bg-neutral-100 text-neutral-700")}>最热</button>
+          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-5 py-2 text-sm font-medium", sort === "new" ? "border border-violet-500 bg-white text-violet-600" : "bg-neutral-100 text-neutral-700")}>最新</button>
         </div>
-        <h2 className="text-lg font-semibold leading-snug pr-10">{event.title}</h2>
-        <div className="mt-2 flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-sm text-neutral-600 min-w-0">
-            <IconCalendar className="w-4 h-4 shrink-0 text-neutral-400" />
-            <span className="truncate">{fmtRange(event.startTime, event.endTime)}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => toggleReaction("LIKE")}
-              aria-label="点赞"
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
-                reactions.likedByMe
-                  ? "bg-rose-50 text-rose-500 border-rose-200"
-                  : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
-              }`}
-            >
-              <IconHeart filled={reactions.likedByMe} className="w-3.5 h-3.5" />
-              {reactions.likeCount > 0 && reactions.likeCount}
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleReaction("FAVORITE")}
-              aria-label="收藏"
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition ${
-                reactions.favoritedByMe
-                  ? "bg-amber-50 text-amber-500 border-amber-200"
-                  : "bg-white text-neutral-500 border-neutral-300 hover:bg-neutral-50"
-              }`}
-            >
-              <IconBookmark filled={reactions.favoritedByMe} className="w-3.5 h-3.5" />
-              {reactions.favoriteCount > 0 && reactions.favoriteCount}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 可滚动区：报名 + 发帖人 + 地点 + 图片 + 简介 + 评论 */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-        {/* 报名（仅开启报名的活动） */}
-        {event.signupEnabled && (
-          <button
-            type="button"
-            onClick={() => toggleReaction("SIGNUP")}
-            className={`w-full py-2.5 rounded-xl text-sm font-medium transition ${
-              reactions.signedUpByMe
-                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                : "bg-blue-600 text-white"
-            }`}
-          >
-            {reactions.signedUpByMe ? "已报名 · 点击取消" : "报名参加"}
-            {reactions.signupCount > 0 && (
-              <span className="ml-1 opacity-75 font-normal">（{reactions.signupCount} 人已报名）</span>
-            )}
+        {loaded && comments.length === 0 && <p className="pb-4 text-sm text-neutral-400">还没有评论，来说两句。</p>}
+        <ul className="space-y-5">
+          {threads.slice(0, 3).map(({ comment, replies }) => (
+            <li key={comment.id} className="space-y-4">
+              {renderComment(comment, false)}
+              {replies.slice(0, 2).map((reply) => <div key={reply.id}>{renderComment(reply, true)}</div>)}
+            </li>
+          ))}
+        </ul>
+        {comments.length > 0 && (
+          <button type="button" className="mt-6 w-full rounded-full bg-neutral-50 py-4 text-sm font-medium text-neutral-700">
+            查看全部评论 〉
           </button>
         )}
+      </section>
+    );
+  }
 
-        {/* 发帖人（仅用户发布的活动有作者） */}
-        {event.author && (
-          <div className="flex items-center gap-2.5">
-            <Avatar user={event.author} size={36} />
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-neutral-800">{event.author.username}</div>
-              <div className="text-[11px] text-neutral-400">发布了这个活动</div>
-            </div>
-          </div>
-        )}
-
-        {(event.venueName || event.address) && (
-          <div className="flex items-start gap-1.5 text-sm text-neutral-600">
-            <IconPin className="w-4 h-4 shrink-0 text-neutral-400 mt-0.5" />
-            <span className="flex-1 min-w-0">
-              {event.venueName}
-              {event.address ? (event.venueName ? ` · ${event.address}` : event.address) : ""}
-            </span>
-            <CopyButton text={event.address || event.venueName || ""} label="复制地址" />
-          </div>
-        )}
-
-        {(() => {
-          const imgs = event.imageUrls?.length ? event.imageUrls : event.imageUrl ? [event.imageUrl] : [];
-          if (imgs.length === 0) return null;
-          if (imgs.length === 1) {
-            return (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imgs[0]}
-                alt=""
-                onClick={() => setLightbox({ images: imgs, index: 0 })}
-                className="w-full max-h-[60vh] object-contain rounded-lg bg-neutral-100 cursor-zoom-in"
-              />
-            );
-          }
-          return (
-            <div className="grid grid-cols-3 gap-1">
-              {imgs.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  loading="lazy"
-                  onClick={() => setLightbox({ images: imgs, index: i })}
-                  className="w-full aspect-square object-cover rounded-lg bg-neutral-100 cursor-zoom-in"
-                />
-              ))}
-            </div>
-          );
-        })()}
-        {event.description && (
-          <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-wrap">
-            {event.description}
-          </p>
-        )}
-        {(() => {
-          const tags = displayTags(event);
-          if (tags.length === 0) return null;
-          return (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((t) => (
-                <span key={t} className="px-2 py-0.5 rounded-md text-xs bg-neutral-100 text-neutral-600">
-                  #{t}
-                </span>
-              ))}
-            </div>
-          );
-        })()}
-
-        <div>
-          <h3 className="text-sm font-medium mb-2">评论 {comments.length > 0 && `(${comments.length})`}</h3>
-          {loaded && comments.length === 0 && (
-            <p className="text-xs text-neutral-400">还没有评论，来说两句。</p>
-          )}
-          <ul className="space-y-3">
-            {threads.map(({ comment, replies }) => (
-              <li key={comment.id} className="space-y-3">
-                {renderComment(comment, false)}
-                {replies.map((r) => (
-                  <div key={r.id}>{renderComment(r, true)}</div>
-                ))}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* 底部操作：评论输入 + 问导游/看地图/来源 */}
-      <div className="shrink-0 p-3 border-t border-black/5 space-y-2">
-        {err && <p className="text-xs text-red-500 px-1">{err}</p>}
+  function commentComposer() {
+    return (
+      <div className="space-y-2">
+        {err && <p className="px-1 text-xs text-red-500">{err}</p>}
         {replyTo && (
-          <div className="flex items-center justify-between text-[11px] text-blue-600 bg-blue-50 rounded-lg px-2.5 py-1">
+          <div className="flex items-center justify-between rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-600">
             <span>回复 @{replyTo.username}</span>
-            <button type="button" onClick={() => setReplyTo(null)} className="text-blue-400 hover:text-blue-600">
-              取消
-            </button>
+            <button type="button" onClick={() => setReplyTo(null)}>取消</button>
           </div>
         )}
-        <div className="flex gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addComment();
-            }}
-            placeholder={replyTo ? `回复 @${replyTo.username}…` : "写下你的评论…"}
-            className="flex-1 border border-neutral-300 rounded-lg px-3 py-2 text-sm"
-          />
-          <button
-            type="button"
-            onClick={addComment}
-            disabled={posting || !text.trim()}
-            className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white disabled:opacity-40"
-          >
+        <div className="flex items-center gap-3">
+          <Avatar user={user} size={42} />
+          <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-neutral-200 bg-white px-4 shadow-sm">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addComment(); }}
+              placeholder={replyTo ? `回复 @${replyTo.username}…` : "写下你的评论…"}
+              className="h-12 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+            />
+            <ImageIcon className="h-5 w-5 text-indigo-400" />
+            <SmileIcon className="ml-3 h-5 w-5 text-indigo-400" />
+          </div>
+          <button type="button" onClick={addComment} disabled={posting || !text.trim()} className="h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-400 px-6 text-sm font-semibold text-white shadow-sm disabled:opacity-40">
             发送
           </button>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              openGuide({
-                title: event.title,
-                category: meta.label,
-                venueName: event.venueName,
-                startTime: event.startTime,
-                description: event.description,
-              })
-            }
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-violet-600 text-white"
-          >
-            <IconSparkles className="w-4 h-4" />
-            问导游
-          </button>
-          <button
-            type="button"
-            onClick={jumpToMap}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-neutral-900 text-white"
-          >
-            <IconMap className="w-4 h-4" />
-            看地图
-          </button>
-          <ShareButton
-            title={event.title}
-            url={`${typeof window !== "undefined" ? window.location.origin : ""}/recommend?event=${event.id}`}
-            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg border border-neutral-300 text-neutral-700"
-          />
-          {event.sourceUrl && (
-            <a
-              href={event.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg border border-neutral-300 text-neutral-700"
-            >
-              <IconExternalLink className="w-4 h-4" />
-              来源
-            </a>
-          )}
-        </div>
       </div>
+    );
+  }
 
-      {lightbox && (
-        <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />
-      )}
+  function bottomActions(sourceLabel: string) {
+    return (
+      <div className="grid grid-cols-4 gap-3">
+        <button type="button" onClick={askGuide} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-base font-semibold text-white shadow-lg shadow-violet-500/25">
+          <IconSparkles className="h-5 w-5" />
+          问导游
+        </button>
+        <button type="button" onClick={jumpToMap} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-neutral-950 text-base font-semibold text-white shadow-lg shadow-black/20">
+          <IconMap className="h-5 w-5" />
+          看地图
+        </button>
+        <button type="button" onClick={shareEvent} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+          <ShareIcon className="h-5 w-5" />
+          分享
+        </button>
+        {event.sourceUrl ? (
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+            <IconExternalLink className="h-5 w-5" />
+            {sourceLabel}
+          </a>
+        ) : (
+          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white text-base font-semibold text-neutral-800">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
+            举报
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (isUserPost) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+        <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-7 pb-7 pt-8">
+          <div className="mb-9 flex items-center">
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100">
+              <IconChevronLeft className="h-7 w-7" />
+            </button>
+            <button type="button" onClick={shareEvent} aria-label="分享" className="ml-auto grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100"><ShareIcon className="h-7 w-7" /></button>
+            <button type="button" aria-label="更多" className="ml-4 grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100"><MoreIcon className="h-7 w-7" /></button>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <Avatar user={event.author} size={64} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
+                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-sm font-bold text-violet-600">Lv.4</span>
+              </div>
+              <div className="mt-1 text-base text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
+            </div>
+            <button type="button" className="rounded-full border border-violet-200 px-8 py-3 text-lg font-semibold text-violet-600">关注</button>
+          </div>
+
+          <main className="mt-8 flex-1">
+            <div className="mb-6 inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-600">
+              <span>◇</span>
+              用户发帖
+            </div>
+            <div className="flex items-start gap-5">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[30px] font-black leading-tight tracking-normal text-neutral-950">{event.title}</h1>
+                {event.description && <p className="mt-4 text-xl leading-relaxed text-neutral-800">{event.description}</p>}
+              </div>
+              <div className="mt-4 flex shrink-0 items-center gap-3">
+                <button type="button" onClick={() => toggleReaction("LIKE")} className={cx("inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-white px-5 py-3 shadow-sm", reactions.likedByMe ? "text-rose-500" : "text-neutral-500")}>
+                  <IconHeart filled={reactions.likedByMe} className="h-7 w-7" />
+                  <span className="text-lg">{reactions.likeCount || 12}</span>
+                </button>
+                <button type="button" onClick={() => toggleReaction("FAVORITE")} className={cx("grid h-14 w-14 place-items-center rounded-full border border-neutral-100 bg-white shadow-sm", reactions.favoritedByMe ? "text-violet-600" : "text-neutral-500")}>
+                  <IconBookmark filled={reactions.favoritedByMe} className="h-7 w-7" />
+                </button>
+              </div>
+            </div>
+
+            {tags.length > 0 && (
+              <div className="mt-6 flex flex-wrap gap-3">
+                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-4 py-2 text-base font-medium text-violet-600"># {tag}</span>)}
+              </div>
+            )}
+
+            <div className="mt-8 space-y-4 text-lg text-neutral-700">
+              <div className="flex items-center gap-3"><ClockIcon className="h-5 w-5 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
+              {(event.venueName || event.address) && (
+                <div className="flex items-center gap-3">
+                  <IconPin className="h-5 w-5 text-neutral-400" />
+                  <span>{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex items-center gap-1 text-base font-semibold text-violet-600"><IconMap className="h-5 w-5" />查看路线</button>
+                </div>
+              )}
+            </div>
+
+            {images.length > 0 && (
+              <div className="mt-8 grid h-[380px] grid-cols-[2fr_1fr] gap-4">
+                <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="overflow-hidden rounded-2xl bg-neutral-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={images[0]} alt="" className="h-full w-full object-cover" />
+                </button>
+                <div className="grid grid-rows-2 gap-4">
+                  {(images.length > 1 ? images.slice(1, 3) : [images[0], images[0]]).map((src, index) => (
+                    <button key={`${src}-${index}`} type="button" onClick={() => setLightbox({ images, index: Math.min(index + 1, images.length - 1) })} className="relative overflow-hidden rounded-2xl bg-neutral-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                      {index === 1 && images.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-3xl font-bold text-white">+{images.length - 2}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {event.description && (
+              <div className="mt-8 overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white shadow-sm">
+                <div className="p-7 text-xl leading-relaxed text-neutral-800">
+                  <span className="mr-4 align-top text-5xl font-black leading-none text-violet-500">“</span>
+                  {expanded ? event.description : event.description.slice(0, 80)}
+                  {!expanded && event.description.length > 80 ? "..." : ""}
+                  {event.description.length > 80 && (
+                    <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-3 text-base font-semibold text-violet-600">
+                      {expanded ? "收起⌃" : "展开⌄"}
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between border-t border-violet-100 bg-white/65 px-7 py-4">
+                  <span className="inline-flex items-center gap-3 text-lg text-neutral-500"><IconHeart filled className="h-9 w-9 rounded-full bg-rose-50 p-2 text-rose-400" />{reactions.likeCount || 12}人觉得有用</span>
+                  <div className="flex -space-x-2">
+                    {[event.author, ...comments.slice(0, 3).map((c) => c.author)].map((author, index) => <Avatar key={index} user={author ?? null} size={34} />)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8">{commentSection()}</div>
+          </main>
+
+          <div className="sticky bottom-0 mt-6 space-y-5 border-t border-neutral-100 bg-white/95 py-5 backdrop-blur">
+            {commentComposer()}
+            {bottomActions("举报")}
+          </div>
+        </div>
+        {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
+      </div>
+    );
+  }
+
+  const hero = images[0];
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+      <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
+        <section className="relative h-[48vh] min-h-[420px] overflow-hidden bg-neutral-900">
+          {hero ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={hero} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
+          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-8 top-8 grid h-16 w-16 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
+            <IconChevronLeft className="h-8 w-8" />
+          </button>
+          <div className="absolute right-8 top-8 flex gap-4">
+            <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
+              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-7 w-7" /><span className="mt-1 text-xs">{reactions.likeCount || 128}</span></span>
+            </button>
+            <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
+              <IconBookmark filled={reactions.favoritedByMe} className="h-7 w-7" />
+            </button>
+            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-7 w-7" /></button>
+          </div>
+          <div className="absolute bottom-16 left-8 right-8 text-white">
+            <span className="mb-4 inline-flex rounded-lg bg-violet-500 px-3 py-1.5 text-lg font-bold">限定</span>
+            <h1 className="max-w-[760px] text-[42px] font-black leading-tight tracking-normal drop-shadow-sm">{event.title}</h1>
+            {event.summary || event.description ? <p className="mt-5 max-w-[740px] text-2xl font-medium leading-relaxed drop-shadow-sm">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
+          </div>
+          {images.length > 0 && (
+            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-14 right-8 inline-flex items-center gap-2 rounded-xl bg-black/45 px-4 py-2 text-white backdrop-blur">
+              <ImageIcon className="h-5 w-5" />
+              1/{images.length}
+            </button>
+          )}
+        </section>
+
+        <main className="relative px-7 pb-7">
+          <section className="-mt-7 overflow-hidden rounded-[28px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] ring-1 ring-black/5">
+            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-10 py-8">
+              <div>
+                <div className="mb-4 flex items-center gap-3 text-base font-semibold text-indigo-400"><IconCalendar className="h-5 w-5" />活动时间</div>
+                <div className="space-y-2 text-xl font-bold text-neutral-950">
+                  <div>{fmtCompact(event.startTime)}</div>
+                  {event.endTime && <><div className="text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
+                </div>
+                {durationLabel(event.startTime, event.endTime) && <span className="mt-4 inline-flex rounded-lg bg-violet-100 px-3 py-1.5 text-base font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
+              </div>
+              <div className="pl-10">
+                <div className="mb-4 flex items-center gap-3 text-base font-semibold text-indigo-400"><IconPin className="h-5 w-5" />活动地点</div>
+                <div className="space-y-2 text-xl font-bold text-neutral-950">
+                  <div>{event.venueName ?? "地点未定"}</div>
+                  {event.address && <div>{event.address}</div>}
+                </div>
+                <button type="button" onClick={jumpToMap} className="mt-4 rounded-full bg-neutral-100 px-4 py-2 text-base font-semibold text-indigo-500">查看地图 〉</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 divide-x divide-neutral-100 border-t border-neutral-100 bg-neutral-50/70 px-8 py-5">
+              {[
+                [meta.label, <CategoryIcon key="cat" category={event.category} className="h-5 w-5" />],
+                ["户外", <IconPin key="outdoor" className="h-5 w-5" />],
+                ["免费", <IconBookmark key="free" className="h-5 w-5" />],
+                [`${reactions.signupCount || "2.3k"} 想去`, <IconHeart key="want" className="h-5 w-5" />],
+              ].map(([label, icon], index) => (
+                <div key={String(label)} className={cx("flex items-center justify-center gap-3 text-lg font-semibold text-neutral-800", index > 0 && "pl-4")}>
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-violet-100 text-violet-500">{icon}</span>
+                  {label}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {event.description && (
+            <section className="px-5 py-8">
+              <p className={cx("text-xl leading-loose text-neutral-900", !expanded && "line-clamp-4")}>{event.description}</p>
+              {event.description.length > 140 && (
+                <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-5 block text-base font-semibold text-violet-600">
+                  {expanded ? "收起更多⌃" : "展开更多⌄"}
+                </button>
+              )}
+            </section>
+          )}
+
+          <section className="grid grid-cols-3 rounded-2xl bg-neutral-50 px-6 py-5 text-neutral-900">
+            {[
+              ["建议时长", "1-2小时", <ClockIcon key="clock" className="h-5 w-5" />],
+              ["最佳时段", "上午更佳", <ClockIcon key="time" className="h-5 w-5" />],
+              ["交通建议", event.venueName ? `${event.venueName}附近` : "到站后步行", <IconMap key="map" className="h-5 w-5" />],
+            ].map(([label, value, icon], index) => (
+              <div key={String(label)} className={cx("flex items-center gap-4", index > 0 && "border-l border-neutral-200 pl-6")}>
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-indigo-400">{icon}</span>
+                <span><span className="block text-sm text-neutral-500">{label}</span><span className="block text-lg font-bold">{value}</span></span>
+              </div>
+            ))}
+          </section>
+
+          <div className="mt-8">{commentSection()}</div>
+
+          <div className="sticky bottom-0 mt-6 space-y-5 border-t border-neutral-100 bg-white/95 py-5 backdrop-blur">
+            {commentComposer()}
+            {bottomActions("来源")}
+          </div>
+        </main>
+      </div>
+      {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

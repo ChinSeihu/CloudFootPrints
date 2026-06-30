@@ -30,6 +30,8 @@ export type EventDTO = {
   signupEnabled: boolean;
   metrics?: EventMetrics;
   author?: UserBrief | null; // USER 发帖的作者；抓取来源为 null
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type EventMetrics = {

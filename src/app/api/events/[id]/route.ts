@@ -31,6 +31,8 @@ export async function GET(_req: Request, ctx: Ctx) {
         tags: e.tags ?? [],
         signupEnabled: e.signupEnabled ?? false,
         author: e.author ?? null,
+        createdAt: e.createdAt.toISOString(),
+        updatedAt: e.updatedAt.toISOString(),
       },
     });
   } catch (err) {
