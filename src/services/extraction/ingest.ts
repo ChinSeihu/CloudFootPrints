@@ -31,6 +31,19 @@ function parseDate(s: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function normalizeEventTags(tags: string[] | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags ?? []) {
+    const tag = raw.trim().replace(/^#+/, "").slice(0, 12);
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    out.push(tag);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
 type TimeRange = { startHour: number; startMinute: number; endHour?: number; endMinute?: number };
 
 function isMidnight(d: Date): boolean {
@@ -169,6 +182,7 @@ export async function ingestEvents(
         category: ev.category,
         venueName: ev.venueName,
         address: ev.address,
+        tags: normalizeEventTags(ev.tags),
         imageUrl: ev.imageUrl,
         lat: coords.lat,
         lng: coords.lng,

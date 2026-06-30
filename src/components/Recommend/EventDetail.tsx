@@ -27,11 +27,6 @@ function fmtCompact(value: string | null): string {
   return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function fmtShortDate(value: string | null): string {
-  if (!value) return "未定";
-  return new Date(value).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
 function fmtCommentTime(value: string): string {
   return new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -47,7 +42,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-11 w-11 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_28px_rgba(15,23,42,0.18)] backdrop-blur transition active:scale-95",
+    "grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.16)] backdrop-blur transition active:scale-95",
     active && "text-rose-500",
   );
 }
@@ -58,16 +53,6 @@ function ShareIcon({ className = "h-5 w-5" }: { className?: string }) {
       <path d="M12 3v12" />
       <path d="m7 8 5-5 5 5" />
       <path d="M5 12v7h14v-7" />
-    </svg>
-  );
-}
-
-function MoreIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <circle cx="5" cy="12" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <circle cx="19" cy="12" r="2" />
     </svg>
   );
 }
@@ -116,6 +101,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const isUserPost = event.sourceType === "USER";
   const images = event.imageUrls?.length ? event.imageUrls : event.imageUrl ? [event.imageUrl] : [];
   const tags = displayTags(event);
+  const cardTags = (event.tags?.length ? event.tags : tags).slice(0, 5);
 
   const [comments, setComments] = useState<CommentDTO[]>([]);
   const [text, setText] = useState("");
@@ -395,27 +381,27 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   function bottomActions(sourceLabel: string) {
     return (
-      <div className="grid grid-cols-4 gap-3">
-        <button type="button" onClick={askGuide} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-sm font-semibold text-white shadow-lg shadow-violet-500/25">
-          <IconSparkles className="h-5 w-5" />
+      <div className="grid grid-cols-4 gap-2.5">
+        <button type="button" onClick={askGuide} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-500 text-xs font-semibold text-white shadow-md shadow-violet-500/20">
+          <IconSparkles className="h-4 w-4" />
           问导游
         </button>
-        <button type="button" onClick={jumpToMap} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl bg-neutral-950 text-sm font-semibold text-white shadow-lg shadow-black/20">
-          <IconMap className="h-5 w-5" />
+        <button type="button" onClick={jumpToMap} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-neutral-950 text-xs font-semibold text-white shadow-md shadow-black/15">
+          <IconMap className="h-4 w-4" />
           看地图
         </button>
-        <button type="button" onClick={shareEvent} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
-          <ShareIcon className="h-5 w-5" />
+        <button type="button" onClick={shareEvent} className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
+          <ShareIcon className="h-4 w-4" />
           分享
         </button>
         {event.sourceUrl ? (
-          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
-            <IconExternalLink className="h-5 w-5" />
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
+            <IconExternalLink className="h-4 w-4" />
             {sourceLabel}
           </a>
         ) : (
-          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-800">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
+          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
             举报
           </button>
         )}
@@ -427,73 +413,44 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-7 pb-7 pt-8">
-          <div className="mb-9 flex items-center">
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100">
-              <IconChevronLeft className="h-7 w-7" />
+          <div className="mb-7 flex items-center">
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-10 w-10 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50">
+              <IconChevronLeft className="h-5 w-5" />
             </button>
-            <button type="button" onClick={shareEvent} aria-label="分享" className="ml-auto grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100"><ShareIcon className="h-7 w-7" /></button>
-            <button type="button" aria-label="更多" className="ml-4 grid h-10 w-10 place-items-center rounded-full text-neutral-900 hover:bg-neutral-100"><MoreIcon className="h-7 w-7" /></button>
+            <div className="ml-auto flex gap-2.5">
+              <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}>
+                <ShareIcon className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => toggleReaction("LIKE")} aria-label="点赞" className={iconButtonClass(reactions.likedByMe)}>
+                <IconHeart filled={reactions.likedByMe} className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => toggleReaction("FAVORITE")} aria-label="收藏" className={iconButtonClass(reactions.favoritedByMe)}>
+                <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-start gap-4">
-            <Avatar user={event.author} size={64} />
+          <div className="flex items-start gap-3">
+            <Avatar user={event.author} size={44} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
-                <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-600">用户发帖</span>
+                <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
               </div>
-              <div className="mt-1 text-sm text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
+              <div className="mt-1 text-xs text-neutral-500">{fmtCommentTime(event.createdAt ?? event.startTime ?? new Date().toISOString())} · 发布于 {event.venueName ?? event.address ?? "东京"}</div>
             </div>
-            <button type="button" className="rounded-full border border-violet-200 px-5 py-2 text-sm font-semibold text-violet-600">关注</button>
+            <button type="button" className="rounded-full border border-violet-200 px-4 py-1.5 text-xs font-semibold text-violet-600">关注</button>
           </div>
 
-          <main className="mt-8 flex-1">
-            <div className="mb-6 inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-600">
-              <span>◇</span>
-              用户发帖
-            </div>
-            <div className="flex items-start gap-5">
-              <div className="min-w-0 flex-1">
-                <h1 className="text-[19px] font-black leading-tight tracking-normal text-neutral-950">{event.title}</h1>
-                {event.description && <p className="mt-3 text-base leading-relaxed text-neutral-800">{event.description}</p>}
-              </div>
-              <div className="mt-4 flex shrink-0 items-center gap-3">
-                <button type="button" onClick={() => toggleReaction("LIKE")} className={cx("inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-white px-5 py-3 shadow-sm", reactions.likedByMe ? "text-rose-500" : "text-neutral-500")}>
-                  <IconHeart filled={reactions.likedByMe} className="h-7 w-7" />
-                  {reactions.likeCount > 0 && <span className="text-sm">{reactions.likeCount}</span>}
-                </button>
-                <button type="button" onClick={() => toggleReaction("FAVORITE")} className={cx("grid h-11 w-11 place-items-center rounded-full border border-neutral-100 bg-white shadow-sm", reactions.favoritedByMe ? "text-violet-600" : "text-neutral-500")}>
-                  <IconBookmark filled={reactions.favoritedByMe} className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            {tags.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-3">
-                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-600"># {tag}</span>)}
-              </div>
-            )}
-
-            <div className="mt-6 space-y-2.5 text-xs text-neutral-700">
-              <div className="flex items-center gap-3"><ClockIcon className="h-5 w-5 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
-              {(event.venueName || event.address) && (
-                <div className="flex items-center gap-3">
-                  <IconPin className="h-5 w-5 text-neutral-400" />
-                  <span className="min-w-0 flex-1 truncate">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
-                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-violet-600"><IconMap className="h-4 w-4" />查看路线</button>
-                </div>
-              )}
-            </div>
-
+          <main className="mt-6 flex-1">
             {images.length > 0 && (
-              <div className="mt-7 -mx-7 overflow-x-auto px-7 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="-mx-7 overflow-x-auto px-7 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div className="flex snap-x snap-mandatory gap-3">
                   {images.map((src, index) => (
                     <button
                       key={`${src}-${index}`}
                       type="button"
                       onClick={() => setLightbox({ images, index })}
-                      className="relative h-72 w-[82%] max-w-[520px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100"
+                      className="relative h-72 w-[calc(100vw-56px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -508,27 +465,37 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
+            <h1 className="mt-5 text-[17px] font-black leading-snug tracking-normal text-neutral-950">{event.title}</h1>
+
             {event.description && (
-              <div className="mt-8 overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white shadow-sm">
-                <div className="p-5 text-base leading-relaxed text-neutral-800">
-                  <span className="mr-3 align-top text-3xl font-black leading-none text-violet-500">“</span>
-                  {expanded ? event.description : event.description.slice(0, 80)}
-                  {!expanded && event.description.length > 80 ? "..." : ""}
-                  {event.description.length > 80 && (
-                    <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-3 inline-flex items-center gap-1 text-sm font-semibold text-violet-600">
-                      {expanded ? "收起" : "展开"}
-                      <ChevronDownIcon up={expanded} />
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center justify-between border-t border-violet-100 bg-white/65 px-7 py-4">
-                  <span className="inline-flex items-center gap-2 text-sm text-neutral-500"><IconHeart filled className="h-8 w-8 rounded-full bg-rose-50 p-2 text-rose-400" />{reactions.likeCount > 0 ? `${reactions.likeCount}人觉得有用` : "暂无有用反馈"}</span>
-                  <div className="flex -space-x-2">
-                    {[event.author, ...comments.slice(0, 3).map((c) => c.author)].map((author, index) => <Avatar key={index} user={author ?? null} size={34} />)}
-                  </div>
-                </div>
+              <p className="mt-5 text-sm leading-7 text-neutral-800">
+                {expanded ? event.description : event.description.slice(0, 120)}
+                {!expanded && event.description.length > 120 ? "..." : ""}
+                {event.description.length > 120 && (
+                  <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-2 inline-flex items-center gap-1 text-sm font-semibold text-violet-600">
+                    {expanded ? "收起" : "展开"}
+                    <ChevronDownIcon up={expanded} />
+                  </button>
+                )}
+              </p>
+            )}
+
+            {tags.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-600"># {tag}</span>)}
               </div>
             )}
+
+            <div className="mt-5 space-y-2.5 text-xs text-neutral-700">
+              <div className="flex items-center gap-2.5"><ClockIcon className="h-4 w-4 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
+              {(event.venueName || event.address) && (
+                <div className="flex items-center gap-2.5">
+                  <IconPin className="h-4 w-4 text-neutral-400" />
+                  <span className="line-clamp-2 min-w-0 flex-1">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                  <button type="button" onClick={jumpToMap} className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-violet-600"><IconMap className="h-4 w-4" />查看路线</button>
+                </div>
+              )}
+            </div>
 
             <div className="mt-8">{commentSection()}</div>
           </main>
@@ -557,17 +524,17 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
-          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-6 top-6 grid h-12 w-12 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
-            <IconChevronLeft className="h-6 w-6" />
+          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
+            <IconChevronLeft className="h-5 w-5" />
           </button>
-          <div className="absolute right-8 top-8 flex gap-4">
+          <div className="absolute right-5 top-5 flex gap-2.5">
             <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
-              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-5 w-5" />{reactions.likeCount > 0 && <span className="mt-1 text-[10px]">{reactions.likeCount}</span>}</span>
+              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" />{reactions.likeCount > 0 && <span className="mt-0.5 text-[9px]">{reactions.likeCount}</span>}</span>
             </button>
             <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
-              <IconBookmark filled={reactions.favoritedByMe} className="h-5 w-5" />
+              <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
             </button>
-            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-5 w-5" /></button>
+            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
           </div>
           <div className="absolute bottom-16 left-8 right-8 text-white">
             <span className="mb-3 inline-flex rounded-lg bg-violet-500 px-3 py-1 text-sm font-bold">限定</span>
@@ -596,8 +563,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               <div className="pl-10">
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconPin className="h-4 w-4" />活动地点</div>
                 <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate">{event.venueName ?? "地点未定"}</span>
+                  <div className="flex min-w-0 items-start gap-1.5">
+                    <span className="line-clamp-2 min-w-0 flex-1">{event.venueName ?? "地点未定"}</span>
                     <CopyButton text={event.address || event.venueName || ""} label="复制地点" className="h-5 w-5 rounded-full hover:bg-neutral-100" />
                   </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
@@ -605,18 +572,18 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-indigo-500">查看地图 〉</button>
               </div>
             </div>
-            <div className="grid grid-cols-4 divide-x divide-neutral-100 border-t border-neutral-100 bg-neutral-50/70 px-2 py-3">
-              {[
-                [meta.label, <CategoryIcon key="cat" category={event.category} className="h-5 w-5" />],
-                ["官方", <IconBookmark key="official" className="h-4 w-4" />],
-                [`评论 ${comments.length}`, <IconHeart key="comments" className="h-4 w-4" />],
-                [`想去 ${reactions.signupCount}`, <IconHeart key="want" className="h-4 w-4" />],
-              ].map(([label, icon], index) => (
-                <div key={String(label)} className={cx("flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-none text-neutral-800", index > 0 && "pl-1")}>
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-500">{icon}</span>
-                  <span className="max-w-full truncate whitespace-nowrap">{label}</span>
-                </div>
-              ))}
+            <div className="border-t border-neutral-100 bg-neutral-50/70 px-4 py-3">
+              <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-600">
+                  <CategoryIcon category={event.category} className="h-4 w-4" />
+                  {meta.label}
+                </span>
+                {cardTags.map((tag) => (
+                  <span key={tag} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm ring-1 ring-neutral-100">
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -633,22 +600,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               )}
             </section>
           )}
-
-          <section className="grid grid-cols-3 rounded-2xl bg-neutral-50 px-3 py-3 text-neutral-900">
-            {[
-              ["开始", fmtShortDate(event.startTime), <ClockIcon key="clock" className="h-4 w-4" />],
-              ["收藏", `${reactions.favoriteCount}`, <IconBookmark key="fav" className="h-4 w-4" />],
-              ["评论", `${comments.length}`, <IconMap key="map" className="h-4 w-4" />],
-            ].map(([label, value, icon], index) => (
-              <div key={String(label)} className={cx("flex min-w-0 items-center justify-center gap-2 px-1", index > 0 && "border-l border-neutral-200")}>
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-indigo-400">{icon}</span>
-                <span className="min-w-0">
-                  <span className="block whitespace-nowrap text-[10px] leading-tight text-neutral-500">{label}</span>
-                  <span className="block truncate whitespace-nowrap text-xs font-bold leading-tight">{value}</span>
-                </span>
-              </div>
-            ))}
-          </section>
 
           <div className="mt-8">{commentSection()}</div>
 

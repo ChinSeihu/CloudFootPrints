@@ -51,6 +51,7 @@ export const connpassSource: Source = {
             description: e.catch || e.description || null,
             summary: null, // 摘要由管线 LLM 步骤生成
             category: classify(e.title, e.catch || e.description || ""),
+            tags: ["技术", "讲座", "交流"],
             venueName: e.place || null,
             address: e.address || null,
             imageUrl: null,

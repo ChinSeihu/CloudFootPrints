@@ -33,6 +33,26 @@ export function classifyByKeyword(text: string): EventCategory {
   return "OTHER";
 }
 
+function tagsByKeyword(text: string, category: EventCategory): string[] {
+  const tags: string[] = [];
+  const add = (tag: string) => { if (!tags.includes(tag) && tags.length < 5) tags.push(tag); };
+  if (/無料|入場無料/.test(text)) add("免费");
+  if (/親子|子ども|こども|ファミリー|キッズ/.test(text)) add("亲子");
+  if (/雨|屋内|室内/.test(text)) add("雨天");
+  if (/夜|ライトアップ|ナイト/.test(text)) add("夜间");
+  if (/花|桜|紫陽花|紅葉|イルミネーション/.test(text)) add("季节限定");
+  if (/写真|フォト|撮影|映え/.test(text)) add("摄影");
+  if (/体験|ワークショップ|没入|インタラクティブ/.test(text)) add("体验");
+  if (/グルメ|食|フード|カフェ|ビール|酒/.test(text)) add("美食");
+  if (category === "EXHIBITION") add("展览");
+  if (category === "MARKET") add("市集");
+  if (category === "LIVE") add("Live");
+  if (category === "FESTIVAL") add("祭典");
+  if (category === "TALK") add("讲座");
+  if (category === "SPORTS") add("运动");
+  return tags;
+}
+
 // 从 HTML 抽取所有 schema.org Event（兼容顶层数组 / @graph / 单对象）。
 export function extractLdEvents(html: string): LdEvent[] {
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
@@ -59,11 +79,14 @@ export function ldToExtracted(e: LdEvent): ExtractedEvent {
   // 重复拼接干扰地理编码；没有 street（如列表页）→ 退回拼「都道府县+区+场馆名」。
   const address =
     street || [a?.addressRegion, a?.addressLocality, venue].filter(Boolean).join("") || null;
+  const text = `${e.name ?? ""} ${e.description ?? ""}`;
+  const category = classifyByKeyword(text);
   return {
     title: e.name!,
     description: e.description ?? null,
     summary: null, // 摘要由管线 LLM 步骤生成
-    category: classifyByKeyword(`${e.name ?? ""} ${e.description ?? ""}`),
+    category,
+    tags: tagsByKeyword(text, category),
     venueName: venue || null,
     address,
     imageUrl: e.image ?? null,

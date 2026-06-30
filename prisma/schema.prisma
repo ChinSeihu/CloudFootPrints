@@ -42,6 +42,7 @@ model Event {
   venueName   String?
   address     String?
   imageUrl    String?       // 封面图 URL（LLM 抽取/卡片/地图用）
+  tags        String[]      @default([]) // LLM 整理的活动标签（详情页展示）
   lat         Float
   lng         Float
   startTime   DateTime?

@@ -11,7 +11,10 @@
 - **Real counts only**: removed placeholder engagement numbers from event details; likes, comments, favorites, and want-to-go counts now only use live reaction/comment data.
 - **Gallery and expand polish**: detail images now open in the lightbox, user-post multi-image galleries scroll horizontally, venue text is smaller, and expand/collapse uses SVG chevrons instead of text glyphs.
 - **Official detail polish**: official hero images are clickable for full-screen viewing, event time text is smaller, and venue rows now expose a copy action.
-**Files:** `src/components/Recommend/EventDetail.tsx`
+- **Meaningful event tags**: official events now store LLM/extracted `tags`, detail info cards show activity tags instead of filler stats, and bottom action buttons / user-post headers are more compact.
+- **User post detail flow**: user post details now lead with the image gallery, then title/body/tags/location; the feedback card is hidden until a better signal is available.
+- **User post top actions**: user-post detail top buttons now match official detail sizing, and the inactive more menu is replaced with like / favorite actions.
+**Files:** `src/components/Recommend/EventDetail.tsx`, `prisma/schema.prisma`, `prisma/migrations/20260630102000_add_event_tags/migration.sql`, `src/lib/llm.ts`, `src/services/events.ts`, `src/services/extraction/types.ts`, `src/services/extraction/ingest.ts`, `src/services/extraction/sources/connpass.ts`, `src/services/extraction/sources/jsonLd.ts`
 
 ---
 

@@ -53,7 +53,7 @@ export function normalizeOfficial(e: Event): NormalizedEvent {
     imageUrl: e.imageUrl, imageUrls: [], lat: e.lat, lng: e.lng,
     startTime: e.startTime, endTime: e.endTime,
     sourceType: e.sourceType, sourceUrl: e.sourceUrl, trustLevel: e.trustLevel,
-    tags: [], signupEnabled: false, featuredToday: e.featuredToday, userId: null,
+    tags: e.tags, signupEnabled: false, featuredToday: e.featuredToday, userId: null,
     createdAt: e.createdAt, updatedAt: e.updatedAt,
   };
 }

@@ -9,6 +9,7 @@ export const ExtractedEventSchema = z.object({
   category: z.enum(EVENT_CATEGORIES),
   venueName: z.string().nullable().default(null),
   address: z.string().nullable().default(null),
+  tags: z.array(z.string()).default([]), // 活动标签，短词，详情页展示
   imageUrl: z.string().nullable().default(null), // 活动主图 URL（http/https）
   sourceUrl: z.string().nullable().default(null), // 该活动自己的详情页/官网链接（缺则回退源列表页）
   startTime: z.string().nullable().default(null), // ISO 8601 字符串
