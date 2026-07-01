@@ -1,7 +1,7 @@
 import { getEventsInBounds } from "@/services/events";
 import { RecommendList } from "@/components/Recommend/RecommendList";
 import { prisma } from "@/lib/db";
-import type { EventDTO } from "@/lib/types";
+import type { CheckInDTO, EventDTO } from "@/lib/types";
 
 // 推荐页：小红书式瀑布流（masonry）。
 // v1 仅搭出页面与卡片，排序用简单规则（按开始时间）占位；
@@ -45,9 +45,21 @@ async function loadEventMetrics(ids: string[]) {
 
 export default async function RecommendPage() {
   let events: EventDTO[] = [];
+  let checkins: CheckInDTO[] = [];
   let dbError = false;
   try {
-    const rows = await getEventsInBounds(TOKYO_BBOX);
+    const [rows, checkinRows] = await Promise.all([
+      getEventsInBounds(TOKYO_BBOX),
+      prisma.checkIn.findMany({
+        where: { isPublic: true },
+        orderBy: { createdAt: "desc" },
+        take: 40,
+        include: {
+          event: { select: { id: true, title: true, category: true } },
+          post: { select: { id: true, title: true, category: true } },
+        },
+      }),
+    ]);
     const now = Date.now();
     const upcoming = rows
       // 过期活动默认不显示（结束时间早于现在；未定档活动保留）。
@@ -80,6 +92,20 @@ export default async function RecommendPage() {
         author: e.author ?? null,
         metrics: metrics.get(e.id) ?? { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 },
       }));
+
+    const authorIds = [...new Set(checkinRows.map((row) => row.userId).filter(Boolean))];
+    const authors = authorIds.length
+      ? await prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, username: true, avatarUrl: true } })
+      : [];
+    const authorMap = new Map(authors.map((author) => [author.id, author]));
+    checkins = checkinRows.map(({ post, ...row }) => ({
+      ...row,
+      event: row.event ?? post ?? null,
+      postId: row.postId ?? null,
+      isMine: false,
+      author: authorMap.get(row.userId) ?? null,
+      createdAt: row.createdAt.toISOString(),
+    }));
   } catch {
     dbError = true;
   }
@@ -98,7 +124,7 @@ export default async function RecommendPage() {
         </p>
       )}
 
-      <RecommendList events={events} />
+      <RecommendList events={events} checkins={checkins} />
     </div>
   );
 }

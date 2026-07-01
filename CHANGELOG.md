@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-07-01
+
+### Redesign recommend activity and discovery tabs
+- **Activity tab**: rebuilt the recommend page around the supplied activity-page reference with a stronger official featured banner, category shortcuts, hot activity carousel, and recommendation cards.
+- **Discovery tab**: added a user-content focused discovery view with user post cards using the app's personal post styling, nearby public checkin cards, and real same-day mood stats.
+- **Public checkins**: recommend page now loads recent public footprints alongside event data so discovery content can show actual user footprints instead of reusing official event cards.
+**Files:** `src/components/Recommend/RecommendList.tsx`, `src/app/recommend/page.tsx`
+
+---
+
 ## 2026-06-30
 
 ### Improve extracted event times

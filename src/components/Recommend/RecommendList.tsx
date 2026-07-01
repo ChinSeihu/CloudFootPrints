@@ -2,27 +2,40 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
-import { CategoryIcon, IconPin } from "@/components/icons";
+import { CategoryIcon, IconHeart, IconMap, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
 import { isUserPost } from "@/components/common/EventSource";
+import { moodTagOf } from "@/lib/moods";
+import { Avatar } from "@/components/common/Avatar";
 import { EventDetail } from "./EventDetail";
-import type { EventDTO, EventMetrics } from "@/lib/types";
+import type { CheckInDTO, EventDTO, EventMetrics } from "@/lib/types";
 
-type TopTab = "OFFICIAL" | "USER";
-
-const TOP_TABS: { k: TopTab; label: string }[] = [
-  { k: "OFFICIAL", label: "活动" },
-  { k: "USER", label: "发现" },
-];
+type TopTab = "OFFICIAL" | "DISCOVER";
+type DiscoverFilter = "follow" | "near" | "new" | "hot";
 
 const EMPTY_METRICS: EventMetrics = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 };
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-function fmt(d: string | null): string {
+function fmtDate(d: string | null): string {
   if (!d) return "时间待定";
   return new Date(d).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+function fmtTime(d: string | null): string {
+  if (!d) return "";
+  return new Date(d).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function relativeTime(value: string): string {
+  const diff = Date.now() - Date.parse(value);
+  if (!Number.isFinite(diff)) return "";
+  const min = Math.max(1, Math.floor(diff / 60_000));
+  if (min < 60) return `${min}分钟前`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}小时前`;
+  return `${Math.floor(hour / 24)}天前`;
 }
 
 function metricsOf(ev: EventDTO): EventMetrics {
@@ -41,15 +54,6 @@ function fallbackFeaturedScore(ev: EventDTO): number {
   return m.clickCount + m.likeCount * 4 + m.favoriteCount * 3;
 }
 
-function pickReason(ev: EventDTO): string {
-  const parts: string[] = [];
-  if (ev.featuredToday) parts.push("今日精选");
-  if (ev.imageUrl) parts.push("图像完整");
-  if (ev.startTime) parts.push("近期可去");
-  if (ev.venueName) parts.push("地点明确");
-  return parts.length ? `推荐理由：${parts.slice(0, 3).join(" · ")}` : "推荐理由：信息完整";
-}
-
 function matchesQuery(ev: EventDTO, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -60,7 +64,33 @@ function matchesQuery(ev: EventDTO, query: string): boolean {
     .includes(q);
 }
 
-export function RecommendList({ events }: { events: EventDTO[] }) {
+function imageOfCheckin(checkin: CheckInDTO): string | null {
+  return checkin.photoUrls?.[0] ?? checkin.photoUrl ?? null;
+}
+
+function tokyoDayKey(value: string): string {
+  return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+}
+
+function PostSourceBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+      用户发帖
+    </span>
+  );
+}
+
+function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-2.5 flex items-end justify-between">
+      <h2 className="text-[15px] font-black text-neutral-950">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+export function RecommendList({ events, checkins }: { events: EventDTO[]; checkins: CheckInDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const targetId = useRef<string | null>(null);
@@ -71,12 +101,9 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [colCount, setColCount] = useState(2);
-  const [visibleCount, setVisibleCount] = useState(12);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("follow");
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const listRef = useRef<HTMLElement | null>(null);
 
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
@@ -115,33 +142,45 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [filterOpen]);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 640px)");
-    const update = () => setColCount(mq.matches ? 3 : 2);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  const filtered = useMemo(() => {
-    return events.filter((e) => {
-      if (isUserPost(e.sourceType) !== (tab === "USER")) return false;
-      if (cat !== "ALL" && e.category !== cat) return false;
-      if (!eventInDayRange(e, dateRange)) return false;
-      return matchesQuery(e, query);
-    });
-  }, [events, tab, cat, dateRange, query]);
-
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
+  const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
   const featuredEvents = useMemo(() => {
     const flagged = rankedOfficial.filter((e) => e.featuredToday);
     const fallback = [...officialEvents].sort((a, b) => fallbackFeaturedScore(b) - fallbackFeaturedScore(a) || heatScore(b) - heatScore(a));
-    const source = flagged.length > 0 ? flagged : fallback;
-    return source.slice(0, 5);
+    return (flagged.length ? flagged : fallback).slice(0, 5);
   }, [officialEvents, rankedOfficial]);
   const hero = featuredEvents[heroIndex % Math.max(1, featuredEvents.length)] ?? rankedOfficial[0] ?? events[0];
   const hot = rankedOfficial.filter((e) => !featuredEvents.some((f) => f.id === e.id)).slice(0, 8);
+  const recommended = rankedOfficial.slice(0, 6);
+
+  const activityList = useMemo(() => {
+    return officialEvents
+      .filter((e) => (cat === "ALL" || e.category === cat) && eventInDayRange(e, dateRange) && matchesQuery(e, query))
+      .sort((a, b) => heatScore(b) - heatScore(a))
+      .slice(0, 24);
+  }, [officialEvents, cat, dateRange, query]);
+
+  const discoverPosts = useMemo(() => {
+    const list = userPosts.filter((e) => matchesQuery(e, query));
+    if (discoverFilter === "new") return [...list].sort((a, b) => Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? ""));
+    if (discoverFilter === "hot") return [...list].sort((a, b) => heatScore(b) - heatScore(a));
+    return [...list].sort((a, b) => (b.imageUrl ? 1 : 0) - (a.imageUrl ? 1 : 0) || heatScore(b) - heatScore(a));
+  }, [userPosts, query, discoverFilter]);
+
+  const moodStats = useMemo(() => {
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    const counts = new Map<number, number>();
+    for (const checkin of checkins) {
+      if (tokyoDayKey(checkin.createdAt) !== today) continue;
+      for (const value of checkin.moodTags ?? []) counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([value, count]) => ({ mood: moodTagOf(value), count }))
+      .filter((item): item is { mood: NonNullable<ReturnType<typeof moodTagOf>>; count: number } => !!item.mood)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [checkins]);
 
   useEffect(() => {
     setHeroIndex(0);
@@ -149,52 +188,21 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
 
   useEffect(() => {
     if (featuredEvents.length <= 1) return;
-    const timer = setInterval(() => {
-      setHeroIndex((i) => (i + 1) % featuredEvents.length);
-    }, 4500);
+    const timer = setInterval(() => setHeroIndex((i) => (i + 1) % featuredEvents.length), 4500);
     return () => clearInterval(timer);
   }, [featuredEvents.length]);
 
-  const suggestions = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const e of events) for (const t of displayTags(e)) count.set(t, (count.get(t) ?? 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t);
-  }, [events]);
-
-  const shown = filtered.slice(0, visibleCount);
-  const columns = useMemo(() => {
-    const cols: EventDTO[][] = Array.from({ length: colCount }, () => []);
-    shown.forEach((ev, i) => cols[i % colCount].push(ev));
-    return cols;
-  }, [shown, colCount]);
-
-  useEffect(() => { setVisibleCount(12); }, [tab, cat, dateRange, query]);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) setVisibleCount((v) => Math.min(v + 12, filtered.length));
-    }, { rootMargin: "400px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [filtered.length]);
-
-  function showAllHot() {
-    setTab("OFFICIAL");
-    setCat("ALL");
-    setDateRange(ALL_DATES);
-    setQuery("");
-    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   return (
-    <div className="-mx-3 min-h-full bg-slate-50 px-4 pb-5 pt-3">
+    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-4 pb-5 pt-4">
       <header className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black text-neutral-950">东京活动地图</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">发现东京的美好活动</p>
+          <h1 className="text-xl font-black tracking-tight text-neutral-950">东京活动地图</h1>
+          <p className="mt-0.5 text-xs text-neutral-500">{tab === "OFFICIAL" ? "发现东京的精彩活动" : "看看大家在东京的生活"}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <span className="hidden items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-sm ring-1 ring-black/5 sm:inline-flex">
+            <IconPin className="h-3.5 w-3.5" />东京
+          </span>
           <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${query ? "text-blue-600" : "text-neutral-900"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
@@ -218,112 +226,227 @@ export function RecommendList({ events }: { events: EventDTO[] }) {
       {searchOpen && (
         <div className="mb-3 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">
           <div className="flex items-center gap-2">
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索活动、场馆、标签" className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索活动、地点、标签" className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
             <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-xs font-semibold text-blue-600">取消</button>
           </div>
-          {query.trim() === "" && suggestions.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{suggestions.map((s) => <button key={s} type="button" onClick={() => setQuery(s)} className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600">#{s}</button>)}</div>}
         </div>
       )}
 
-      {hero && (
-        <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
-          <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
-            <div className="aspect-[16/9]">
-              {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
-            <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-              <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-600">每日精选</span>
-              <span className="rounded-full bg-white/85 px-2.5 py-1 text-xs font-semibold text-neutral-800">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{featuredEvents.length}</span>
-            </div>
-            <div className="absolute bottom-5 left-3 right-3 text-white">
-              <p className="text-[11px] font-semibold opacity-90">{CATEGORY_META[hero.category]?.label} · {fmt(hero.startTime)}</p>
-              <h2 className="mt-1 line-clamp-2 text-[14px] font-black leading-tight">{hero.title}</h2>
-              <p className="mt-1 line-clamp-1 text-xs opacity-90">{hero.venueName ?? "东京"} · {pickReason(hero)}</p>
-            </div>
-          </button>
-          {featuredEvents.length > 1 && (
-            <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5">
-              {featuredEvents.map((event, index) => {
-                const active = index === heroIndex % featuredEvents.length;
-                return (
-                  <button
-                    key={event.id}
-                    type="button"
-                    aria-label={`切换到精选 ${index + 1}`}
-                    onClick={() => setHeroIndex(index)}
-                    className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
+      <nav className="mb-3 grid grid-cols-2 border-b border-neutral-200 bg-[#F7F9FC]">
+        {[
+          ["OFFICIAL", "活动"],
+          ["DISCOVER", "发现"],
+        ].map(([key, label]) => {
+          const active = tab === key;
+          const color = key === "DISCOVER" ? "bg-emerald-500" : "bg-blue-600";
+          return (
+            <button key={key} type="button" onClick={() => setTab(key as TopTab)} className={`relative py-2 text-sm font-bold ${active ? "text-neutral-950" : "text-neutral-400"}`}>
+              {label}
+              {active && <span className={`absolute bottom-[-1px] left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full ${color}`} />}
+            </button>
+          );
+        })}
+      </nav>
 
-      <section className="mt-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-black text-neutral-950">本周热门</h2>
-          <button type="button" onClick={showAllHot} className="text-xs font-semibold text-blue-600">查看全部</button>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {hot.map((ev) => {
-            const meta = CATEGORY_META[ev.category];
-            return (
-              <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8.5rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
-                <div className="relative aspect-square bg-neutral-100">
-                  {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
-                  <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
+      {tab === "OFFICIAL" ? (
+        <div className="space-y-5">
+          {hero && (
+            <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
+              <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
+                <div className="aspect-[16/8.5]">
+                  {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
                 </div>
-                <div className="p-2.5">
-                  <h3 className="line-clamp-2 min-h-[2.35rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
-                  <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmt(ev.startTime)}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
+                <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
+                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">官方精选</span>
+                  <span className="rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{Math.max(1, featuredEvents.length)}</span>
+                </div>
+                <div className="absolute bottom-5 left-3 right-3 text-white">
+                  <h2 className="line-clamp-2 text-xl font-black leading-tight">{hero.title}</h2>
+                  <p className="mt-1 text-xs font-medium opacity-90">{fmtDate(hero.startTime)} · {hero.venueName ?? "东京"}</p>
                 </div>
               </button>
-            );
-          })}
-        </div>
-      </section>
+              {featuredEvents.length > 1 && (
+                <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5">
+                  {featuredEvents.map((event, index) => {
+                    const active = index === heroIndex % featuredEvents.length;
+                    return <button key={event.id} type="button" aria-label={`切换精选 ${index + 1}`} onClick={() => setHeroIndex(index)} className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`} />;
+                  })}
+                </div>
+              )}
+            </section>
+          )}
 
-      <section ref={listRef} className="sticky top-0 z-20 -mx-4 mt-4 bg-slate-50/95 px-4 py-2 backdrop-blur">
-        <div className="mb-2 flex items-center justify-center gap-10">
-          {TOP_TABS.map(({ k, label }) => <button key={k} type="button" onClick={() => setTab(k)} className={`relative pb-1 text-sm font-bold ${tab === k ? "text-neutral-950" : "text-neutral-400"}`}>{label}{tab === k && <span className="absolute bottom-0 left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full bg-blue-600" />}</button>)}
-        </div>
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button type="button" onClick={() => setCat("ALL")} className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold ${cat === "ALL" ? "bg-blue-600 text-white" : "bg-white text-neutral-500 ring-1 ring-black/5"}`}>全部</button>
-          {EVENT_CATEGORIES.map((c) => {
-            const meta = CATEGORY_META[c];
-            const active = cat === c;
-            return <button key={c} type="button" onClick={() => setCat(active ? "ALL" : c)} className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold ${active ? "text-white" : "bg-white text-neutral-500 ring-1 ring-black/5"}`} style={active ? { backgroundColor: meta.color } : undefined}><CategoryIcon category={c} className="h-3.5 w-3.5" />{meta.label}</button>;
-          })}
-        </div>
-      </section>
-
-      {filtered.length === 0 ? <p className="py-8 text-center text-sm text-neutral-400">没有找到匹配的内容。</p> : (
-        <div className="mt-3 flex items-start gap-3">
-          {columns.map((col, ci) => (
-            <div key={ci} className="flex min-w-0 flex-1 flex-col gap-3">
-              {col.map((ev) => {
-                const meta = CATEGORY_META[ev.category];
-                const tags = displayTags(ev);
+          <section className="rounded-[22px] bg-white px-3 py-3 shadow-sm ring-1 ring-black/5">
+            <div className="grid grid-cols-6 gap-2">
+              {EVENT_CATEGORIES.slice(0, 5).map((c) => {
+                const meta = CATEGORY_META[c];
                 return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-full overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-md">
-                    {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="max-h-44 w-full object-cover" />}
-                    <div className="p-3">
-                      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label} · {fmt(ev.startTime)}</div>
-                      <h2 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h2>
-                      {ev.venueName && <div className="mt-1 flex items-center gap-1 text-xs text-neutral-500"><IconPin className="h-3 w-3 shrink-0" /><span className="truncate">{ev.venueName}</span></div>}
-                      {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((t) => <span key={t} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">#{t}</span>)}</div>}
+                  <button key={c} type="button" onClick={() => setCat(cat === c ? "ALL" : c)} className="flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold text-neutral-700">
+                    <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-50 text-blue-600"><CategoryIcon category={c} className="h-5 w-5" /></span>
+                    {meta.label}
+                  </button>
+                );
+              })}
+              <button type="button" onClick={() => setCat("ALL")} className="flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold text-neutral-700">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100 text-neutral-600"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
+                全部
+              </button>
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle title="热门活动" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {hot.map((ev) => {
+                const meta = CATEGORY_META[ev.category];
+                return (
+                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8.7rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
+                    <div className="relative aspect-square bg-neutral-100">
+                      {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                      <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
+                    </div>
+                    <div className="p-2.5">
+                      <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
+                      <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime)}</p>
                     </div>
                   </button>
                 );
               })}
             </div>
-          ))}
+          </section>
+
+          <section>
+            <SectionTitle title="为你推荐" />
+            <div className="grid grid-cols-3 gap-2">
+              {recommended.slice(0, 3).map((ev) => (
+                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
+                  <div className="aspect-[4/3] bg-neutral-100">{ev.imageUrl && <img src={ev.imageUrl} alt="" className="h-full w-full object-cover" />}</div>
+                  <div className="p-2">
+                    <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
+                    <p className="mt-1 truncate text-[10px] text-neutral-400">{fmtDate(ev.startTime)}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {activityList.length > 0 && (
+            <section>
+              <SectionTitle title="全部活动" />
+              <div className="grid grid-cols-2 gap-3">
+                {activityList.slice(0, 12).map((ev) => {
+                  const meta = CATEGORY_META[ev.category];
+                  return (
+                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
+                      {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
+                      <div className="p-3">
+                        <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label}</div>
+                        <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
+                        <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? fmtDate(ev.startTime)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              ["follow", "关注"],
+              ["near", "附近"],
+              ["new", "最新"],
+              ["hot", "热门"],
+            ].map(([key, label]) => {
+              const active = discoverFilter === key;
+              return <button key={key} type="button" onClick={() => setDiscoverFilter(key as DiscoverFilter)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold shadow-sm ring-1 ring-black/5 ${active ? "bg-emerald-600 text-white" : "bg-white text-neutral-500"}`}>{label}</button>;
+            })}
+          </div>
+
+          <section>
+            <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            {discoverPosts.length === 0 ? (
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {discoverPosts.slice(0, 6).map((post) => {
+                const imgs = post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
+                const tags = displayTags(post);
+                const likeCount = metricsOf(post).likeCount;
+                return (
+                  <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white p-2.5 text-left shadow-sm ring-1 ring-black/5">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Avatar user={post.author} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-neutral-950">{post.author?.username ?? "用户"}</p>
+                        <p className="text-[10px] text-neutral-400">{post.createdAt ? relativeTime(post.createdAt) : fmtDate(post.startTime)}</p>
+                      </div>
+                      <span className="text-neutral-300">•••</span>
+                    </div>
+                    <PostSourceBadge />
+                    <h3 className="mt-2 line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
+                    {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
+                    {imgs.length > 0 && (
+                      <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
+                        {imgs.slice(0, 3).map((src, index) => <img key={`${src}-${index}`} src={src} alt="" className="h-16 w-full object-cover" />)}
+                      </div>
+                    )}
+                    {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">{tag}</span>)}</div>}
+                    {likeCount > 0 && <div className="mt-2 text-[11px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
+                  </button>
+                );
+              })}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <SectionTitle title="附近足迹（用户签到）" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            {checkins.length === 0 ? (
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {checkins.slice(0, 10).map((checkin) => {
+                const mood = moodTagOf(checkin.moodTags?.[0] ?? checkin.rating ?? null);
+                const image = imageOfCheckin(checkin);
+                return (
+                  <div key={checkin.id} className="w-[7.4rem] shrink-0 rounded-2xl bg-white p-2.5 shadow-sm ring-1 ring-black/5">
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <Avatar user={checkin.author} size={24} />
+                      <span className="truncate text-[11px] font-bold text-neutral-900">{checkin.author?.username ?? "用户"}</span>
+                    </div>
+                    {image ? <img src={image} alt="" className="h-20 w-full rounded-xl object-cover" /> : <div className="grid h-20 place-items-center rounded-xl bg-gradient-to-br from-emerald-50 to-blue-50 px-2 text-center text-xs font-bold text-emerald-700">{checkin.event?.title ?? "东京足迹"}</div>}
+                    {mood && <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>}
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-700">{checkin.note || checkin.event?.title || "来过这里"}</p>
+                    <p className="mt-1 text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)}</p>
+                  </div>
+                );
+              })}
+              </div>
+            )}
+          </section>
+
+          {moodStats.length > 0 && (
+            <section>
+              <SectionTitle title="今日心情" />
+              <div className="grid grid-cols-4 gap-3">
+                {moodStats.map(({ mood, count }) => (
+                  <div key={mood.value} className={`min-h-28 rounded-2xl border p-3 ${mood.tone}`}>
+                    <p className="text-sm font-black">{mood.label}</p>
+                    <p className="mt-1 text-[11px] opacity-75">今天最多</p>
+                    <p className="mt-2 text-lg font-black">{count}</p>
+                    <mood.Icon className="ml-auto mt-1 h-8 w-8 opacity-50" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
-      {visibleCount < filtered.length && <div ref={sentinelRef} className="h-10" />}
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
       {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
     </div>
