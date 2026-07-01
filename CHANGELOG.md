@@ -6,6 +6,13 @@
 
 ## 2026-07-01
 
+### Align footprint cards and post metadata
+- **Nearby footprints**: vertically centered footprint text with the right-side photo strip and added per-photo counters such as `1/3` on multi-photo previews.
+- **User post detail**: removed the separate shooting-time row and merged author identity with location metadata into one compact information block.
+**Files:** `src/components/Recommend/RecommendList.tsx`, `src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### Compact recommend and detail mobile layouts
 - **Recommend mobile density**: tightened the recommend page header, tab switcher, hero banner, category shortcut row, and hot activity cards for narrow phone screens without using global scaling.
 - **Nearby footprints**: changed footprint cards to a single-column feed; text uses normal weight, and photos sit in a right-side one-third preview area with up to three horizontal thumbnails.

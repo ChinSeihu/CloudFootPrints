@@ -231,7 +231,9 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           {urls.slice(0, 3).map((src, index) => (
             <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
               <img src={src} alt={title} className="h-full w-full object-cover" />
-              {index === 2 && urls.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-xs font-black text-white">+{urls.length - 3}</span>}
+              <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
+                {index + 1}/{urls.length}
+              </span>
             </button>
           ))}
         </div>
@@ -287,7 +289,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
       <article key={checkin.id} className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
               <Avatar user={checkin.author} size={30} />
