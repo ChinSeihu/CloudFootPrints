@@ -555,37 +555,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </div>
           </div>
 
-          <section className="rounded-2xl bg-neutral-50 px-3 py-3">
-            <div className="flex items-start gap-2.5">
-              <Avatar user={event.author} size={36} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
-                </div>
-                {(event.venueName || event.address) && (
-                  <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-4 text-neutral-500">
-                    <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
-                    <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
-                  </div>
-                )}
-              </div>
-              {event.author?.id && user?.id !== event.author.id && (
-                <button
-                  type="button"
-                  onClick={toggleAuthorFollow}
-                  className={cx(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
-                    authorFollowActive
-                      ? "border-neutral-200 bg-white text-neutral-500"
-                      : "border-violet-200 bg-white text-violet-600",
-                  )}
-                >
-                  {authorFollowActive ? "已关注" : "关注"}
-                </button>
-              )}
-            </div>
-          </section>
-
           <main className="mt-3 flex-1 sm:mt-6">
             {images.length > 0 && (
               <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-7 sm:px-7 [&::-webkit-scrollbar]:hidden">
@@ -610,6 +579,43 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
+            <section className="mt-2 rounded-2xl bg-neutral-50 px-3 py-3 sm:mt-3">
+              <div className="flex items-start gap-2.5">
+                <Avatar user={event.author} size={36} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
+                  </div>
+                  {(event.venueName || event.address) && (
+                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-4 text-neutral-500">
+                      <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                      <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                    </div>
+                  )}
+                </div>
+                {event.author?.id && user?.id !== event.author.id && (
+                  <button
+                    type="button"
+                    onClick={toggleAuthorFollow}
+                    className={cx(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+                      authorFollowActive
+                        ? "border-neutral-200 bg-white text-neutral-500"
+                        : "border-violet-200 bg-white text-violet-600",
+                    )}
+                  >
+                    {authorFollowActive ? "已关注" : "关注"}
+                  </button>
+                )}
+              </div>
+              {(event.venueName || event.address) && (
+                <button type="button" onClick={jumpToMap} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
+                  <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  查看路线
+                </button>
+              )}
+            </section>
+
             <h1 className="mt-3 text-[15px] font-black leading-snug tracking-normal text-neutral-950 sm:mt-5 sm:text-[17px]">{event.title}</h1>
 
             {event.description && (
@@ -629,13 +635,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-5 sm:gap-2">
                 {tags.map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-600 sm:px-3 sm:py-1.5 sm:text-xs"># {tag}</span>)}
               </div>
-            )}
-
-            {(event.venueName || event.address) && (
-              <button type="button" onClick={jumpToMap} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
-                <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                查看路线
-              </button>
             )}
 
             <div className="mt-3 sm:mt-4">{detailActionStrip("举报")}</div>

@@ -246,12 +246,15 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
         </button>
       );
     }
+    const visible = urls.slice(0, 6);
     return (
-      <div className={`mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl ${compact ? "h-24" : "h-32"}`}>
-        {urls.slice(0, 3).map((src, index) => (
-          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 overflow-hidden bg-neutral-100">
+      <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
+        {visible.map((src, index) => (
+          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative min-w-0 overflow-hidden bg-neutral-100 ${compact ? "h-20" : "h-24"}`}>
             <img src={src} alt={title} className="h-full w-full object-cover" />
-            {index === 2 && urls.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-sm font-black text-white">+{urls.length - 3}</span>}
+            <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
+              {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
+            </span>
           </button>
         ))}
       </div>
@@ -309,8 +312,9 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
               </button>
             )}
           </div>
-          {imageGrid(urls, text, compact, true)}
+          {!expanded && imageGrid(urls, text, compact, true)}
         </div>
+        {expanded && imageGrid(urls, text, compact, false)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}

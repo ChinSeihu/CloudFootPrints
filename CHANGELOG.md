@@ -6,6 +6,13 @@
 
 ## 2026-07-01
 
+### Reposition post author block and expanded footprint photos
+- **Footprint expansion**: expanded footprint cards now move photos below the text in a three-column grid, showing additional rows where space allows and using counters like `6/10` on the last visible image when more photos remain.
+- **User post detail**: moved the author/location information block from above the photo carousel to directly below it, keeping the post image as the first visual focus.
+**Files:** `src/components/Recommend/RecommendList.tsx`, `src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### Align footprint cards and post metadata
 - **Nearby footprints**: vertically centered footprint text with the right-side photo strip and added per-photo counters such as `1/3` on multi-photo previews.
 - **User post detail**: removed the separate shooting-time row and merged author identity with location metadata into one compact information block.
