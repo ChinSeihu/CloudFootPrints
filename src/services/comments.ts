@@ -24,12 +24,97 @@ async function resolveTarget(id: string): Promise<{ eventId: string } | { postId
   return null;
 }
 
+function targetWhere(targetId: string) {
+  return { OR: [{ eventId: targetId }, { postId: targetId }] };
+}
+
 export async function listComments(targetId: string) {
   const comments = await prisma.comment.findMany({
-    where: { OR: [{ eventId: targetId }, { postId: targetId }] },
+    where: targetWhere(targetId),
     orderBy: { createdAt: "asc" },
   });
   return withAuthors(comments);
+}
+
+export async function listCommentPage(
+  targetId: string,
+  opts: { limit?: number; cursor?: string | null; sort?: "hot" | "new"; replyLimit?: number } = {},
+) {
+  const limit = Math.min(Math.max(opts.limit ?? 10, 1), 20);
+  const replyLimit = Math.min(Math.max(opts.replyLimit ?? 3, 0), 10);
+  const orderBy = opts.sort === "hot"
+    ? [{ replies: { _count: "desc" as const } }, { createdAt: "desc" as const }]
+    : [{ createdAt: "desc" as const }];
+
+  const roots = await prisma.comment.findMany({
+    where: { ...targetWhere(targetId), parentId: null },
+    orderBy,
+    take: limit + 1,
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+  });
+  const visibleRoots = roots.slice(0, limit);
+  const rootIds = visibleRoots.map((comment) => comment.id);
+  const replyRows = rootIds.length
+    ? await Promise.all(rootIds.map(async (rootId) => {
+        const [items, total] = await Promise.all([
+          prisma.comment.findMany({
+            where: { ...targetWhere(targetId), parentId: rootId },
+            orderBy: { createdAt: "asc" },
+            take: replyLimit + 1,
+          }),
+          prisma.comment.count({ where: { ...targetWhere(targetId), parentId: rootId } }),
+        ]);
+        return { rootId, items: items.slice(0, replyLimit), total, hasMore: items.length > replyLimit };
+      }))
+    : [];
+
+  const comments = await withAuthors([...visibleRoots, ...replyRows.flatMap((row) => row.items)]);
+  const replyMeta = Object.fromEntries(
+    replyRows.map((row) => [
+      row.rootId,
+      {
+        total: row.total,
+        loaded: row.items.slice(0, replyLimit).length,
+        hasMore: row.hasMore,
+        nextCursor: row.items.slice(0, replyLimit).at(-1)?.id ?? null,
+      },
+    ]),
+  );
+  const totalCount = await prisma.comment.count({ where: targetWhere(targetId) });
+
+  return {
+    comments,
+    totalCount,
+    hasMore: roots.length > limit,
+    nextCursor: visibleRoots.at(-1)?.id ?? null,
+    replyMeta,
+  };
+}
+
+export async function listReplyPage(
+  targetId: string,
+  rootId: string,
+  opts: { limit?: number; cursor?: string | null } = {},
+) {
+  const limit = Math.min(Math.max(opts.limit ?? 10, 1), 20);
+  const root = await prisma.comment.findFirst({
+    where: { ...targetWhere(targetId), id: rootId, parentId: null },
+    select: { id: true },
+  });
+  if (!root) return { comments: [], hasMore: false, nextCursor: null };
+
+  const replies = await prisma.comment.findMany({
+    where: { ...targetWhere(targetId), parentId: rootId },
+    orderBy: { createdAt: "asc" },
+    take: limit + 1,
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+  });
+  const visible = replies.slice(0, limit);
+  return {
+    comments: await withAuthors(visible),
+    hasMore: replies.length > limit,
+    nextCursor: visible.at(-1)?.id ?? null,
+  };
 }
 
 export type CreateCommentResult =

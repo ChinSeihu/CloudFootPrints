@@ -14,6 +14,11 @@ import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
 type CommentSort = "hot" | "new";
+type ReplyPageMeta = { total: number; loaded: number; hasMore: boolean; nextCursor: string | null; loading?: boolean };
+
+const COMMENT_PAGE_SIZE = 10;
+const REPLY_PREVIEW_SIZE = 3;
+const REPLY_PAGE_SIZE = 10;
 
 const cx = (...items: Array<string | false | null | undefined>) => items.filter(Boolean).join(" ");
 
@@ -93,6 +98,15 @@ function ChevronDownIcon({ className = "h-4 w-4", up = false }: { className?: st
   );
 }
 
+function TinyLoading({ label = "加载中" }: { label?: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
+      <span className="h-3 w-3 animate-spin rounded-full border-2 border-neutral-200 border-t-violet-400" />
+      {label}
+    </span>
+  );
+}
+
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
   const { openGuide } = useGuide();
@@ -107,6 +121,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [text, setText] = useState("");
   const [posting, setPosting] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentMoreLoading, setCommentMoreLoading] = useState(false);
+  const [commentTotal, setCommentTotal] = useState(0);
+  const [commentCursor, setCommentCursor] = useState<string | null>(null);
+  const [commentHasMore, setCommentHasMore] = useState(false);
+  const [replyMeta, setReplyMeta] = useState<Record<string, ReplyPageMeta>>({});
   const [err, setErr] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -126,38 +146,96 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
   const threads = useMemo(() => {
-    const map = new Map(comments.map((c) => [c.id, c]));
-    const rootOf = (c: CommentDTO): string => {
-      let cur = c;
-      let guard = 0;
-      while (cur.parentId && map.get(cur.parentId) && guard < 50) {
-        cur = map.get(cur.parentId)!;
-        guard++;
-      }
-      return cur.id;
-    };
     const top = comments.filter((c) => !c.parentId);
     const descByRoot = new Map<string, CommentDTO[]>();
     for (const c of comments) {
       if (!c.parentId) continue;
-      const root = rootOf(c);
-      if (root === c.id) continue;
-      const arr = descByRoot.get(root);
+      const arr = descByRoot.get(c.parentId);
       if (arr) arr.push(c);
-      else descByRoot.set(root, [c]);
+      else descByRoot.set(c.parentId, [c]);
     }
     for (const arr of descByRoot.values()) arr.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const result = top.map((comment) => ({ comment, replies: descByRoot.get(comment.id) ?? [] }));
-    if (sort === "new") return result.sort((a, b) => b.comment.createdAt.localeCompare(a.comment.createdAt));
-    return result.sort((a, b) => (descByRoot.get(b.comment.id)?.length ?? 0) - (descByRoot.get(a.comment.id)?.length ?? 0));
-  }, [comments, sort]);
+    return top.map((comment) => ({ comment, replies: descByRoot.get(comment.id) ?? [] }));
+  }, [comments]);
+
+  function mergeComments(prev: CommentDTO[], next: CommentDTO[]) {
+    const map = new Map(prev.map((comment) => [comment.id, comment]));
+    for (const comment of next) map.set(comment.id, comment);
+    return [...map.values()];
+  }
+
+  async function loadCommentPage(reset = false) {
+    if (reset) {
+      setCommentLoading(true);
+      setLoaded(false);
+    } else {
+      setCommentMoreLoading(true);
+    }
+    try {
+      const params = new URLSearchParams({
+        paged: "1",
+        limit: String(COMMENT_PAGE_SIZE),
+        replyLimit: String(REPLY_PREVIEW_SIZE),
+        sort,
+      });
+      if (!reset && commentCursor) params.set("cursor", commentCursor);
+      const res = await fetch(`/api/events/${event.id}/comments?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error("comments failed");
+      setComments((prev) => (reset ? data.comments ?? [] : mergeComments(prev, data.comments ?? [])));
+      setCommentTotal(data.totalCount ?? 0);
+      setCommentCursor(data.nextCursor ?? null);
+      setCommentHasMore(!!data.hasMore);
+      setReplyMeta((prev) => (reset ? data.replyMeta ?? {} : { ...prev, ...(data.replyMeta ?? {}) }));
+    } catch {
+      if (reset) setComments([]);
+    } finally {
+      setLoaded(true);
+      setCommentLoading(false);
+      setCommentMoreLoading(false);
+    }
+  }
+
+  async function loadMoreReplies(rootId: string) {
+    const meta = replyMeta[rootId];
+    if (!meta || meta.loading || !meta.hasMore) return;
+    setReplyMeta((prev) => ({ ...prev, [rootId]: { ...meta, loading: true } }));
+    try {
+      const params = new URLSearchParams({
+        rootId,
+        limit: String(REPLY_PAGE_SIZE),
+      });
+      if (meta.nextCursor) params.set("cursor", meta.nextCursor);
+      const res = await fetch(`/api/events/${event.id}/comments?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error("replies failed");
+      const newReplies = data.comments ?? [];
+      setComments((prev) => mergeComments(prev, newReplies));
+      setReplyMeta((prev) => ({
+        ...prev,
+        [rootId]: {
+          ...prev[rootId],
+          loaded: (prev[rootId]?.loaded ?? 0) + newReplies.length,
+          hasMore: !!data.hasMore,
+          nextCursor: data.nextCursor ?? null,
+          loading: false,
+        },
+      }));
+    } catch {
+      setReplyMeta((prev) => ({ ...prev, [rootId]: { ...prev[rootId], loading: false } }));
+    }
+  }
 
   useEffect(() => {
-    fetch(`/api/events/${event.id}/comments`)
-      .then((r) => (r.ok ? r.json() : { comments: [] }))
-      .then((d) => setComments(d.comments ?? []))
-      .catch(() => setComments([]))
-      .finally(() => setLoaded(true));
+    setComments([]);
+    setReplyMeta({});
+    setCommentCursor(null);
+    setCommentHasMore(false);
+    void loadCommentPage(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id, sort]);
+
+  useEffect(() => {
     fetch(`/api/events/${event.id}/reactions`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setReactions(d))
@@ -358,22 +436,44 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <section className="border-t border-neutral-100 pt-5">
         <div className="mb-4 flex items-center gap-2.5">
-          <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({comments.length})</h3>
+          <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({commentTotal})</h3>
           <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最热</button>
           <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最新</button>
+          {commentLoading && <TinyLoading label="" />}
         </div>
-        {loaded && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
+        {!loaded && (
+          <div className="py-5 text-center"><TinyLoading /></div>
+        )}
+        {loaded && !commentLoading && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
         <ul className="space-y-4">
-          {threads.slice(0, 3).map(({ comment, replies }) => (
+          {threads.map(({ comment, replies }) => {
+            const meta = replyMeta[comment.id];
+            const remaining = Math.max(0, (meta?.total ?? replies.length) - replies.length);
+            return (
             <li key={comment.id} className="space-y-3.5">
               {renderComment(comment, false)}
-              {replies.slice(0, 2).map((reply) => <div key={reply.id}>{renderComment(reply, true)}</div>)}
+              {replies.map((reply) => <div key={reply.id}>{renderComment(reply, true)}</div>)}
+              {meta?.hasMore && (
+                <button
+                  type="button"
+                  onClick={() => loadMoreReplies(comment.id)}
+                  disabled={!!meta.loading}
+                  className="ml-11 inline-flex items-center gap-1.5 rounded-full bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500 disabled:opacity-60"
+                >
+                  {meta.loading ? <TinyLoading label="加载回复" /> : `查看更多回复${remaining > 0 ? `（${remaining}）` : ""}`}
+                </button>
+              )}
             </li>
-          ))}
+          );})}
         </ul>
-        {comments.length > 0 && (
-          <button type="button" className="mt-5 w-full rounded-full bg-neutral-50 py-3 text-[13px] font-medium text-neutral-700">
-            查看全部评论 〉
+        {commentHasMore && (
+          <button
+            type="button"
+            onClick={() => loadCommentPage(false)}
+            disabled={commentMoreLoading}
+            className="mt-5 w-full rounded-full bg-neutral-50 py-3 text-[13px] font-medium text-neutral-600 disabled:opacity-60"
+          >
+            {commentMoreLoading ? <TinyLoading label="加载评论" /> : "加载更多评论"}
           </button>
         )}
       </section>
@@ -411,30 +511,32 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     );
   }
 
-  function bottomActions(sourceLabel: string) {
+  function detailActionStrip(sourceLabel: string) {
+    const baseClass = "flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2 text-center text-[11px] font-semibold text-neutral-700 transition hover:bg-white";
+    const iconClass = "grid h-8 w-8 place-items-center rounded-full bg-white text-violet-500 shadow-sm ring-1 ring-neutral-100";
     return (
-      <div className="grid grid-cols-4 gap-2">
-        <button type="button" onClick={askGuide} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-500 text-[11px] font-semibold text-white shadow-md shadow-violet-500/20">
-          <IconSparkles className="h-3.5 w-3.5" />
-          问导游
+      <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-neutral-50 p-2">
+        <button type="button" onClick={askGuide} className={baseClass}>
+          <span className={iconClass}><IconSparkles className="h-3.5 w-3.5" /></span>
+          <span className="truncate">问导游</span>
         </button>
-        <button type="button" onClick={jumpToMap} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-neutral-950 text-[11px] font-semibold text-white shadow-md shadow-black/15">
-          <IconMap className="h-3.5 w-3.5" />
-          看地图
+        <button type="button" onClick={jumpToMap} className={baseClass}>
+          <span className={iconClass}><IconMap className="h-3.5 w-3.5" /></span>
+          <span className="truncate">看地图</span>
         </button>
-        <button type="button" onClick={shareEvent} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
-          <ShareIcon className="h-3.5 w-3.5" />
-          分享
+        <button type="button" onClick={shareEvent} className={baseClass}>
+          <span className={iconClass}><ShareIcon className="h-3.5 w-3.5" /></span>
+          <span className="truncate">分享</span>
         </button>
         {event.sourceUrl ? (
-          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
-            <IconExternalLink className="h-3.5 w-3.5" />
-            {sourceLabel}
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className={baseClass}>
+            <span className={iconClass}><IconExternalLink className="h-3.5 w-3.5" /></span>
+            <span className="truncate">{sourceLabel}</span>
           </a>
         ) : (
-          <button type="button" onClick={() => setErr("举报功能稍后开放")} className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-800">
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
-            举报
+          <button type="button" onClick={() => setErr("举报功能稍后开放")} className={baseClass}>
+            <span className={iconClass}><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg></span>
+            <span className="truncate">举报</span>
           </button>
         )}
       </div>
@@ -542,12 +644,13 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               )}
             </div>
 
+            <div className="mt-3 sm:mt-4">{detailActionStrip("举报")}</div>
+
             <div className="mt-6 sm:mt-8">{commentSection()}</div>
           </main>
 
-          <div className="mt-5 space-y-4 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:space-y-5 sm:py-5">
+          <div className="mt-5 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:py-5">
             {commentComposer()}
-            {bottomActions("举报")}
           </div>
         </div>
         {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
@@ -632,6 +735,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </div>
           </section>
 
+          <div className="mt-4">{detailActionStrip("来源")}</div>
+
           {event.description && (
             <section className="px-4 py-6">
               <p className={cx("text-sm leading-7 text-neutral-900", !expanded && "line-clamp-4")}>{event.description}</p>
@@ -648,9 +753,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
           <div className="mt-6 sm:mt-8">{commentSection()}</div>
 
-          <div className="mt-5 space-y-4 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:space-y-5 sm:py-5">
+          <div className="mt-5 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:py-5">
             {commentComposer()}
-            {bottomActions("来源")}
           </div>
         </main>
       </div>

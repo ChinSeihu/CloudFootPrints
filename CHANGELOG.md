@@ -20,7 +20,9 @@
 - **Post detail density**: reduced mobile padding, image spacing, comment composer height, and bottom action sizing so user-post detail pages feel closer to the supplied reference.
 - **Scroll tail fix**: removed sticky bottom action blocks from detail pages and reduced bottom padding to prevent extra blank space when scrolled to the end.
 - **Official detail mobile fit**: shortened the official hero and tightened the floating info card on mobile while preserving the larger desktop spacing.
-**Files:** `src/components/Recommend/EventDetail.tsx`
+- **Flat action strip**: moved guide / map / share / source actions from the page bottom into a flat info strip below the venue/address area for both official events and user posts.
+- **Lazy comments**: event detail comments now load root comments 10 at a time, show 3 replies per thread by default, load more replies in batches of 10, and use small inline loading indicators.
+**Files:** `src/components/Recommend/EventDetail.tsx`, `src/services/comments.ts`, `src/app/api/events/[id]/comments/route.ts`
 
 ---
 

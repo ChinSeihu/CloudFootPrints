@@ -1,14 +1,32 @@
 import { NextResponse } from "next/server";
-import { listComments, createComment } from "@/services/comments";
+import { listCommentPage, listComments, createComment, listReplyPage } from "@/services/comments";
 import { getCurrentUserId } from "@/lib/auth";
 
 // Next 16：动态段的 params 是 Promise，需 await。
 type Ctx = { params: Promise<{ id: string }> };
 
 // GET /api/events/[id]/comments —— 活动评论列表
-export async function GET(_req: Request, ctx: Ctx) {
+export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   try {
+    const { searchParams } = new URL(req.url);
+    const paged = searchParams.get("paged") === "1";
+    const rootId = searchParams.get("rootId");
+    if (rootId) {
+      return NextResponse.json(await listReplyPage(id, rootId, {
+        cursor: searchParams.get("cursor"),
+        limit: Number(searchParams.get("limit") || 10),
+      }));
+    }
+    if (paged) {
+      const sort = searchParams.get("sort") === "new" ? "new" : "hot";
+      return NextResponse.json(await listCommentPage(id, {
+        cursor: searchParams.get("cursor"),
+        limit: Number(searchParams.get("limit") || 10),
+        sort,
+        replyLimit: Number(searchParams.get("replyLimit") || 3),
+      }));
+    }
     const comments = await listComments(id);
     return NextResponse.json({ comments });
   } catch (err) {
