@@ -23,6 +23,7 @@ export type IngestStats = {
   geocodeFailed: number;
   duplicates: number;
   inserted: number;
+  updated: number;
 };
 
 function parseDate(s: string | null): Date | null {
@@ -130,6 +131,107 @@ function parseDateWithInferredTime(s: string | null, title: string, rawText: str
   return d;
 }
 
+function hasSpecificTime(d: Date | null): boolean {
+  return !!d && !isMidnight(d);
+}
+
+function shouldReplaceTime(existing: Date | null, incoming: Date | null): boolean {
+  if (!incoming) return false;
+  if (!existing) return true;
+  return isMidnight(existing) && hasSpecificTime(incoming);
+}
+
+async function updateExistingTimes(
+  id: string,
+  existing: { startTime: Date | null; endTime: Date | null },
+  incoming: { startTime: Date | null; endTime: Date | null },
+): Promise<boolean> {
+  const data: { startTime?: Date; endTime?: Date } = {};
+  if (shouldReplaceTime(existing.startTime, incoming.startTime)) data.startTime = incoming.startTime!;
+  if (shouldReplaceTime(existing.endTime, incoming.endTime)) data.endTime = incoming.endTime!;
+  if (Object.keys(data).length === 0) return false;
+  await prisma.event.update({ where: { id }, data });
+  return true;
+}
+
+function betterCandidate(a: ExtractedEvent, b: ExtractedEvent, rawText: string | null): ExtractedEvent {
+  const aStart = parseDateWithInferredTime(a.startTime, a.title, rawText, "start");
+  const bStart = parseDateWithInferredTime(b.startTime, b.title, rawText, "start");
+  if (hasSpecificTime(bStart) && !hasSpecificTime(aStart)) return b;
+  if (bStart && !aStart) return b;
+  return a;
+}
+
+// 先做零/低成本去重，再进入 LLM 重分类/摘要：
+// - 命中旧记录时，如果旧记录缺开始/结束时间或只有 00:00，占用新抓取到的更具体时间回填。
+// - 同批重复也先去掉，避免后续 LLM 对最终不会入库的候选花 token。
+export async function prefilterEventsForIngest(
+  events: ExtractedEvent[],
+  source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">,
+  rawText: string | null = null,
+): Promise<{ events: ExtractedEvent[]; stats: IngestStats }> {
+  const stats: IngestStats = {
+    considered: events.length,
+    geocodeFailed: 0,
+    duplicates: 0,
+    inserted: 0,
+    updated: 0,
+  };
+  const kept: ExtractedEvent[] = [];
+
+  for (const ev of events) {
+    const eventSourceUrl = ev.sourceUrl ?? source.sourceUrl;
+    const startTime = parseDateWithInferredTime(ev.startTime, ev.title, rawText, "start");
+    const endTime = parseDateWithInferredTime(ev.endTime, ev.title, rawText, "end");
+
+    const localIdx = kept.findIndex((candidate) => {
+      const candidateSourceUrl = candidate.sourceUrl ?? source.sourceUrl;
+      if (candidate.title === ev.title && candidateSourceUrl === eventSourceUrl) return true;
+      const candidateStart = parseDateWithInferredTime(candidate.startTime, candidate.title, rawText, "start");
+      return !!startTime && isSameEvent({ title: candidate.title, startTime: candidateStart }, { title: ev.title, startTime });
+    });
+    if (localIdx >= 0) {
+      kept[localIdx] = betterCandidate(kept[localIdx], ev, rawText);
+      stats.duplicates++;
+      continue;
+    }
+
+    const existing = await prisma.event.findFirst({
+      where: { title: ev.title, sourceUrl: eventSourceUrl },
+      select: { id: true, startTime: true, endTime: true },
+    });
+    if (existing) {
+      if (await updateExistingTimes(existing.id, existing, { startTime, endTime })) {
+        stats.updated++;
+        console.log(`  ↻ 更新时间："${ev.title}"`);
+      }
+      stats.duplicates++;
+      continue;
+    }
+
+    if (startTime) {
+      const dayMs = 18 * 3600 * 1000;
+      const sameDay = await prisma.event.findMany({
+        where: { startTime: { gte: new Date(startTime.getTime() - dayMs), lte: new Date(startTime.getTime() + dayMs) } },
+        select: { id: true, title: true, startTime: true, endTime: true },
+      });
+      const same = sameDay.find((candidate) => isSameEvent(candidate, { title: ev.title, startTime }));
+      if (same) {
+        if (await updateExistingTimes(same.id, same, { startTime, endTime })) {
+          stats.updated++;
+          console.log(`  ↻ 更新时间："${same.title}" ← "${ev.title}"`);
+        }
+        stats.duplicates++;
+        continue;
+      }
+    }
+
+    kept.push(ev);
+  }
+
+  return { events: kept, stats };
+}
+
 // 把一批已抽取的活动（含来源元数据）落库：
 //  1) 必填校验  2) 地理编码（无地址或失败则跳过该条）  3) 简单去重  4) 写入。
 // 去重：用 (title + sourceUrl) 判同一条。**不含 startTime**——日期来源无时区，
@@ -138,12 +240,14 @@ export async function ingestEvents(
   events: ExtractedEvent[],
   source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">,
   rawText: string | null = null,
+  options: { countConsidered?: boolean } = {},
 ): Promise<IngestStats> {
   const stats: IngestStats = {
-    considered: events.length,
+    considered: options.countConsidered === false ? 0 : events.length,
     geocodeFailed: 0,
     duplicates: 0,
     inserted: 0,
+    updated: 0,
   };
 
   for (const ev of events) {
@@ -178,9 +282,16 @@ export async function ingestEvents(
 
     const existing = await prisma.event.findFirst({
       where: { title: ev.title, sourceUrl: eventSourceUrl },
-      select: { id: true },
+      select: { id: true, startTime: true, endTime: true },
     });
     if (existing) {
+      if (await updateExistingTimes(existing.id, existing, {
+        startTime,
+        endTime: parseDateWithInferredTime(ev.endTime, ev.title, rawText, "end"),
+      })) {
+        stats.updated++;
+        console.log(`  ↻ 更新时间："${ev.title}"`);
+      }
       stats.duplicates++;
       continue;
     }
@@ -191,9 +302,17 @@ export async function ingestEvents(
       const dayMs = 18 * 3600 * 1000;
       const sameDay = await prisma.event.findMany({
         where: { startTime: { gte: new Date(startTime.getTime() - dayMs), lte: new Date(startTime.getTime() + dayMs) } },
-        select: { title: true, startTime: true },
+        select: { id: true, title: true, startTime: true, endTime: true },
       });
-      if (sameDay.some((c) => isSameEvent(c, { title: ev.title, startTime }))) {
+      const same = sameDay.find((c) => isSameEvent(c, { title: ev.title, startTime }));
+      if (same) {
+        if (await updateExistingTimes(same.id, same, {
+          startTime,
+          endTime: parseDateWithInferredTime(ev.endTime, ev.title, rawText, "end"),
+        })) {
+          stats.updated++;
+          console.log(`  ↻ 更新时间："${same.title}" ← "${ev.title}"`);
+        }
         stats.duplicates++;
         continue;
       }

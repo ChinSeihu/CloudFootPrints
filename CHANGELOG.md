@@ -6,6 +6,14 @@
 
 ## 2026-07-01
 
+### Fix extraction dedupe order and time backfill
+- **Time backfill**: extraction now updates existing duplicate events when the stored record has no time or only midnight while the newly fetched candidate has a more specific start/end time.
+- **Pre-LLM dedupe**: added a pre-ingest filter that removes database and same-batch duplicates before optional LLM reclassification and summarization, reducing wasted token usage.
+- **Pipeline stats**: extraction stats now include an `updated` count so runs can show how many existing records received better time data.
+**Files:** `src/services/extraction/index.ts`, `src/services/extraction/ingest.ts`
+
+---
+
 ### Reposition post author block and expanded footprint photos
 - **Footprint expansion**: expanded footprint cards now move photos below the text in a three-column grid, showing additional rows where space allows and using counters like `6/10` on the last visible image when more photos remain.
 - **User post detail**: moved the author/location information block from above the photo carousel to directly below it, keeping the post image as the first visual focus.
