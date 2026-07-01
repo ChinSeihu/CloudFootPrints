@@ -6,6 +6,12 @@
 
 ## 2026-07-01
 
+### Improve expanded footprint photo display
+- **Footprint photos**: expanded footprint cards now use taller image areas with `object-contain` so photos are shown more fully while staying within a capped height.
+**Files:** `src/components/Recommend/RecommendList.tsx`
+
+---
+
 ### Fix extraction dedupe order and time backfill
 - **Time backfill**: extraction now updates existing duplicate events when the stored record has no time or only midnight while the newly fetched candidate has a more specific start/end time.
 - **Pre-LLM dedupe**: added a pre-ingest filter that removes database and same-batch duplicates before optional LLM reclassification and summarization, reducing wasted token usage.

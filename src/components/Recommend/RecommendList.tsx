@@ -241,8 +241,8 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     }
     if (urls.length === 1) {
       return (
-        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 overflow-hidden rounded-xl bg-neutral-100 ${compact ? "h-24" : "h-32"} w-full`}>
-          <img src={urls[0]} alt={title} className="h-full w-full object-cover" />
+        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-xl bg-neutral-100 ${compact ? "h-28" : "max-h-72 min-h-40"}`}>
+          <img src={urls[0]} alt={title} className={compact ? "h-full w-full object-cover" : "max-h-72 w-full object-contain"} />
         </button>
       );
     }
@@ -250,8 +250,8 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     return (
       <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
         {visible.map((src, index) => (
-          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative min-w-0 overflow-hidden bg-neutral-100 ${compact ? "h-20" : "h-24"}`}>
-            <img src={src} alt={title} className="h-full w-full object-cover" />
+          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
+            <img src={src} alt={title} className={compact ? "h-full w-full object-cover" : "max-h-40 w-full object-contain"} />
             <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
               {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
             </span>
