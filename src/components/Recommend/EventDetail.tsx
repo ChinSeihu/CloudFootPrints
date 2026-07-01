@@ -538,11 +538,33 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
-          <div className="mb-4 flex items-center sm:mb-7">
+          <div className="flex items-center">
             <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
               <IconChevronLeft className="h-5 w-5" />
             </button>
+            <div className="flex items-center gap-2.5 ml-3">
+                <Avatar user={event.author} size={36} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
+                  </div>
+                </div>
+              </div>
             <div className="ml-auto flex gap-2 sm:gap-2.5">
+              {event.author?.id && user?.id !== event.author.id && (
+                <button
+                  type="button"
+                  onClick={toggleAuthorFollow}
+                  className={cx(
+                    "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+                    authorFollowActive
+                      ? "border-neutral-200 bg-white text-neutral-500"
+                      : "border-violet-200 bg-white text-violet-600",
+                  )}
+                >
+                  {authorFollowActive ? "已关注" : "关注"}
+                </button>
+              )}
               <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}>
                 <ShareIcon className="h-4 w-4" />
               </button>
@@ -579,43 +601,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
-            <section className="mt-2 rounded-2xl bg-neutral-50 px-3 py-3 sm:mt-3">
-              <div className="flex items-start gap-2.5">
-                <Avatar user={event.author} size={36} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
-                  </div>
-                  {(event.venueName || event.address) && (
-                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-4 text-neutral-500">
-                      <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
-                      <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
-                    </div>
-                  )}
-                </div>
-                {event.author?.id && user?.id !== event.author.id && (
-                  <button
-                    type="button"
-                    onClick={toggleAuthorFollow}
-                    className={cx(
-                      "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
-                      authorFollowActive
-                        ? "border-neutral-200 bg-white text-neutral-500"
-                        : "border-violet-200 bg-white text-violet-600",
-                    )}
-                  >
-                    {authorFollowActive ? "已关注" : "关注"}
-                  </button>
-                )}
-              </div>
-              {(event.venueName || event.address) && (
-                <button type="button" onClick={jumpToMap} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
-                  <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  查看路线
-                </button>
-              )}
-            </section>
-
             <h1 className="mt-3 text-[15px] font-black leading-snug tracking-normal text-neutral-950 sm:mt-5 sm:text-[17px]">{event.title}</h1>
 
             {event.description && (
@@ -637,6 +622,24 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
+
+            <section className="mt-2 bg-neutral-50 px-3 py-3 sm:mt-3">
+              {(event.venueName || event.address) && (
+                <div className="mt-1.5 flex justify-between items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
+                  <section className="bg-neutral-50">
+                    <span className="flex items-center gap-1.5 min-w-0 mb-1">
+                      <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                      <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                    </span>
+                    <span >活动时间：{fmtCompact(event.startTime)}{event.endTime ? ` - ${fmtCompact(event.endTime)}` : ""}</span>
+                  </section>
+                  <button type="button" onClick={jumpToMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
+                    <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    查看路线
+                  </button>
+                </div>
+              )}
+            </section>
             <div className="mt-3 sm:mt-4">{detailActionStrip("举报")}</div>
 
             <div className="mt-6 sm:mt-8">{commentSection()}</div>
@@ -655,7 +658,21 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
-        <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-neutral-900 sm:h-[48vh] sm:min-h-[420px]">
+        <div className="absolute z-99 opacity-50 px-4 w-full pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
+          <button type="button" onClick={onClose} aria-label="返回" className="left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur sm:left-5 sm:top-5 sm:h-10 sm:w-10">
+            <IconChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="absolute right-4 top-4 flex gap-2 sm:right-5 sm:top-5 sm:gap-2.5">
+            <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
+              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" /></span>
+            </button>
+            <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
+              <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -665,18 +682,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
-          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur sm:left-5 sm:top-5 sm:h-10 sm:w-10">
-            <IconChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="absolute right-4 top-4 flex gap-2 sm:right-5 sm:top-5 sm:gap-2.5">
-            <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
-              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" />{reactions.likeCount > 0 && <span className="mt-0.5 text-[9px]">{reactions.likeCount}</span>}</span>
-            </button>
-            <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
-              <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
-          </div>
           <div className="absolute bottom-9 left-4 right-4 text-white sm:bottom-16 sm:left-8 sm:right-8">
             <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
             <h1 className="max-w-[760px] text-[19px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>

@@ -241,8 +241,8 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     }
     if (urls.length === 1) {
       return (
-        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-xl bg-neutral-100 ${compact ? "h-28" : "max-h-72 min-h-40"}`}>
-          <img src={urls[0]} alt={title} className={compact ? "h-full w-full object-cover" : "max-h-72 w-full object-contain"} />
+        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-xl bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
+          <img src={urls[0]} alt={title} className={compact ? "max-h-72 w-full object-cover" : "max-h-72 w-full object-cover"} />
         </button>
       );
     }
@@ -251,7 +251,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
       <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
         {visible.map((src, index) => (
           <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
-            <img src={src} alt={title} className={compact ? "h-full w-full object-cover" : "max-h-40 w-full object-contain"} />
+            <img src={src} alt={title} className={compact ? "max-h-40 w-full object-cover" : "max-h-40 w-full object-cover"} />
             <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
               {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
             </span>
@@ -376,7 +376,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
               key={key}
               type="button"
               onClick={() => setTab(key as TopTab)}
-              className={`relative overflow-hidden rounded-xl px-3 py-2 text-left transition sm:rounded-2xl sm:py-2.5 ${
+              className={`relative overflow-hidden rounded-xl px-3 py-1 text-left transition sm:rounded-2xl sm:py-2.5 ${
                 active
                   ? "bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.16)] ring-1 ring-violet-100"
                   : "text-neutral-500 hover:bg-neutral-50"
@@ -433,7 +433,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                   </button>
                 );
               })}
-              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-neutral-900 text-white" : "text-neutral-700"}`}>
+              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-blue-600 text-white" : "text-neutral-700"}`}>
                 <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
                 <span className="truncate">全部</span>
               </button>
