@@ -6,6 +6,14 @@
 
 ## 2026-07-01
 
+### Compact recommend and detail mobile layouts
+- **Recommend mobile density**: tightened the recommend page header, tab switcher, hero banner, category shortcut row, and hot activity cards for narrow phone screens without using global scaling.
+- **Nearby footprints**: changed footprint cards to a single-column feed; text uses normal weight, and photos sit in a right-side one-third preview area with up to three horizontal thumbnails.
+- **Detail mobile density**: reduced hero heights, card padding, typography, and action-strip size on event and user-post detail pages to avoid oversized blocks on small Android/WebView screens.
+**Files:** `src/components/Recommend/RecommendList.tsx`, `src/components/Recommend/EventDetail.tsx`
+
+---
+
 ### Expand discovery footprint feed
 - **Nearby footprints**: changed nearby checkins from small horizontal tiles to user-feed cards with avatar, mood badge, two-line default text, expandable copy, and tappable image preview.
 - **Discovery view-all**: "查看全部" on user posts and nearby footprints now scrolls to a full discovery section with a segmented switch for all posts versus all footprints.

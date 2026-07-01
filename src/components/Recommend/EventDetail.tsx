@@ -512,10 +512,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   }
 
   function detailActionStrip(sourceLabel: string) {
-    const baseClass = "flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2 text-center text-[11px] font-semibold text-neutral-700 transition hover:bg-white";
-    const iconClass = "grid h-8 w-8 place-items-center rounded-full bg-white text-violet-500 shadow-sm ring-1 ring-neutral-100";
+    const baseClass = "flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 text-center text-[11px] font-semibold text-neutral-700 transition hover:bg-white sm:gap-1.5 sm:py-2";
+    const iconClass = "grid h-7 w-7 place-items-center rounded-full bg-white text-violet-500 shadow-sm ring-1 ring-neutral-100 sm:h-8 sm:w-8";
     return (
-      <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-neutral-50 p-2">
+      <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2">
         <button type="button" onClick={askGuide} className={baseClass}>
           <span className={iconClass}><IconSparkles className="h-3.5 w-3.5" /></span>
           <span className="truncate">问导游</span>
@@ -546,12 +546,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   if (isUserPost) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
-        <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-5 pb-3 pt-5 sm:px-7 sm:pb-5 sm:pt-8">
-          <div className="mb-5 flex items-center sm:mb-7">
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-10 w-10 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50">
+        <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
+          <div className="mb-4 flex items-center sm:mb-7">
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
               <IconChevronLeft className="h-5 w-5" />
             </button>
-            <div className="ml-auto flex gap-2.5">
+            <div className="ml-auto flex gap-2 sm:gap-2.5">
               <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}>
                 <ShareIcon className="h-4 w-4" />
               </button>
@@ -565,7 +565,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           </div>
 
           <div className="flex items-start gap-2.5">
-            <Avatar user={event.author} size={40} />
+            <Avatar user={event.author} size={36} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-neutral-950">{event.author?.username ?? "用户"}</span>
@@ -588,16 +588,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             )}
           </div>
 
-          <main className="mt-4 flex-1 sm:mt-6">
+          <main className="mt-3 flex-1 sm:mt-6">
             {images.length > 0 && (
-              <div className="-mx-5 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:-mx-7 sm:px-7 [&::-webkit-scrollbar]:hidden">
+              <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-7 sm:px-7 [&::-webkit-scrollbar]:hidden">
                 <div className="flex snap-x snap-mandatory gap-2.5 sm:gap-3">
                   {images.map((src, index) => (
                     <button
                       key={`${src}-${index}`}
                       type="button"
                       onClick={() => setLightbox({ images, index })}
-                      className="relative h-[260px] w-[calc(100vw-40px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100 sm:h-72 sm:w-[calc(100vw-56px)]"
+                      className="relative h-[236px] w-[calc(100vw-32px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100 sm:h-72 sm:w-[calc(100vw-56px)]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -612,10 +612,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
-            <h1 className="mt-4 text-base font-black leading-snug tracking-normal text-neutral-950 sm:mt-5 sm:text-[17px]">{event.title}</h1>
+            <h1 className="mt-3 text-[15px] font-black leading-snug tracking-normal text-neutral-950 sm:mt-5 sm:text-[17px]">{event.title}</h1>
 
             {event.description && (
-              <p className="mt-3 text-[13px] leading-6 text-neutral-800 sm:mt-5 sm:text-sm sm:leading-7">
+              <p className="mt-2.5 text-[13px] leading-6 text-neutral-800 sm:mt-5 sm:text-sm sm:leading-7">
                 {expanded ? event.description : event.description.slice(0, 120)}
                 {!expanded && event.description.length > 120 ? "..." : ""}
                 {event.description.length > 120 && (
@@ -633,7 +633,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
-            <div className="mt-4 space-y-2 rounded-2xl bg-neutral-50 px-3 py-3 text-[12px] text-neutral-700 sm:mt-5 sm:space-y-2.5 sm:bg-transparent sm:px-0 sm:py-0 sm:text-xs">
+            <div className="mt-3 space-y-2 rounded-2xl bg-neutral-50 px-3 py-3 text-[12px] text-neutral-700 sm:mt-5 sm:space-y-2.5 sm:bg-transparent sm:px-0 sm:py-0 sm:text-xs">
               <div className="flex items-center gap-2.5"><ClockIcon className="h-4 w-4 text-neutral-400" />{fmtDateTime(event.startTime)} 拍摄</div>
               {(event.venueName || event.address) && (
                 <div className="flex items-center gap-2.5">
@@ -649,7 +649,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <div className="mt-6 sm:mt-8">{commentSection()}</div>
           </main>
 
-          <div className="mt-5 border-t border-neutral-100 bg-white py-4 sm:mt-6 sm:py-5">
+          <div className="mt-4 border-t border-neutral-100 bg-white py-3 sm:mt-6 sm:py-5">
             {commentComposer()}
           </div>
         </div>
@@ -662,7 +662,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
-        <section className="relative h-[42vh] min-h-[340px] overflow-hidden bg-neutral-900 sm:h-[48vh] sm:min-h-[420px]">
+        <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-neutral-900 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -672,10 +672,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
-          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur">
+          <button type="button" onClick={onClose} aria-label="返回" className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur sm:left-5 sm:top-5 sm:h-10 sm:w-10">
             <IconChevronLeft className="h-5 w-5" />
           </button>
-          <div className="absolute right-5 top-5 flex gap-2.5">
+          <div className="absolute right-4 top-4 flex gap-2 sm:right-5 sm:top-5 sm:gap-2.5">
             <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
               <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" />{reactions.likeCount > 0 && <span className="mt-0.5 text-[9px]">{reactions.likeCount}</span>}</span>
             </button>
@@ -684,43 +684,43 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </button>
             <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
           </div>
-          <div className="absolute bottom-12 left-5 right-5 text-white sm:bottom-16 sm:left-8 sm:right-8">
-            <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-xs font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
-            <h1 className="max-w-[760px] text-[21px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>
-            {event.summary || event.description ? <p className="mt-2 max-w-[740px] text-[13px] font-medium leading-6 drop-shadow-sm sm:mt-3 sm:text-base sm:leading-relaxed">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
+          <div className="absolute bottom-9 left-4 right-4 text-white sm:bottom-16 sm:left-8 sm:right-8">
+            <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
+            <h1 className="max-w-[760px] text-[19px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>
+            {event.summary || event.description ? <p className="mt-1.5 max-w-[740px] text-xs font-medium leading-5 drop-shadow-sm sm:mt-3 sm:text-base sm:leading-relaxed">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
           </div>
           {images.length > 0 && (
-            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-10 right-5 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-base">
+            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-8 right-4 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-2.5 py-1 text-xs text-white backdrop-blur sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-base">
               <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               1/{images.length}
             </button>
           )}
         </section>
 
-        <main className="relative px-5 pb-3 sm:px-7 sm:pb-5">
-          <section className="-mt-6 overflow-hidden rounded-[24px] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.13)] ring-1 ring-black/5 sm:-mt-7 sm:rounded-[28px]">
-            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-4 py-4 sm:px-6 sm:py-6">
+        <main className="relative px-4 pb-3 sm:px-7 sm:pb-5">
+          <section className="-mt-5 overflow-hidden rounded-[22px] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.13)] ring-1 ring-black/5 sm:-mt-7 sm:rounded-[28px]">
+            <div className="grid grid-cols-2 divide-x divide-neutral-100 px-3.5 py-3.5 sm:px-6 sm:py-6">
               <div>
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconCalendar className="h-4 w-4" />活动时间</div>
-                <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconCalendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />活动时间</div>
+                <div className="space-y-1 text-[13px] font-bold leading-snug text-neutral-950 sm:text-sm">
                   <div>{fmtCompact(event.startTime)}</div>
                   {event.endTime && <><div className="text-xs text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
                 </div>
-                {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-600">{durationLabel(event.startTime, event.endTime)}</span>}
+                {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600 sm:text-xs">{durationLabel(event.startTime, event.endTime)}</span>}
               </div>
-              <div className="pl-4 sm:pl-10">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-indigo-400"><IconPin className="h-4 w-4" />活动地点</div>
-                <div className="space-y-1 text-sm font-bold leading-snug text-neutral-950">
+              <div className="pl-3.5 sm:pl-10">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />活动地点</div>
+                <div className="space-y-1 text-[13px] font-bold leading-snug text-neutral-950 sm:text-sm">
                   <div className="flex min-w-0 items-start gap-1.5">
                     <span className="line-clamp-2 min-w-0 flex-1">{event.venueName ?? "地点未定"}</span>
                     <CopyButton text={event.address || event.venueName || ""} label="复制地点" className="h-5 w-5 rounded-full hover:bg-neutral-100" />
                   </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
-                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-indigo-500">查看地图 〉</button>
+                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">查看地图 〉</button>
               </div>
             </div>
-            <div className="border-t border-neutral-100 bg-neutral-50/70 px-4 py-3">
+            <div className="border-t border-neutral-100 bg-neutral-50/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
               <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-600">
                   <CategoryIcon category={event.category} className="h-4 w-4" />
@@ -735,11 +735,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </div>
           </section>
 
-          <div className="mt-4">{detailActionStrip("来源")}</div>
+          <div className="mt-3 sm:mt-4">{detailActionStrip("来源")}</div>
 
           {event.description && (
-            <section className="px-4 py-6">
-              <p className={cx("text-sm leading-7 text-neutral-900", !expanded && "line-clamp-4")}>{event.description}</p>
+            <section className="px-2 py-5 sm:px-4 sm:py-6">
+              <p className={cx("text-[13px] leading-6 text-neutral-900 sm:text-sm sm:leading-7", !expanded && "line-clamp-4")}>{event.description}</p>
               {event.description.length > 140 && (
                 <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-4 block text-sm font-semibold text-violet-600">
                   <span className="inline-flex items-center gap-1">

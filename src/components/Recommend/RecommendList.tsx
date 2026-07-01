@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
-import { CategoryIcon, IconHeart, IconMap, IconPin } from "@/components/icons";
+import { CategoryIcon, IconHeart, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
@@ -58,10 +58,6 @@ function matchesQuery(ev: EventDTO, query: string): boolean {
     .join(" ")
     .toLowerCase()
     .includes(q);
-}
-
-function imageOfCheckin(checkin: CheckInDTO): string | null {
-  return checkin.photoUrls?.[0] ?? checkin.photoUrl ?? null;
 }
 
 function tokyoDayKey(value: string): string {
@@ -227,8 +223,20 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     });
   }
 
-  function imageGrid(urls: string[], title: string, compact = false) {
+  function imageGrid(urls: string[], title: string, compact = false, inline = false) {
     if (urls.length === 0) return null;
+    if (inline) {
+      return (
+        <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-xl bg-neutral-100">
+          {urls.slice(0, 3).map((src, index) => (
+            <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
+              <img src={src} alt={title} className="h-full w-full object-cover" />
+              {index === 2 && urls.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-xs font-black text-white">+{urls.length - 3}</span>}
+            </button>
+          ))}
+        </div>
+      );
+    }
     if (urls.length === 1) {
       return (
         <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 overflow-hidden rounded-xl bg-neutral-100 ${compact ? "h-24" : "h-32"} w-full`}>
@@ -279,24 +287,28 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
       <article key={checkin.id} className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
-        <div className="flex items-start gap-2">
-          <Avatar user={checkin.author} size={30} />
+        <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-xs font-black text-neutral-950">{checkin.author?.username ?? "用户"}</p>
-              {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{moods[0].label}</span>}
+            <div className="flex items-start gap-2">
+              <Avatar user={checkin.author} size={30} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? "用户"}</p>
+                  {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{moods[0].label}</span>}
+                </div>
+                <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)} · {checkin.event?.title ?? "东京"}</p>
+              </div>
+              <span className="text-sm leading-none text-neutral-300">•••</span>
             </div>
-            <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)} · {checkin.event?.title ?? "东京"}</p>
+            <p className={`mt-2 text-[13px] font-normal leading-5 text-neutral-800 ${expanded ? "" : "line-clamp-2"}`}>{text}</p>
+            {text.length > 38 && (
+              <button type="button" onClick={() => toggleCheckin(checkin.id)} className="mt-1 text-[11px] font-semibold text-violet-600">
+                {expanded ? "收起" : "展开"}
+              </button>
+            )}
           </div>
-          <span className="text-sm leading-none text-neutral-300">•••</span>
+          {imageGrid(urls, text, compact, true)}
         </div>
-        <p className={`mt-2 text-[13px] font-semibold leading-5 text-neutral-800 ${expanded ? "" : "line-clamp-2"}`}>{text}</p>
-        {text.length > 38 && (
-          <button type="button" onClick={() => toggleCheckin(checkin.id)} className="mt-1 text-[11px] font-semibold text-violet-600">
-            {expanded ? "收起" : "展开"}
-          </button>
-        )}
-        {imageGrid(urls, text, compact)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
@@ -307,21 +319,21 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   }
 
   return (
-    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-4 pb-5 pt-4">
+    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-4 sm:pt-4">
       <header className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black tracking-tight text-neutral-950">东京活动地图</h1>
+          <h1 className="text-lg font-black tracking-tight text-neutral-950 sm:text-xl">东京活动地图</h1>
           <p className="mt-0.5 text-xs text-neutral-500">{tab === "OFFICIAL" ? "发现东京的精彩活动" : "看看大家在东京的生活"}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-sm ring-1 ring-black/5 sm:inline-flex">
             <IconPin className="h-3.5 w-3.5" />东京
           </span>
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${query ? "text-blue-600" : "text-neutral-900"}`}>
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-8 w-8 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 sm:h-9 sm:w-9 ${query ? "text-blue-600" : "text-neutral-900"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div className="relative" ref={filterBoxRef}>
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${!isAllDates(dateRange) ? "text-blue-600" : "text-neutral-900"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-8 w-8 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 sm:h-9 sm:w-9 ${!isAllDates(dateRange) ? "text-blue-600" : "text-neutral-900"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
@@ -346,7 +358,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
         </div>
       )}
 
-      <nav className="mb-4 grid grid-cols-2 gap-1 rounded-[18px] bg-white p-1.5 shadow-sm ring-1 ring-black/5">
+      <nav className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-black/5 sm:mb-4 sm:p-1.5">
         {[
           ["OFFICIAL", "活动", "官方精选活动"],
           ["DISCOVER", "发现", "用户内容与足迹"],
@@ -358,7 +370,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
               key={key}
               type="button"
               onClick={() => setTab(key as TopTab)}
-              className={`relative overflow-hidden rounded-2xl px-3 py-2.5 text-left transition ${
+              className={`relative overflow-hidden rounded-xl px-3 py-2 text-left transition sm:rounded-2xl sm:py-2.5 ${
                 active
                   ? "bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.16)] ring-1 ring-violet-100"
                   : "text-neutral-500 hover:bg-neutral-50"
@@ -379,7 +391,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           {hero && (
             <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
               <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
-                <div className="aspect-[16/8.5]">
+                <div className="aspect-[16/7.5] sm:aspect-[16/8.5]">
                   {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
@@ -388,7 +400,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                   <span className="rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{Math.max(1, featuredEvents.length)}</span>
                 </div>
                 <div className="absolute bottom-5 left-3 right-3 text-white">
-                  <h2 className="line-clamp-2 text-xl font-black leading-tight">{hero.title}</h2>
+                  <h2 className="line-clamp-2 text-lg font-black leading-tight sm:text-xl">{hero.title}</h2>
                   <p className="mt-1 text-xs font-medium opacity-90">{fmtDate(hero.startTime)} · {hero.venueName ?? "东京"}</p>
                 </div>
               </button>
@@ -403,20 +415,20 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
             </section>
           )}
 
-          <section className="rounded-[22px] bg-white px-3 py-3 shadow-sm ring-1 ring-black/5">
+          <section className="rounded-[20px] bg-white px-2.5 py-2.5 shadow-sm ring-1 ring-black/5 sm:rounded-[22px] sm:px-3 sm:py-3">
             <div className="grid grid-cols-6 gap-2">
               {EVENT_CATEGORIES.slice(0, 5).map((c) => {
                 const meta = CATEGORY_META[c];
                 const active = cat === c;
                 return (
-                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold transition ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
-                    <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-5 w-5" /></span>
+                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
+                    <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-4.5 w-4.5 sm:h-5 sm:w-5" /></span>
                     <span className="truncate">{meta.label}</span>
                   </button>
                 );
               })}
-              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold transition ${cat === "ALL" ? "bg-neutral-900 text-white" : "text-neutral-700"}`}>
-                <span className={`grid h-9 w-9 place-items-center rounded-full ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
+              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-neutral-900 text-white" : "text-neutral-700"}`}>
+                <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
                 <span className="truncate">全部</span>
               </button>
             </div>
@@ -428,13 +440,13 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
                 return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8.7rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
+                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5 sm:w-[8.7rem]">
                     <div className="relative aspect-square bg-neutral-100">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
                       <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
                     </div>
                     <div className="p-2.5">
-                      <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
+                      <h3 className="line-clamp-2 min-h-[2.1rem] text-xs font-bold leading-snug text-neutral-900 sm:min-h-[2.25rem] sm:text-[13px]">{ev.title}</h3>
                       <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime)}</p>
                     </div>
                   </button>
@@ -515,7 +527,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
             {checkins.length === 0 ? (
               <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {checkins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
               </div>
             )}
@@ -547,7 +559,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                 <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
               )
             ) : checkins.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">{checkins.map((checkin) => renderCheckinCard(checkin))}</div>
+              <div className="grid grid-cols-1 gap-3">{checkins.map((checkin) => renderCheckinCard(checkin))}</div>
             ) : (
               <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
             )}
