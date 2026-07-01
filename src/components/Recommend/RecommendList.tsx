@@ -14,6 +14,7 @@ import type { CheckInDTO, EventDTO, EventMetrics } from "@/lib/types";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
 type DiscoverFilter = "follow" | "near" | "new" | "hot";
+type DiscoverFullType = "posts" | "checkins";
 
 const EMPTY_METRICS: EventMetrics = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 };
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -79,6 +80,7 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
 export function RecommendList({ events, checkins }: { events: EventDTO[]; checkins: CheckInDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const targetId = useRef<string | null>(null);
   const resolvedRef = useRef(false);
   const [tab, setTab] = useState<TopTab>("OFFICIAL");
@@ -89,9 +91,12 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [query, setQuery] = useState("");
   const [heroIndex, setHeroIndex] = useState(0);
   const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("follow");
+  const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
+  const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
   const [activityVisibleCount, setActivityVisibleCount] = useState(12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
+  const allDiscoverRef = useRef<HTMLElement | null>(null);
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
 
   async function openEvent(ev: EventDTO) {
@@ -208,6 +213,99 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     scrollToAllActivities();
   }
 
+  function scrollToDiscover(type: DiscoverFullType) {
+    setDiscoverFullType(type);
+    window.setTimeout(() => allDiscoverRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+  }
+
+  function toggleCheckin(id: string) {
+    setExpandedCheckins((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function imageGrid(urls: string[], title: string, compact = false) {
+    if (urls.length === 0) return null;
+    if (urls.length === 1) {
+      return (
+        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 overflow-hidden rounded-xl bg-neutral-100 ${compact ? "h-24" : "h-32"} w-full`}>
+          <img src={urls[0]} alt={title} className="h-full w-full object-cover" />
+        </button>
+      );
+    }
+    return (
+      <div className={`mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl ${compact ? "h-24" : "h-32"}`}>
+        {urls.slice(0, 3).map((src, index) => (
+          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 overflow-hidden bg-neutral-100">
+            <img src={src} alt={title} className="h-full w-full object-cover" />
+            {index === 2 && urls.length > 3 && <span className="absolute inset-0 grid place-items-center bg-black/35 text-sm font-black text-white">+{urls.length - 3}</span>}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderPostCard(post: EventDTO) {
+    const imgs = post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
+    const tags = displayTags(post);
+    const likeCount = metricsOf(post).likeCount;
+    return (
+      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
+        {imgs.length > 0 && (
+          <div className="relative aspect-[4/3] bg-neutral-100">
+            <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
+            {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
+          </div>
+        )}
+        <div className="p-2.5">
+          <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
+          {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
+          {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
+          {likeCount > 0 && <div className="mt-2 flex justify-end text-[10px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
+        </div>
+      </button>
+    );
+  }
+
+  function renderCheckinCard(checkin: CheckInDTO, compact = false) {
+    const moods = (checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : [])
+      .map((value) => moodTagOf(value))
+      .filter((mood): mood is NonNullable<ReturnType<typeof moodTagOf>> => !!mood);
+    const urls = checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : [];
+    const expanded = expandedCheckins.has(checkin.id);
+    const text = checkin.note || checkin.event?.title || "来过这里";
+    return (
+      <article key={checkin.id} className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
+        <div className="flex items-start gap-2">
+          <Avatar user={checkin.author} size={30} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-xs font-black text-neutral-950">{checkin.author?.username ?? "用户"}</p>
+              {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{moods[0].label}</span>}
+            </div>
+            <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)} · {checkin.event?.title ?? "东京"}</p>
+          </div>
+          <span className="text-sm leading-none text-neutral-300">•••</span>
+        </div>
+        <p className={`mt-2 text-[13px] font-semibold leading-5 text-neutral-800 ${expanded ? "" : "line-clamp-2"}`}>{text}</p>
+        {text.length > 38 && (
+          <button type="button" onClick={() => toggleCheckin(checkin.id)} className="mt-1 text-[11px] font-semibold text-violet-600">
+            {expanded ? "收起" : "展开"}
+          </button>
+        )}
+        {imageGrid(urls, text, compact)}
+        {moods.length > 1 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
+          </div>
+        )}
+      </article>
+    );
+  }
+
   return (
     <div className="-mx-3 min-h-full bg-[#F7F9FC] px-4 pb-5 pt-4">
       <header className="mb-3 flex items-center justify-between">
@@ -248,17 +346,29 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
         </div>
       )}
 
-      <nav className="mb-3 grid grid-cols-2 border-b border-neutral-200 bg-[#F7F9FC]">
+      <nav className="mb-4 grid grid-cols-2 gap-1 rounded-[18px] bg-white p-1.5 shadow-sm ring-1 ring-black/5">
         {[
-          ["OFFICIAL", "活动"],
-          ["DISCOVER", "发现"],
+          ["OFFICIAL", "活动", "官方精选活动"],
+          ["DISCOVER", "发现", "用户内容与足迹"],
         ].map(([key, label]) => {
           const active = tab === key;
-          const color = key === "DISCOVER" ? "bg-emerald-500" : "bg-blue-600";
+          const isDiscover = key === "DISCOVER";
           return (
-            <button key={key} type="button" onClick={() => setTab(key as TopTab)} className={`relative py-2 text-sm font-bold ${active ? "text-neutral-950" : "text-neutral-400"}`}>
-              {label}
-              {active && <span className={`absolute bottom-[-1px] left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full ${color}`} />}
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key as TopTab)}
+              className={`relative overflow-hidden rounded-2xl px-3 py-2.5 text-left transition ${
+                active
+                  ? "bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.16)] ring-1 ring-violet-100"
+                  : "text-neutral-500 hover:bg-neutral-50"
+              }`}
+            >
+              <span className={`absolute right-2 top-2 h-2 w-2 rounded-full ${isDiscover ? "bg-emerald-400" : "bg-blue-500"} ${active ? "opacity-100" : "opacity-35"}`} />
+              <span className="block text-sm font-black leading-tight">{label}</span>
+              <span className={`mt-0.5 block text-[10px] font-medium leading-tight ${active ? "text-violet-400" : "text-neutral-400"}`}>
+                {isDiscover ? "用户内容与足迹" : "官方精选活动"}
+              </span>
             </button>
           );
         })}
@@ -390,62 +500,56 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           </div>
 
           <section>
-            <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
               <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                {discoverPosts.slice(0, 6).map((post) => {
-                const imgs = post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
-                const tags = displayTags(post);
-                const likeCount = metricsOf(post).likeCount;
-                return (
-                  <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
-                    {imgs.length > 0 && (
-                      <div className="relative aspect-[4/3] bg-neutral-100">
-                        <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
-                        {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
-                      </div>
-                    )}
-                    <div className="p-2.5">
-                      <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
-                      {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
-                      {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
-                        <span>{post.createdAt ? relativeTime(post.createdAt) : fmtDate(post.startTime)}</span>
-                        {likeCount > 0 && <span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span>}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
               </div>
             )}
           </section>
 
           <section>
-            <SectionTitle title="附近足迹（用户签到）" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="附近足迹（用户签到）" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {checkins.length === 0 ? (
               <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {checkins.slice(0, 10).map((checkin) => {
-                const mood = moodTagOf(checkin.moodTags?.[0] ?? checkin.rating ?? null);
-                const image = imageOfCheckin(checkin);
+              <div className="grid grid-cols-2 gap-3">
+                {checkins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
+              </div>
+            )}
+          </section>
+
+          <section ref={allDiscoverRef} className="scroll-mt-4">
+            <div className="mb-3 grid grid-cols-2 gap-1 rounded-[18px] bg-white p-1.5 shadow-sm ring-1 ring-black/5">
+              {[
+                ["posts", "全部发帖"],
+                ["checkins", "全部足迹"],
+              ].map(([key, label]) => {
+                const active = discoverFullType === key;
                 return (
-                  <div key={checkin.id} className="w-[7.4rem] shrink-0 rounded-2xl bg-white p-2.5 shadow-sm ring-1 ring-black/5">
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <Avatar user={checkin.author} size={24} />
-                      <span className="truncate text-[11px] font-bold text-neutral-900">{checkin.author?.username ?? "用户"}</span>
-                    </div>
-                    {image ? <img src={image} alt="" className="h-20 w-full rounded-xl object-cover" /> : <div className="grid h-20 place-items-center rounded-xl bg-gradient-to-br from-emerald-50 to-blue-50 px-2 text-center text-xs font-bold text-emerald-700">{checkin.event?.title ?? "东京足迹"}</div>}
-                    {mood && <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>}
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-700">{checkin.note || checkin.event?.title || "来过这里"}</p>
-                    <p className="mt-1 text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)}</p>
-                  </div>
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setDiscoverFullType(key as DiscoverFullType)}
+                    className={`rounded-2xl px-3 py-2 text-sm font-black transition ${active ? "bg-violet-50 text-violet-700 ring-1 ring-violet-100" : "text-neutral-500 hover:bg-neutral-50"}`}
+                  >
+                    {label}
+                  </button>
                 );
               })}
-              </div>
+            </div>
+            {discoverFullType === "posts" ? (
+              discoverPosts.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
+              ) : (
+                <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
+              )
+            ) : checkins.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">{checkins.map((checkin) => renderCheckinCard(checkin))}</div>
+            ) : (
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
             )}
           </section>
 
@@ -469,6 +573,11 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
 
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
       {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
+      {previewImage && (
+        <button type="button" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+          <img src={previewImage} alt="" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" />
+        </button>
+      )}
     </div>
   );
 }

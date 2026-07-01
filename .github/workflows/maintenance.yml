@@ -9,6 +9,10 @@ on:
         type: choice
         options:
           - publish-demo-checkins
+      month:
+        description: "Tokyo month for publish-demo-checkins, YYYY-MM"
+        required: false
+        default: "2026-06"
 
 jobs:
   run:
@@ -26,4 +30,4 @@ jobs:
       - run: npx prisma generate
       - name: Publish demo checkins
         if: ${{ inputs.task == 'publish-demo-checkins' }}
-        run: npx tsx scripts/publish-demo-checkins.ts
+        run: npx tsx scripts/publish-demo-checkins.ts --month=${{ inputs.month }}

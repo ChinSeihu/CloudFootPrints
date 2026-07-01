@@ -6,6 +6,22 @@
 
 ## 2026-07-01
 
+### Expand discovery footprint feed
+- **Nearby footprints**: changed nearby checkins from small horizontal tiles to user-feed cards with avatar, mood badge, two-line default text, expandable copy, and tappable image preview.
+- **Discovery view-all**: "查看全部" on user posts and nearby footprints now scrolls to a full discovery section with a segmented switch for all posts versus all footprints.
+- **Image preview**: added a lightweight full-screen image preview for discovery footprint photos.
+**Files:** `src/components/Recommend/RecommendList.tsx`
+
+---
+
+### Refine recommend tabs and June demo checkin maintenance
+- **Recommend tabs**: restyled the activity/discovery switch as a raised segmented card with active shadows and short subtitles so the two modes have clearer hierarchy.
+- **Discovery posts**: removed timestamps from user-post cards in the discovery feed to keep the image-first card cleaner.
+- **Demo footprints**: changed the maintenance script/workflow to publish PersonaV2 demo checkins by Tokyo month, defaulting to June 2026 (`--month=2026-06`).
+**Files:** `src/components/Recommend/RecommendList.tsx`, `scripts/publish-demo-checkins.ts`, `.github/workflows/maintenance.yml`
+
+---
+
 ### Tighten recommend discovery cards and filters
 - **Discovery posts**: removed the extra user-post badge and author header from the discovery user-post cards; cards now use image-first activity-style layout with title, description, tags, time, and real like count only when present.
 - **Activity filters**: category shortcuts now show active state and scroll to the all-activities section; "查看全部" on hot activities also scrolls to the full activity list.
