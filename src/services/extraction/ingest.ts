@@ -66,28 +66,53 @@ function normalizeJapaneseHour(prefix: string, rawHour: string): number {
   return hour;
 }
 
+function normalizeTimeText(text: string): string {
+  return text
+    .replace(/：/g, ":")
+    .replace(/[‐‑‒–—−－]/g, "-")
+    .replace(/[～〜]/g, "~")
+    .replace(/午前/g, "AM")
+    .replace(/午後/g, "PM")
+    .replace(/(\d{1,2})時半/g, "$1:30")
+    .replace(/(\d{1,2})時([0-5]\d)分?/g, "$1:$2")
+    .replace(/(\d{1,2})時/g, "$1:00");
+}
+
+function parseTimeRange(text: string): TimeRange | null {
+  const normalized = normalizeTimeText(text);
+  const pattern = /(?:(AM|PM)\s*)?([01]?\d|2[0-3]):([0-5]\d)\s*(?:[~-]\s*(?:(AM|PM)\s*)?([01]?\d|2[0-3]):([0-5]\d))?/i;
+  const match = normalized.match(pattern);
+  if (!match) return null;
+  const startHour = normalizeJapaneseHour(match[1] ?? "", match[2]);
+  const startMinute = match[3] ? Number(match[3]) : 0;
+  if (startHour < 5 || startHour > 23) return null;
+  const endHour = match[5] ? normalizeJapaneseHour(match[4] ?? match[1] ?? "", match[5]) : undefined;
+  const endMinute = match[6] ? Number(match[6]) : endHour === undefined ? undefined : 0;
+  return { startHour, startMinute, endHour, endMinute };
+}
+
 function inferTimeRange(title: string, rawText: string | null): TimeRange | null {
   if (!rawText) return null;
   const compactTitle = title.trim();
   const index = compactTitle ? rawText.indexOf(compactTitle) : -1;
   const context = index >= 0
-    ? rawText.slice(Math.max(0, index - 600), Math.min(rawText.length, index + compactTitle.length + 900))
-    : rawText.slice(0, 5000);
-  const pattern = /((?:午前|午後|AM|PM|開場|開演|開始|時間|開催時間|Start|Open|Close|OPEN|START|CLOSE)?\s*)([01]?\d|2[0-3])\s*(?:[:：時]\s*([0-5]\d)?)?\s*(?:[〜~\-–—－]\s*((?:午前|午後|AM|PM)?\s*)([01]?\d|2[0-3])\s*(?:[:：時]\s*([0-5]\d)?)?)?/g;
-  for (const match of context.matchAll(pattern)) {
-    const matchIndex = match.index ?? 0;
-    const token = match[0] ?? "";
-    const before = context.slice(Math.max(0, matchIndex - 2), matchIndex);
-    const after = context.slice(matchIndex + token.length, matchIndex + token.length + 2);
-    if (/\d/.test(before) || /\d/.test(after)) continue;
-    if (!/[:：時〜~\-–—－午前午後]|AM|PM|開場|開演|開始|時間|開催時間|Start|Open|Close/i.test(token)) continue;
-    const startHour = normalizeJapaneseHour(match[1] ?? "", match[2]);
-    const startMinute = match[3] ? Number(match[3]) : 0;
-    if (startHour < 5 || startHour > 23) continue;
-    const endHour = match[5] ? normalizeJapaneseHour(match[4] ?? match[1] ?? "", match[5]) : undefined;
-    const endMinute = match[6] ? Number(match[6]) : endHour === undefined ? undefined : 0;
-    return { startHour, startMinute, endHour, endMinute };
+    ? rawText.slice(Math.max(0, index - 900), Math.min(rawText.length, index + compactTitle.length + 1400))
+    : rawText.slice(0, 7000);
+
+  const lines = context.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const strongLine = lines.find((line) =>
+    /(日時|時間|開催時間|開館時間|開場|開演|開始|営業時間|受付|入場|会期|Date|Time|Open|Start)/i.test(line)
+      && /(\d{1,2}[:：時]|午前|午後|AM|PM)/i.test(line),
+  );
+  if (strongLine) {
+    const parsed = parseTimeRange(strongLine);
+    if (parsed) return parsed;
   }
+
+  const windowText = lines.slice(0, 30).join(" ");
+  const parsedWindow = parseTimeRange(windowText);
+  if (parsedWindow) return parsedWindow;
+
   return null;
 }
 

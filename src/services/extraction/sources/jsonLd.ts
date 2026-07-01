@@ -53,6 +53,17 @@ function tagsByKeyword(text: string, category: EventCategory): string[] {
   return tags;
 }
 
+function normalizeLdDate(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed}T00:00:00+09:00`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?$/.test(trimmed)) {
+    return /(?:Z|[+-]\d{2}:?\d{2})$/.test(trimmed) ? trimmed : `${trimmed}+09:00`;
+  }
+  return trimmed;
+}
+
 // 从 HTML 抽取所有 schema.org Event（兼容顶层数组 / @graph / 单对象）。
 export function extractLdEvents(html: string): LdEvent[] {
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
@@ -91,8 +102,8 @@ export function ldToExtracted(e: LdEvent): ExtractedEvent {
     address,
     imageUrl: e.image ?? null,
     sourceUrl: e.url ?? null, // JSON-LD 的 url = 活动详情页（jalan）/官网（walkerplus）
-    // 日期补东京时区，避免无时区字符串被不同环境解析成不同 UTC（曾导致重复）
-    startTime: e.startDate ? `${e.startDate}T00:00:00+09:00` : null,
-    endTime: e.endDate ? `${e.endDate}T00:00:00+09:00` : null,
+    // JSON-LD 可能是 YYYY-MM-DD，也可能已经包含 HH:mm；保留已有时间，只给无时区时间补东京时区。
+    startTime: normalizeLdDate(e.startDate),
+    endTime: normalizeLdDate(e.endDate),
   };
 }

@@ -6,6 +6,14 @@
 
 ## 2026-06-30
 
+### Improve extracted event times
+- **LLM time prompt**: strengthened extraction instructions to actively capture `日時` / `開催時間` / `開館時間` / `開場` / `開演` and only use midnight when no nearby time exists.
+- **Structured date handling**: JSON-LD event dates now preserve existing `HH:mm` values instead of always being converted to `T00:00:00+09:00`.
+- **Ingest fallback**: date-only extracted events now infer start/end hours from nearby Japanese time lines such as `日時：9:00〜16:00` or `開館時間：10時〜22時`.
+**Files:** `src/lib/llm.ts`, `src/services/extraction/ingest.ts`, `src/services/extraction/sources/jsonLd.ts`
+
+---
+
 ### Add follow and follower system
 - **Follow graph**: added `UserFollow` storage, follow stats, follow list API, and follow/unfollow support for user profiles.
 - **Profile social lists**: personal profile cards now show following / follower buttons in the lower-right corner, opening lists with a knot badge for mutual follows.

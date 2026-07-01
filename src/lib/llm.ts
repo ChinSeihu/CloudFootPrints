@@ -44,10 +44,13 @@ const SYSTEM_PROMPT = `你是一个活动信息抽取器。从给定的东京活
 
 // 抽取器返回的原始对象（未经 zod 校验）。
 const TIME_EXTRACTION_RULES = `Time extraction rules:
+- Actively look for Japanese time labels near each event: 日時, 開催日時, 開催時間, 開館時間, 営業時間, 開場, 開演, 開始, 受付, 入場, 公演時間.
 - If the page text contains times such as 10:00, 10時, 午後2時, 開場18:30, 10:00-18:00, use those hours/minutes in startTime/endTime.
+- For museum/exhibition pages, 開館時間 or 開催時間 should usually become the event start/end hour for each date, not midnight.
 - Use Asia/Tokyo offset (+09:00) when the page omits a timezone.
 - Only use T00:00:00+09:00 when the page truly provides a date but no time anywhere near that event.
-- For ranges, startTime is the opening/start time and endTime is the closing/end time on the same date unless another date is explicitly shown.`;
+- For ranges, startTime is the opening/start time and endTime is the closing/end time on the same date unless another date is explicitly shown.
+- Return ISO strings with date and time, e.g. 2026-07-05T09:00:00+09:00.`;
 
 export type RawExtractedEvent = {
   title?: unknown;
