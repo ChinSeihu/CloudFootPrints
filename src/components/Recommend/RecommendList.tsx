@@ -23,11 +23,6 @@ function fmtDate(d: string | null): string {
   return new Date(d).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
 }
 
-function fmtTime(d: string | null): string {
-  if (!d) return "";
-  return new Date(d).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
 function relativeTime(value: string): string {
   const diff = Date.now() - Date.parse(value);
   if (!Number.isFinite(diff)) return "";
@@ -72,15 +67,6 @@ function tokyoDayKey(value: string): string {
   return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
 }
 
-function PostSourceBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">
-      <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-      用户发帖
-    </span>
-  );
-}
-
 function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="mb-2.5 flex items-end justify-between">
@@ -103,7 +89,10 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [query, setQuery] = useState("");
   const [heroIndex, setHeroIndex] = useState(0);
   const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("follow");
+  const [activityVisibleCount, setActivityVisibleCount] = useState(12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
+  const allActivitiesRef = useRef<HTMLElement | null>(null);
+  const activitySentinelRef = useRef<HTMLDivElement | null>(null);
 
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
@@ -152,13 +141,16 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   }, [officialEvents, rankedOfficial]);
   const hero = featuredEvents[heroIndex % Math.max(1, featuredEvents.length)] ?? rankedOfficial[0] ?? events[0];
   const hot = rankedOfficial.filter((e) => !featuredEvents.some((f) => f.id === e.id)).slice(0, 8);
-  const recommended = rankedOfficial.slice(0, 6);
+  const recommended = useMemo(() => {
+    const flagged = rankedOfficial.filter((e) => e.featuredToday);
+    const rest = rankedOfficial.filter((e) => !e.featuredToday);
+    return [...flagged, ...rest].slice(0, 6);
+  }, [rankedOfficial]);
 
   const activityList = useMemo(() => {
     return officialEvents
       .filter((e) => (cat === "ALL" || e.category === cat) && eventInDayRange(e, dateRange) && matchesQuery(e, query))
       .sort((a, b) => heatScore(b) - heatScore(a))
-      .slice(0, 24);
   }, [officialEvents, cat, dateRange, query]);
 
   const discoverPosts = useMemo(() => {
@@ -191,6 +183,30 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     const timer = setInterval(() => setHeroIndex((i) => (i + 1) % featuredEvents.length), 4500);
     return () => clearInterval(timer);
   }, [featuredEvents.length]);
+
+  useEffect(() => {
+    setActivityVisibleCount(12);
+  }, [cat, dateRange, query]);
+
+  useEffect(() => {
+    const el = activitySentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) setActivityVisibleCount((current) => Math.min(current + 12, activityList.length));
+    }, { rootMargin: "320px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [activityList.length]);
+
+  function scrollToAllActivities() {
+    setTab("OFFICIAL");
+    window.setTimeout(() => allActivitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+  }
+
+  function selectCategory(next: EventCategory | "ALL") {
+    setCat((current) => (current === next ? "ALL" : next));
+    scrollToAllActivities();
+  }
 
   return (
     <div className="-mx-3 min-h-full bg-[#F7F9FC] px-4 pb-5 pt-4">
@@ -281,22 +297,23 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
             <div className="grid grid-cols-6 gap-2">
               {EVENT_CATEGORIES.slice(0, 5).map((c) => {
                 const meta = CATEGORY_META[c];
+                const active = cat === c;
                 return (
-                  <button key={c} type="button" onClick={() => setCat(cat === c ? "ALL" : c)} className="flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold text-neutral-700">
-                    <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-50 text-blue-600"><CategoryIcon category={c} className="h-5 w-5" /></span>
-                    {meta.label}
+                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold transition ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
+                    <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-5 w-5" /></span>
+                    <span className="truncate">{meta.label}</span>
                   </button>
                 );
               })}
-              <button type="button" onClick={() => setCat("ALL")} className="flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold text-neutral-700">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100 text-neutral-600"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
-                全部
+              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1.5 rounded-2xl py-2 text-xs font-semibold transition ${cat === "ALL" ? "bg-neutral-900 text-white" : "text-neutral-700"}`}>
+                <span className={`grid h-9 w-9 place-items-center rounded-full ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
+                <span className="truncate">全部</span>
               </button>
             </div>
           </section>
 
           <section>
-            <SectionTitle title="热门活动" action={<button type="button" className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="热门活动" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
@@ -317,7 +334,10 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           </section>
 
           <section>
-            <SectionTitle title="为你推荐" />
+            <SectionTitle
+              title="为你推荐"
+              action={<span className="text-[10px] font-medium text-neutral-400">精选优先 · 近期与热度排序</span>}
+            />
             <div className="grid grid-cols-3 gap-2">
               {recommended.slice(0, 3).map((ev) => (
                 <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
@@ -332,10 +352,10 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           </section>
 
           {activityList.length > 0 && (
-            <section>
-              <SectionTitle title="全部活动" />
+            <section ref={allActivitiesRef} className="scroll-mt-4">
+              <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
               <div className="grid grid-cols-2 gap-3">
-                {activityList.slice(0, 12).map((ev) => {
+                {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
                   return (
                     <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
@@ -349,6 +369,9 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                   );
                 })}
               </div>
+              {activityVisibleCount < activityList.length && (
+                <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">继续加载中...</div>
+              )}
             </section>
           )}
         </div>
@@ -377,25 +400,22 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                 const tags = displayTags(post);
                 const likeCount = metricsOf(post).likeCount;
                 return (
-                  <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white p-2.5 text-left shadow-sm ring-1 ring-black/5">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Avatar user={post.author} size={28} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-neutral-950">{post.author?.username ?? "用户"}</p>
-                        <p className="text-[10px] text-neutral-400">{post.createdAt ? relativeTime(post.createdAt) : fmtDate(post.startTime)}</p>
-                      </div>
-                      <span className="text-neutral-300">•••</span>
-                    </div>
-                    <PostSourceBadge />
-                    <h3 className="mt-2 line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
-                    {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
+                  <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
                     {imgs.length > 0 && (
-                      <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
-                        {imgs.slice(0, 3).map((src, index) => <img key={`${src}-${index}`} src={src} alt="" className="h-16 w-full object-cover" />)}
+                      <div className="relative aspect-[4/3] bg-neutral-100">
+                        <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
+                        {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
                       </div>
                     )}
-                    {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">{tag}</span>)}</div>}
-                    {likeCount > 0 && <div className="mt-2 text-[11px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
+                    <div className="p-2.5">
+                      <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
+                      {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
+                      {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
+                        <span>{post.createdAt ? relativeTime(post.createdAt) : fmtDate(post.startTime)}</span>
+                        {likeCount > 0 && <span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span>}
+                      </div>
+                    </div>
                   </button>
                 );
               })}

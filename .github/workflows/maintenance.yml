@@ -1,0 +1,29 @@
+name: Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Maintenance task to run"
+        required: true
+        type: choice
+        options:
+          - publish-demo-checkins
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx prisma generate
+      - name: Publish demo checkins
+        if: ${{ inputs.task == 'publish-demo-checkins' }}
+        run: npx tsx scripts/publish-demo-checkins.ts

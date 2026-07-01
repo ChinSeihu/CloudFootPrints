@@ -6,6 +6,16 @@
 
 ## 2026-07-01
 
+### Tighten recommend discovery cards and filters
+- **Discovery posts**: removed the extra user-post badge and author header from the discovery user-post cards; cards now use image-first activity-style layout with title, description, tags, time, and real like count only when present.
+- **Activity filters**: category shortcuts now show active state and scroll to the all-activities section; "查看全部" on hot activities also scrolls to the full activity list.
+- **All activities**: restored incremental loading for the full activity grid so the page can expand in batches instead of rendering a fixed short slice.
+- **Recommendation basis**: "为你推荐" now prioritizes LLM daily picks (`featuredToday`) and then falls back to recency, engagement, image completeness, and trust score.
+- **Demo footprints**: added a maintenance script and manual GitHub Actions workflow to publish existing PersonaV2 demo checkins using the configured `DATABASE_URL` secret.
+**Files:** `src/components/Recommend/RecommendList.tsx`, `scripts/publish-demo-checkins.ts`, `.github/workflows/maintenance.yml`
+
+---
+
 ### Redesign recommend activity and discovery tabs
 - **Activity tab**: rebuilt the recommend page around the supplied activity-page reference with a stronger official featured banner, category shortcuts, hot activity carousel, and recommendation cards.
 - **Discovery tab**: added a user-content focused discovery view with user post cards using the app's personal post styling, nearby public checkin cards, and real same-day mood stats.
