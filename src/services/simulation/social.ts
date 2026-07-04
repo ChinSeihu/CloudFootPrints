@@ -1,0 +1,567 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { ReactionType, type EventCategory } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import {
+  PERSONAS,
+  personaGoals,
+  personaInterestList,
+  personaOf,
+  personaSpots,
+  personaVoiceText,
+  type PersonaV2,
+} from "@/lib/personas";
+import { getOrCreateWorldState } from "./world";
+
+type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
+
+type SocialCandidate = {
+  id: string;
+  kind: "event" | "post";
+  title: string;
+  authorUsername?: string | null;
+  description?: string | null;
+};
+
+type ReplyCandidate = SocialCandidate & {
+  commentId: string;
+  commentText: string;
+  commentAuthorUsername?: string | null;
+};
+
+type SocialDecision = {
+  action: SocialActionType;
+  targetId?: string;
+  commentId?: string;
+  title?: string;
+  text?: string;
+  category?: EventCategory;
+  signupEnabled?: boolean;
+  reaction?: "LIKE" | "FAVORITE" | "SIGNUP";
+  memoryText?: string;
+};
+
+export type SocialResult = {
+  posts: number;
+  comments: number;
+  replies: number;
+  reactions: number;
+  skipped: boolean;
+  notes: string[];
+};
+
+const EVENT_CATEGORIES: EventCategory[] = [
+  "EXHIBITION",
+  "MARKET",
+  "LIVE",
+  "FESTIVAL",
+  "TALK",
+  "SPORTS",
+  "OTHER",
+];
+
+function getApiKey(): string {
+  const key = process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("Missing LLM_API_KEY");
+  return key;
+}
+
+function getProvider(): "anthropic" | "openai" {
+  const p = (process.env.LLM_PROVIDER || "").toLowerCase();
+  if (p === "anthropic" || p === "claude") return "anthropic";
+  if (p === "deepseek" || p === "openai") return "openai";
+  const model = (process.env.LLM_MODEL || "").toLowerCase();
+  if (model.startsWith("claude") || (process.env.LLM_API_KEY || "").startsWith("sk-ant-")) {
+    return "anthropic";
+  }
+  return "openai";
+}
+
+function safeParse(text: string): unknown {
+  let t = text.trim();
+  if (t.startsWith("```")) t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(t);
+  } catch {
+    return null;
+  }
+}
+
+function clampText(text: string | undefined, max: number): string {
+  return (text ?? "").trim().slice(0, max);
+}
+
+function seeded(key: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h += 0x6d2b79f5;
+    let t = h;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function dayBounds(dateKey: string) {
+  return {
+    start: new Date(`${dateKey}T00:00:00+09:00`),
+    end: new Date(`${dateKey}T23:59:59+09:00`),
+  };
+}
+
+function dateAt(dateKey: string, hour: number, minute: number): Date {
+  return new Date(`${dateKey}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`);
+}
+
+function categoryOrDefault(value: unknown): EventCategory {
+  return typeof value === "string" && EVENT_CATEGORIES.includes(value as EventCategory)
+    ? (value as EventCategory)
+    : "OTHER";
+}
+
+function normalizeDecision(raw: unknown): SocialDecision {
+  if (!raw || typeof raw !== "object") return { action: "none" };
+  const o = raw as Record<string, unknown>;
+  const action = typeof o.action === "string" ? o.action : "none";
+  if (!["post", "comment", "reply", "react", "none"].includes(action)) return { action: "none" };
+  const reaction = typeof o.reaction === "string" && ["LIKE", "FAVORITE", "SIGNUP"].includes(o.reaction)
+    ? (o.reaction as SocialDecision["reaction"])
+    : undefined;
+  return {
+    action: action as SocialActionType,
+    targetId: typeof o.targetId === "string" ? o.targetId : undefined,
+    commentId: typeof o.commentId === "string" ? o.commentId : undefined,
+    title: clampText(typeof o.title === "string" ? o.title : undefined, 48),
+    text: clampText(typeof o.text === "string" ? o.text : undefined, 220),
+    category: categoryOrDefault(o.category),
+    signupEnabled: o.signupEnabled === true,
+    reaction,
+    memoryText: clampText(typeof o.memoryText === "string" ? o.memoryText : undefined, 100),
+  };
+}
+
+function personLine(persona: PersonaV2): string {
+  return [
+    `${persona.username}, ${persona.age}, ${persona.occupation}`,
+    `archetype: ${persona.archetype}`,
+    `voice: ${personaVoiceText(persona)}`,
+    `interests: ${personaInterestList(persona).join(", ")}`,
+    `goals: ${personaGoals(persona).join(", ")}`,
+  ].join("\n");
+}
+
+function buildPrompt(input: {
+  persona: PersonaV2;
+  dateKey: string;
+  world: Awaited<ReturnType<typeof getOrCreateWorldState>>;
+  recentMemories: string[];
+  recentOwnPosts: string[];
+  candidates: SocialCandidate[];
+  replies: ReplyCandidate[];
+  preferPost: boolean;
+}) {
+  const candidates = input.candidates.map((c) => {
+    const by = c.authorUsername ? ` by ${c.authorUsername}` : "";
+    return `- ${c.kind}:${c.id}${by} | ${c.title}${c.description ? ` | ${c.description.slice(0, 80)}` : ""}`;
+  }).join("\n") || "(none)";
+  const replies = input.replies.map((c) => {
+    const by = c.commentAuthorUsername ? ` by ${c.commentAuthorUsername}` : "";
+    return `- ${c.kind}:${c.id} comment:${c.commentId}${by} | ${c.title} | ${c.commentText.slice(0, 80)}`;
+  }).join("\n") || "(none)";
+  const memories = input.recentMemories.map((m) => `- ${m}`).join("\n") || "(none)";
+  const own = input.recentOwnPosts.map((m) => `- ${m}`).join("\n") || "(none)";
+
+  return `
+You are simulating one Tokyo community account. Produce exactly one small social action for today.
+
+Person:
+${personLine(input.persona)}
+
+Date: ${input.dateKey}
+World: ${input.world.season}, ${input.world.weather}, ${input.world.cityMood}
+Viral topics: ${(input.world.viralTopics as string[]).join(", ")}
+
+Recent memories:
+${memories}
+
+Recent public writing by this person:
+${own}
+
+Targets for comments/reactions:
+${candidates}
+
+Targets for replies:
+${replies}
+
+Rules:
+- Match the person's voice model. Do not use a generic friendly assistant tone.
+- If action is "post", create a normal community post, not a footprint/check-in.
+- Posts can be casual plans, invitations, small thoughts, questions, or recommendations.
+- Comments should be 8-60 Chinese/Japanese-mixed natural characters when possible.
+- Replies should be shorter and feel like a real reply in a thread.
+- Do not overuse "一起去", "好棒", "下次带我", or motivational endings.
+- Avoid system/backend words.
+- Prefer action "post" if preferPost is true: ${input.preferPost}.
+- Use only a targetId/commentId shown above.
+- Output JSON only.
+
+Schema:
+{
+  "action": "post" | "comment" | "reply" | "react" | "none",
+  "targetId": "id for comment/react/reply target",
+  "commentId": "comment id only for reply",
+  "title": "required for post, <=24 Chinese chars",
+  "text": "post body/comment/reply text",
+  "category": "EXHIBITION|MARKET|LIVE|FESTIVAL|TALK|SPORTS|OTHER",
+  "signupEnabled": false,
+  "reaction": "LIKE|FAVORITE|SIGNUP",
+  "memoryText": "optional first-person memory of this social action"
+}
+`;
+}
+
+async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<SocialDecision> {
+  const prompt = buildPrompt(input);
+  const system = "You generate terse JSON for a Japanese/Chinese Tokyo social simulation. Respect persona voice.";
+
+  if (getProvider() === "anthropic") {
+    const client = new Anthropic({ apiKey: getApiKey() });
+    const res = await client.messages.create({
+      model: process.env.LLM_MODEL || "claude-haiku-4-5",
+      max_tokens: 500,
+      temperature: 0.9,
+      system,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    return normalizeDecision(safeParse(text));
+  }
+
+  const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: process.env.LLM_MODEL || "deepseek-chat",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.9,
+      max_tokens: 500,
+    }),
+  });
+  if (!res.ok) throw new Error(`social LLM ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return normalizeDecision(safeParse(data.choices?.[0]?.message?.content ?? ""));
+}
+
+async function loadDemoUsers() {
+  const usernames = PERSONAS.map((p) => p.username);
+  const users = await prisma.user.findMany({
+    where: { username: { in: usernames } },
+    select: { id: true, username: true },
+  });
+  return users;
+}
+
+async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
+  candidates: SocialCandidate[];
+  replies: ReplyCandidate[];
+}> {
+  const { start, end } = dayBounds(dateKey);
+  const since = new Date(start.getTime() - 5 * 86_400_000);
+  const [posts, events, comments] = await Promise.all([
+    prisma.post.findMany({
+      where: { createdAt: { gte: since, lte: end } },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: { comments: { orderBy: { createdAt: "desc" }, take: 3 }, },
+    }),
+    prisma.event.findMany({
+      where: {
+        OR: [
+          { startTime: { gte: start, lte: new Date(end.getTime() + 14 * 86_400_000) } },
+          { featuredToday: true },
+        ],
+      },
+      orderBy: [{ featuredToday: "desc" }, { startTime: "asc" }],
+      take: 12,
+    }),
+    prisma.comment.findMany({
+      where: {
+        userId: { in: demoUserIds },
+        createdAt: { gte: since, lte: end },
+        parentId: null,
+        OR: [{ postId: { not: null } }, { eventId: { not: null } }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+    }),
+  ]);
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: [...new Set(posts.map((p) => p.userId).concat(comments.map((c) => c.userId)))] } },
+    select: { id: true, username: true },
+  });
+  const usernameById = new Map(users.map((u) => [u.id, u.username]));
+
+  const candidates: SocialCandidate[] = [
+    ...posts.map((p) => ({
+      id: p.id,
+      kind: "post" as const,
+      title: p.title,
+      authorUsername: usernameById.get(p.userId) ?? null,
+      description: p.description,
+    })),
+    ...events.map((e) => ({
+      id: e.id,
+      kind: "event" as const,
+      title: e.title,
+      authorUsername: null,
+      description: e.summary ?? e.description,
+    })),
+  ];
+
+  const postById = new Map(posts.map((p) => [p.id, p]));
+  const eventById = new Map(events.map((e) => [e.id, e]));
+  const replies: ReplyCandidate[] = comments.flatMap((c) => {
+    const post = c.postId ? postById.get(c.postId) : null;
+    const event = c.eventId ? eventById.get(c.eventId) : null;
+    if (!post && !event) return [];
+    return [{
+      id: (post?.id ?? event!.id),
+      kind: post ? "post" as const : "event" as const,
+      title: post?.title ?? event!.title,
+      authorUsername: post ? usernameById.get(post.userId) ?? null : null,
+      description: post?.description ?? event?.summary ?? event?.description ?? null,
+      commentId: c.id,
+      commentText: c.text,
+      commentAuthorUsername: usernameById.get(c.userId) ?? null,
+    }];
+  });
+
+  return { candidates, replies };
+}
+
+function targetData(kind: "event" | "post", id: string): { eventId: string } | { postId: string } {
+  return kind === "event" ? { eventId: id } : { postId: id };
+}
+
+function findCandidate(id: string | undefined, candidates: SocialCandidate[]) {
+  if (!id) return null;
+  return candidates.find((c) => c.id === id) ?? null;
+}
+
+function findReply(id: string | undefined, commentId: string | undefined, replies: ReplyCandidate[]) {
+  if (!id || !commentId) return null;
+  return replies.find((c) => c.id === id && c.commentId === commentId) ?? null;
+}
+
+async function writePost(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date) {
+  const spots = personaSpots(persona);
+  const spot = spots[Math.floor(seeded(`${userId}|post|${when.toISOString()}`)() * Math.max(1, spots.length))] ?? {
+    name: persona.homeArea,
+    lat: 35.681236,
+    lng: 139.767125,
+  };
+  const title = decision.title?.trim() || `${persona.username}のメモ`;
+  const text = decision.text?.trim();
+  if (!text) return null;
+  return prisma.post.create({
+    data: {
+      title,
+      description: text,
+      category: decision.category ?? "OTHER",
+      venueName: spot.name,
+      lat: spot.lat,
+      lng: spot.lng,
+      startTime: when,
+      tags: ["demo", "social"],
+      signupEnabled: decision.signupEnabled === true,
+      userId,
+      createdAt: when,
+      updatedAt: when,
+    },
+  });
+}
+
+async function writeComment(userId: string, target: SocialCandidate, text: string, when: Date) {
+  return prisma.comment.create({
+    data: {
+      ...targetData(target.kind, target.id),
+      userId,
+      text,
+      createdAt: when,
+    },
+  });
+}
+
+async function writeReply(userId: string, target: ReplyCandidate, text: string, when: Date) {
+  return prisma.comment.create({
+    data: {
+      ...targetData(target.kind, target.id),
+      userId,
+      text,
+      parentId: target.commentId,
+      createdAt: when,
+    },
+  });
+}
+
+async function writeReaction(userId: string, target: SocialCandidate, reaction: SocialDecision["reaction"]) {
+  if (!reaction) return false;
+  try {
+    await prisma.reaction.create({
+      data: {
+        ...targetData(target.kind, target.id),
+        userId,
+        type: ReactionType[reaction],
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function writeSocialMemory(userId: string, text: string | undefined, when: Date) {
+  const clean = text?.trim();
+  if (!clean) return;
+  await prisma.memory.create({
+    data: {
+      userId,
+      text: clean,
+      type: "RELATIONSHIP",
+      importance: 1,
+      happenedAt: when,
+    },
+  });
+}
+
+function fallbackPost(persona: PersonaV2): SocialDecision {
+  const interests = personaInterestList(persona);
+  const topic = interests[0] ?? "散歩";
+  return {
+    action: "post",
+    title: `${topic}メモ`,
+    text: `${topic}の予定、そろそろちゃんと決めたい。誰か最近よかった場所ある？`,
+    category: "OTHER",
+    signupEnabled: false,
+    memoryText: `${topic}のことを少し人に聞いてみた。`,
+  };
+}
+
+async function alreadyRan(dateKey: string, demoUserIds: string[]) {
+  const { start, end } = dayBounds(dateKey);
+  const [posts, comments] = await Promise.all([
+    prisma.post.count({ where: { userId: { in: demoUserIds }, tags: { has: "social" }, createdAt: { gte: start, lte: end } } }),
+    prisma.comment.count({ where: { userId: { in: demoUserIds }, createdAt: { gte: start, lte: end } } }),
+  ]);
+  return posts + comments > 0;
+}
+
+export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; only?: string[] } = {}): Promise<SocialResult> {
+  const demoUsers = await loadDemoUsers();
+  const userByName = new Map(demoUsers.map((u) => [u.username, u]));
+  const demoUserIds = demoUsers.map((u) => u.id);
+  if (!demoUserIds.length) return { posts: 0, comments: 0, replies: 0, reactions: 0, skipped: true, notes: [] };
+  if (!opts.dry && await alreadyRan(dateKey, demoUserIds)) {
+    return { posts: 0, comments: 0, replies: 0, reactions: 0, skipped: true, notes: ["social already exists"] };
+  }
+
+  const world = await getOrCreateWorldState(dateKey);
+  const { candidates, replies } = await loadCandidates(dateKey, demoUserIds);
+  const names = (opts.only?.length ? PERSONAS.filter((p) => opts.only!.includes(p.username)) : PERSONAS)
+    .map((p) => p.username);
+  const result: SocialResult = { posts: 0, comments: 0, replies: 0, reactions: 0, skipped: false, notes: [] };
+
+  let postCount = 0;
+  for (const username of names) {
+    const persona = personaOf(username);
+    const user = userByName.get(username);
+    if (!persona || !user) continue;
+
+    const rnd = seeded(`social|${dateKey}|${username}`);
+    const shouldAct = rnd() < Math.max(0.25, Math.min(0.85, 0.35 + persona.socialProfile.socialNeed / 180));
+    const needPost = postCount < Math.max(1, Math.ceil(names.length / 5));
+    if (!shouldAct && !needPost) continue;
+
+    const [recentMemories, recentOwnPosts] = await Promise.all([
+      prisma.memory.findMany({ where: { userId: user.id }, orderBy: { happenedAt: "desc" }, take: 6, select: { text: true } }),
+      prisma.post.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 4, select: { title: true, description: true } }),
+    ]);
+    const when = dateAt(dateKey, 11 + Math.floor(rnd() * 11), Math.floor(rnd() * 60));
+    if (opts.dry) {
+      const target = candidates.find((c) => c.authorUsername !== username);
+      const action = needPost ? fallbackPost(persona) : target ? { action: "comment", text: `would comment on ${target.title}` } : fallbackPost(persona);
+      if (needPost) postCount++;
+      result.notes.push(`${username}: ${action.action}${"title" in action && action.title ? ` ${action.title}` : ""}${action.text ? ` ${action.text}` : ""}`);
+      continue;
+    }
+
+    let decision = await callSocialLLM({
+      persona,
+      dateKey,
+      world,
+      recentMemories: recentMemories.map((m) => m.text),
+      recentOwnPosts: recentOwnPosts.map((p) => `${p.title}: ${p.description ?? ""}`),
+      candidates: candidates.filter((c) => c.authorUsername !== username).slice(0, 28),
+      replies: replies.filter((r) => r.commentAuthorUsername !== username).slice(0, 18),
+      preferPost: needPost,
+    });
+
+    if (needPost && decision.action !== "post") decision = fallbackPost(persona);
+
+    if (decision.action === "post") {
+      const post = await writePost(persona, user.id, decision, when);
+      if (post) {
+        postCount++;
+        result.posts++;
+        result.notes.push(`${username} posted: ${post.title}`);
+        candidates.unshift({ id: post.id, kind: "post", title: post.title, authorUsername: username, description: post.description });
+        await writeSocialMemory(user.id, decision.memoryText ?? `社区里发了一条关于「${post.title}」的动态。`, when);
+      }
+      continue;
+    }
+
+    if (decision.action === "comment") {
+      const target = findCandidate(decision.targetId, candidates);
+      if (target && decision.text) {
+        await writeComment(user.id, target, decision.text, when);
+        result.comments++;
+        result.notes.push(`${username} commented: ${decision.text}`);
+        await writeSocialMemory(user.id, decision.memoryText ?? `回复了${target.title}。`, when);
+      }
+      continue;
+    }
+
+    if (decision.action === "reply") {
+      const target = findReply(decision.targetId, decision.commentId, replies);
+      if (target && decision.text) {
+        await writeReply(user.id, target, decision.text, when);
+        result.replies++;
+        result.notes.push(`${username} replied: ${decision.text}`);
+        await writeSocialMemory(user.id, decision.memoryText ?? `在评论里接了一句话。`, when);
+      }
+      continue;
+    }
+
+    if (decision.action === "react") {
+      const target = findCandidate(decision.targetId, candidates);
+      if (target && await writeReaction(user.id, target, decision.reaction)) {
+        result.reactions++;
+        result.notes.push(`${username} reacted: ${decision.reaction}`);
+      }
+    }
+  }
+
+  return result;
+}

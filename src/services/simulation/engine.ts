@@ -14,8 +14,9 @@ import { applyRelationshipDynamics } from "./relationships";
 import { weeklyCommunityBalance, relaxEmotions } from "./community";
 import { compressMemories } from "./memory";
 import { refreshStatus, refreshSignature } from "./signature";
-import { generateCheckinImage } from "./image";
+import { generateCheckinImages } from "./image";
 import { maybeLifeEvent } from "./lifeEvents";
+import { simulateSocialDay, type SocialResult } from "./social";
 import type { Prisma } from "@prisma/client";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
@@ -93,7 +94,7 @@ function engagementProb(p: PersonaV2, emotion: Record<string, number>): number {
 export type CharDayStatus = "skipped-quiet" | "skipped-done" | "no-decision" | "memory" | "posted";
 export type CharDayResult = { username: string; status: CharDayStatus; note?: string };
 
-export type DayResult = { date: string; world: string; results: CharDayResult[]; maintenance?: string };
+export type DayResult = { date: string; world: string; results: CharDayResult[]; maintenance?: string; social?: SocialResult };
 
 export type SimOptions = { only?: string[]; dry?: boolean };
 
@@ -197,18 +198,18 @@ if (decision.post && coords.length) {
 
     if (decision.post.photo && decision.post.imageSpec) {
       try {
-        const img = await generateCheckinImage({
+        const images = await generateCheckinImages({
           persona,
           imageSpec: decision.post.imageSpec,
           world,
         });
 
-        if (img) {
+        if (images.length) {
           await prisma.checkIn.update({
             where: { id: r.checkin.id },
             data: {
-              photoUrl: img,
-              photoUrls: [img],
+              photoUrl: images[0],
+              photoUrls: images,
             },
           });
         }
@@ -249,6 +250,13 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
   }
 
   // ── Phase 3 维护：仅在「真跑 + 全员 + 当天确有动作」时执行，避免子集/干跑/幂等重跑里误触发 ──
+  let social: SocialResult | undefined;
+  try {
+    social = await simulateSocialDay(dateKey, { dry: opts.dry, only: opts.only });
+  } catch (e) {
+    console.warn(`  social @ ${dateKey} failed: ${e instanceof Error ? e.message : e}`);
+  }
+
   let maintenance: string | undefined;
   const didWork = results.some((r) => r.status === "posted" || r.status === "memory");
   if (!opts.dry && !opts.only && didWork) {
@@ -298,7 +306,7 @@ export async function simulateDay(dateKey: string, opts: SimOptions = {}): Promi
     maintenance = parts.join(" · ");
   }
 
-  return { date: dateKey, world: `${world.season} ${world.weather} · ${world.cityMood}`, results, maintenance };
+  return { date: dateKey, world: `${world.season} ${world.weather} · ${world.cityMood}`, results, maintenance, social };
 }
 
 async function usernamesToIds(usernames: string[]): Promise<string[]> {

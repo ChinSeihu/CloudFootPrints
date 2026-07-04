@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS,PERSONA_FASHION_STYLE,type FashionTrendTag,  type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
+import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, PERSONA_FASHION_STYLE, type FashionTrendTag, type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
-import { imageSpecToText, type ImageSpec } from "./decide"
+import { imageSpecToText, type ImageSpec } from "./decide";
 
 // 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 personV2.png 裁出）→ data URI。
 // 作为 Agnes img2img 的图参锁定人脸/外观。缺图返回 null（回退纯文本）。
@@ -35,6 +35,151 @@ export interface ImageProvider {
 }
 
 // 带超时的 fetch：避免出图/质检的网络请求卡住整条回填或每日 workflow。超时即 abort → 上层按失败处理。
+type PersonaVisualStyle = {
+  wardrobe: string[];
+  palette: string;
+  avoid: string[];
+  accessories: string[];
+  cameraProfile: string;
+};
+
+const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
+  C01: {
+    wardrobe: [
+      "quiet literary Tokyo style: airy shirts, light trench coats, long pleated skirts, soft loafers, delicate knits",
+      "2026 bookshop girl details: sheer cardigan, narrow belt, small leather shoulder bag, subtle silver glasses chain",
+    ],
+    palette: "ink navy, paper white, soft gray, pale blue, muted sage",
+    avoid: ["flashy influencer outfits", "bodycon styling", "sportswear-heavy looks"],
+    accessories: ["canvas tote", "thin silver ring", "small bookshop tote", "loafers"],
+    cameraProfile: "Fujifilm X100V Classic Chrome look: muted greens, soft contrast, gentle highlight rolloff, quiet editorial street color, very subtle grain",
+  },
+  C02: {
+    wardrobe: [
+      "Tokyo freelance designer style: minimal wide trousers, sheer shirts, cropped jackets, clean tank tops, sculptural flats",
+      "2026 design cafe details: mesh cardigan, silver accessories, compact leather bag, monochrome layering",
+    ],
+    palette: "off white, charcoal, greige, brushed silver, espresso brown",
+    avoid: ["sweet lace-heavy outfits", "tourist outdoor styling", "overly colorful palettes"],
+    accessories: ["silver earrings", "structured mini bag", "thin watch", "flat leather sandals"],
+    cameraProfile: "35mm compact film look with Kodak Gold warmth: warm window light, soft grain, creamy highlights, slightly imperfect cafe snapshot",
+  },
+  C03: {
+    wardrobe: [
+      "soft clean Tokyo feminine style: lace-trim tops, sheer cardigans, mermaid skirts, slim ballet flats",
+      "2026 gentle lifestyle details: ribbon hair clip, pale cardigan, long skirt, small shoulder bag",
+    ],
+    palette: "ivory, rose beige, pale lavender, soft cocoa, milk tea",
+    avoid: ["black-heavy styling", "cargo-heavy streetwear", "loud patterns"],
+    accessories: ["ribbon clip", "pearl-like earrings", "tiny shoulder bag", "ballet flats"],
+    cameraProfile: "Canon EOS R soft portrait documentary look: warm skin tone, clean bokeh, gentle contrast, airy natural light",
+  },
+  C04: {
+    wardrobe: [
+      "2026 Korean-clean office girl style: fitted rib knit, cropped cardigan, mermaid skirt, short jacket, neat boots",
+      "after-work Tokyo details: glossy mini bag, gold jewelry, sheer blouse, polished hair",
+    ],
+    palette: "cream, black, wine, soft taupe, pale pink",
+    avoid: ["outdoor trekking gear", "loose academic styling", "too many muted earth tones"],
+    accessories: ["gold hoops", "mini shoulder bag", "ankle boots", "glossy hair clip"],
+    cameraProfile: "iPhone Pro portrait-mode social snapshot: crisp skin texture, soft background separation, clean warm indoor lighting, not over-beautified",
+  },
+  C05: {
+    wardrobe: [
+      "Daikanyama city-walk vintage style: lace blouse, straight denim, light trench, scarf, wrap skirt",
+      "2026 vintage mix details: sheer socks, loafers, small leather crossbody, subtle pattern scarf",
+    ],
+    palette: "washed denim, cream, camel, faded red, dark brown",
+    avoid: ["sporty athleisure", "all-white clean girl repetition", "luxury editorial styling"],
+    accessories: ["silk scarf", "leather crossbody", "loafers", "vintage watch"],
+    cameraProfile: "Ricoh GR III street diary look: compact-camera realism, crisp urban texture, restrained contrast, natural shadows",
+  },
+  C06: {
+    wardrobe: [
+      "2026 Tokyo travel creator style: light outdoor utility vest, sun shirt, nylon skirt or wide cargo pants, packable windbreaker",
+      "city trekking feminine details: trail sneakers, bucket hat, camera sling bag, breathable layers, pocketed outerwear",
+    ],
+    palette: "sage green, sand beige, washed navy, cream, sun-faded orange",
+    avoid: ["sweet lace outfits", "clean-girl cardigan-and-skirt repetition", "office chic", "fragile shoes that cannot walk"],
+    accessories: ["camera sling bag", "bucket hat", "trail sneakers", "thin outdoor watch", "packable tote"],
+    cameraProfile: "Nikon Zfc travel JPEG look: clear but not over-sharp, clean blues and greens, natural daylight, crisp outdoor documentary color, minimal grain",
+  },
+  C07: {
+    wardrobe: [
+      "wellness natural style: linen shirts, relaxed long skirts, soft knit tanks, light cardigans, comfortable sandals",
+      "2026 quiet luxury wellness details: natural textures, canvas bag, hair tied back, calm jewelry",
+    ],
+    palette: "linen beige, moss green, warm white, clay, soft brown",
+    avoid: ["neon colors", "tight office styling", "heavy black livehouse clothing"],
+    accessories: ["canvas tote", "wood or stone-like accessory", "flat sandals", "simple hair tie"],
+    cameraProfile: "soft natural-light Ricoh diary look: low contrast, gentle greens, calm skin tones, quiet negative space",
+  },
+  C08: {
+    wardrobe: [
+      "Tokyo livehouse street style: band tee, black denim, sheer black layer, cargo skirt or pants, light leather jacket",
+      "2026 music-scene details: silver chain, chunky boots, small crossbody, dark nail polish",
+    ],
+    palette: "black, charcoal, faded burgundy, silver, dirty white",
+    avoid: ["pastel sweet styling", "office blazers", "wellness linen"],
+    accessories: ["silver chain", "boots", "crossbody bag", "ear cuffs"],
+    cameraProfile: "Sony RX100 night snapshot look: high-ISO grain, stage-light color, neon spill, darker contrast, handheld realism",
+  },
+  C09: {
+    wardrobe: [
+      "used-clothing camera kid style: vintage denim, work jacket, graphic tee, cargo pockets, practical layers",
+      "2026 Shimokitazawa details: camera bag, worn sneakers, cap, mismatched but intentional textures",
+    ],
+    palette: "faded denim, olive, black, rust, oatmeal",
+    avoid: ["polished office chic", "lace-heavy feminine outfits", "all-new luxury look"],
+    accessories: ["camera bag", "baseball cap", "worn sneakers", "canvas belt"],
+    cameraProfile: "Nikon D750 street documentary look: stronger micro-contrast, real street texture, neutral color, honest shadows",
+  },
+  C10: {
+    wardrobe: [
+      "Tokyo city-boy photographer style: relaxed shirt, chore jacket, straight denim, utility vest, clean sneakers",
+      "2026 street-documentary details: sling camera bag, cap, silver watch, practical outer layer",
+    ],
+    palette: "navy, gray, white, denim blue, black",
+    avoid: ["romantic lace", "sweet pastel palette", "formal suit styling"],
+    accessories: ["sling camera bag", "cap", "watch", "minimal sneakers"],
+    cameraProfile: "Leica Q street color look: clean contrast, rich but restrained color, documentary sharpness, no glossy filter",
+  },
+  C11: {
+    wardrobe: [
+      "campus Korean casual style: cropped cardigan, pleated skirt, soft hoodie, ribbon detail, Mary Janes or sneakers",
+      "2026 young Tokyo details: sheer cardigan, small backpack, hair ribbon, lace socks used subtly",
+    ],
+    palette: "cream, baby blue, soft gray, blush pink, chocolate",
+    avoid: ["mature office styling", "heavy outdoor gear", "dark livehouse styling"],
+    accessories: ["hair ribbon", "small backpack", "Mary Janes", "lace socks"],
+    cameraProfile: "iPhone casual campus snapshot look: bright natural exposure, soft color, slight motion blur, social-media realism",
+  },
+  C12: {
+    wardrobe: [
+      "pet-friendly athflow style: clean hoodie, nylon skirt, wide pants, baseball cap, comfortable sneakers",
+      "2026 casual details: small canvas bag, dog-walk outerwear, sporty but tidy layers",
+    ],
+    palette: "cream, light gray, navy, soft yellow, beige",
+    avoid: ["fragile lace outfits", "high heels", "glossy office styling"],
+    accessories: ["baseball cap", "canvas bag", "sneakers", "pet-walk pouch"],
+    cameraProfile: "Google Pixel casual life look: clear everyday color, realistic auto HDR, friendly daylight, minimal grain",
+  },
+  C13: {
+    wardrobe: [
+      "mature sweet dessert style: satin skirt, light sensual knit, lace blouse, cropped jacket, elegant sandals",
+      "2026 date-cafe details: gold jewelry, tiny bag, sheer texture, polished but approachable silhouette",
+    ],
+    palette: "champagne, cocoa, ivory, muted rose, black",
+    avoid: ["childish frills", "outdoor utility gear", "baggy streetwear"],
+    accessories: ["gold jewelry", "tiny handbag", "low heels", "delicate bracelet"],
+    cameraProfile: "Canon compact warm cafe look: creamy highlights, dessert-friendly warmth, soft lens character, gentle film-like grain",
+  },
+};
+
+function personaVisualStyle(persona: PersonaV2): PersonaVisualStyle | undefined {
+  return PERSONA_VISUAL_STYLE[persona.id];
+}
+
 export async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
@@ -49,6 +194,7 @@ export function fashionClause(
   persona: PersonaV2,
   world: ImageRequest["world"]
 ): string {
+  const visual = personaVisualStyle(persona);
   const fashion =
     (persona.fashionStyle as PersonaFashionStyle | undefined) ??
     PERSONA_FASHION_STYLE[persona.id];
@@ -72,11 +218,17 @@ export function fashionClause(
       .map((s) => FASHION_STYLE_PROMPTS[s])
       .join(" / ")}.`,
     `Current trend tags to use when suitable: ${fashion.trendTags.join(", ")}.`,
+    visual ? `Persona wardrobe capsule: ${visual.wardrobe.join(" / ")}.` : "",
+    visual ? `Persona color palette: ${visual.palette}.` : "",
+    visual ? `Signature accessories: ${visual.accessories.join(", ")}.` : "",
+    visual ? `Avoid for this persona: ${visual.avoid.join(", ")}.` : "",
+    "The clothing should look like realistic 2026 Tokyo young-adult street style, not outdated 2010s generic Asian fashion.",
+    "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, ribbon or silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests, or cropped jackets only when they match the persona.",
     "Keep this person's fashion taste consistent across images.",
     "Create a fresh outfit every time.",
     "Do not copy the identity reference outfit.",
     "The outfit should be recognizable as this person's taste even when the face is not visible.",
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 
@@ -120,6 +272,16 @@ function shouldUseIdentityReference(req: GenerateCheckinImageInput): boolean {
 
   return imageSpec.subjectRole === "protagonist" ||
          imageSpec.subjectRole === "friends";
+}
+
+function cameraProfileClause(persona: PersonaV2): string {
+  const visual = personaVisualStyle(persona);
+  return [
+    "[Persona Camera Profile]",
+    visual?.cameraProfile ?? "realistic modern smartphone lifestyle photo: natural color, subtle texture, no heavy filter",
+    "This camera profile should be visible but subtle; do not turn the image into an obvious filter preset.",
+    "Keep color science persona-specific so different accounts do not all look like the same Kodak/Fuji film preset.",
+  ].join(" ");
 }
 
 const anatomyRules = [
@@ -193,13 +355,9 @@ function buildRules(persona: PersonaV2, world: World): string {
     "Subtle motion blur.",
     "Smartphone auto exposure.",
     "Social media snapshot quality.",
-    "Documentary smartphone photo.",
-    "35mm consumer film snapshot feeling.",
-    "Kodak Portra 400 color tone.",
-    "Fujifilm Superia-style muted greens and soft contrast.",
-    "Subtle film grain.",
-    "Gentle halation in highlights.",
-    "Mild lens softness.",
+    "Documentary everyday photo.",
+    cameraProfileClause(persona),
+    "If grain, halation, lens softness, color cast or digital sharpness appear, they must follow the persona camera profile rather than a global preset.",
     "Atmospheric storytelling.",
 
     "Avoid AI-generated appearance.",
@@ -403,6 +561,10 @@ const PALETTES: OutfitPalette[] = [
   { id: "rose_brown_cream", text: "rose brown, cream and soft cocoa", styles: ["french_vintage", "sweet_soft", "korean_casual"] },
   { id: "olive_gray_black", text: "olive, gray and black", styles: ["athflow", "workwear", "street_livehouse"] },
   { id: "camel_black_ivory", text: "camel, black and ivory", styles: ["office_chic", "intellectual", "minimal_chic"] },
+  { id: "sage_sand_navy", text: "sage green, sand beige and washed navy", styles: ["athflow", "workwear", "japanese_fresh"] },
+  { id: "greige_silver_charcoal", text: "greige, brushed silver and charcoal", styles: ["minimal_chic", "clean_girl", "office_chic"] },
+  { id: "butter_gray_denim", text: "butter yellow, pale gray and washed denim", styles: ["korean_casual", "japanese_fresh", "athflow"] },
+  { id: "rose_ivory_black", text: "muted rose, ivory and a small black accent", styles: ["light_sensual", "sweet_soft", "french_vintage"] },
 ];
 
 const SILHOUETTES: OutfitSilhouette[] = [
@@ -416,6 +578,12 @@ const SILHOUETTES: OutfitSilhouette[] = [
   { id: "blouse_pleated_skirt", text: "clean blouse with a long pleated skirt", styles: ["campus_academic", "intellectual", "clean_girl"], tags: ["pleated_skirt"] },
   { id: "wrap_dress_light_cardigan", text: "wrap dress with a light cardigan", styles: ["french_vintage", "sweet_soft"], tags: ["cropped_cardigan"] },
   { id: "linen_dress_light_outerwear", text: "linen dress with light outerwear", styles: ["natural_clean", "japanese_fresh"], tags: ["linen"] },
+  { id: "utility_vest_nylon_skirt", text: "light utility vest with a nylon midi skirt and trail sneakers", styles: ["athflow", "workwear", "japanese_fresh"], tags: ["cargo", "sneakers"] },
+  { id: "mesh_cardigan_wide_pants", text: "fine mesh cardigan with a clean tank top and wide-leg pants", styles: ["minimal_chic", "clean_girl", "korean_casual"], tags: ["wide_pants", "sheer_cardigan"] },
+  { id: "balloon_skirt_short_jacket", text: "short jacket with a subtle balloon skirt and compact shoulder bag", styles: ["korean_clean", "sweet_soft", "japanese_fresh"], tags: ["long_skirt"] },
+  { id: "cargo_skirt_sheer_layer", text: "cargo skirt with a sheer long-sleeve layer and simple sneakers", styles: ["street_livehouse", "athflow", "workwear"], tags: ["cargo", "sheer"] },
+  { id: "sun_shirt_wide_cargo", text: "light sun shirt with wide cargo pants and a camera sling bag", styles: ["athflow", "workwear", "city_boy"], tags: ["cargo", "camera_bag"] },
+  { id: "cropped_jacket_mermaid", text: "cropped jacket with a restrained mermaid skirt and low boots", styles: ["korean_clean", "office_chic", "light_sensual"], tags: ["mermaid_skirt", "boots"] },
   { id: "trench_knit_skirt", text: "trench coat with a fine knit and long skirt", styles: ["office_chic", "french_vintage", "intellectual"], tags: ["trench", "knit", "long_skirt"] },
   { id: "oxford_knit_vest", text: "oxford shirt with a knit vest and straight bottoms", styles: ["campus_academic", "intellectual"], tags: ["knit"] },
   { id: "minimal_set_up", text: "minimal matching set-up with relaxed lines", styles: ["minimal_chic", "office_chic", "city_boy"] },
@@ -537,8 +705,9 @@ export function outfitClause(
       : "Create today's outfit as a fresh variation based on this person's fashion identity.",
 
     "This assigned outfit direction is mandatory when the protagonist appears.",
-    "The outfit should feel like current Tokyo Instagram fashion, especially around Omotesando, Daikanyama, Nakameguro, Ebisu and Jiyugaoka.",
-    "Aim for a clean, feminine, slightly eye-catching look when suitable.",
+    "The outfit should feel like current 2026 Tokyo young-adult street fashion, especially around Omotesando, Daikanyama, Nakameguro, Ebisu, Shimokitazawa, Koenji and Jiyugaoka.",
+    "Aim for a real outfit a stylish Tokyo woman would actually wear in 2026: contemporary, wearable, slightly eye-catching, and suitable for walking around the city.",
+    "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, ribbon hair clip, Mary Janes, ballet flats, trail sneakers or light utility vest.",
     "Do not treat the identity reference image as an outfit reference.",
     "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
     "Do NOT copy clothing, colors, shoes, bag or accessories from the identity reference.",
@@ -555,6 +724,8 @@ export function outfitClause(
     "Avoid duplicated outfits between the protagonist and background people.",
 
     "Not runway fashion.",
+    "Not outdated 2010s generic fashion.",
+    "Not a conservative office outfit unless the persona and scene call for it.",
     "Not cosplay.",
     "Not idol costume.",
     "Not luxury campaign.",
@@ -702,7 +873,26 @@ type GenerateCheckinImageInput = {
 
 // 高层入口：生成 →（可选）视觉质检 → 不合格用改进 prompt 重生成 → 持久化。引擎只调这个。
 // 质检默认开（IMAGE_QA != false），重试次数 IMAGE_QA_RETRIES（默认 2）。质检需 Agnes chat（agnes-2.0-flash）。
-export async function generateCheckinImage(
+function companionPortraitSpec(spec: ImageSpec): ImageSpec {
+  return {
+    ...spec,
+    summary: `Companion portrait for the same moment: ${spec.summary}`,
+    camera: "friend",
+    subjectVisible: true,
+    subjectRole: "protagonist",
+    action: `The protagonist appears naturally in the same outing, ${spec.action}`,
+    environment: `${spec.environment}. Same location and day as the first image, but composed as a relaxed lifestyle photo with the protagonist visible.`,
+    mood: spec.mood ?? "natural, candid, lightly social",
+    avoid: [
+      ...(spec.avoid ?? []),
+      "Do not make it look like a studio portrait",
+      "Do not change the outfit from the first image",
+      "Do not show camera equipment",
+    ],
+  };
+}
+
+async function generateSingleCheckinImage(
   req: GenerateCheckinImageInput
 ): Promise<string | null> {
   const provider = getImageProvider();
@@ -762,4 +952,31 @@ export async function generateCheckinImage(
   if (!lastRaw) return null;
 
   return persistToCloudinary(lastRaw);
+}
+
+export async function generateCheckinImage(
+  req: GenerateCheckinImageInput
+): Promise<string | null> {
+  return generateSingleCheckinImage(req);
+}
+
+export async function generateCheckinImages(
+  req: GenerateCheckinImageInput
+): Promise<string[]> {
+  const outfit =
+    req.outfit ??
+    buildDailyOutfitPlan([{ persona: req.persona, photoDesc: "", world: req.world }])[req.persona.id];
+
+  const first = await generateSingleCheckinImage({ ...req, outfit });
+  if (!first) return [];
+
+  if (req.imageSpec.subjectVisible) return [first];
+
+  const second = await generateSingleCheckinImage({
+    ...req,
+    imageSpec: companionPortraitSpec(req.imageSpec),
+    outfit,
+  });
+
+  return second ? [first, second] : [first];
 }

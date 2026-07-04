@@ -2,32 +2,17 @@ import "./loadEnv";
 import { prisma } from "../src/lib/db";
 import { simulateDay } from "../src/services/simulation/engine";
 
-/**
- * 社区模拟 Phase 2 运行器（每日推演）。
- *
- *   npx tsx scripts/sim-run.ts                      # 模拟「今天」(东京)全员
- *   npx tsx scripts/sim-run.ts --date=2026-06-20    # 模拟某天
- *   npx tsx scripts/sim-run.ts --from=2026-02-01 --to=2026-06-22   # 回填一段(Feb→现在)
- *   npx tsx scripts/sim-run.ts --only=さくら,葵      # 仅某些角色
- *   npx tsx scripts/sim-run.ts --date=2026-06-20 --dry   # 干跑(不调 LLM/不写库,看谁会参与)
- *
- * 幂等：已模拟过的 (角色,日期) 会跳过，可安全断点续跑。
- */
-
 function arg(name: string): string | undefined {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
   return hit ? hit.slice(name.length + 3) : undefined;
 }
+
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
 
 function tokyoToday(): string {
-  const yesterday = new Date(
-    Date.now() - 24 * 60 * 60 * 1000
-  ).toLocaleDateString("en-CA", {
-    timeZone: "Asia/Tokyo"
+  return new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Tokyo",
   });
-  // return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
-  return yesterday;
 }
 
 function dateRange(from: string, to: string): string[] {
@@ -51,22 +36,43 @@ async function main() {
   const single = arg("date");
 
   const dates = from && to ? dateRange(from, to) : [single ?? tokyoToday()];
-  console.log(`模拟 ${dates.length} 天（${dates[0]}${dates.length > 1 ? `…${dates[dates.length - 1]}` : ""}）${dry ? " [dry]" : ""}${only ? ` 仅:${only.join(",")}` : ""}\n`);
+  const rangeText = dates.length > 1 ? `-${dates[dates.length - 1]}` : "";
+  console.log(`模拟 ${dates.length} 天（${dates[0]}${rangeText}）${dry ? " [dry]" : ""}${only ? ` only=${only.join(",")}` : ""}\n`);
 
-  let totalPosts = 0, totalMem = 0;
+  let totalCheckins = 0;
+  let totalMemories = 0;
+  let totalSocialPosts = 0;
+  let totalComments = 0;
+  let totalReplies = 0;
+
   for (const date of dates) {
     const r = await simulateDay(date, { only, dry });
-    const posted = r.results.filter((x) => x.status === "posted");
-    const mem = r.results.filter((x) => x.status === "memory");
+    const checkins = r.results.filter((x) => x.status === "posted");
+    const memories = r.results.filter((x) => x.status === "memory");
     const quiet = r.results.filter((x) => x.status === "skipped-quiet" || x.status === "skipped-done");
-    totalPosts += posted.length;
-    totalMem += mem.length;
-    console.log(`▸ ${date}  [${r.world}]  发帖 ${posted.length} / 记忆 ${mem.length} / 平静 ${quiet.length}${r.maintenance ? `  ｜ ${r.maintenance}` : ""}`);
-    for (const p of posted) console.log(`   📍 ${p.username}: ${p.note}`);
+
+    totalCheckins += checkins.length;
+    totalMemories += memories.length;
+    totalSocialPosts += r.social?.posts ?? 0;
+    totalComments += r.social?.comments ?? 0;
+    totalReplies += r.social?.replies ?? 0;
+
+    const socialText = r.social
+      ? ` / 社交 发帖${r.social.posts} 评论${r.social.comments} 回复${r.social.replies}${r.social.skipped ? " skipped" : ""}`
+      : "";
+
+    console.log(`■ ${date}  [${r.world}]  足迹 ${checkins.length} / 记忆 ${memories.length} / 平静 ${quiet.length}${socialText}${r.maintenance ? `  · ${r.maintenance}` : ""}`);
+    for (const p of checkins) console.log(`   - 足迹 ${p.username}: ${p.note}`);
+    for (const note of r.social?.notes ?? []) console.log(`   - ${note}`);
   }
-  console.log(`\n合计：足迹 ${totalPosts} 条、纯记忆 ${totalMem} 条。`);
+
+  console.log(`\n合计：足迹 ${totalCheckins} 条、纯记忆 ${totalMemories} 条`);
+  console.log(`社交合计：发帖 ${totalSocialPosts} 条、评论 ${totalComments} 条、回复 ${totalReplies} 条`);
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());
