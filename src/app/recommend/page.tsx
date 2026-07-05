@@ -7,7 +7,7 @@ import type { CheckInDTO, EventDTO } from "@/lib/types";
 // v1 仅搭出页面与卡片，排序用简单规则（按开始时间）占位；
 // 卡片可点开看详情 + 评论 + 跳到地图。个性化排序留到 v2。
 // 数据每日定时更新，故用 ISR 缓存（1h 重新生成），避免每次请求都查库、加快加载。
-export const revalidate = 3600;
+export const revalidate = 300;
 
 // 东京全域大致范围，作为 v1 占位数据来源。
 const TOKYO_BBOX = { minLat: 35.5, maxLat: 35.85, minLng: 139.5, maxLng: 139.95 };
@@ -64,6 +64,7 @@ export default async function RecommendPage() {
     const upcoming = rows
       // 过期活动默认不显示（结束时间早于现在；未定档活动保留）。
       .filter((e) => {
+        if (e.sourceType === "USER") return true;
         if (!e.startTime) return true;
         const end = (e.endTime ?? e.startTime).getTime();
         return end >= now;

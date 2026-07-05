@@ -86,7 +86,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [heroIndex, setHeroIndex] = useState(0);
-  const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("follow");
+  const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("new");
   const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
   const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
   const [activityVisibleCount, setActivityVisibleCount] = useState(12);
@@ -158,7 +158,11 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     const list = userPosts.filter((e) => matchesQuery(e, query));
     if (discoverFilter === "new") return [...list].sort((a, b) => Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? ""));
     if (discoverFilter === "hot") return [...list].sort((a, b) => heatScore(b) - heatScore(a));
-    return [...list].sort((a, b) => (b.imageUrl ? 1 : 0) - (a.imageUrl ? 1 : 0) || heatScore(b) - heatScore(a));
+    return [...list].sort((a, b) =>
+      Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? "") ||
+      (b.imageUrl ? 1 : 0) - (a.imageUrl ? 1 : 0) ||
+      heatScore(b) - heatScore(a)
+    );
   }, [userPosts, query, discoverFilter]);
 
   const moodStats = useMemo(() => {

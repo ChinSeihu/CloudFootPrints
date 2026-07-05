@@ -8,6 +8,25 @@
 
 ## 2026-07-04
 
+### 修复模拟发帖不出现在发现页
+- 推荐页过期过滤改为只作用于官方活动；用户发帖 `Post(sourceType="USER")` 不再因 `startTime` 早于当前时间被当作过期活动过滤掉。
+- 发现页默认切到“最新”，并让未实现的关注/附近排序也以发布时间为主，避免无图模拟发帖被有图旧内容压到首页切片之外。
+- 推荐页 ISR 从 1 小时缩短到 5 分钟，降低模拟发帖写入后发现页长时间看不到新内容的概率。
+
+**主要文件：** `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
+
+---
+
+### 精确化模拟发帖与足迹定位
+- 足迹地点选择不再只按 activity 随机加权，改为综合 `activity`、`areaHint`、正文 `note`、`imageSpec` 场景文字和候选地点名称打分；有明确匹配时取最高分，只有完全无线索时才使用兜底选择。
+- 足迹坐标抖动从百米级缩小到更贴近地点本身的二三十米级，保留自然感但避免偏到不相关街区。
+- 模拟普通发帖不再从人物地点池随机落点，改为根据标题、正文、分类和地点候选匹配 `venueName/lat/lng`。
+- 生活决策 prompt 和社交 prompt 都加入地点候选与一致性规则，减少“内容写 A 地，坐标落 B 地”的偏差。
+
+**主要文件：** `src/services/simulation/decide.ts`, `src/services/simulation/engine.ts`, `src/services/simulation/social.ts`
+
+---
+
 ### 强化人物穿搭、相机风格与足迹双图
 - 模拟生图新增人物级视觉 profile：每个 PersonaV2 账户都有更明确的衣橱胶囊、色彩、配饰、禁用风格和相机/滤镜气质。
 - 穿搭 prompt 强化 2026 东京年轻人真实街头穿搭，加入 sheer/mesh、nylon、cargo、balloon skirt、compact shoulder bag、Mary Janes、trail sneakers、utility vest 等更现代但可穿出门的元素。

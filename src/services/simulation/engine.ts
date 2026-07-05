@@ -178,8 +178,8 @@ if (decision.post && coords.length) {
 
   const base = coords[idx];
 
-  const jLat = base.lat + (rnd() - 0.5) * 0.0016;
-  const jLng = base.lng + (rnd() - 0.5) * 0.0016;
+  const jLat = base.lat + (rnd() - 0.5) * 0.00035;
+  const jLng = base.lng + (rnd() - 0.5) * 0.00035;
 
   const r = await createCheckin(
     {

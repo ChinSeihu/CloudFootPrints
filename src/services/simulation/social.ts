@@ -173,6 +173,7 @@ function buildPrompt(input: {
   }).join("\n") || "(none)";
   const memories = input.recentMemories.map((m) => `- ${m}`).join("\n") || "(none)";
   const own = input.recentOwnPosts.map((m) => `- ${m}`).join("\n") || "(none)";
+  const spotList = personaSpots(input.persona).map((s) => `- ${s.name}`).join("\n") || "(none)";
 
   return `
 You are simulating one Tokyo community account. Produce exactly one small social action for today.
@@ -196,6 +197,9 @@ ${candidates}
 Targets for replies:
 ${replies}
 
+Location candidates for a new post:
+${spotList}
+
 Rules:
 - Match the person's voice model. Do not use a generic friendly assistant tone.
 - If action is "post", create a normal community post, not a footprint/check-in.
@@ -205,6 +209,8 @@ Rules:
 - Do not overuse "一起去", "好棒", "下次带我", or motivational endings.
 - Avoid system/backend words.
 - Prefer action "post" if preferPost is true: ${input.preferPost}.
+- If a new post mentions a concrete place or neighborhood, use a name from Location candidates so stored venue/coordinates match the text.
+- Do not write about one area while implying the post happened in another area.
 - Use only a targetId/commentId shown above.
 - Output JSON only.
 
@@ -355,6 +361,60 @@ function targetData(kind: "event" | "post", id: string): { eventId: string } | {
   return kind === "event" ? { eventId: id } : { postId: id };
 }
 
+const CATEGORY_LOCATION_KEYWORDS: Record<string, string[]> = {
+  EXHIBITION: ["gallery", "museum", "art", "展", "展示", "美術館", "ギャラリー"],
+  MARKET: ["market", "shop", "store", "買い物", "市集", "マーケット"],
+  LIVE: ["live", "music", "ライブ", "音楽"],
+  FESTIVAL: ["festival", "matsuri", "祭", "花火", "まつり"],
+  TALK: ["book", "study", "talk", "本", "書店", "学校", "講座"],
+  SPORTS: ["sport", "run", "gym", "yoga", "運動", "スポーツ", "ヨガ"],
+  OTHER: [],
+};
+
+function scoreSpotForPost(
+  spot: { name: string; lat: number; lng: number },
+  decision: SocialDecision
+): number {
+  const query = [
+    decision.title ?? "",
+    decision.text ?? "",
+    decision.category ?? "",
+  ].join(" ").toLowerCase();
+  const name = spot.name.toLowerCase();
+  let score = 0;
+
+  if (query.includes(name)) score += 30;
+  for (const token of name.split(/[\s、,，/・]+/).filter((x) => x.length >= 2)) {
+    if (query.includes(token)) score += 8;
+  }
+
+  for (const kw of CATEGORY_LOCATION_KEYWORDS[decision.category ?? "OTHER"] ?? []) {
+    if (name.includes(kw.toLowerCase()) || query.includes(kw.toLowerCase())) score += 3;
+  }
+
+  return score;
+}
+
+function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date) {
+  const spots = personaSpots(persona);
+  const fallback = {
+    name: persona.homeArea,
+    lat: 35.681236,
+    lng: 139.767125,
+  };
+  if (!spots.length) return fallback;
+
+  const scored = spots.map((spot) => ({
+    spot,
+    score: scoreSpotForPost(spot, decision),
+  }));
+  const bestScore = Math.max(...scored.map((x) => x.score));
+  if (bestScore > 0) return scored.find((x) => x.score === bestScore)?.spot ?? fallback;
+
+  const r = seeded(`${userId}|post-location|${when.toISOString()}|${decision.title ?? ""}`)();
+  return spots[Math.floor(r * spots.length)] ?? fallback;
+}
+
 function findCandidate(id: string | undefined, candidates: SocialCandidate[]) {
   if (!id) return null;
   return candidates.find((c) => c.id === id) ?? null;
@@ -366,12 +426,7 @@ function findReply(id: string | undefined, commentId: string | undefined, replie
 }
 
 async function writePost(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date) {
-  const spots = personaSpots(persona);
-  const spot = spots[Math.floor(seeded(`${userId}|post|${when.toISOString()}`)() * Math.max(1, spots.length))] ?? {
-    name: persona.homeArea,
-    lat: 35.681236,
-    lng: 139.767125,
-  };
+  const spot = pickPostSpot(persona, userId, decision, when);
   const title = decision.title?.trim() || `${persona.username}のメモ`;
   const text = decision.text?.trim();
   if (!text) return null;

@@ -221,6 +221,44 @@ function scoreSpotByActivity(spot: SpotLike, activity: ActivityType): number {
   return score;
 }
 
+const AREA_HINT_KEYWORDS: Record<AreaHint, string[]> = {
+  near_home: ["home", "local", "near home", "近所", "家の近く", "自宅", "地元"],
+  central_tokyo: ["表参道", "青山", "渋谷", "恵比寿", "代官山", "中目黒", "銀座", "六本木", "丸の内", "東京"],
+  east_tokyo: ["浅草", "蔵前", "清澄", "門前仲町", "上野", "押上", "錦糸町", "日本橋"],
+  west_tokyo: ["下北沢", "高円寺", "吉祥寺", "中野", "荻窪", "三軒茶屋", "世田谷"],
+  quiet_area: ["自由が丘", "二子玉川", "代々木", "清澄", "神保町", "谷中", "根津"],
+  busy_area: ["渋谷", "新宿", "池袋", "原宿", "表参道", "銀座", "六本木"],
+  any: [],
+};
+
+function spotText(spot: SpotLike): string {
+  return [spot.name, spot.area ?? "", ...(spot.tags ?? [])].join(" ").toLowerCase();
+}
+
+function scoreSpotByAreaHint(spot: SpotLike, areaHint: AreaHint): number {
+  const text = spotText(spot);
+  return (AREA_HINT_KEYWORDS[areaHint] ?? []).reduce(
+    (sum, kw) => sum + (text.includes(kw.toLowerCase()) ? 4 : 0),
+    0
+  );
+}
+
+function scoreSpotByContent(spot: SpotLike, content: string): number {
+  const query = content.toLowerCase();
+  const name = spot.name.toLowerCase();
+  const area = (spot.area ?? "").toLowerCase();
+  let score = 0;
+
+  if (name && query.includes(name)) score += 24;
+  if (area && query.includes(area)) score += 12;
+
+  for (const token of spotText(spot).split(/[\s、,，/・]+/).filter((x) => x.length >= 2)) {
+    if (query.includes(token)) score += 6;
+  }
+
+  return score;
+}
+
 function pickWeighted<T>(items: Array<{ item: T; score: number }>): T | null {
   if (!items.length) return null;
 
@@ -236,7 +274,7 @@ function pickWeighted<T>(items: Array<{ item: T; score: number }>): T | null {
 }
 
 export function resolveSpotIndex(
-  post: { activity?: ActivityType; spotIndex?: number | null },
+  post: { activity?: ActivityType; areaHint?: AreaHint; spotIndex?: number | null; note?: string; imageSpec?: ImageSpec },
   spots: SpotLike[]
 ): number | null {
   if (!post) return null;
@@ -250,13 +288,26 @@ export function resolveSpotIndex(
   }
 
   const activity = post.activity ?? "random";
+  const areaHint = post.areaHint ?? "any";
+  const content = [
+    post.note ?? "",
+    post.imageSpec?.summary ?? "",
+    post.imageSpec?.environment ?? "",
+    post.imageSpec?.action ?? "",
+  ].join(" ");
 
   const scored = spots.map((spot) => ({
     item: spot,
-    score: scoreSpotByActivity(spot, activity),
+    score:
+      scoreSpotByActivity(spot, activity) +
+      scoreSpotByAreaHint(spot, areaHint) +
+      scoreSpotByContent(spot, content),
   }));
 
-  const picked = pickWeighted(scored);
+  const bestScore = Math.max(...scored.map((x) => x.score));
+  const picked = bestScore > 0
+    ? scored.find((x) => x.score === bestScore)?.item
+    : pickWeighted(scored);
 
   return picked?.index ?? null;
 }
@@ -294,9 +345,13 @@ ${inp.cast.length ? inp.cast.map((c) => `- ${c.name}（${c.relation}）`).join("
 【今天可参考的活动类型】
 coffee / dessert / bookstore / walk / gallery / livehouse / restaurant / shopping / park / pet / travel / work / study / home / random
 
+【今天可落点的地点候选】
+${spotList}
+
 不要直接为了地点而出门。
 请先根据人物、心情、天气、最近记忆决定今天想做什么，再输出 activity。
-spotIndex 可以不填，系统会根据 activity 自动匹配地点。
+spotIndex 可以不填，系统会根据 activity、areaHint、note、imageSpec 自动匹配地点。
+如果 note 或 imageSpec 写了具体地点名，必须和上面的地点候选一致；不要让正文写 A 区/店/街景，坐标却落到 B 区。
 输出的内容要符合当前所在季节
 
 请决定这个人「今天/最近」过得怎样：必产出一条今天的记忆(memoryText, 第一人称, 简短一句)，给出情绪微调(moodDelta, 可空), 决定是否发一条足迹(post)，并把内容里出现的系统外的人填到 people。`;
