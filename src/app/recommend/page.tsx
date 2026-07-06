@@ -91,6 +91,8 @@ export default async function RecommendPage() {
         tags: e.tags ?? [],
         signupEnabled: e.signupEnabled ?? false,
         author: e.author ?? null,
+        createdAt: e.createdAt.toISOString(),
+        updatedAt: e.updatedAt.toISOString(),
         metrics: metrics.get(e.id) ?? { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 },
       }));
 

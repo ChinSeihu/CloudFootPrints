@@ -106,7 +106,7 @@ export async function getEventsInBounds(q: EventQuery) {
   const merged = [...events.map(normalizeOfficial), ...posts.map(normalizePost)].sort(
     (a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity),
   );
-  return attachAuthors(merged.slice(0, 500));
+  return attachAuthors(merged.slice(0, 500 + posts.length));
 }
 
 // 给一批活动附作者公开信息（仅 Post 有 userId；官方活动 author 为 null）。

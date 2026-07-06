@@ -10,10 +10,12 @@
 
 ### 修复模拟发帖不出现在发现页
 - 推荐页过期过滤改为只作用于官方活动；用户发帖 `Post(sourceType="USER")` 不再因 `startTime` 早于当前时间被当作过期活动过滤掉。
+- 活动查询合并官方活动与用户发帖时，不再让 500 条总量截断把用户发帖挤掉；返回上限会为用户发帖额外留出空间。
+- 推荐页向前端补充传递 `createdAt/updatedAt`，发现页“最新”排序可以按真实发布时间排序。
 - 发现页默认切到“最新”，并让未实现的关注/附近排序也以发布时间为主，避免无图模拟发帖被有图旧内容压到首页切片之外。
 - 推荐页 ISR 从 1 小时缩短到 5 分钟，降低模拟发帖写入后发现页长时间看不到新内容的概率。
 
-**主要文件：** `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
+**主要文件：** `src/services/events.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
 
 ---
 
