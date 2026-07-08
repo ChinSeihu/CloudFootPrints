@@ -18,6 +18,7 @@ type DiscoverFullType = "posts" | "checkins";
 
 const EMPTY_METRICS: EventMetrics = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 };
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+const TOKYO_CENTER = { lat: 35.681236, lng: 139.767125 };
 
 function fmtDate(d: string | null): string {
   if (!d) return "时间待定";
@@ -43,6 +44,21 @@ function heatScore(ev: EventDTO): number {
   const imageBonus = ev.imageUrl ? 8 : 0;
   const soonBonus = ev.startTime ? Math.max(0, 14 - Math.ceil((Date.parse(ev.startTime) - Date.now()) / 86_400_000)) : 0;
   return m.likeCount * 4 + m.favoriteCount * 3 + m.signupCount * 5 + m.clickCount + imageBonus + soonBonus + ev.trustLevel;
+}
+
+function checkinHeatScore(checkin: CheckInDTO): number {
+  const imageBonus = checkin.photoUrl || checkin.photoUrls?.length ? 6 : 0;
+  return (checkin.metrics?.likeCount ?? 0) * 4 + (checkin.metrics?.commentCount ?? 0) * 5 + imageBonus;
+}
+
+function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const r = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(x));
 }
 
 function fallbackFeaturedScore(ev: EventDTO): number {
@@ -73,6 +89,13 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
   );
 }
 
+function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): string {
+  if (filter === "follow") return kind === "posts" ? "关注的人暂时还没有发帖" : "关注的人暂时还没有公开足迹";
+  if (filter === "near") return kind === "posts" ? "附近暂时还没有用户发帖" : "附近暂时还没有公开足迹";
+  if (filter === "hot") return kind === "posts" ? "暂时还没有热门发帖" : "暂时还没有热门足迹";
+  return kind === "posts" ? "暂时还没有用户发布" : "附近还没有公开足迹";
+}
+
 export function RecommendList({ events, checkins }: { events: EventDTO[]; checkins: CheckInDTO[] }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -88,6 +111,8 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [heroIndex, setHeroIndex] = useState(0);
   const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("new");
   const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
+  const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
@@ -136,6 +161,33 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     return () => document.removeEventListener("mousedown", onDown);
   }, [filterOpen]);
 
+  useEffect(() => {
+    if (discoverFilter !== "follow" || followingIds) return;
+    let cancelled = false;
+    fetch("/api/users/follows?type=following")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const ids = Array.isArray(data?.users)
+          ? data.users.map((item: { user?: { id?: string } }) => item.user?.id).filter((id: unknown): id is string => typeof id === "string")
+          : [];
+        setFollowingIds(new Set(ids));
+      })
+      .catch(() => {
+        if (!cancelled) setFollowingIds(new Set());
+      });
+    return () => { cancelled = true; };
+  }, [discoverFilter, followingIds]);
+
+  useEffect(() => {
+    if (discoverFilter !== "near" || userLocation || typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setUserLocation(TOKYO_CENTER),
+      { enableHighAccuracy: false, timeout: 3500, maximumAge: 10 * 60 * 1000 },
+    );
+  }, [discoverFilter, userLocation]);
+
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
   const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
@@ -159,7 +211,16 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   }, [officialEvents, cat, dateRange, query]);
 
   const discoverPosts = useMemo(() => {
-    const list = userPosts.filter((e) => matchesQuery(e, query));
+    const followed = followingIds ?? new Set<string>();
+    let list = userPosts.filter((e) => matchesQuery(e, query));
+    if (discoverFilter === "follow") list = list.filter((e) => !!e.author?.id && followed.has(e.author.id));
+    if (discoverFilter === "near") {
+      const origin = userLocation ?? TOKYO_CENTER;
+      return [...list].sort((a, b) =>
+        distanceKm(origin, a) - distanceKm(origin, b) ||
+        Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? "")
+      );
+    }
     if (discoverFilter === "new") return [...list].sort((a, b) => Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? ""));
     if (discoverFilter === "hot") return [...list].sort((a, b) => heatScore(b) - heatScore(a));
     return [...list].sort((a, b) =>
@@ -167,7 +228,32 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
       (b.imageUrl ? 1 : 0) - (a.imageUrl ? 1 : 0) ||
       heatScore(b) - heatScore(a)
     );
-  }, [userPosts, query, discoverFilter]);
+  }, [userPosts, query, discoverFilter, followingIds, userLocation]);
+
+  const discoverCheckins = useMemo(() => {
+    const followed = followingIds ?? new Set<string>();
+    let list = checkins.filter((checkin) => {
+      if (!query.trim()) return true;
+      const q = query.trim().toLowerCase();
+      return [checkin.note, checkin.event?.title, checkin.author?.username]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+    if (discoverFilter === "follow") list = list.filter((checkin) => !!checkin.author?.id && followed.has(checkin.author.id));
+    if (discoverFilter === "near") {
+      const origin = userLocation ?? TOKYO_CENTER;
+      return [...list].sort((a, b) =>
+        distanceKm(origin, a) - distanceKm(origin, b) ||
+        Date.parse(b.createdAt) - Date.parse(a.createdAt)
+      );
+    }
+    if (discoverFilter === "hot") {
+      return [...list].sort((a, b) => checkinHeatScore(b) - checkinHeatScore(a) || Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    }
+    return [...list].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }, [checkins, query, discoverFilter, followingIds, userLocation]);
 
   const moodStats = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -660,7 +746,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
           <section>
             <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
@@ -670,11 +756,11 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
 
           <section>
             <SectionTitle title="附近足迹（用户签到）" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
-            {checkins.length === 0 ? (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
+            {discoverCheckins.length === 0 ? (
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
-                {checkins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
+                {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
               </div>
             )}
           </section>
@@ -702,12 +788,12 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
               discoverPosts.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
               ) : (
-                <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">暂时还没有用户发帖</div>
+                <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "posts")}</div>
               )
-            ) : checkins.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">{checkins.map((checkin) => renderCheckinCard(checkin))}</div>
+            ) : discoverCheckins.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
             ) : (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">附近还没有公开足迹</div>
+              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "checkins")}</div>
             )}
           </section>
 

@@ -57,6 +57,7 @@ export default async function RecommendPage() {
         include: {
           event: { select: { id: true, title: true, category: true } },
           post: { select: { id: true, title: true, category: true } },
+          _count: { select: { comments: true, reactions: true } },
         },
       }),
     ]);
@@ -107,6 +108,10 @@ export default async function RecommendPage() {
       postId: row.postId ?? null,
       isMine: false,
       author: authorMap.get(row.userId) ?? null,
+      metrics: {
+        likeCount: row._count.reactions,
+        commentCount: row._count.comments,
+      },
       createdAt: row.createdAt.toISOString(),
     }));
   } catch {
