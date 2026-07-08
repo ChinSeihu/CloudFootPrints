@@ -8,6 +8,33 @@
 
 ## 2026-07-04
 
+### 足迹评论与点赞
+- 公开足迹支持点赞和评论，发现页足迹卡片展示互动计数，可展开查看最近评论并直接回复一句。
+- `Comment` / `Reaction` 目标从官方活动、用户发帖扩展到 `CheckIn`，足迹互动沿用现有分页评论、回复和点赞服务。
+- 社区模拟的日常互动候选加入近期公开足迹，虚拟用户可以按人物口吻评论足迹、回复足迹评论，并对足迹点赞。
+- 已应用数据库迁移 `20260704120000_add_checkin_interactions`，新增 `checkInId` 外键、索引和足迹点赞唯一约束。
+**主要文件：** `prisma/schema.prisma`, `src/services/comments.ts`, `src/services/reactions.ts`, `src/services/checkins.ts`, `src/services/simulation/social.ts`, `src/components/Recommend/RecommendList.tsx`
+
+---
+
+### 降低角色配饰同质化
+- 遥香的丝巾从基础穿搭符号降为偶尔出现的场景化配饰，避免每次 city walk 都像固定造型。
+- 美月的帽子从常驻旅行创作者标识降为强日晒户外场景的可选配饰，并移除底层 `baseball_cap` 趋势标签。
+- 生图 prompt 把 `Signature accessories` 改为“配饰池”，并明确帽子、丝巾、包、首饰、鞋子都不能成为同一角色的每日制服。
+- 修复每日 outfit plan 没有传入首轮生图 prompt 的问题，让分配好的穿搭变化真正生效。
+**主要文件：** `src/services/simulation/image.ts`, `src/lib/personas.ts`
+
+---
+
+### 公开虚拟用户足迹
+- `publish-demo-checkins.ts` 默认从按月份发布改为发布所有 PersonaV2 demo 用户足迹；仍可用 `--month=YYYY-MM` 限定月份。
+- 社区模拟新生成的足迹默认写入 `isPublic: true`，让后续生成内容自动进入地图/发现/相关活动聚合。
+- 已执行脚本公开现有 demo 足迹：13 个虚拟用户范围内，682 条隐藏足迹改为公开，公开足迹总数变为 886。
+
+**主要文件：** `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`
+
+---
+
 ### 修复模拟发帖不出现在发现页
 - 推荐页过期过滤改为只作用于官方活动；用户发帖 `Post(sourceType="USER")` 不再因 `startTime` 早于当前时间被当作过期活动过滤掉。
 - 活动查询合并官方活动与用户发帖时，不再让 500 条总量截断把用户发帖挤掉；返回上限会为用户发帖额外留出空间。
@@ -32,7 +59,7 @@
 ### 强化人物穿搭、相机风格与足迹双图
 - 模拟生图新增人物级视觉 profile：每个 PersonaV2 账户都有更明确的衣橱胶囊、色彩、配饰、禁用风格和相机/滤镜气质。
 - 穿搭 prompt 强化 2026 东京年轻人真实街头穿搭，加入 sheer/mesh、nylon、cargo、balloon skirt、compact shoulder bag、Mary Janes、trail sneakers、utility vest 等更现代但可穿出门的元素。
-- 美月重点改为 2026 东京旅行创作者/轻户外 city trekking 风格，使用 utility vest、sun shirt、nylon skirt、wide cargo pants、trail sneakers、bucket hat、camera sling bag，并避免甜美蕾丝或 clean-girl 针织套装同质化。
+- 美月重点改为 2026 东京旅行创作者/轻户外 city trekking 风格，使用 utility vest、sun shirt、nylon skirt、wide cargo pants、trail sneakers、camera sling bag 等可步行元素；帽子只作为强日晒户外场景的低频可选配饰，并避免甜美蕾丝或 clean-girl 针织套装同质化。
 - 全局 Kodak/Fuji 混合滤镜改为人物级 camera profile，例如さくら偏 Fujifilm Classic Chrome，美咲偏 Kodak Gold 胶片咖啡馆，美月偏 Nikon Zfc 清透旅行 JPEG。
 - 足迹图片生成支持双图策略：如果第一张图主角不出镜，会用同一天同套 outfit 追加一张自然人物出镜补图，写入 `photoUrls`。
 

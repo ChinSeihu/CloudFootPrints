@@ -188,6 +188,7 @@ if (decision.post && coords.length) {
       note,
       rating: decision.post.rating,
       visitedAt: when.toISOString(),
+      isPublic: true,
       imageSpec: decision.post.imageSpec ? asJsonValue(decision.post.imageSpec) : null,
     },
     userId

@@ -6,11 +6,15 @@ import { normalizeOfficial, normalizePost, type NormalizedEvent } from "./events
 // 目标可为官方活动(Event)或用户发帖(Post)，前端只传一个 id；这里解析其归属表。
 
 // 解析 id 属于官方活动还是用户发帖（id 在两表间全局唯一）。不存在返回 null。
-async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
+type ReactionTarget = { eventId: string } | { postId: string } | { checkInId: string };
+
+async function resolveTarget(id: string): Promise<ReactionTarget | null> {
   const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
   if (e) return { eventId: id };
   const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
   if (p) return { postId: id };
+  const c = await prisma.checkIn.findUnique({ where: { id }, select: { id: true, isPublic: true } });
+  if (c?.isPublic) return { checkInId: id };
   return null;
 }
 
@@ -29,7 +33,7 @@ export async function getReactionState(
   userId: string | null,
 ): Promise<ReactionState> {
   // 目标 id 可能是 Event 或 Post，统一用 OR 匹配两列。
-  const target = { OR: [{ eventId: targetId }, { postId: targetId }] };
+  const target = { OR: [{ eventId: targetId }, { postId: targetId }, { checkInId: targetId }] };
   const [likeCount, favoriteCount, signupCount, mine] = await Promise.all([
     prisma.reaction.count({ where: { ...target, type: ReactionType.LIKE } }),
     prisma.reaction.count({ where: { ...target, type: ReactionType.FAVORITE } }),

@@ -192,7 +192,7 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
   minimal_chic:
     "minimal chic Tokyo style with clean silhouettes, neutral colors, wide trousers, simple tops and refined accessories",
   french_vintage:
-    "French vintage inspired style with wrap dresses, lace blouses, denim, silk scarf, leather bag and retro colors",
+    "French vintage inspired style with wrap dresses, lace blouses, denim, leather bag, vintage watch, retro colors and an occasional scarf only when the scene suits it",
   athflow:
     "athflow casual style with hoodies, relaxed pants, sneakers, baseball caps and comfortable sporty layers",
   modern_chinese:
@@ -256,7 +256,7 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
   C06: {
     primary: "japanese_fresh",
     secondary: ["clean_girl", "athflow"],
-    trendTags: ["baseball_cap", "wide_pants", "hoodie", "sneakers"],
+    trendTags: ["wide_pants", "hoodie", "sneakers", "cargo", "camera_bag"],
     fashionLevel: "stylish",
   },
   C07: {

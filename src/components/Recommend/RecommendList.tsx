@@ -10,7 +10,7 @@ import { isUserPost } from "@/components/common/EventSource";
 import { moodTagOf } from "@/lib/moods";
 import { Avatar } from "@/components/common/Avatar";
 import { EventDetail } from "./EventDetail";
-import type { CheckInDTO, EventDTO, EventMetrics } from "@/lib/types";
+import type { CheckInDTO, CommentDTO, EventDTO, EventMetrics } from "@/lib/types";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
 type DiscoverFilter = "follow" | "near" | "new" | "hot";
@@ -89,6 +89,10 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("new");
   const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
   const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
+  const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
+  const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
+  const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
+  const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
   const [activityVisibleCount, setActivityVisibleCount] = useState(12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
@@ -227,6 +231,90 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     });
   }
 
+  async function loadCheckinInteractions(id: string) {
+    const [commentsRes, reactionsRes] = await Promise.all([
+      fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=3&replyLimit=0`),
+      fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`),
+    ]);
+    if (commentsRes.ok) {
+      const data = await commentsRes.json() as { comments?: CommentDTO[]; totalCount?: number };
+      setCheckinComments((current) => ({ ...current, [id]: data.comments ?? [] }));
+      if (typeof data.totalCount === "number") {
+        setCheckinMetricOverrides((current) => ({
+          ...current,
+          [id]: { ...current[id], commentCount: data.totalCount },
+        }));
+      }
+    }
+    if (reactionsRes.ok) {
+      const data = await reactionsRes.json() as { likeCount?: number; likedByMe?: boolean };
+      setCheckinMetricOverrides((current) => ({
+        ...current,
+        [id]: { ...current[id], likeCount: data.likeCount ?? current[id]?.likeCount, likedByMe: data.likedByMe ?? current[id]?.likedByMe },
+      }));
+    }
+  }
+
+  async function toggleCheckinComments(id: string) {
+    setCheckinCommentOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    if (!checkinComments[id]) {
+      await loadCheckinInteractions(id).catch(() => {});
+    }
+  }
+
+  async function toggleCheckinLike(checkin: CheckInDTO) {
+    const id = checkin.id;
+    const base = checkinMetricOverrides[id]?.likeCount ?? checkin.metrics?.likeCount ?? 0;
+    const wasLiked = checkinMetricOverrides[id]?.likedByMe === true;
+    setCheckinMetricOverrides((current) => ({
+      ...current,
+      [id]: { ...current[id], likeCount: Math.max(0, base + (wasLiked ? -1 : 1)), likedByMe: !wasLiked },
+    }));
+    const res = await fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "LIKE" }),
+    });
+    if (!res.ok) {
+      setCheckinMetricOverrides((current) => ({
+        ...current,
+        [id]: { ...current[id], likeCount: base, likedByMe: wasLiked },
+      }));
+      return;
+    }
+    const data = await res.json() as { active: boolean; count: number };
+    setCheckinMetricOverrides((current) => ({
+      ...current,
+      [id]: { ...current[id], likeCount: data.count, likedByMe: data.active },
+    }));
+  }
+
+  async function submitCheckinComment(id: string) {
+    const text = (checkinDrafts[id] ?? "").trim();
+    if (!text) return;
+    const res = await fetch(`/api/checkins/${encodeURIComponent(id)}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return;
+    const data = await res.json() as { comment: CommentDTO };
+    setCheckinDrafts((current) => ({ ...current, [id]: "" }));
+    setCheckinComments((current) => ({ ...current, [id]: [data.comment, ...(current[id] ?? [])].slice(0, 3) }));
+    setCheckinMetricOverrides((current) => {
+      const currentCount = current[id]?.commentCount;
+      return {
+        ...current,
+        [id]: { ...current[id], commentCount: (currentCount ?? 0) + 1 },
+      };
+    });
+  }
+
   function imageGrid(urls: string[], title: string, compact = false, inline = false) {
     if (urls.length === 0) return null;
     if (inline) {
@@ -293,6 +381,12 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
       .filter((mood): mood is NonNullable<ReturnType<typeof moodTagOf>> => !!mood);
     const urls = checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : [];
     const expanded = expandedCheckins.has(checkin.id);
+    const interactionOpen = checkinCommentOpen.has(checkin.id);
+    const comments = checkinComments[checkin.id] ?? [];
+    const metricOverride = checkinMetricOverrides[checkin.id];
+    const likeCount = metricOverride?.likeCount ?? checkin.metrics?.likeCount ?? 0;
+    const commentCount = metricOverride?.commentCount ?? checkin.metrics?.commentCount ?? 0;
+    const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
       <article key={checkin.id} className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
@@ -322,6 +416,48 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
+          </div>
+        )}
+        <div className="mt-2 flex items-center gap-2 border-t border-neutral-100 pt-2 text-[11px] font-semibold text-neutral-500">
+          <button type="button" onClick={() => toggleCheckinLike(checkin)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${likedByMe ? "bg-rose-50 text-rose-600" : "hover:bg-neutral-50"}`}>
+            <IconHeart filled={likedByMe} className="h-3.5 w-3.5" /> {likeCount}
+          </button>
+          <button type="button" onClick={() => toggleCheckinComments(checkin.id)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${interactionOpen ? "bg-violet-50 text-violet-700" : "hover:bg-neutral-50"}`}>
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg>
+            {commentCount}
+          </button>
+        </div>
+        {interactionOpen && (
+          <div className="mt-2 rounded-2xl bg-neutral-50 p-2">
+            {comments.length > 0 ? (
+              <div className="space-y-2">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-2">
+                    <Avatar user={comment.author} size={22} />
+                    <p className="min-w-0 flex-1 text-[12px] leading-5 text-neutral-700">
+                      <span className="font-semibold text-neutral-950">{comment.author?.username ?? "用户"}</span>
+                      <span className="ml-1">{comment.text}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-1 text-[12px] text-neutral-400">还没有评论。</p>
+            )}
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={checkinDrafts[checkin.id] ?? ""}
+                onChange={(e) => setCheckinDrafts((current) => ({ ...current, [checkin.id]: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitCheckinComment(checkin.id);
+                }}
+                placeholder="写一句回应"
+                className="min-w-0 flex-1 rounded-full bg-white px-3 py-1.5 text-[12px] outline-none ring-1 ring-black/5 focus:ring-violet-200"
+              />
+              <button type="button" onClick={() => submitCheckinComment(checkin.id)} className="rounded-full bg-violet-600 px-3 py-1.5 text-[12px] font-bold text-white">
+                发送
+              </button>
+            </div>
           </div>
         )}
       </article>

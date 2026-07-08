@@ -86,22 +86,22 @@ const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
   },
   C05: {
     wardrobe: [
-      "Daikanyama city-walk vintage style: lace blouse, straight denim, light trench, scarf, wrap skirt",
-      "2026 vintage mix details: sheer socks, loafers, small leather crossbody, subtle pattern scarf",
+      "Daikanyama city-walk vintage style: lace blouse, straight denim, light trench, wrap skirt, relaxed knit tops",
+      "2026 vintage mix details: sheer socks, loafers, small leather crossbody, vintage watch, softly patterned blouse",
     ],
     palette: "washed denim, cream, camel, faded red, dark brown",
-    avoid: ["sporty athleisure", "all-white clean girl repetition", "luxury editorial styling"],
-    accessories: ["silk scarf", "leather crossbody", "loafers", "vintage watch"],
+    avoid: ["sporty athleisure", "all-white clean girl repetition", "luxury editorial styling", "making a scarf part of every outfit"],
+    accessories: ["leather crossbody", "loafers", "vintage watch", "small earrings", "optional silk scarf only on occasional vintage-cafe or breezy street scenes"],
     cameraProfile: "Ricoh GR III street diary look: compact-camera realism, crisp urban texture, restrained contrast, natural shadows",
   },
   C06: {
     wardrobe: [
       "2026 Tokyo travel creator style: light outdoor utility vest, sun shirt, nylon skirt or wide cargo pants, packable windbreaker",
-      "city trekking feminine details: trail sneakers, bucket hat, camera sling bag, breathable layers, pocketed outerwear",
+      "city trekking feminine details: trail sneakers, camera sling bag, breathable layers, pocketed outerwear, hair tied back or natural loose hair",
     ],
     palette: "sage green, sand beige, washed navy, cream, sun-faded orange",
-    avoid: ["sweet lace outfits", "clean-girl cardigan-and-skirt repetition", "office chic", "fragile shoes that cannot walk"],
-    accessories: ["camera sling bag", "bucket hat", "trail sneakers", "thin outdoor watch", "packable tote"],
+    avoid: ["sweet lace outfits", "clean-girl cardigan-and-skirt repetition", "office chic", "fragile shoes that cannot walk", "making a hat part of every outfit"],
+    accessories: ["camera sling bag", "trail sneakers", "thin outdoor watch", "packable tote", "optional bucket hat only for strong-sun outdoor trips"],
     cameraProfile: "Nikon Zfc travel JPEG look: clear but not over-sharp, clean blues and greens, natural daylight, crisp outdoor documentary color, minimal grain",
   },
   C07: {
@@ -220,7 +220,7 @@ export function fashionClause(
     `Current trend tags to use when suitable: ${fashion.trendTags.join(", ")}.`,
     visual ? `Persona wardrobe capsule: ${visual.wardrobe.join(" / ")}.` : "",
     visual ? `Persona color palette: ${visual.palette}.` : "",
-    visual ? `Signature accessories: ${visual.accessories.join(", ")}.` : "",
+    visual ? `Accessory pool, not a uniform: ${visual.accessories.join(", ")}.` : "",
     visual ? `Avoid for this persona: ${visual.avoid.join(", ")}.` : "",
     "The clothing should look like realistic 2026 Tokyo young-adult street style, not outdated 2010s generic Asian fashion.",
     "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, ribbon or silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests, or cropped jackets only when they match the persona.",
@@ -337,6 +337,8 @@ function buildRules(persona: PersonaV2, world: World): string {
     "Looks like what a real stylish young person in Tokyo would genuinely wear that day.",
     "Vary clothing colors, layers, outerwear, accessories, bags and shoes.",
     "Include thoughtful styling details such as layered outfits, seasonal outerwear, jewelry, hair accessories, manicured nails, bags or shoes when appropriate.",
+    "Accessories are optional daily choices, not fixed identity markers. Do not put the same hat, scarf, bag, jewelry, hair accessory or shoes on the same persona in every image.",
+    "Avoid turning any accessory into a uniform. Hats and scarves should appear only when the season, weather, location or activity makes them feel natural.",
     "Avoid repeating similar outfits or color combinations across images.",
 
     "Natural hands and anatomy.",
@@ -909,7 +911,7 @@ async function generateSingleCheckinImage(
 
   // 先让 LLM 写专业详细 prompt + 附加生图规则；
   // 并加载人物参考图（img2img 锁脸）
-  const basePrompt = await composePrompt(req);
+  const basePrompt = await composePrompt(req, req.outfit);
 
   const refImage = shouldUseIdentityReference(req)
     ? loadRefImage(personaRefIndex(req.persona)) ?? undefined

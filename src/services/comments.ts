@@ -16,16 +16,20 @@ async function withAuthors<T extends { userId: string }>(rows: T[]) {
 }
 
 // 解析评论目标 id 属于官方活动还是用户发帖（两表 id 全局唯一）。
-async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
+type CommentTarget = { eventId: string } | { postId: string } | { checkInId: string };
+
+async function resolveTarget(id: string): Promise<CommentTarget | null> {
   const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
   if (e) return { eventId: id };
   const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
   if (p) return { postId: id };
+  const c = await prisma.checkIn.findUnique({ where: { id }, select: { id: true, isPublic: true } });
+  if (c?.isPublic) return { checkInId: id };
   return null;
 }
 
 function targetWhere(targetId: string) {
-  return { OR: [{ eventId: targetId }, { postId: targetId }] };
+  return { OR: [{ eventId: targetId }, { postId: targetId }, { checkInId: targetId }] };
 }
 
 export async function listComments(targetId: string) {
@@ -139,9 +143,9 @@ export async function createComment(
   if (parentId) {
     const parent = await prisma.comment.findUnique({
       where: { id: parentId },
-      select: { id: true, eventId: true, postId: true },
+      select: { id: true, eventId: true, postId: true, checkInId: true },
     });
-    const parentTargetId = parent?.eventId ?? parent?.postId;
+    const parentTargetId = parent?.eventId ?? parent?.postId ?? parent?.checkInId;
     if (!parent || parentTargetId !== targetId) return { ok: false, error: "回复的评论不存在" };
     pid = parent.id;
   }

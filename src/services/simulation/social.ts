@@ -16,7 +16,7 @@ type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
 type SocialCandidate = {
   id: string;
-  kind: "event" | "post";
+  kind: "event" | "post" | "checkin";
   title: string;
   authorUsername?: string | null;
   description?: string | null;
@@ -284,7 +284,7 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
 }> {
   const { start, end } = dayBounds(dateKey);
   const since = new Date(start.getTime() - 5 * 86_400_000);
-  const [posts, events, comments] = await Promise.all([
+  const [posts, events, checkins, comments] = await Promise.all([
     prisma.post.findMany({
       where: { createdAt: { gte: since, lte: end } },
       orderBy: { createdAt: "desc" },
@@ -301,12 +301,24 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
       orderBy: [{ featuredToday: "desc" }, { startTime: "asc" }],
       take: 12,
     }),
+    prisma.checkIn.findMany({
+      where: {
+        isPublic: true,
+        createdAt: { gte: since, lte: end },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: {
+        event: { select: { title: true } },
+        post: { select: { title: true } },
+      },
+    }),
     prisma.comment.findMany({
       where: {
         userId: { in: demoUserIds },
         createdAt: { gte: since, lte: end },
         parentId: null,
-        OR: [{ postId: { not: null } }, { eventId: { not: null } }],
+        OR: [{ postId: { not: null } }, { eventId: { not: null } }, { checkInId: { not: null } }],
       },
       orderBy: { createdAt: "desc" },
       take: 24,
@@ -314,7 +326,7 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
   ]);
 
   const users = await prisma.user.findMany({
-    where: { id: { in: [...new Set(posts.map((p) => p.userId).concat(comments.map((c) => c.userId)))] } },
+    where: { id: { in: [...new Set(posts.map((p) => p.userId).concat(checkins.map((c) => c.userId), comments.map((c) => c.userId)))] } },
     select: { id: true, username: true },
   });
   const usernameById = new Map(users.map((u) => [u.id, u.username]));
@@ -334,20 +346,29 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
       authorUsername: null,
       description: e.summary ?? e.description,
     })),
+    ...checkins.map((c) => ({
+      id: c.id,
+      kind: "checkin" as const,
+      title: `${usernameById.get(c.userId) ?? "someone"}'s footprint: ${c.event?.title ?? c.post?.title ?? "Tokyo"}`,
+      authorUsername: usernameById.get(c.userId) ?? null,
+      description: c.note,
+    })),
   ];
 
   const postById = new Map(posts.map((p) => [p.id, p]));
   const eventById = new Map(events.map((e) => [e.id, e]));
+  const checkinById = new Map(checkins.map((c) => [c.id, c]));
   const replies: ReplyCandidate[] = comments.flatMap((c) => {
     const post = c.postId ? postById.get(c.postId) : null;
     const event = c.eventId ? eventById.get(c.eventId) : null;
-    if (!post && !event) return [];
+    const checkin = c.checkInId ? checkinById.get(c.checkInId) : null;
+    if (!post && !event && !checkin) return [];
     return [{
-      id: (post?.id ?? event!.id),
-      kind: post ? "post" as const : "event" as const,
-      title: post?.title ?? event!.title,
-      authorUsername: post ? usernameById.get(post.userId) ?? null : null,
-      description: post?.description ?? event?.summary ?? event?.description ?? null,
+      id: (post?.id ?? event?.id ?? checkin!.id),
+      kind: post ? "post" as const : event ? "event" as const : "checkin" as const,
+      title: post?.title ?? event?.title ?? `${usernameById.get(checkin!.userId) ?? "someone"}'s footprint`,
+      authorUsername: post ? usernameById.get(post.userId) ?? null : checkin ? usernameById.get(checkin.userId) ?? null : null,
+      description: post?.description ?? event?.summary ?? event?.description ?? checkin?.note ?? null,
       commentId: c.id,
       commentText: c.text,
       commentAuthorUsername: usernameById.get(c.userId) ?? null,
@@ -357,8 +378,10 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
   return { candidates, replies };
 }
 
-function targetData(kind: "event" | "post", id: string): { eventId: string } | { postId: string } {
-  return kind === "event" ? { eventId: id } : { postId: id };
+function targetData(kind: "event" | "post" | "checkin", id: string): { eventId: string } | { postId: string } | { checkInId: string } {
+  if (kind === "event") return { eventId: id };
+  if (kind === "post") return { postId: id };
+  return { checkInId: id };
 }
 
 const CATEGORY_LOCATION_KEYWORDS: Record<string, string[]> = {
@@ -473,6 +496,7 @@ async function writeReply(userId: string, target: ReplyCandidate, text: string, 
 
 async function writeReaction(userId: string, target: SocialCandidate, reaction: SocialDecision["reaction"]) {
   if (!reaction) return false;
+  if (target.kind === "checkin" && reaction !== "LIKE") return false;
   try {
     await prisma.reaction.create({
       data: {

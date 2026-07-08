@@ -168,6 +168,8 @@ model CheckIn {
   rating    Int? // legacy primary mood tag
   moodTags  Int[] @default([]) // selected mood tag values
   isPublic  Boolean @default(false)
+  comments  Comment[]
+  reactions Reaction[]
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -183,6 +185,8 @@ model Comment {
   event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   postId    String?
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  checkInId String?
+  checkIn   CheckIn? @relation(fields: [checkInId], references: [id], onDelete: Cascade)
   userId    String   @default("me") // v1 单用户；v2 接入真实用户
   text      String
   parentId  String? // 回复的目标评论（顶层评论为 null）
@@ -192,6 +196,7 @@ model Comment {
 
   @@index([eventId, createdAt])
   @@index([postId, createdAt])
+  @@index([checkInId, createdAt])
   @@index([parentId])
 }
 
@@ -205,13 +210,17 @@ model Reaction {
   event     Event?       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   postId    String?
   post      Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  checkInId String?
+  checkIn   CheckIn?     @relation(fields: [checkInId], references: [id], onDelete: Cascade)
   type      ReactionType
   createdAt DateTime     @default(now())
 
   @@unique([userId, eventId, type])
   @@unique([userId, postId, type])
+  @@unique([userId, checkInId, type])
   @@index([eventId, type])
   @@index([postId, type])
+  @@index([checkInId, type])
   @@index([userId, type])
 }
 

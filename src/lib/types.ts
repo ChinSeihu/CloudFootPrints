@@ -43,7 +43,9 @@ export type EventMetrics = {
 
 export type CommentDTO = {
   id: string;
-  eventId: string;
+  eventId?: string | null;
+  postId?: string | null;
+  checkInId?: string | null;
   userId: string;
   text: string;
   parentId: string | null;
@@ -77,6 +79,10 @@ export type CheckInDTO = {
   isPublic: boolean;
   isMine?: boolean;
   author?: UserBrief | null;
+  metrics?: {
+    likeCount: number;
+    commentCount: number;
+  };
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;
 };

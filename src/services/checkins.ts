@@ -18,6 +18,10 @@ function serializeCheckin(row: any, currentUserId?: string | null, authors?: Map
     ...checkin,
     postId: row.postId ?? null,
     event: row.event ?? post ?? null,
+    metrics: {
+      likeCount: row._count?.reactions ?? 0,
+      commentCount: row._count?.comments ?? 0,
+    },
     isMine: currentUserId ? row.userId === currentUserId : false,
     author: authors?.get(row.userId) ?? null,
   };
@@ -30,6 +34,7 @@ export async function listCheckins(userId: string = CURRENT_USER_ID) {
     include: {
       event: { select: { id: true, title: true, category: true } },
       post: { select: { id: true, title: true, category: true } },
+      _count: { select: { comments: true, reactions: true } },
     },
   });
   // 关联目标可能是官方活动或用户发帖；统一暴露为 event 字段（前端不区分），并去掉 post。
@@ -45,6 +50,7 @@ export async function listVisibleCheckins(userId?: string | null) {
     include: {
       event: { select: { id: true, title: true, category: true } },
       post: { select: { id: true, title: true, category: true } },
+      _count: { select: { comments: true, reactions: true } },
     },
   });
   const authors = await loadCheckinAuthors(rows);
