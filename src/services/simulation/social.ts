@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ReactionType, type EventCategory } from "@prisma/client";
+import { Prisma, ReactionType, type EventCategory } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   PERSONAS,
@@ -11,6 +11,8 @@ import {
   type PersonaV2,
 } from "@/lib/personas";
 import { getOrCreateWorldState } from "./world";
+import { generateCheckinImage } from "./image";
+import type { ImageSpec } from "./decide";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -39,6 +41,8 @@ type SocialDecision = {
   reaction?: "LIKE" | "FAVORITE" | "SIGNUP";
   memoryText?: string;
 };
+
+type SocialPostSpot = { name: string; lat: number; lng: number };
 
 export type SocialResult = {
   posts: number;
@@ -438,6 +442,39 @@ function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecisi
   return spots[Math.floor(r * spots.length)] ?? fallback;
 }
 
+function shouldGeneratePostImage(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date): boolean {
+  const text = `${decision.title ?? ""} ${decision.text ?? ""}`.trim();
+  if (text.length < 12) return false;
+  if (decision.category === "TALK" && !/[本書店講座展示ギャラリーカフェ散歩街]/.test(text)) return false;
+  const base = persona.photoSkill === "pro" ? 0.72 : persona.photoSkill === "hobby" ? 0.58 : 0.42;
+  return seeded(`${userId}|post-image|${when.toISOString()}|${decision.title ?? ""}`)() < base;
+}
+
+function postImageSpec(persona: PersonaV2, decision: SocialDecision, spot: SocialPostSpot): ImageSpec {
+  const title = decision.title?.trim() || "community post";
+  const text = decision.text?.trim() || title;
+  const protagonist = persona.photoSkill === "pro" || /私|わたし|自分|行った|歩い|寄った|撮/.test(text);
+
+  return {
+    summary: `A casual lifestyle image for ${persona.username}'s community post: ${title}`,
+    camera: protagonist ? "friend" : "environment",
+    subjectVisible: protagonist,
+    subjectRole: protagonist ? "protagonist" : "environment",
+    action: protagonist
+      ? `The protagonist is naturally spending time around ${spot.name}, matching the post about: ${text}`
+      : `A natural Tokyo scene around ${spot.name}, matching the post about: ${text}`,
+    environment: `${spot.name} in Tokyo. The image should feel like a real photo attached to a casual community post, not an advertisement.`,
+    props: ["street details", "small everyday objects", "seasonal atmosphere"].slice(0, 2),
+    lighting: "natural available light, realistic smartphone exposure",
+    mood: "casual, lived-in, slightly imperfect, social diary feeling",
+    avoid: [
+      "Do not add unrelated landmarks",
+      "Do not show a different neighborhood from the stored venue",
+      "Do not make it look like an event poster or commercial campaign",
+    ],
+  };
+}
+
 function findCandidate(id: string | undefined, candidates: SocialCandidate[]) {
   if (!id) return null;
   return candidates.find((c) => c.id === id) ?? null;
@@ -448,12 +485,23 @@ function findReply(id: string | undefined, commentId: string | undefined, replie
   return replies.find((c) => c.id === id && c.commentId === commentId) ?? null;
 }
 
-async function writePost(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date) {
+async function writePost(
+  persona: PersonaV2,
+  userId: string,
+  decision: SocialDecision,
+  when: Date,
+  world: Awaited<ReturnType<typeof getOrCreateWorldState>>,
+) {
   const spot = pickPostSpot(persona, userId, decision, when);
-  const title = decision.title?.trim() || `${persona.username}のメモ`;
+  const title = decision.title?.trim() || `${persona.username}???`;
   const text = decision.text?.trim();
   if (!text) return null;
-  return prisma.post.create({
+
+  const imageSpec = shouldGeneratePostImage(persona, userId, decision, when)
+    ? postImageSpec(persona, decision, spot)
+    : null;
+
+  const post = await prisma.post.create({
     data: {
       title,
       description: text,
@@ -465,10 +513,28 @@ async function writePost(persona: PersonaV2, userId: string, decision: SocialDec
       tags: ["demo", "social"],
       signupEnabled: decision.signupEnabled === true,
       userId,
+      imageSpec: imageSpec ? (JSON.parse(JSON.stringify(imageSpec)) as Prisma.InputJsonValue) : undefined,
       createdAt: when,
       updatedAt: when,
     },
   });
+
+  if (imageSpec) {
+    try {
+      const imageUrl = await generateCheckinImage({ persona, imageSpec, world });
+      if (imageUrl) {
+        await prisma.post.update({
+          where: { id: post.id },
+          data: { imageUrl, imageUrls: [imageUrl] },
+        });
+        return { ...post, imageUrl, imageUrls: [imageUrl] };
+      }
+    } catch {
+      // Image generation should never block social text generation.
+    }
+  }
+
+  return post;
 }
 
 async function writeComment(userId: string, target: SocialCandidate, text: string, when: Date) {
@@ -600,7 +666,7 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
     if (needPost && decision.action !== "post") decision = fallbackPost(persona);
 
     if (decision.action === "post") {
-      const post = await writePost(persona, user.id, decision, when);
+      const post = await writePost(persona, user.id, decision, when, world);
       if (post) {
         postCount++;
         result.posts++;
