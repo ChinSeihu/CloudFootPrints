@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconMap, IconBookmark } from "@/components/icons";
+import { CategoryIcon, IconPin, IconMap, IconBookmark, IconHeart } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { AuthForm } from "@/components/Auth/AuthForm";
 import { EventDetail } from "@/components/Recommend/EventDetail";
@@ -322,6 +322,18 @@ function MeContent() {
                       </div>
                     );
                   })()}
+                  <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-neutral-400">
+                    <span className="inline-flex items-center gap-1">
+                      <IconHeart className="h-3.5 w-3.5 text-rose-400" />
+                      {c.metrics?.likeCount ?? 0}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                      </svg>
+                      {c.metrics?.commentCount ?? 0}
+                    </span>
+                  </div>
                   </div>
                 </li>
                 );
