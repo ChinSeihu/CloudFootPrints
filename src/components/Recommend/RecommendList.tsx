@@ -635,7 +635,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
       )}
 
-      <nav className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-black/5 sm:mb-4 sm:p-1.5">
+      <nav className="mb-3 grid grid-cols-2 gap-1 rounded bg-white p-2 shadow-sm ring-1 ring-black/5 sm:mb-4 sm:p-1.5">
         {[
           ["OFFICIAL", "活动", "官方精选活动"],
           ["DISCOVER", "发现", "用户内容与足迹"],
@@ -647,7 +647,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               key={key}
               type="button"
               onClick={() => setTab(key as TopTab)}
-              className={`relative overflow-hidden rounded-xl px-3 py-1 text-left transition sm:rounded-2xl sm:py-2.5 ${
+              className={`relative overflow-hidden rounded-md px-3 py-1 text-left transition sm:rounded-2xl sm:py-2.5 ${
                 active
                   ? "bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.16)] ring-1 ring-violet-100"
                   : "text-neutral-500 hover:bg-neutral-50"
