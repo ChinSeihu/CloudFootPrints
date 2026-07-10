@@ -129,6 +129,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const allDiscoverRef = useRef<HTMLElement | null>(null);
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
   const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
 
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
@@ -327,6 +328,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   useEffect(() => {
     setActivityVisibleCount(12);
   }, [cat, dateRange, query]);
+
+  useEffect(() => {
+    if (!hasOfficialSearch) return;
+    const timer = window.setTimeout(() => {
+      allActivitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [hasOfficialSearch, query]);
 
   useEffect(() => {
     const el = activitySentinelRef.current;
@@ -665,7 +674,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
       {tab === "OFFICIAL" ? (
         <div className="space-y-5">
-          {hero && (
+          {hero && !hasOfficialSearch && (
             <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
               <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
                 <div className="aspect-[16/7.5] sm:aspect-[16/8.5]">
@@ -711,6 +720,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </div>
           </section>
 
+          {!hasOfficialSearch && (
+          <>
           <section>
             <SectionTitle title="热门活动" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -749,6 +760,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               ))}
             </div>
           </section>
+          </>
+          )}
 
           {activityList.length > 0 && (
             <section ref={allActivitiesRef} className="scroll-mt-4">
