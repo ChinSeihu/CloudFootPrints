@@ -97,7 +97,7 @@ function SectionBand({ children, tone = "neutral", className = "" }: { children:
     neutral: "bg-white/78 ring-black/5",
   };
   return (
-    <section className={`rounded-[24px] p-3 shadow-sm ring-1 ${tones[tone]} ${className}`}>
+    <section className={`rounded-xl p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ${tones[tone]} ${className}`}>
       {children}
     </section>
   );
@@ -512,7 +512,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const tags = displayTags(post);
     const likeCount = metricsOf(post).likeCount;
     return (
-      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
+      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         {imgs.length > 0 && (
           <div className="relative aspect-[4/3] bg-neutral-100">
             <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
@@ -543,7 +543,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
-      <article key={checkin.id} className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
+      <article key={checkin.id} className="rounded-xl bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
@@ -582,7 +582,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </button>
         </div>
         {interactionOpen && (
-          <div className="mt-2 rounded-2xl bg-neutral-50 p-2">
+          <div className="mt-2 rounded-lg bg-neutral-50 p-2">
             {comments.length > 0 ? (
               <div className="space-y-2">
                 {comments.map((comment) => (
@@ -637,7 +637,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
+              <div className="absolute right-0 top-full z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl bg-white p-3 shadow-xl ring-1 ring-black/10">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
                   {!isAllDates(dateRange) && <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs font-semibold text-blue-600">重置</button>}
@@ -650,7 +650,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       </header>
 
       {searchOpen && (
-        <div className="mb-3 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">
+        <div className="mb-3 rounded-xl bg-white p-2 shadow-sm ring-1 ring-black/10">
           <div className="flex items-center gap-2">
             <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索活动、地点、标签" className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
             <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-xs font-semibold text-blue-600">取消</button>
@@ -670,9 +670,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               key={key}
               type="button"
               onClick={() => setTab(key as TopTab)}
-              className={`relative overflow-hidden rounded-md px-3 py-1 text-left transition sm:rounded-2xl sm:py-2.5 ${
+              className={`relative overflow-hidden rounded-md px-3 py-1 text-left transition sm:rounded-lg sm:py-2.5 ${
                 active
-                  ? "bg-violet-50 text-violet-700 shadow-[0_10px_24px_rgba(124,58,237,0.16)] ring-1 ring-violet-100"
+                  ? "bg-violet-50 text-violet-700 shadow-[0_1px_2px_rgba(124,58,237,0.10)] ring-1 ring-violet-100"
                   : "text-neutral-500 hover:bg-neutral-50"
               }`}
             >
@@ -689,7 +689,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {tab === "OFFICIAL" ? (
         <div className="space-y-5">
           {hero && !hasOfficialSearch && (
-            <section className="relative overflow-hidden rounded-[24px] bg-neutral-900 shadow-[0_14px_34px_rgba(15,23,42,0.18)]">
+            <section className="relative overflow-hidden rounded-xl bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
               <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
                 <div className="aspect-[16/7.5] sm:aspect-[16/8.5]">
                   {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
@@ -715,19 +715,19 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </section>
           )}
 
-          <section className="rounded-[20px] bg-white px-2.5 py-2.5 shadow-sm ring-1 ring-black/5 sm:rounded-[22px] sm:px-3 sm:py-3">
+          <section className="rounded-xl bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10 sm:px-3 sm:py-3">
             <div className="grid grid-cols-6 gap-2">
               {EVENT_CATEGORIES.slice(0, 5).map((c) => {
                 const meta = CATEGORY_META[c];
                 const active = cat === c;
                 return (
-                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
+                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
                     <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-4.5 w-4.5 sm:h-5 sm:w-5" /></span>
                     <span className="truncate">{meta.label}</span>
                   </button>
                 );
               })}
-              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-xl py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:rounded-2xl sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-blue-600 text-white" : "text-neutral-700"}`}>
+              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-blue-600 text-white" : "text-neutral-700"}`}>
                 <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
                 <span className="truncate">全部</span>
               </button>
@@ -742,7 +742,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
                 return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5 sm:w-[8.7rem]">
+                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[8.7rem]">
                     <div className="relative aspect-square bg-neutral-100">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
                       <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
@@ -764,7 +764,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             />
             <div className="grid grid-cols-3 gap-2">
               {recommended.slice(0, 3).map((ev) => (
-                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-black/5">
+                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                   <div className="aspect-[4/3] bg-neutral-100">{ev.imageUrl && <img src={ev.imageUrl} alt="" className="h-full w-full object-cover" />}</div>
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
@@ -778,13 +778,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           )}
 
           {activityList.length > 0 && (
-            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-[24px] bg-white/85 p-3 shadow-sm ring-1 ring-black/5">
+            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-xl bg-white/85 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
               <div className="grid grid-cols-2 gap-3">
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
                   return (
-                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-[18px] bg-white text-left shadow-sm ring-1 ring-black/5">
+                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
                       <div className="p-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label}</div>
@@ -819,7 +819,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "posts")}</div>
+              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
@@ -830,7 +830,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="附近足迹（用户签到）" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverCheckins.length === 0 ? (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
@@ -839,8 +839,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-[24px] bg-violet-50/60 p-3 shadow-sm ring-1 ring-violet-100/70">
-            <div className="mb-3 grid grid-cols-2 gap-1 rounded-[18px] bg-white p-1.5 shadow-sm ring-1 ring-black/5">
+          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-xl bg-violet-50/60 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-violet-100/70">
+            <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-black/10">
               {[
                 ["posts", "全部发帖"],
                 ["checkins", "全部足迹"],
@@ -851,7 +851,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                     key={key}
                     type="button"
                     onClick={() => setDiscoverFullType(key as DiscoverFullType)}
-                    className={`rounded-2xl px-3 py-2 text-sm font-black transition ${active ? "bg-violet-50 text-violet-700 ring-1 ring-violet-100" : "text-neutral-500 hover:bg-neutral-50"}`}
+                    className={`rounded-md px-3 py-2 text-sm font-black transition ${active ? "bg-violet-50 text-violet-700 ring-1 ring-violet-100" : "text-neutral-500 hover:bg-neutral-50"}`}
                   >
                     {label}
                   </button>
@@ -862,7 +862,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               discoverPosts.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
               ) : (
-                <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "posts")}</div>
+                <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
@@ -874,16 +874,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             )}
           </section>
 
           {moodStats.length > 0 && (
-            <section className="rounded-[24px] bg-white/80 p-3 shadow-sm ring-1 ring-black/5">
+            <section className="rounded-xl bg-white/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
               <SectionTitle title="今日心情" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
-                  <div key={mood.value} className={`min-h-28 rounded-2xl border p-3 ${mood.tone}`}>
+                  <div key={mood.value} className={`min-h-28 rounded-xl border p-3 ${mood.tone}`}>
                     <p className="text-sm font-black">{mood.label}</p>
                     <p className="mt-1 text-[11px] opacity-75">今天最多</p>
                     <p className="mt-2 text-lg font-black">{count}</p>
@@ -900,7 +900,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
       {previewImage && (
         <button type="button" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
-          <img src={previewImage} alt="" className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl" />
+          <img src={previewImage} alt="" className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" />
         </button>
       )}
     </div>
