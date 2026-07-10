@@ -89,6 +89,20 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
   );
 }
 
+function SectionBand({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string }) {
+  const tones = {
+    blue: "bg-blue-50/65 ring-blue-100/70",
+    emerald: "bg-emerald-50/60 ring-emerald-100/70",
+    violet: "bg-violet-50/60 ring-violet-100/70",
+    neutral: "bg-white/78 ring-black/5",
+  };
+  return (
+    <section className={`rounded-[24px] p-3 shadow-sm ring-1 ${tones[tone]} ${className}`}>
+      {children}
+    </section>
+  );
+}
+
 function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): string {
   if (filter === "follow") return kind === "posts" ? "关注的人暂时还没有发帖" : "关注的人暂时还没有公开足迹";
   if (filter === "near") return kind === "posts" ? "附近暂时还没有用户发帖" : "附近暂时还没有公开足迹";
@@ -721,7 +735,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           {!hasOfficialSearch && (
-          <>
+          <SectionBand tone="blue" className="space-y-4">
           <section>
             <SectionTitle title="热门活动" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -760,11 +774,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               ))}
             </div>
           </section>
-          </>
+          </SectionBand>
           )}
 
           {activityList.length > 0 && (
-            <section ref={allActivitiesRef} className="scroll-mt-4">
+            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-[24px] bg-white/85 p-3 shadow-sm ring-1 ring-black/5">
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
               <div className="grid grid-cols-2 gap-3">
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
@@ -801,6 +815,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             })}
           </div>
 
+          <SectionBand tone="emerald" className="space-y-4">
           <section>
             <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
@@ -822,8 +837,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               </div>
             )}
           </section>
+          </SectionBand>
 
-          <section ref={allDiscoverRef} className="scroll-mt-4">
+          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-[24px] bg-violet-50/60 p-3 shadow-sm ring-1 ring-violet-100/70">
             <div className="mb-3 grid grid-cols-2 gap-1 rounded-[18px] bg-white p-1.5 shadow-sm ring-1 ring-black/5">
               {[
                 ["posts", "全部发帖"],
@@ -863,7 +879,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           {moodStats.length > 0 && (
-            <section>
+            <section className="rounded-[24px] bg-white/80 p-3 shadow-sm ring-1 ring-black/5">
               <SectionTitle title="今日心情" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (

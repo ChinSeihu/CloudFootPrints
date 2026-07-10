@@ -13,6 +13,7 @@
 - Re-ran `scripts/publish-demo-checkins.ts`; current PersonaV2 scope has 13 demo users, 0 private check-ins, and 903 public check-ins.
 - Discovery check-ins now use paged lazy loading instead of a fixed first 40 records, and the current database has been backfilled so all 1081 check-ins are public.
 - Official activity search now treats the full activity list as the primary result area: typing a search term scrolls to all activities and hides the banner/hot/recommended blocks while searching.
+- Discovery and official activity sections now use subtle background bands to make recommendation, full-list, footprint, and mood modules easier to distinguish while keeping cards lightweight.
 **Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/app/api/checkins/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
 
 ---
