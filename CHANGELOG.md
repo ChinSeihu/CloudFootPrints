@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-07-10
+
+### Ensure demo footprints stay public
+- Demo seed check-ins now write `isPublic: true`, matching the scheduled simulation path so reset/reseeded virtual-user footprints still appear in discovery and map aggregations.
+- Re-ran `scripts/publish-demo-checkins.ts`; current PersonaV2 scope has 13 demo users, 0 private check-ins, and 903 public check-ins.
+- Discovery check-ins now use paged lazy loading instead of a fixed first 40 records, and the current database has been backfilled so all 1081 check-ins are public.
+**Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/app/api/checkins/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
+
+---
+
 ## 2026-07-04
 
 ### 个人页足迹显示互动数

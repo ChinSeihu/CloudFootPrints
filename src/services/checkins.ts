@@ -27,6 +27,11 @@ function serializeCheckin(row: any, currentUserId?: string | null, authors?: Map
   };
 }
 
+function clampPageSize(value: number, fallback = 40): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Math.min(100, Math.floor(value)));
+}
+
 export async function listCheckins(userId: string = CURRENT_USER_ID) {
   const rows = await prisma.checkIn.findMany({
     where: { userId },
@@ -55,6 +60,29 @@ export async function listVisibleCheckins(userId?: string | null) {
   });
   const authors = await loadCheckinAuthors(rows);
   return rows.map((row) => serializeCheckin(row, userId, authors));
+}
+
+export async function listDiscoverCheckins(input: { offset?: number; limit?: number; userId?: string | null } = {}) {
+  const offset = Math.max(0, Math.floor(input.offset ?? 0));
+  const limit = clampPageSize(input.limit ?? 40);
+  const rows = await prisma.checkIn.findMany({
+    where: { isPublic: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: offset,
+    take: limit + 1,
+    include: {
+      event: { select: { id: true, title: true, category: true } },
+      post: { select: { id: true, title: true, category: true } },
+      _count: { select: { comments: true, reactions: true } },
+    },
+  });
+  const pageRows = rows.slice(0, limit);
+  const authors = await loadCheckinAuthors(pageRows);
+  return {
+    checkins: pageRows.map((row) => serializeCheckin(row, input.userId, authors)),
+    nextOffset: offset + pageRows.length,
+    hasMore: rows.length > limit,
+  };
 }
 
 async function loadCheckinAuthors(rows: Array<{ userId: string }>) {

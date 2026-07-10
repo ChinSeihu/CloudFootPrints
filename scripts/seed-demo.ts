@@ -299,6 +299,7 @@ async function main() {
           lng: c.lng,
           note: c.note,
           rating: c.rating,
+          isPublic: true,
           photoUrl: photos[0] ?? null,
           photoUrls: photos,
           createdAt: new Date(Date.now() - c.daysAgo * 86400000),

@@ -1,6 +1,7 @@
 import { getEventsInBounds } from "@/services/events";
 import { RecommendList } from "@/components/Recommend/RecommendList";
 import { prisma } from "@/lib/db";
+import { listDiscoverCheckins } from "@/services/checkins";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
 
 // 推荐页：小红书式瀑布流（masonry）。
@@ -46,20 +47,12 @@ async function loadEventMetrics(ids: string[]) {
 export default async function RecommendPage() {
   let events: EventDTO[] = [];
   let checkins: CheckInDTO[] = [];
+  let checkinsHasMore = false;
   let dbError = false;
   try {
     const [rows, checkinRows] = await Promise.all([
       getEventsInBounds(TOKYO_BBOX),
-      prisma.checkIn.findMany({
-        where: { isPublic: true },
-        orderBy: { createdAt: "desc" },
-        take: 40,
-        include: {
-          event: { select: { id: true, title: true, category: true } },
-          post: { select: { id: true, title: true, category: true } },
-          _count: { select: { comments: true, reactions: true } },
-        },
-      }),
+      listDiscoverCheckins({ limit: 60 }),
     ]);
     const now = Date.now();
     const upcoming = rows
@@ -97,23 +90,8 @@ export default async function RecommendPage() {
         metrics: metrics.get(e.id) ?? { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 },
       }));
 
-    const authorIds = [...new Set(checkinRows.map((row) => row.userId).filter(Boolean))];
-    const authors = authorIds.length
-      ? await prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, username: true, avatarUrl: true } })
-      : [];
-    const authorMap = new Map(authors.map((author) => [author.id, author]));
-    checkins = checkinRows.map(({ post, ...row }) => ({
-      ...row,
-      event: row.event ?? post ?? null,
-      postId: row.postId ?? null,
-      isMine: false,
-      author: authorMap.get(row.userId) ?? null,
-      metrics: {
-        likeCount: row._count.reactions,
-        commentCount: row._count.comments,
-      },
-      createdAt: row.createdAt.toISOString(),
-    }));
+    checkins = checkinRows.checkins;
+    checkinsHasMore = checkinRows.hasMore;
   } catch {
     dbError = true;
   }
@@ -132,7 +110,7 @@ export default async function RecommendPage() {
         </p>
       )}
 
-      <RecommendList events={events} checkins={checkins} />
+      <RecommendList events={events} checkins={checkins} initialCheckinsHasMore={checkinsHasMore} />
     </div>
   );
 }

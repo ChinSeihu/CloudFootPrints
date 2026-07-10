@@ -96,7 +96,7 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
   return kind === "posts" ? "暂时还没有用户发布" : "附近还没有公开足迹";
 }
 
-export function RecommendList({ events, checkins }: { events: EventDTO[]; checkins: CheckInDTO[] }) {
+export function RecommendList({ events, checkins, initialCheckinsHasMore = false }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -113,6 +113,11 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [discoverCheckinRows, setDiscoverCheckinRows] = useState<CheckInDTO[]>(checkins);
+  const [checkinsOffset, setCheckinsOffset] = useState(checkins.length);
+  const [checkinsHasMore, setCheckinsHasMore] = useState(initialCheckinsHasMore);
+  const [checkinsLoadingMore, setCheckinsLoadingMore] = useState(false);
+  const [checkinsLoadError, setCheckinsLoadError] = useState(false);
   const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
@@ -123,6 +128,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
   const allActivitiesRef = useRef<HTMLElement | null>(null);
   const allDiscoverRef = useRef<HTMLElement | null>(null);
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
+  const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
 
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
@@ -188,6 +194,45 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
     );
   }, [discoverFilter, userLocation]);
 
+  useEffect(() => {
+    setDiscoverCheckinRows(checkins);
+    setCheckinsOffset(checkins.length);
+    setCheckinsHasMore(initialCheckinsHasMore);
+    setCheckinsLoadError(false);
+  }, [checkins, initialCheckinsHasMore]);
+
+  async function loadMoreCheckins() {
+    if (checkinsLoadingMore || !checkinsHasMore) return;
+    setCheckinsLoadingMore(true);
+    setCheckinsLoadError(false);
+    try {
+      const res = await fetch(`/api/checkins?discover=1&offset=${checkinsOffset}&limit=60`);
+      if (!res.ok) throw new Error("load checkins failed");
+      const data = await res.json();
+      const nextRows: CheckInDTO[] = Array.isArray(data?.checkins) ? data.checkins.filter((item: unknown): item is CheckInDTO => !!item && typeof item === "object" && typeof (item as CheckInDTO).id === "string") : [];
+      setDiscoverCheckinRows((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...nextRows.filter((item) => !seen.has(item.id))];
+      });
+      setCheckinsOffset(typeof data?.nextOffset === "number" ? data.nextOffset : checkinsOffset + nextRows.length);
+      setCheckinsHasMore(data?.hasMore === true);
+    } catch {
+      setCheckinsLoadError(true);
+    } finally {
+      setCheckinsLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    const node = checkinsSentinelRef.current;
+    if (!node || tab !== "DISCOVER" || discoverFullType !== "checkins" || !checkinsHasMore) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMoreCheckins();
+    }, { rootMargin: "500px 0px" });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [tab, discoverFullType, checkinsHasMore, checkinsOffset, checkinsLoadingMore]);
+
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
   const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
@@ -232,7 +277,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
 
   const discoverCheckins = useMemo(() => {
     const followed = followingIds ?? new Set<string>();
-    let list = checkins.filter((checkin) => {
+    let list = discoverCheckinRows.filter((checkin) => {
       if (!query.trim()) return true;
       const q = query.trim().toLowerCase();
       return [checkin.note, checkin.event?.title, checkin.author?.username]
@@ -253,12 +298,12 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
       return [...list].sort((a, b) => checkinHeatScore(b) - checkinHeatScore(a) || Date.parse(b.createdAt) - Date.parse(a.createdAt));
     }
     return [...list].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  }, [checkins, query, discoverFilter, followingIds, userLocation]);
+  }, [discoverCheckinRows, query, discoverFilter, followingIds, userLocation]);
 
   const moodStats = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
     const counts = new Map<number, number>();
-    for (const checkin of checkins) {
+    for (const checkin of discoverCheckinRows) {
       if (tokyoDayKey(checkin.createdAt) !== today) continue;
       for (const value of checkin.moodTags ?? []) counts.set(value, (counts.get(value) ?? 0) + 1);
     }
@@ -267,7 +312,7 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
       .filter((item): item is { mood: NonNullable<ReturnType<typeof moodTagOf>>; count: number } => !!item.mood)
       .sort((a, b) => b.count - a.count)
       .slice(0, 4);
-  }, [checkins]);
+  }, [discoverCheckinRows]);
 
   useEffect(() => {
     setHeroIndex(0);
@@ -791,7 +836,14 @@ export function RecommendList({ events, checkins }: { events: EventDTO[]; checki
                 <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "posts")}</div>
               )
             ) : discoverCheckins.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
+              <>
+                <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
+                <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
+                  {checkinsLoadingMore ? "继续加载中..." : checkinsLoadError ? (
+                    <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button>
+                  ) : checkinsHasMore ? "继续向下加载更多足迹" : "已经加载完全部足迹"}
+                </div>
+              </>
             ) : (
               <div className="rounded-2xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/5">{discoverEmptyText(discoverFilter, "checkins")}</div>
             )}
