@@ -91,13 +91,13 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
 
 function SectionBand({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string }) {
   const tones = {
-    blue: "bg-blue-50/65 ring-blue-100/70",
-    emerald: "bg-emerald-50/60 ring-emerald-100/70",
-    violet: "bg-violet-50/60 ring-violet-100/70",
-    neutral: "bg-white/78 ring-black/5",
+    blue: "bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] ring-slate-200/75 before:bg-sky-500/80",
+    emerald: "bg-[linear-gradient(180deg,#ffffff_0%,#f7faf8_100%)] ring-stone-200/80 before:bg-emerald-500/75",
+    violet: "bg-[linear-gradient(180deg,#ffffff_0%,#faf9ff_100%)] ring-zinc-200/80 before:bg-violet-500/75",
+    neutral: "bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_100%)] ring-zinc-200/80 before:bg-zinc-400/70",
   };
   return (
-    <section className={`rounded-xl p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ${tones[tone]} ${className}`}>
+    <section className={`relative overflow-hidden rounded-lg p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 before:absolute before:inset-y-3 before:left-0 before:w-0.5 ${tones[tone]} ${className}`}>
       {children}
     </section>
   );
@@ -473,7 +473,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     if (urls.length === 0) return null;
     if (inline) {
       return (
-        <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-xl bg-neutral-100">
+        <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-lg bg-neutral-100">
           {urls.slice(0, 3).map((src, index) => (
             <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
               <img src={src} alt={title} className="h-full w-full object-cover" />
@@ -487,14 +487,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     }
     if (urls.length === 1) {
       return (
-        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-xl bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
+        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-lg bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
           <img src={urls[0]} alt={title} className={compact ? "max-h-72 w-full object-cover" : "max-h-72 w-full object-cover"} />
         </button>
       );
     }
     const visible = urls.slice(0, 6);
     return (
-      <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-xl">
+      <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
         {visible.map((src, index) => (
           <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
             <img src={src} alt={title} className={compact ? "max-h-40 w-full object-cover" : "max-h-40 w-full object-cover"} />
@@ -512,7 +512,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const tags = displayTags(post);
     const likeCount = metricsOf(post).likeCount;
     return (
-      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         {imgs.length > 0 && (
           <div className="relative aspect-[4/3] bg-neutral-100">
             <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
@@ -543,7 +543,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
-      <article key={checkin.id} className="rounded-xl bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+      <article key={checkin.id} className="rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
@@ -689,7 +689,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {tab === "OFFICIAL" ? (
         <div className="space-y-5">
           {hero && !hasOfficialSearch && (
-            <section className="relative overflow-hidden rounded-xl bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
+            <section className="relative overflow-hidden rounded-lg bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
               <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
                 <div className="aspect-[16/7.5] sm:aspect-[16/8.5]">
                   {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
@@ -715,7 +715,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </section>
           )}
 
-          <section className="rounded-xl bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10 sm:px-3 sm:py-3">
+          <section className="rounded-lg bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10 sm:px-3 sm:py-3">
             <div className="grid grid-cols-6 gap-2">
               {EVENT_CATEGORIES.slice(0, 5).map((c) => {
                 const meta = CATEGORY_META[c];
@@ -742,7 +742,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
                 return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[8.7rem]">
+                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[8.7rem]">
                     <div className="relative aspect-square bg-neutral-100">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
                       <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
@@ -764,7 +764,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             />
             <div className="grid grid-cols-3 gap-2">
               {recommended.slice(0, 3).map((ev) => (
-                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                   <div className="aspect-[4/3] bg-neutral-100">{ev.imageUrl && <img src={ev.imageUrl} alt="" className="h-full w-full object-cover" />}</div>
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
@@ -778,13 +778,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           )}
 
           {activityList.length > 0 && (
-            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-xl bg-white/85 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
+            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-lg bg-white/85 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
               <div className="grid grid-cols-2 gap-3">
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
                   return (
-                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-xl bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
                       <div className="p-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label}</div>
@@ -819,7 +819,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
-              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
@@ -830,7 +830,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="附近足迹（用户签到）" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverCheckins.length === 0 ? (
-              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
@@ -839,7 +839,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-xl bg-violet-50/60 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-violet-100/70">
+          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-lg bg-[linear-gradient(180deg,#ffffff_0%,#faf9ff_100%)] p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-zinc-200/80">
             <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-black/10">
               {[
                 ["posts", "全部发帖"],
@@ -862,7 +862,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               discoverPosts.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
               ) : (
-                <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
+                <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
@@ -874,16 +874,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
               </>
             ) : (
-              <div className="rounded-xl bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             )}
           </section>
 
           {moodStats.length > 0 && (
-            <section className="rounded-xl bg-white/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
+            <section className="rounded-lg bg-white/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
               <SectionTitle title="今日心情" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
-                  <div key={mood.value} className={`min-h-28 rounded-xl border p-3 ${mood.tone}`}>
+                  <div key={mood.value} className={`min-h-28 rounded-lg border p-3 ${mood.tone}`}>
                     <p className="text-sm font-black">{mood.label}</p>
                     <p className="mt-1 text-[11px] opacity-75">今天最多</p>
                     <p className="mt-2 text-lg font-black">{count}</p>

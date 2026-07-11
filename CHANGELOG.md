@@ -15,6 +15,7 @@
 - Official activity search now treats the full activity list as the primary result area: typing a search term scrolls to all activities and hides the banner/hot/recommended blocks while searching.
 - Discovery and official activity sections now use subtle background bands to make recommendation, full-list, footprint, and mood modules easier to distinguish while keeping cards lightweight.
 - Large discovery cards and section containers now use more restrained 12px-style corners and finer borders/shadows, reducing the overly rounded look while keeping small pills and avatars circular.
+- Section backgrounds now use a quieter paper-like gradient with a thin accent rule instead of flat pastel fills, and activity cards were tightened further to smaller rounded corners.
 **Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/app/api/checkins/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
 
 ---
