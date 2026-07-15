@@ -83,7 +83,13 @@ function tokyoDayKey(value: string): string {
 function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="mb-2.5 flex items-end justify-between">
-      <h2 className="text-[15px] font-black text-neutral-950">{title}</h2>
+      <h2 className="flex items-center gap-2 text-[15px] font-black text-neutral-950">
+        <span className="relative grid h-4 w-4 place-items-center" aria-hidden="true">
+          <span className="absolute h-3 w-3 rotate-45 border border-neutral-300 bg-white" />
+          <span className="relative h-1.5 w-1.5 rotate-45 bg-neutral-900" />
+        </span>
+        <span>{title}</span>
+      </h2>
       {action}
     </div>
   );
@@ -91,13 +97,13 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
 
 function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
   const tones = {
-    blue: "ring-slate-300/70 before:bg-sky-500/80 after:border-sky-500/10",
-    emerald: "ring-stone-300/75 before:bg-emerald-500/75 after:border-emerald-500/10",
-    violet: "ring-zinc-300/75 before:bg-violet-500/75 after:border-violet-500/10",
-    neutral: "ring-zinc-300/75 before:bg-zinc-500/70 after:border-zinc-500/10",
+    blue: "ring-slate-300/70 before:bg-sky-500/80",
+    emerald: "ring-stone-300/75 before:bg-emerald-500/75",
+    violet: "ring-zinc-300/75 before:bg-violet-500/75",
+    neutral: "ring-zinc-300/75 before:bg-zinc-500/70",
   };
   return (
-    <section ref={bandRef} className={`relative overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 after:pointer-events-none after:absolute after:inset-x-3 after:top-3 after:h-8 after:border-t ${tones[tone]} ${className}`}>
+    <section ref={bandRef} className={`relative overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 ${tones[tone]} ${className}`}>
       <div className="relative z-10">{children}</div>
     </section>
   );
@@ -839,7 +845,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75 after:pointer-events-none after:absolute after:inset-x-3 after:top-3 after:h-8 after:border-t after:border-violet-500/10">
+          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75">
             <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
               {[
                 ["posts", "全部发帖"],
