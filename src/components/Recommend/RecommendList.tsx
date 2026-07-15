@@ -89,16 +89,16 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
   );
 }
 
-function SectionBand({ children, tone = "neutral", className = "" }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string }) {
+function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
   const tones = {
-    blue: "bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] ring-slate-200/75 before:bg-sky-500/80",
-    emerald: "bg-[linear-gradient(180deg,#ffffff_0%,#f7faf8_100%)] ring-stone-200/80 before:bg-emerald-500/75",
-    violet: "bg-[linear-gradient(180deg,#ffffff_0%,#faf9ff_100%)] ring-zinc-200/80 before:bg-violet-500/75",
-    neutral: "bg-[linear-gradient(180deg,#ffffff_0%,#fafafa_100%)] ring-zinc-200/80 before:bg-zinc-400/70",
+    blue: "ring-slate-300/70 before:bg-sky-500/80 after:bg-[linear-gradient(135deg,rgba(14,165,233,0.10)_0%,rgba(255,255,255,0)_34%),linear-gradient(rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.035)_1px,transparent_1px)]",
+    emerald: "ring-stone-300/75 before:bg-emerald-500/75 after:bg-[linear-gradient(135deg,rgba(16,185,129,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)]",
+    violet: "ring-zinc-300/75 before:bg-violet-500/75 after:bg-[linear-gradient(135deg,rgba(124,58,237,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)]",
+    neutral: "ring-zinc-300/75 before:bg-zinc-500/70 after:bg-[linear-gradient(135deg,rgba(24,24,27,0.07)_0%,rgba(255,255,255,0)_34%),linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)]",
   };
   return (
-    <section className={`relative overflow-hidden rounded-lg p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 before:absolute before:inset-y-3 before:left-0 before:w-0.5 ${tones[tone]} ${className}`}>
-      {children}
+    <section ref={bandRef} className={`relative overflow-hidden rounded-lg bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.045)] ring-1 before:absolute before:left-0 before:top-0 before:h-1 before:w-16 after:absolute after:inset-0 after:bg-[length:22px_22px,18px_18px,18px_18px] after:opacity-100 ${tones[tone]} ${className}`}>
+      <div className="relative z-10">{children}</div>
     </section>
   );
 }
@@ -778,7 +778,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           )}
 
           {activityList.length > 0 && (
-            <section ref={allActivitiesRef} className="scroll-mt-4 rounded-lg bg-white/85 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
+            <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
               <div className="grid grid-cols-2 gap-3">
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
@@ -798,7 +798,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               {activityVisibleCount < activityList.length && (
                 <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">继续加载中...</div>
               )}
-            </section>
+            </SectionBand>
           )}
         </div>
       ) : (
@@ -839,8 +839,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="scroll-mt-4 rounded-lg bg-[linear-gradient(180deg,#ffffff_0%,#faf9ff_100%)] p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-zinc-200/80">
-            <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-black/10">
+          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.045)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-1 before:w-16 before:bg-violet-500/75 after:absolute after:inset-0 after:bg-[linear-gradient(135deg,rgba(124,58,237,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)] after:bg-[length:22px_22px,18px_18px,18px_18px]">
+            <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
               {[
                 ["posts", "全部发帖"],
                 ["checkins", "全部足迹"],
@@ -858,6 +858,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 );
               })}
             </div>
+            <div className="relative z-10">
             {discoverFullType === "posts" ? (
               discoverPosts.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
@@ -876,10 +877,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             ) : (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             )}
+            </div>
           </section>
 
           {moodStats.length > 0 && (
-            <section className="rounded-lg bg-white/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10">
+            <SectionBand tone="neutral">
               <SectionTitle title="今日心情" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
@@ -891,7 +893,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                   </div>
                 ))}
               </div>
-            </section>
+            </SectionBand>
           )}
         </div>
       )}
