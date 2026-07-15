@@ -118,9 +118,8 @@ function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title:
   );
 }
 
-function MasonryGrid({ children, columns = 2, className = "" }: { children: React.ReactNode; columns?: 2 | 3; className?: string }) {
-  const columnClass = columns === 3 ? "columns-3" : "columns-2";
-  return <div className={`${columnClass} gap-3 [&>*]:mb-3 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
+function MasonryGrid({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`columns-2 gap-3 [&>*]:mb-3 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
 function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
@@ -777,16 +776,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </div>
           </section>
 
-          <section>
+          <section className="pt-3">
             <SectionTitle
               title="为你推荐"
               icon="spark"
               tone="violet"
               action={<span className="text-[10px] font-medium text-neutral-400">精选优先 · 近期与热度排序</span>}
             />
-            <MasonryGrid columns={3} className="gap-2 [&>*]:mb-2">
+            <div className="grid grid-cols-3 items-start gap-2">
               {recommended.slice(0, 3).map((ev) => (
-                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="min-w-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                   {ev.imageUrl && <div className="aspect-[4/3] bg-neutral-100"><img src={ev.imageUrl} alt="" className="h-full w-full object-cover" /></div>}
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
@@ -794,7 +793,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                   </div>
                 </button>
               ))}
-            </MasonryGrid>
+            </div>
           </section>
           </SectionBand>
           )}
