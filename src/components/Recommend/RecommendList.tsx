@@ -80,14 +80,37 @@ function tokyoDayKey(value: string): string {
   return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
 }
 
-function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
+type SectionIcon = "flame" | "spark" | "calendar" | "chat" | "trail" | "mood";
+type SectionTone = "orange" | "violet" | "green" | "blue" | "rose" | "zinc";
+
+function SectionTitleIcon({ icon, tone }: { icon: SectionIcon; tone: SectionTone }) {
+  const toneClass: Record<SectionTone, string> = {
+    orange: "bg-orange-50 text-orange-500 ring-orange-100",
+    violet: "bg-violet-50 text-violet-500 ring-violet-100",
+    green: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+    blue: "bg-sky-50 text-sky-600 ring-sky-100",
+    rose: "bg-rose-50 text-rose-500 ring-rose-100",
+    zinc: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  };
+  return (
+    <span className={`grid h-7 w-7 place-items-center rounded-lg ring-1 ${toneClass[tone]}`} aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+        {icon === "flame" && <path d="M12 21c-3.9 0-7-2.8-7-6.5 0-2.7 1.6-4.7 3.6-6.7.5 2.2 1.7 3.2 3 3.8-.2-3.4 1.4-5.9 4-8.1.3 3.1 1.6 4.8 2.8 6.3 1 1.2 1.6 2.5 1.6 4.3 0 4-3.1 6.9-8 6.9Z" />}
+        {icon === "spark" && <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Zm6 12 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" />}
+        {icon === "calendar" && <><path d="M7 3v3M17 3v3M4.5 9h15" /><path d="M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /><path d="M8 13h2M14 13h2M8 17h2M14 17h2" /></>}
+        {icon === "chat" && <><path d="M5 6.5h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-6l-4.5 3v-3H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z" /><path d="M8 11h8M8 14h5" /></>}
+        {icon === "trail" && <><path d="M12 21s6-5.1 6-10a6 6 0 0 0-12 0c0 4.9 6 10 6 10Z" /><circle cx="12" cy="11" r="2.2" /></>}
+        {icon === "mood" && <><circle cx="12" cy="12" r="8" /><path d="M8.5 10h.01M15.5 10h.01M8.8 14.4c1.8 1.7 4.6 1.7 6.4 0" /></>}
+      </svg>
+    </span>
+  );
+}
+
+function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title: string; action?: React.ReactNode; icon?: SectionIcon; tone?: SectionTone }) {
   return (
     <div className="mb-2.5 flex items-end justify-between">
       <h2 className="flex items-center gap-2 text-[15px] font-black text-neutral-950">
-        <span className="relative grid h-4 w-4 place-items-center" aria-hidden="true">
-          <span className="absolute h-3 w-3 rotate-45 border border-neutral-300 bg-white" />
-          <span className="relative h-1.5 w-1.5 rotate-45 bg-neutral-900" />
-        </span>
+        <SectionTitleIcon icon={icon} tone={tone} />
         <span>{title}</span>
       </h2>
       {action}
@@ -743,7 +766,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           {!hasOfficialSearch && (
           <SectionBand tone="blue" className="space-y-4">
           <section>
-            <SectionTitle title="热门活动" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="热门活动" icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
@@ -766,6 +789,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle
               title="为你推荐"
+              icon="spark"
+              tone="violet"
               action={<span className="text-[10px] font-medium text-neutral-400">精选优先 · 近期与热度排序</span>}
             />
             <div className="grid grid-cols-3 gap-2">
@@ -785,7 +810,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
           {activityList.length > 0 && (
             <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
-              <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} />
+              <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
               <div className="grid grid-cols-2 gap-3">
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
@@ -823,7 +848,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
           <SectionBand tone="emerald" className="space-y-4">
           <section>
-            <SectionTitle title="大家在东京（用户发帖）" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="大家在东京（用户发帖）" icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
@@ -834,7 +859,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           <section>
-            <SectionTitle title="附近足迹（用户签到）" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title="附近足迹（用户签到）" icon="trail" tone="rose" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverCheckins.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
@@ -888,7 +913,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
           {moodStats.length > 0 && (
             <SectionBand tone="neutral">
-              <SectionTitle title="今日心情" />
+              <SectionTitle title="今日心情" icon="mood" tone="zinc" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
                   <div key={mood.value} className={`min-h-28 rounded-lg border p-3 ${mood.tone}`}>
