@@ -306,6 +306,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     }
   }
 
+  function startDirectMessage() {
+    const authorId = event.author?.id;
+    if (!authorId || user?.id === authorId) return;
+    router.push(`/me?chat=${encodeURIComponent(authorId)}`);
+  }
+
   async function addComment() {
     const trimmed = text.trim();
     if (!trimmed || posting) return;
@@ -571,6 +577,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
+                    {event.author?.id && user?.id !== event.author.id && (
+                      <button type="button" onClick={startDirectMessage} className="text-[11px] font-semibold text-violet-600">私信</button>
+                    )}
                   </div>
                 </div>
               </div>

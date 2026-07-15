@@ -86,3 +86,27 @@ export type CheckInDTO = {
   createdAt: string;
   event?: { id: string; title: string; category: EventCategory } | null;
 };
+
+export type DirectMessageUserDTO = UserBrief & {
+  signature: string | null;
+  status: string | null;
+  lastLoginAt: string | null;
+  virtual: boolean;
+};
+
+export type DirectMessageDTO = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type DirectConversationDTO = {
+  id: string;
+  other: DirectMessageUserDTO;
+  lastMessage: DirectMessageDTO | null;
+  unreadCount: number;
+  lastMessageAt: string;
+};

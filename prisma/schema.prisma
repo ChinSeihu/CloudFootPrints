@@ -11,25 +11,25 @@ datasource db {
 
 enum EventCategory {
   EXHIBITION // 展览
-  MARKET     // 市集
-  LIVE       // live
-  FESTIVAL   // 祭典
-  TALK       // 讲座 / 技术活动（connpass 等）
-  SPORTS     // 体育 / 运动（马拉松、比赛、健身等）
-  OTHER      // 其他 / 兜底
+  MARKET // 市集
+  LIVE // live
+  FESTIVAL // 祭典
+  TALK // 讲座 / 技术活动（connpass 等）
+  SPORTS // 体育 / 运动（马拉松、比赛、健身等）
+  OTHER // 其他 / 兜底
 }
 
 enum SourceType {
   OFFICIAL_API
   OFFICIAL_WEB
   SOCIAL // 预留，v1 不使用
-  USER   // 用户发布
+  USER // 用户发布
 }
 
 enum ReactionType {
-  LIKE     // 点赞
+  LIKE // 点赞
   FAVORITE // 收藏
-  SIGNUP   // 报名（仅当 Event.signupEnabled 时有意义）
+  SIGNUP // 报名（仅当 Event.signupEnabled 时有意义）
 }
 
 // 抓取的官方活动（只读）。用户发帖见 Post。userId/tags/signupEnabled/多图 是发帖专属，已迁出。
@@ -37,36 +37,36 @@ model Event {
   id          String        @id @default(cuid())
   title       String
   description String?
-  summary     String?       // LLM 生成的一句话摘要（≤14 字，地图标签用）
+  summary     String? // LLM 生成的一句话摘要（≤14 字，地图标签用）
   category    EventCategory
   venueName   String?
   address     String?
-  imageUrl    String?       // 封面图 URL（LLM 抽取/卡片/地图用）
+  imageUrl    String? // 封面图 URL（LLM 抽取/卡片/地图用）
   tags        String[]      @default([]) // LLM 整理的活动标签（详情页展示）
   lat         Float
   lng         Float
   startTime   DateTime?
   endTime     DateTime?
 
-  sourceType  SourceType
-  sourceUrl   String?
-  trustLevel  Int           @default(0) // 官方高、社交低
-  featuredToday Boolean     @default(false)
-  rawText     String?       // 保留原始文本，便于以后重新解析
+  sourceType    SourceType
+  sourceUrl     String?
+  trustLevel    Int        @default(0) // 官方高、社交低
+  featuredToday Boolean    @default(false)
+  rawText       String? // 保留原始文本，便于以后重新解析
 
-  posts       Post[]
-  checkIns    CheckIn[]
-  comments    Comment[]
-  reactions   Reaction[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  posts     Post[]
+  checkIns  CheckIn[]
+  comments  Comment[]
+  reactions Reaction[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
 
   // v1 用 lat/lng 做矩形范围查询即可，加索引
   @@index([lat, lng])
   @@index([startTime])
   @@index([category])
   @@index([featuredToday, startTime])
-  // TODO(v2+): 增加 geom(PostGIS geometry) 与 embedding(pgvector) 字段
 }
 
 // 用户发帖（"这里有个活动"）。与抓取的官方活动 Event 分表存储：
@@ -78,7 +78,7 @@ model Post {
   description   String?
   category      EventCategory
   venueName     String?
-  imageUrl      String?       // 封面图（= imageUrls[0]）
+  imageUrl      String? // 封面图（= imageUrls[0]）
   imageUrls     String[]      @default([]) // 多图
   imageSpec     Json?
   lat           Float
@@ -89,13 +89,13 @@ model Post {
   signupEnabled Boolean       @default(false)
   eventId       String?
   event         Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  userId        String        // 作者（User.id）。发帖必有作者。
+  userId        String // 作者（User.id）。发帖必有作者。
 
-  checkIns      CheckIn[]
-  comments      Comment[]
-  reactions     Reaction[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  checkIns  CheckIn[]
+  comments  Comment[]
+  reactions Reaction[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@index([lat, lng])
   @@index([eventId, createdAt])
@@ -108,12 +108,12 @@ model Post {
 // 与「精选名店 + Hot Pepper」(静态 foodSpots) 互补：OSM 提供全量底图，精选作亮点叠加。
 model FoodPoi {
   id           String   @id @default(cuid())
-  osmType      String   // node / way / relation
-  osmId        String   // OSM 元素 id
+  osmType      String // node / way / relation
+  osmId        String // OSM 元素 id
   name         String
   nameEn       String?
-  kind         String   // FoodKind：japanese/chinese/western/cafe/dessert/other
-  cuisine      String?  // 原始 cuisine 标签（如 italian;pizza）
+  kind         String // FoodKind：japanese/chinese/western/cafe/dessert/other
+  cuisine      String? // 原始 cuisine 标签（如 italian;pizza）
   lat          Float
   lng          Float
   openingHours String?
@@ -152,25 +152,25 @@ model HotPepperPoi {
 }
 
 model CheckIn {
-  id        String   @id @default(cuid())
-  userId    String   @default("me") // v1 单用户，固定为本人；v2 接入真实用户
+  id        String     @id @default(cuid())
+  userId    String     @default("me") // v1 单用户，固定为本人；v2 接入真实用户
   // 可选关联到地图上已有的目标：官方活动 eventId 或用户发帖 postId（二选一）
   eventId   String?
-  event     Event?   @relation(fields: [eventId], references: [id])
+  event     Event?     @relation(fields: [eventId], references: [id])
   postId    String?
-  post      Post?    @relation(fields: [postId], references: [id])
+  post      Post?      @relation(fields: [postId], references: [id])
   lat       Float
   lng       Float
   note      String?
-  photoUrl  String?  // 封面照片（= photoUrls[0]，向后兼容）
-  photoUrls String[] @default([]) // 多张打卡照片
+  photoUrl  String? // 封面照片（= photoUrls[0]，向后兼容）
+  photoUrls String[]   @default([]) // 多张打卡照片
   imageSpec Json?
   rating    Int? // legacy primary mood tag
-  moodTags  Int[] @default([]) // selected mood tag values
-  isPublic  Boolean @default(false)
+  moodTags  Int[]      @default([]) // selected mood tag values
+  isPublic  Boolean    @default(false)
   comments  Comment[]
   reactions Reaction[]
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
 
   @@index([userId, createdAt])
   @@index([eventId, createdAt])
@@ -179,20 +179,20 @@ model CheckIn {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   // 评论目标：官方活动 eventId 或用户发帖 postId（二选一），各自级联删除。
   eventId   String?
-  event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   postId    String?
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
   checkInId String?
-  checkIn   CheckIn? @relation(fields: [checkInId], references: [id], onDelete: Cascade)
-  userId    String   @default("me") // v1 单用户；v2 接入真实用户
+  checkIn   CheckIn?  @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  userId    String    @default("me") // v1 单用户；v2 接入真实用户
   text      String
   parentId  String? // 回复的目标评论（顶层评论为 null）
   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[] @relation("CommentReplies")
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([eventId, createdAt])
   @@index([postId, createdAt])
@@ -232,8 +232,8 @@ model EventMetric {
 
 // v2：本地账号（用户名 + 口令哈希）。CheckIn/Comment/Event 的 userId 存本表 id（旧数据沿用 "me"，不加外键以免破坏）。
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String    @id @default(cuid())
+  username     String    @unique
   passwordHash String
   signature    String? // 个性签名
   avatarUrl    String? // 头像（Cloudinary URL）
@@ -241,29 +241,62 @@ model User {
   hometown     String? // 常住地（可选）
   status       String? // 状态 / 心情
   lastLoginAt  DateTime? // 最后登录时间（每次建立会话时更新）
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // ── 社区模拟（V7）：记忆 / 状态 / 关系。仅服务后台模拟，不直接对外展示。 ──
-  memories     Memory[]
-  charState    CharacterState?
-  relationsA   Relationship[]  @relation("relA")
-  relationsB   Relationship[]  @relation("relB")
-  following    UserFollow[]     @relation("UserFollowing")
-  followers    UserFollow[]     @relation("UserFollowers")
+  memories       Memory[]
+  charState      CharacterState?
+  relationsA     Relationship[]       @relation("relA")
+  relationsB     Relationship[]       @relation("relB")
+  following      UserFollow[]         @relation("UserFollowing")
+  followers      UserFollow[]         @relation("UserFollowers")
+  conversationsA DirectConversation[] @relation("DirectConversationA")
+  conversationsB DirectConversation[] @relation("DirectConversationB")
+  directMessages DirectMessage[]      @relation("DirectMessageSender")
 }
 
 model UserFollow {
   id          String   @id @default(cuid())
-  followerId String
-  follower   User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
   followingId String
-  following   User    @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+model DirectConversation {
+  id            String          @id @default(cuid())
+  aId           String
+  a             User            @relation("DirectConversationA", fields: [aId], references: [id], onDelete: Cascade)
+  bId           String
+  b             User            @relation("DirectConversationB", fields: [bId], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+  lastMessageAt DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([aId, bId])
+  @@index([aId, lastMessageAt])
+  @@index([bId, lastMessageAt])
+}
+
+model DirectMessage {
+  id             String             @id @default(cuid())
+  conversationId String
+  conversation   DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User               @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  text           String
+  readAt         DateTime?
+  createdAt      DateTime           @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
 }
 
 // ───────────────────────── 社区模拟（V7 Agent Architecture）─────────────────────────

@@ -13,9 +13,10 @@ import { Avatar } from "@/components/common/Avatar";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
+import { DirectMessages } from "./DirectMessages";
 import { moodTagOf } from "@/lib/moods";
 import { DEMO_USERS } from "@/lib/demoUsers";
-import type { CheckInDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
+import type { CheckInDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 type Tab = "checkins" | "posts" | "favorites" | "messages";
 
@@ -36,6 +37,11 @@ function MeContent() {
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
   const [signups, setSignups] = useState<EventDTO[]>([]);
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
+  const [conversations, setConversations] = useState<DirectConversationDTO[]>([]);
+  const [directUnread, setDirectUnread] = useState(0);
+  const [messageSub, setMessageSub] = useState<"direct" | "activity">("direct");
+  const [initialChatTarget, setInitialChatTarget] = useState<string | null>(null);
+  const [chatOpenNonce, setChatOpenNonce] = useState(0);
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [editingPost, setEditingPost] = useState<EventDTO | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
@@ -46,20 +52,44 @@ function MeContent() {
 
   useEffect(() => {
     (async () => {
-      const [c, p, f, s, n] = await Promise.all([
+      const [c, p, f, s, n, m] = await Promise.all([
         fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
         fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/favorites").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/signups").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/replies").then((r) => (r.ok ? r.json() : { notices: [] })).catch(() => ({ notices: [] })),
+        fetch("/api/messages").then((r) => (r.ok ? r.json() : { conversations: [] })).catch(() => ({ conversations: [] })),
       ]);
       setCheckins(c.checkins ?? []);
       setPosts(p.events ?? []);
       setFavorites(f.events ?? []);
       setSignups(s.events ?? []);
       setNotices(n.notices ?? []);
+      setConversations(m.conversations ?? []);
+      setDirectUnread((m.conversations ?? []).reduce((sum: number, item: DirectConversationDTO) => sum + item.unreadCount, 0));
       setLoaded(true);
     })();
+    const target = new URLSearchParams(window.location.search).get("chat");
+    if (target) {
+      queueMicrotask(() => {
+        setInitialChatTarget(target);
+        setTab("messages");
+        setMessageSub("direct");
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    function openChat(event: Event) {
+      const target = (event as CustomEvent<string>).detail;
+      if (!target) return;
+      setInitialChatTarget(target);
+      setChatOpenNonce((current) => current + 1);
+      setTab("messages");
+      setMessageSub("direct");
+    }
+    window.addEventListener("tem:open-chat", openChat);
+    return () => window.removeEventListener("tem:open-chat", openChat);
   }, []);
 
   // 打卡照片拼图：收集打卡上传的照片（最多 9 张）
@@ -188,11 +218,11 @@ function MeContent() {
             ["checkins", "足迹", checkins.length],
             ["posts", "发帖", posts.length],
             ["favorites", "收藏", favorites.length],
-            ["messages", "消息", notices.length],
+            ["messages", "消息", notices.length + conversations.length],
           ] as const).map(([key, label, count]) => {
             const active = tab === key;
             const isMsg = key === "messages";
-            const badge = isMsg ? unreadCount : count;
+            const badge = isMsg ? unreadCount + directUnread : count;
             return (
               <button
                 key={key}
@@ -483,7 +513,15 @@ function MeContent() {
             );
           })()
         ) : (
-          <>{/* 消息：被回复 */}
+          <>{/* 消息：私信 / 被回复 */}
+            <div className="mb-4 grid grid-cols-2 rounded-lg bg-neutral-100 p-1">
+              <button type="button" onClick={() => setMessageSub("direct")} className={`rounded-md py-2 text-xs font-bold ${messageSub === "direct" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-500"}`}>私信{directUnread > 0 ? ` ${directUnread}` : ""}</button>
+              <button type="button" onClick={() => { setMessageSub("activity"); markMessagesRead(); }} className={`rounded-md py-2 text-xs font-bold ${messageSub === "activity" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-500"}`}>互动{unreadCount > 0 ? ` ${unreadCount}` : ""}</button>
+            </div>
+            {messageSub === "direct" ? (
+              <DirectMessages currentUserId={user!.id} initialConversations={conversations} initialTargetId={initialChatTarget} openNonce={chatOpenNonce} onUnreadChange={setDirectUnread} />
+            ) : (
+            <>
             {loaded && notices.length === 0 && (
               <p className="text-sm text-neutral-500">还没有新消息。当别人评论你的帖子或回复你的评论时，会出现在这里。</p>
             )}
@@ -516,6 +554,8 @@ function MeContent() {
                 </li>
               ))}
             </ul>
+            </>
+            )}
           </>
         )}
       </div>

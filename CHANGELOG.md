@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-07-15
+
+### Add direct messaging and persona replies
+- Users can start one-to-one conversations from user posts and follow lists, then use the new private-message view under My > Messages; conversations support unread counts, optimistic sending, read state, recent-message polling, and a full-screen mobile chat layout while preserving the existing interaction notices.
+- Direct conversations and messages are persisted in dedicated indexed tables with participant authorization. When the recipient is a PersonaV2 demo user, replies are generated from that character's personality, voice, current emotion, goals, recent memories, and conversation history, with a persona-aware fallback when the LLM is unavailable.
+- Applied migration `20260715110000_add_direct_messages` to the current database.
+**Main files:** `prisma/schema.prisma`, `prisma/migrations/20260715110000_add_direct_messages/migration.sql`, `src/services/directMessages.ts`, `src/app/api/messages/route.ts`, `src/app/api/messages/[conversationId]/route.ts`, `src/components/Me/DirectMessages.tsx`, `src/components/Me/MeView.tsx`, `src/components/Me/ProfileHeader.tsx`, `src/components/Recommend/EventDetail.tsx`, `src/lib/llm.ts`
+
+---
+
 ## 2026-07-10
 
 ### Ensure demo footprints stay public

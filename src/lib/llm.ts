@@ -691,3 +691,35 @@ async function plainOpenAIReply(baseUrl: string, system: string, messages: ChatM
     return "抱歉，刚才没答上来，请再问一次或换个问法。";
   }
 }
+
+export async function chatAsPersona(system: string, messages: ChatMessage[]): Promise<string> {
+  if (getProvider() === "anthropic") {
+    const res = await getAnthropic().messages.create({
+      model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+      max_tokens: 260,
+      temperature: 0.9,
+      system,
+      messages: messages.map((message) => ({ role: message.role, content: message.content })),
+    });
+    return res.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("")
+      .trim();
+  }
+
+  const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+    body: JSON.stringify({
+      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      messages: [{ role: "system", content: system }, ...messages],
+      temperature: 0.9,
+      max_tokens: 260,
+    }),
+  });
+  if (!res.ok) throw new Error(`persona chat failed: ${res.status}`);
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return (data.choices?.[0]?.message?.content ?? "").trim();
+}

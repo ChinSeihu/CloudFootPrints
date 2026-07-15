@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
@@ -39,6 +40,7 @@ function KnotIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 }
 
 export function ProfileHeader() {
+  const router = useRouter();
   const { user, setUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -362,6 +364,19 @@ export function ProfileHeader() {
                       <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{item.user.status || item.user.signature}</p>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFollowMode(null);
+                      router.push(`/me?chat=${encodeURIComponent(item.user.id)}`);
+                      window.dispatchEvent(new CustomEvent("tem:open-chat", { detail: item.user.id }));
+                    }}
+                    aria-label={`私信 ${item.user.username}`}
+                    title="私信"
+                    className="grid size-8 shrink-0 place-items-center rounded-full text-violet-600 hover:bg-violet-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg>
+                  </button>
                   {followMode === "following" ? (
                     <button
                       type="button"
