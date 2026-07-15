@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   createUserEvent,
   getEventsInBounds,
+  getMapEventsInBounds,
   listUserEvents,
   parseEventQuery,
 } from "@/services/events";
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
   try {
-    const events = await getEventsInBounds(parsed);
+    const events = searchParams.get("map") === "1"
+      ? await getMapEventsInBounds(parsed)
+      : await getEventsInBounds(parsed);
     return NextResponse.json({ events });
   } catch (err) {
     console.error("GET /api/events failed:", err);

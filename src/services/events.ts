@@ -109,6 +109,69 @@ export async function getEventsInBounds(q: EventQuery) {
   return attachAuthors(merged.slice(0, 500 + posts.length));
 }
 
+export async function getMapEventsInBounds(q: EventQuery) {
+  const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
+  const or = timeWindowOR(q);
+  const eventWhere: Prisma.EventWhereInput = { ...bbox };
+  const postWhere: Prisma.PostWhereInput = {};
+  if (q.category) { eventWhere.category = q.category; postWhere.category = q.category; }
+  if (or) { eventWhere.OR = or; postWhere.OR = or; }
+
+  const [events, posts] = await Promise.all([
+    prisma.event.findMany({
+      where: eventWhere,
+      orderBy: [{ startTime: "asc" }],
+      take: 500,
+      select: {
+        id: true, title: true, description: true, summary: true, category: true,
+        venueName: true, address: true, imageUrl: true, lat: true, lng: true,
+        startTime: true, endTime: true, sourceType: true, sourceUrl: true,
+        trustLevel: true, featuredToday: true, tags: true, createdAt: true, updatedAt: true,
+      },
+    }),
+    prisma.post.findMany({
+      where: postWhere,
+      orderBy: [{ startTime: "asc" }],
+      take: 500,
+      select: {
+        id: true, title: true, description: true, category: true, venueName: true,
+        imageUrl: true, imageUrls: true, lat: true, lng: true, startTime: true,
+        endTime: true, tags: true, signupEnabled: true, userId: true,
+        createdAt: true, updatedAt: true,
+      },
+    }),
+  ]);
+
+  return [
+    ...events.map((e) => ({ ...e, imageUrls: [], signupEnabled: false, userId: null })),
+    ...posts.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      summary: null,
+      category: p.category,
+      venueName: p.venueName,
+      address: null,
+      imageUrl: p.imageUrl,
+      imageUrls: p.imageUrls,
+      lat: p.lat,
+      lng: p.lng,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      sourceType: "USER",
+      sourceUrl: null,
+      trustLevel: 10,
+      featuredToday: false,
+      tags: p.tags,
+      signupEnabled: p.signupEnabled,
+      userId: p.userId,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      author: null,
+    })),
+  ].sort((a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity)).slice(0, 500 + posts.length);
+}
+
 // 给一批活动附作者公开信息（仅 Post 有 userId；官方活动 author 为 null）。
 async function attachAuthors<T extends { userId: string | null }>(events: T[]) {
   const ids = [...new Set(events.map((e) => e.userId).filter((x): x is string => !!x))];

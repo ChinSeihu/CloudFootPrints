@@ -62,6 +62,33 @@ export async function listVisibleCheckins(userId?: string | null) {
   return rows.map((row) => serializeCheckin(row, userId, authors));
 }
 
+export async function listMapCheckins(userId?: string | null) {
+  const rows = await prisma.checkIn.findMany({
+    where: userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    select: {
+      id: true,
+      userId: true,
+      eventId: true,
+      postId: true,
+      lat: true,
+      lng: true,
+      note: true,
+      photoUrl: true,
+      photoUrls: true,
+      rating: true,
+      moodTags: true,
+      isPublic: true,
+      createdAt: true,
+      event: { select: { id: true, title: true, category: true } },
+      post: { select: { id: true, title: true, category: true } },
+    },
+  });
+  const authors = await loadCheckinAuthors(rows);
+  return rows.map((row) => serializeCheckin({ ...row, _count: { comments: 0, reactions: 0 } }, userId, authors));
+}
+
 export async function listDiscoverCheckins(input: { offset?: number; limit?: number; userId?: string | null } = {}) {
   const offset = Math.max(0, Math.floor(input.offset ?? 0));
   const limit = clampPageSize(input.limit ?? 40);

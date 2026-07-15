@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createCheckin, listCheckins, listDiscoverCheckins, listVisibleCheckins } from "@/services/checkins";
+import { createCheckin, listCheckins, listDiscoverCheckins, listMapCheckins } from "@/services/checkins";
 import { getCurrentUserId } from "@/lib/auth";
 
 // GET /api/checkins —— 当前登录用户的打卡列表（未登录返回空，打卡属个人足迹）
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       return NextResponse.json(await listDiscoverCheckins({ offset, limit, userId }));
     }
     if (url.searchParams.get("map") === "1") {
-      const checkins = await listVisibleCheckins(userId);
+      const checkins = await listMapCheckins(userId);
       return NextResponse.json({ checkins });
     }
     if (!userId) return NextResponse.json({ checkins: [] });

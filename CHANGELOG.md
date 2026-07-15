@@ -15,9 +15,9 @@
 - Official activity search now treats the full activity list as the primary result area: typing a search term scrolls to all activities and hides the banner/hot/recommended blocks while searching.
 - Discovery and official activity sections now use subtle background bands to make recommendation, full-list, footprint, and mood modules easier to distinguish while keeping cards lightweight.
 - Large discovery cards and section containers now use more restrained 12px-style corners and finer borders/shadows, reducing the overly rounded look while keeping small pills and avatars circular.
-- Section backgrounds now use a quieter paper-like gradient with a thin accent rule instead of flat pastel fills, and activity cards were tightened further to smaller rounded corners.
-- Section backgrounds now use a more contemporary white editorial panel treatment with subtle grid texture, top accent rules, and restrained shadowing instead of plain tinted blocks.
-**Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/app/api/checkins/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`
+- Section backgrounds now use a cleaner modern white panel treatment with top accent rules and restrained shadowing instead of plain tinted blocks or grid/gradient decoration, and activity cards were tightened further to smaller rounded corners.
+- Map opening is faster: map activity requests now use a lightweight `map=1` payload, map check-ins avoid discovery-only counts, and event/food layer fetches no longer block each other in sequence.
+**Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/services/events.ts`, `src/app/api/checkins/route.ts`, `src/app/api/events/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`, `src/components/Map/MapExplorer.tsx`
 
 ---
 

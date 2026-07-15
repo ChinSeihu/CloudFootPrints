@@ -91,13 +91,13 @@ function SectionTitle({ title, action }: { title: string; action?: React.ReactNo
 
 function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
   const tones = {
-    blue: "ring-slate-300/70 before:bg-sky-500/80 after:bg-[linear-gradient(135deg,rgba(14,165,233,0.10)_0%,rgba(255,255,255,0)_34%),linear-gradient(rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.035)_1px,transparent_1px)]",
-    emerald: "ring-stone-300/75 before:bg-emerald-500/75 after:bg-[linear-gradient(135deg,rgba(16,185,129,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)]",
-    violet: "ring-zinc-300/75 before:bg-violet-500/75 after:bg-[linear-gradient(135deg,rgba(124,58,237,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)]",
-    neutral: "ring-zinc-300/75 before:bg-zinc-500/70 after:bg-[linear-gradient(135deg,rgba(24,24,27,0.07)_0%,rgba(255,255,255,0)_34%),linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)]",
+    blue: "ring-slate-300/70 before:bg-sky-500/80 after:border-sky-500/10",
+    emerald: "ring-stone-300/75 before:bg-emerald-500/75 after:border-emerald-500/10",
+    violet: "ring-zinc-300/75 before:bg-violet-500/75 after:border-violet-500/10",
+    neutral: "ring-zinc-300/75 before:bg-zinc-500/70 after:border-zinc-500/10",
   };
   return (
-    <section ref={bandRef} className={`relative overflow-hidden rounded-lg bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.045)] ring-1 before:absolute before:left-0 before:top-0 before:h-1 before:w-16 after:absolute after:inset-0 after:bg-[length:22px_22px,18px_18px,18px_18px] after:opacity-100 ${tones[tone]} ${className}`}>
+    <section ref={bandRef} className={`relative overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 after:pointer-events-none after:absolute after:inset-x-3 after:top-3 after:h-8 after:border-t ${tones[tone]} ${className}`}>
       <div className="relative z-10">{children}</div>
     </section>
   );
@@ -839,7 +839,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.045)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-1 before:w-16 before:bg-violet-500/75 after:absolute after:inset-0 after:bg-[linear-gradient(135deg,rgba(124,58,237,0.10)_0%,rgba(255,255,255,0)_36%),linear-gradient(rgba(15,23,42,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.032)_1px,transparent_1px)] after:bg-[length:22px_22px,18px_18px,18px_18px]">
+          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75 after:pointer-events-none after:absolute after:inset-x-3 after:top-3 after:h-8 after:border-t after:border-violet-500/10">
             <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
               {[
                 ["posts", "全部发帖"],

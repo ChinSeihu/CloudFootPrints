@@ -645,17 +645,18 @@ export function MapExplorer() {
     setCenter({ lat: (bbox.minLat + bbox.maxLat) / 2, lng: (bbox.minLng + bbox.maxLng) / 2 });
     const id = ++reqIdRef.current;
     const params = new URLSearchParams({
+      map: "1",
       minLat: String(bbox.minLat),
       maxLat: String(bbox.maxLat),
       minLng: String(bbox.minLng),
       maxLng: String(bbox.maxLng),
     });
-    try {
+    const eventsPromise = (async () => {
       const res = await fetch(`/api/events?${params}`);
       if (!res.ok) return;
       const data = (await res.json()) as { events: EventDTO[] };
       if (id === reqIdRef.current) setEvents(data.events);
-    } catch { /* 静默 */ }
+    })().catch(() => { /* 静默 */ });
 
     // Hot Pepper 全量餐厅：放大后按视野加载，并向外扩展预取一圈缓冲；
     // 平移仍落在已加载缓冲区内则跳过请求与重渲染，消除明显卡顿。
@@ -695,6 +696,7 @@ export function MapExplorer() {
         }
       }
     }
+    await eventsPromise;
   }, []);
 
   // 更新活动 GeoJSON source
