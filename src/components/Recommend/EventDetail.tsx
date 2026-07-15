@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconCalendar, IconMap, IconExternalLink, IconSparkles, IconHeart, IconBookmark, IconChevronLeft } from "@/components/icons";
@@ -10,6 +10,7 @@ import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
 import { CopyButton } from "@/components/CopyButton";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -125,6 +126,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<CommentSort>("hot");
   const [authorFollowActive, setAuthorFollowActive] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const shareNoticeTimer = useRef<number | null>(null);
 
   const [reactions, setReactions] = useState<ReactionState>({
     likeCount: 0,
@@ -362,18 +365,39 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     }
   }
 
+  function showShareNotice(message: string) {
+    if (shareNoticeTimer.current !== null) window.clearTimeout(shareNoticeTimer.current);
+    setShareNotice(message);
+    shareNoticeTimer.current = window.setTimeout(() => {
+      setShareNotice(null);
+      shareNoticeTimer.current = null;
+    }, 1800);
+  }
+
+  useEffect(() => () => {
+    if (shareNoticeTimer.current !== null) window.clearTimeout(shareNoticeTimer.current);
+  }, []);
+
   async function shareEvent() {
     const url = `${window.location.origin}/recommend?event=${event.id}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: event.title, text: event.title, url });
+        showShareNotice("分享已完成");
         return;
       } catch {
-        /* cancelled */
+        /* Some desktop browsers report AbortError when no share target exists. */
       }
     }
-    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    const copied = await copyToClipboard(url);
+    showShareNotice(copied ? "活动链接已复制" : "分享失败，请稍后再试");
   }
+
+  const shareFeedback = shareNotice && (
+    <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur">
+      {shareNotice}
+    </div>
+  );
 
   function jumpToMap() {
     router.push(`/?lat=${event.lat}&lng=${event.lng}`);
@@ -649,6 +673,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             {commentComposer()}
           </div>
         </div>
+        {shareFeedback}
         {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
       </div>
     );
@@ -669,7 +694,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
               <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
             </button>
-            <button type="button" onClick={shareEvent} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
+            <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
           </div>
         </div>
         <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
@@ -756,6 +781,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           </div>
         </main>
       </div>
+      {shareFeedback}
       {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   );
