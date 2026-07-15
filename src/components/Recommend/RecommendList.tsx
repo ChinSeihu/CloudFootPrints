@@ -93,8 +93,8 @@ function SectionTitleIcon({ icon, tone }: { icon: SectionIcon; tone: SectionTone
     zinc: "bg-zinc-100 text-zinc-700 ring-zinc-200",
   };
   return (
-    <span className={`grid h-7 w-7 place-items-center rounded-lg ring-1 ${toneClass[tone]}`} aria-hidden="true">
-      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+    <span className={`grid size-7 shrink-0 place-items-center rounded-lg ring-1 ${toneClass[tone]}`} aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="block size-[18px] shrink-0" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
         {icon === "flame" && <path d="M12 21c-3.9 0-7-2.8-7-6.5 0-2.7 1.6-4.7 3.6-6.7.5 2.2 1.7 3.2 3 3.8-.2-3.4 1.4-5.9 4-8.1.3 3.1 1.6 4.8 2.8 6.3 1 1.2 1.6 2.5 1.6 4.3 0 4-3.1 6.9-8 6.9Z" />}
         {icon === "spark" && <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Zm6 12 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" />}
         {icon === "calendar" && <><path d="M7 3v3M17 3v3M4.5 9h15" /><path d="M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /><path d="M8 13h2M14 13h2M8 17h2M14 17h2" /></>}
@@ -108,14 +108,19 @@ function SectionTitleIcon({ icon, tone }: { icon: SectionIcon; tone: SectionTone
 
 function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title: string; action?: React.ReactNode; icon?: SectionIcon; tone?: SectionTone }) {
   return (
-    <div className="mb-2.5 flex items-end justify-between">
-      <h2 className="flex items-center gap-2 text-[15px] font-black text-neutral-950">
+    <div className="mb-4 flex min-h-7 items-start justify-between gap-3 pt-0.5">
+      <h2 className="flex min-w-0 items-start gap-2.5 text-[15px] font-black leading-7 text-neutral-950">
         <SectionTitleIcon icon={icon} tone={tone} />
-        <span>{title}</span>
+        <span className="min-w-0">{title}</span>
       </h2>
-      {action}
+      {action && <div className="shrink-0 pt-1">{action}</div>}
     </div>
   );
+}
+
+function MasonryGrid({ children, columns = 2, className = "" }: { children: React.ReactNode; columns?: 2 | 3; className?: string }) {
+  const columnClass = columns === 3 ? "columns-3" : "columns-2";
+  return <div className={`${columnClass} gap-3 [&>*]:mb-3 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
 function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
@@ -498,22 +503,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     });
   }
 
-  function imageGrid(urls: string[], title: string, compact = false, inline = false) {
+  function imageGrid(urls: string[], title: string, compact = false) {
     if (urls.length === 0) return null;
-    if (inline) {
-      return (
-        <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-lg bg-neutral-100">
-          {urls.slice(0, 3).map((src, index) => (
-            <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
-              <img src={src} alt={title} className="h-full w-full object-cover" />
-              <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
-                {index + 1}/{urls.length}
-              </span>
-            </button>
-          ))}
-        </div>
-      );
-    }
     if (urls.length === 1) {
       return (
         <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-lg bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
@@ -541,7 +532,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const tags = displayTags(post);
     const likeCount = metricsOf(post).likeCount;
     return (
-      <button key={post.id} type="button" onClick={() => openEvent(post)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+      <button key={post.id} type="button" onClick={() => openEvent(post)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         {imgs.length > 0 && (
           <div className="relative aspect-[4/3] bg-neutral-100">
             <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
@@ -549,7 +540,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </div>
         )}
         <div className="p-2.5">
-          <h3 className="line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
+          <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
           {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
           {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
           {likeCount > 0 && <div className="mt-2 flex justify-end text-[10px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
@@ -572,9 +563,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
-      <article key={checkin.id} className="rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
+      <article key={checkin.id} className="inline-block rounded-lg bg-white p-3 align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+        <div className="min-w-0">
             <div className="flex items-start gap-2">
               <Avatar user={checkin.author} size={30} />
               <div className="min-w-0 flex-1">
@@ -592,10 +582,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 {expanded ? "收起" : "展开"}
               </button>
             )}
-          </div>
-          {!expanded && imageGrid(urls, text, compact, true)}
         </div>
-        {expanded && imageGrid(urls, text, compact, false)}
+        {imageGrid(urls, text, compact)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
@@ -772,12 +760,15 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 const meta = CATEGORY_META[ev.category];
                 return (
                   <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[8.7rem]">
-                    <div className="relative aspect-square bg-neutral-100">
-                      {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
-                      <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
-                    </div>
+                    {ev.imageUrl && (
+                      <div className="relative aspect-square bg-neutral-100">
+                        <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                        <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
+                      </div>
+                    )}
                     <div className="p-2.5">
-                      <h3 className="line-clamp-2 min-h-[2.1rem] text-xs font-bold leading-snug text-neutral-900 sm:min-h-[2.25rem] sm:text-[13px]">{ev.title}</h3>
+                      {!ev.imageUrl && <div className="mb-1 text-[10px] font-semibold" style={{ color: meta.color }}>{meta.label}</div>}
+                      <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900 sm:text-[13px]">{ev.title}</h3>
                       <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime)}</p>
                     </div>
                   </button>
@@ -793,17 +784,17 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               tone="violet"
               action={<span className="text-[10px] font-medium text-neutral-400">精选优先 · 近期与热度排序</span>}
             />
-            <div className="grid grid-cols-3 gap-2">
+            <MasonryGrid columns={3} className="gap-2 [&>*]:mb-2">
               {recommended.slice(0, 3).map((ev) => (
-                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-                  <div className="aspect-[4/3] bg-neutral-100">{ev.imageUrl && <img src={ev.imageUrl} alt="" className="h-full w-full object-cover" />}</div>
+                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+                  {ev.imageUrl && <div className="aspect-[4/3] bg-neutral-100"><img src={ev.imageUrl} alt="" className="h-full w-full object-cover" /></div>}
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
                     <p className="mt-1 truncate text-[10px] text-neutral-400">{fmtDate(ev.startTime)}</p>
                   </div>
                 </button>
               ))}
-            </div>
+            </MasonryGrid>
           </section>
           </SectionBand>
           )}
@@ -811,11 +802,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           {activityList.length > 0 && (
             <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
-              <div className="grid grid-cols-2 gap-3">
+              <MasonryGrid>
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
                   return (
-                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
                       <div className="p-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label}</div>
@@ -825,7 +816,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                     </button>
                   );
                 })}
-              </div>
+              </MasonryGrid>
               {activityVisibleCount < activityList.length && (
                 <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">继续加载中...</div>
               )}
@@ -852,9 +843,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {discoverPosts.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <MasonryGrid>
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
-              </div>
+              </MasonryGrid>
             )}
           </section>
 
@@ -863,9 +854,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {discoverCheckins.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
+              <MasonryGrid>
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
-              </div>
+              </MasonryGrid>
             )}
           </section>
           </SectionBand>
@@ -892,13 +883,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             <div className="relative z-10">
             {discoverFullType === "posts" ? (
               discoverPosts.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">{discoverPosts.map((post) => renderPostCard(post))}</div>
+                <MasonryGrid>{discoverPosts.map((post) => renderPostCard(post))}</MasonryGrid>
               ) : (
                 <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
+                <MasonryGrid>{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</MasonryGrid>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
                   {checkinsLoadingMore ? "继续加载中..." : checkinsLoadError ? (
                     <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button>

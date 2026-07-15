@@ -18,6 +18,7 @@
 - Section backgrounds now use a cleaner modern white panel treatment with top accent rules and restrained shadowing instead of plain tinted blocks or grid/gradient decoration, and activity cards were tightened further to smaller rounded corners.
 - Module headers now use a small geometric icon marker, and the long thin divider above titles was removed while preserving the short accent rule on each section.
 - Module header icons now vary by section with distinct semantic shapes and colors, closer to the visual language of editorial event blocks.
+- Section headings now have safer vertical spacing and fixed-aspect icons, while activity, post, and footprint cards use content-height masonry layouts so image-free cards no longer leave uneven blank rows.
 - Map opening is faster: map activity requests now use a lightweight `map=1` payload, map check-ins avoid discovery-only counts, and event/food layer fetches no longer block each other in sequence.
 **Main files:** `scripts/seed-demo.ts`, `scripts/publish-demo-checkins.ts`, `src/services/simulation/engine.ts`, `src/services/checkins.ts`, `src/services/events.ts`, `src/app/api/checkins/route.ts`, `src/app/api/events/route.ts`, `src/app/recommend/page.tsx`, `src/components/Recommend/RecommendList.tsx`, `src/components/Map/MapExplorer.tsx`
 
