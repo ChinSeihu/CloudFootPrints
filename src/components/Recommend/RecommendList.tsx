@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconHeart, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
@@ -122,6 +122,62 @@ function MasonryGrid({ children, className = "" }: { children: React.ReactNode; 
   return <div className={`columns-2 gap-3 [&>*]:mb-3 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
+function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initialIndex: number; onClose: () => void }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
+
+  const showImage = useCallback((index: number) => {
+    const nextIndex = Math.min(Math.max(index, 0), urls.length - 1);
+    setActiveIndex(nextIndex);
+    scrollerRef.current?.scrollTo({ left: nextIndex * scrollerRef.current.clientWidth, behavior: "smooth" });
+  }, [urls.length]);
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollLeft = initialIndex * scroller.clientWidth;
+  }, [initialIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") showImage(activeIndex - 1);
+      if (event.key === "ArrowRight") showImage(activeIndex + 1);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeIndex, onClose, showImage]);
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="图片预览" className="fixed inset-0 z-[70] flex items-center bg-black/85" onClick={onClose}>
+      <button type="button" onClick={onClose} aria-label="关闭图片预览" className="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-black/45 text-2xl text-white backdrop-blur">×</button>
+      <div
+        ref={scrollerRef}
+        onClick={(event) => event.stopPropagation()}
+        onScroll={(event) => {
+          const scroller = event.currentTarget;
+          if (scroller.clientWidth > 0) setActiveIndex(Math.round(scroller.scrollLeft / scroller.clientWidth));
+        }}
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {urls.map((src, index) => (
+          <div key={`${src}-${index}`} className="flex h-full w-full shrink-0 snap-center items-center justify-center p-4 sm:p-10">
+            <img src={src} alt={`图片 ${index + 1}`} draggable={false} className="max-h-full max-w-full select-none rounded-xl object-contain shadow-2xl" />
+          </div>
+        ))}
+      </div>
+      {urls.length > 1 && (
+        <>
+          <button type="button" aria-label="上一张" disabled={activeIndex === 0} onClick={(event) => { event.stopPropagation(); showImage(activeIndex - 1); }} className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">‹</button>
+          <button type="button" aria-label="下一张" disabled={activeIndex === urls.length - 1} onClick={(event) => { event.stopPropagation(); showImage(activeIndex + 1); }} className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">›</button>
+          <div className="pointer-events-none absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+            {activeIndex + 1}/{urls.length}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SectionBand({ children, tone = "neutral", className = "", bandRef }: { children: React.ReactNode; tone?: "blue" | "emerald" | "violet" | "neutral"; className?: string; bandRef?: React.Ref<HTMLElement> }) {
   const tones = {
     blue: "ring-slate-300/70 before:bg-sky-500/80",
@@ -146,7 +202,7 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }) {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewGallery, setPreviewGallery] = useState<{ urls: string[]; initialIndex: number } | null>(null);
   const targetId = useRef<string | null>(null);
   const resolvedRef = useRef(false);
   const [tab, setTab] = useState<TopTab>("OFFICIAL");
@@ -502,11 +558,25 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     });
   }
 
-  function imageGrid(urls: string[], title: string, compact = false) {
+  function imageGrid(urls: string[], title: string, compact = false, inline = false) {
     if (urls.length === 0) return null;
+    if (inline) {
+      return (
+        <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-lg bg-neutral-100">
+          {urls.slice(0, 3).map((src, index) => (
+            <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
+              <img src={src} alt={title} className="h-full w-full object-cover" />
+              <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
+                {index + 1}/{urls.length}
+              </span>
+            </button>
+          ))}
+        </div>
+      );
+    }
     if (urls.length === 1) {
       return (
-        <button type="button" onClick={() => setPreviewImage(urls[0])} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-lg bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
+        <button type="button" onClick={() => setPreviewGallery({ urls, initialIndex: 0 })} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-lg bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
           <img src={urls[0]} alt={title} className={compact ? "max-h-72 w-full object-cover" : "max-h-72 w-full object-cover"} />
         </button>
       );
@@ -515,7 +585,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     return (
       <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
         {visible.map((src, index) => (
-          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewImage(src)} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
+          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
             <img src={src} alt={title} className={compact ? "max-h-40 w-full object-cover" : "max-h-40 w-full object-cover"} />
             <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
               {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
@@ -562,8 +632,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
-      <article key={checkin.id} className="inline-block rounded-lg bg-white p-3 align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-        <div className="min-w-0">
+      <article key={checkin.id} className="rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
               <Avatar user={checkin.author} size={30} />
               <div className="min-w-0 flex-1">
@@ -581,8 +652,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 {expanded ? "收起" : "展开"}
               </button>
             )}
+          </div>
+          {!expanded && imageGrid(urls, text, compact, true)}
         </div>
-        {imageGrid(urls, text, compact)}
+        {expanded && imageGrid(urls, text, compact, false)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
@@ -853,9 +926,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {discoverCheckins.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
-              <MasonryGrid>
+              <div className="grid grid-cols-1 gap-3">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
-              </MasonryGrid>
+              </div>
             )}
           </section>
           </SectionBand>
@@ -888,7 +961,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               )
             ) : discoverCheckins.length > 0 ? (
               <>
-                <MasonryGrid>{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</MasonryGrid>
+                <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
                   {checkinsLoadingMore ? "继续加载中..." : checkinsLoadError ? (
                     <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button>
@@ -921,11 +994,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
       {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
-      {previewImage && (
-        <button type="button" onClick={() => setPreviewImage(null)} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
-          <img src={previewImage} alt="" className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" />
-        </button>
-      )}
+      {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
     </div>
   );
 }
