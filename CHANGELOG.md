@@ -8,6 +8,11 @@
 
 ## 2026-07-17
 
+### Cache daily official content without delaying live community data
+- Official events are cached for 24 hours at the service layer and reused by map, calendar, and discovery queries. User posts remain uncached and are merged into every response in real time.
+- Calendar and discovery routes stay dynamic for fresh community content, while discovery loads 24 public footprints initially and continues with the existing infinite loader in batches of 40.
+- Bottom navigation warms routes on pointer hover or touch, reducing click-to-render latency without preloading the heavy map bundle during initial page load.
+
 ### Show newly published footprints immediately
 - The discovery page now reads current public content on every visit instead of serving a five-minute ISR snapshot, and check-in create/edit/delete operations invalidate the discovery route.
 - Personal-page footprint galleries now size themselves by image count with up to three images per row: one full-width image, two half-width images, or three equal thumbnails.

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { IconCalendar, IconCompass, IconMap, IconUser } from "@/components/icons";
 
 const TABS = [
@@ -14,6 +14,7 @@ const TABS = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,8 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             onClick={() => setPending(tab.href)}
+            onPointerEnter={() => router.prefetch(tab.href)}
+            onTouchStart={() => router.prefetch(tab.href)}
             aria-current={active ? "page" : undefined}
             className={`flex flex-col items-center justify-center gap-0.5 text-xs transition ${
               active ? "font-semibold text-blue-600" : "text-neutral-500 hover:text-neutral-700"

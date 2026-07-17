@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { Prisma, Event, Post } from "@prisma/client";
 import { type EventCategory, isEventCategory } from "@/lib/categories";
+import { unstable_cache } from "next/cache";
 
 // 领域逻辑：活动查询/写入。route handler 只调用这里，不写逻辑。
 // 抓取的官方活动存 Event，用户发帖存 Post（两表分开）。地图/推荐等读路径把两表
@@ -45,6 +46,13 @@ export type NormalizedEvent = {
   updatedAt: Date;
 };
 
+type CachedOfficialEvent = Omit<NormalizedEvent, "startTime" | "endTime" | "createdAt" | "updatedAt"> & {
+  startTime: string | null;
+  endTime: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // 官方活动 → 统一形状（无作者、无 tags/多图/报名）。
 export function normalizeOfficial(e: Event): NormalizedEvent {
   return {
@@ -86,90 +94,54 @@ function timeWindowOR(q: EventQuery) {
   ];
 }
 
-// 按矩形范围 + 可选筛选查活动（官方 Event + 用户 Post 合并）。
-export async function getEventsInBounds(q: EventQuery) {
+const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery) => {
   const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
-
-  // 官方活动按矩形范围抽取（数据量大，限范围控性能 + 流量）；
-  // 用户发帖不限地理范围（量小，全量返回）——允许出现在东京 bbox 之外（如镰仓/箱根/远行的帖）。
-  // 分类 / 时间窗筛选仍对两者同样生效。
   const eventWhere: Prisma.EventWhereInput = { ...bbox };
-  const postWhere: Prisma.PostWhereInput = {};
-  if (q.category) { eventWhere.category = q.category; postWhere.category = q.category; }
-  if (or) { eventWhere.OR = or; postWhere.OR = or; }
+  if (q.category) eventWhere.category = q.category;
+  if (or) eventWhere.OR = or;
+  const events = await prisma.event.findMany({ where: eventWhere, orderBy: [{ startTime: "asc" }], take: 500 });
+  return events.map((event): CachedOfficialEvent => {
+    const normalized = normalizeOfficial(event);
+    return {
+      ...normalized,
+      startTime: normalized.startTime?.toISOString() ?? null,
+      endTime: normalized.endTime?.toISOString() ?? null,
+      createdAt: normalized.createdAt.toISOString(),
+      updatedAt: normalized.updatedAt.toISOString(),
+    };
+  });
+}, ["official-events-in-bounds-v1"], { revalidate: 86_400, tags: ["official-events"] });
 
-  const [events, posts] = await Promise.all([
-    prisma.event.findMany({ where: eventWhere, orderBy: [{ startTime: "asc" }], take: 500 }),
-    prisma.post.findMany({ where: postWhere, orderBy: [{ startTime: "asc" }], take: 500 }),
+async function getFreshUserPosts(q: EventQuery) {
+  const or = timeWindowOR(q);
+  const postWhere: Prisma.PostWhereInput = {};
+  if (q.category) postWhere.category = q.category;
+  if (or) postWhere.OR = or;
+  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ startTime: "asc" }], take: 500 });
+  return attachAuthors(posts.map(normalizePost));
+}
+
+// 官方活动按天缓存；用户发帖始终实时查询，最后合并为现有统一数据结构。
+export async function getEventsInBounds(q: EventQuery) {
+  const [cachedEvents, posts] = await Promise.all([
+    getCachedOfficialEventsInBounds(q),
+    getFreshUserPosts(q),
   ]);
-  const merged = [...events.map(normalizeOfficial), ...posts.map(normalizePost)].sort(
+  const events: NormalizedEvent[] = cachedEvents.map((event) => ({
+    ...event,
+    startTime: event.startTime ? new Date(event.startTime) : null,
+    endTime: event.endTime ? new Date(event.endTime) : null,
+    createdAt: new Date(event.createdAt),
+    updatedAt: new Date(event.updatedAt),
+  }));
+  return [...events.map((event) => ({ ...event, author: null })), ...posts].sort(
     (a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity),
-  );
-  return attachAuthors(merged.slice(0, 500 + posts.length));
+  ).slice(0, 500 + posts.length);
 }
 
 export async function getMapEventsInBounds(q: EventQuery) {
-  const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
-  const or = timeWindowOR(q);
-  const eventWhere: Prisma.EventWhereInput = { ...bbox };
-  const postWhere: Prisma.PostWhereInput = {};
-  if (q.category) { eventWhere.category = q.category; postWhere.category = q.category; }
-  if (or) { eventWhere.OR = or; postWhere.OR = or; }
-
-  const [events, posts] = await Promise.all([
-    prisma.event.findMany({
-      where: eventWhere,
-      orderBy: [{ startTime: "asc" }],
-      take: 500,
-      select: {
-        id: true, title: true, description: true, summary: true, category: true,
-        venueName: true, address: true, imageUrl: true, lat: true, lng: true,
-        startTime: true, endTime: true, sourceType: true, sourceUrl: true,
-        trustLevel: true, featuredToday: true, tags: true, createdAt: true, updatedAt: true,
-      },
-    }),
-    prisma.post.findMany({
-      where: postWhere,
-      orderBy: [{ startTime: "asc" }],
-      take: 500,
-      select: {
-        id: true, title: true, description: true, category: true, venueName: true,
-        imageUrl: true, imageUrls: true, lat: true, lng: true, startTime: true,
-        endTime: true, tags: true, signupEnabled: true, userId: true,
-        createdAt: true, updatedAt: true,
-      },
-    }),
-  ]);
-
-  return [
-    ...events.map((e) => ({ ...e, imageUrls: [], signupEnabled: false, userId: null })),
-    ...posts.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      summary: null,
-      category: p.category,
-      venueName: p.venueName,
-      address: null,
-      imageUrl: p.imageUrl,
-      imageUrls: p.imageUrls,
-      lat: p.lat,
-      lng: p.lng,
-      startTime: p.startTime,
-      endTime: p.endTime,
-      sourceType: "USER",
-      sourceUrl: null,
-      trustLevel: 10,
-      featuredToday: false,
-      tags: p.tags,
-      signupEnabled: p.signupEnabled,
-      userId: p.userId,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      author: null,
-    })),
-  ].sort((a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity)).slice(0, 500 + posts.length);
+  return getEventsInBounds(q);
 }
 
 // 给一批活动附作者公开信息（仅 Post 有 userId；官方活动 author 为 null）。

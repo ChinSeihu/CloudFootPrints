@@ -53,7 +53,7 @@ export default async function RecommendPage() {
   try {
     const [rows, checkinRows] = await Promise.all([
       getEventsInBounds(TOKYO_BBOX),
-      listDiscoverCheckins({ limit: 60 }),
+      listDiscoverCheckins({ limit: 24 }),
     ]);
     const now = Date.now();
     const upcoming = rows

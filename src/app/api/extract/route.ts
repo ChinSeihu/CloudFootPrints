@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runExtractionPipeline } from "@/services/extraction";
+import { revalidateTag } from "next/cache";
 
 // /api/extract —— 触发一次提取管线（采集 → LLM 抽取 → 地理编码 → 入库）。
 // 设计：数据全用户共享、无需手动刷新，由**每日定时任务**调用（见 vercel.json crons，凌晨更新一次）。
@@ -27,6 +28,7 @@ async function runOnce(req: Request) {
   running = true;
   try {
     const stats = await runExtractionPipeline();
+    revalidateTag("official-events", "max");
     return NextResponse.json({ ok: true, stats });
   } catch (err) {
     console.error("extract failed:", err);

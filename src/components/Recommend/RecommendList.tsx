@@ -310,7 +310,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     setCheckinsLoadingMore(true);
     setCheckinsLoadError(false);
     try {
-      const res = await fetch(`/api/checkins?discover=1&offset=${checkinsOffset}&limit=60`);
+      const res = await fetch(`/api/checkins?discover=1&offset=${checkinsOffset}&limit=40`);
       if (!res.ok) throw new Error("load checkins failed");
       const data = await res.json();
       const nextRows: CheckInDTO[] = Array.isArray(data?.checkins) ? data.checkins.filter((item: unknown): item is CheckInDTO => !!item && typeof item === "object" && typeof (item as CheckInDTO).id === "string") : [];
