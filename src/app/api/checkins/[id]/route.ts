@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteCheckin, updateCheckin } from "@/services/checkins";
 import { getCurrentUserId } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,6 +27,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+  revalidatePath("/recommend");
   return NextResponse.json({ ok: true });
 }
 
@@ -38,5 +40,6 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+  revalidatePath("/recommend");
   return new NextResponse(null, { status: 204 });
 }

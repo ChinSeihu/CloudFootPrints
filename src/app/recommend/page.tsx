@@ -7,8 +7,9 @@ import type { CheckInDTO, EventDTO } from "@/lib/types";
 // 推荐页：小红书式瀑布流（masonry）。
 // v1 仅搭出页面与卡片，排序用简单规则（按开始时间）占位；
 // 卡片可点开看详情 + 评论 + 跳到地图。个性化排序留到 v2。
-// 数据每日定时更新，故用 ISR 缓存（1h 重新生成），避免每次请求都查库、加快加载。
-export const revalidate = 300;
+// 发现页包含用户刚发布的公开内容，必须在每次进入页面时读取最新数据。
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // 东京全域大致范围，作为 v1 占位数据来源。
 const TOKYO_BBOX = { minLat: 35.5, maxLat: 35.85, minLng: 139.5, maxLng: 139.95 };

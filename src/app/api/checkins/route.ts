@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createCheckin, listCheckins, listDiscoverCheckins, listMapCheckins } from "@/services/checkins";
 import { getCurrentUserId } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 // GET /api/checkins —— 当前登录用户的打卡列表（未登录返回空，打卡属个人足迹）
 export async function GET(request: Request) {
@@ -58,5 +59,6 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+  if (result.checkin.isPublic) revalidatePath("/recommend");
   return NextResponse.json({ checkin: result.checkin }, { status: 201 });
 }

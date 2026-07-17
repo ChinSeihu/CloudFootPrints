@@ -341,7 +341,7 @@ function MeContent() {
                     const imgs = c.photoUrls?.length ? c.photoUrls : c.photoUrl ? [c.photoUrl] : [];
                     if (imgs.length === 0) return null;
                     return (
-                      <div className={`mt-3 grid gap-2 ${imgs.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                      <div className={`mt-3 grid gap-2 ${imgs.length === 1 ? "grid-cols-1" : imgs.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                         {imgs.map((src, i) => (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
