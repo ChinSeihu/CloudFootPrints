@@ -159,9 +159,13 @@ function MeContent() {
     });
   }
 
-  async function regenerateCheckin(id: string): Promise<{ imageUrl: string; imageUrls: string[] } | null> {
+  async function regenerateCheckin(id: string, photoUrls: string[]): Promise<{ imageUrl: string; imageUrls: string[] } | null> {
     try {
-      const res = await fetch(`/api/checkins/${id}/regenerate-image`, { method: "POST" });
+      const res = await fetch(`/api/checkins/${id}/regenerate-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrls }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.imageUrl) {
         window.alert(data?.error ?? "重新生图失败");
@@ -594,7 +598,7 @@ function MeContent() {
           onClose={() => setEditingCheckin(null)}
           onSaved={(patch) => setCheckins((prev) => prev.map((c) => (c.id === editingCheckin.id ? { ...c, ...patch } : c)))}
           canRegenerateImage={canRegenerateImages}
-          onRegenerateImage={() => regenerateCheckin(editingCheckin.id)}
+          onRegenerateImage={(photoUrls) => regenerateCheckin(editingCheckin.id, photoUrls)}
         />
       )}
 

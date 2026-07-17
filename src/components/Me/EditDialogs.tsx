@@ -246,7 +246,7 @@ export function EditCheckInDialog({
   onClose: () => void;
   onSaved: (patch: Partial<CheckInDTO>) => void;
   canRegenerateImage?: boolean;
-  onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
+  onRegenerateImage?: (photoUrls: string[]) => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
 }) {
   const [note, setNote] = useState(checkin.note ?? "");
   const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
@@ -319,14 +319,15 @@ export function EditCheckInDialog({
 
   async function regenerateImage() {
     if (!onRegenerateImage || regenerating) return;
+    if (total >= MAX_IMAGES) {
+      window.alert("当前已有 6 张图片，请先删除一张后再生成");
+      return;
+    }
     setError(null);
     setRegenerating(true);
     try {
-      const result = await onRegenerateImage();
+      const result = await onRegenerateImage(keptUrls);
       if (!result?.imageUrl) return;
-      for (const src of previews) URL.revokeObjectURL(src);
-      setPreviews([]);
-      setFiles([]);
       setKeptUrls(result.imageUrls?.length ? result.imageUrls : [result.imageUrl]);
     } finally {
       setRegenerating(false);

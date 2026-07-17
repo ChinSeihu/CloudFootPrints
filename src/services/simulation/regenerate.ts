@@ -91,17 +91,29 @@ async function personaForUser(userId: string) {
 export async function regenerateCheckinImage(
   checkinId: string,
   userId: string,
+  requestedPhotoUrls?: string[],
 ): Promise<RegenResult> {
   const { persona } = await personaForUser(userId);
   if (!persona) return { ok: false, error: "仅测试账号支持重新生图" };
 
   const row = await prisma.checkIn.findUnique({
     where: { id: checkinId },
-    select: { id: true, userId: true, createdAt: true, imageSpec: true },
+    select: { id: true, userId: true, createdAt: true, imageSpec: true, photoUrl: true, photoUrls: true },
   });
 
   if (!row) return { ok: false, error: "足迹不存在" };
   if (row.userId !== userId) return { ok: false, error: "无权操作这条足迹" };
+
+  const storedPhotoUrls = row.photoUrls.length > 0 ? row.photoUrls : row.photoUrl ? [row.photoUrl] : [];
+  const photoUrls = requestedPhotoUrls === undefined
+    ? storedPhotoUrls
+    : [...new Set(requestedPhotoUrls.filter((url) => storedPhotoUrls.includes(url)))];
+  if (requestedPhotoUrls !== undefined && photoUrls.length !== new Set(requestedPhotoUrls).size) {
+    return { ok: false, error: "图片状态已变化，请重新打开编辑窗口后再试" };
+  }
+  if (photoUrls.length >= 6) {
+    return { ok: false, error: "当前已有 6 张图片，请先删除一张后再生成" };
+  }
 
   const imageSpec = parseImageSpec(row.imageSpec);
   if (!imageSpec) {
@@ -115,15 +127,17 @@ export async function regenerateCheckinImage(
     return { ok: false, error: "生图失败，请检查图片服务配置" };
   }
 
+  const nextPhotoUrls = [...photoUrls, imageUrl];
+
   await prisma.checkIn.update({
     where: { id: checkinId },
     data: {
-      photoUrl: imageUrl,
-      photoUrls: [imageUrl],
+      photoUrl: nextPhotoUrls[0],
+      photoUrls: nextPhotoUrls,
     },
   });
 
-  return { ok: true, imageUrl, imageUrls: [imageUrl] };
+  return { ok: true, imageUrl, imageUrls: nextPhotoUrls };
 }
 
 export async function regeneratePostImage(
