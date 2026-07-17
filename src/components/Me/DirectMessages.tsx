@@ -23,12 +23,14 @@ export function DirectMessages({
   initialTargetId,
   openNonce,
   onUnreadChange,
+  onClose,
 }: {
   currentUserId: string;
   initialConversations: DirectConversationDTO[];
   initialTargetId: string | null;
   openNonce: number;
   onUnreadChange: (count: number) => void;
+  onClose?: () => void;
 }) {
   const [conversations, setConversations] = useState(initialConversations);
   const [active, setActive] = useState<{ id: string; other: DirectMessageUserDTO } | null>(null);
@@ -138,9 +140,9 @@ export function DirectMessages({
 
   if (active) {
     return (
-      <section className="fixed inset-0 z-50 flex flex-col bg-neutral-50">
+      <section className="fixed inset-0 z-[90] flex flex-col bg-neutral-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-neutral-100 bg-white/95 px-3 py-2.5 backdrop-blur">
-          <button type="button" onClick={() => { setActive(null); setMessages([]); void refreshConversations(); }} aria-label="返回会话列表" className="grid size-8 shrink-0 place-items-center text-neutral-600">
+          <button type="button" onClick={() => { if (onClose) onClose(); else { setActive(null); setMessages([]); void refreshConversations(); } }} aria-label={onClose ? "关闭私聊" : "返回会话列表"} className="grid size-8 shrink-0 place-items-center text-neutral-600">
             <IconChevronLeft className="size-5" />
           </button>
           <Avatar user={active.other} size={36} />
@@ -184,6 +186,22 @@ export function DirectMessages({
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} maxLength={1000} placeholder="输入消息" className="max-h-28 min-h-10 min-w-0 flex-1 resize-none rounded-lg bg-neutral-100 px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-blue-100" />
             <button type="button" onClick={() => void send()} disabled={!draft.trim() || sending} className="h-10 shrink-0 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white disabled:opacity-40">发送</button>
           </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (initialTargetId && onClose) {
+    return (
+      <section className="fixed inset-0 z-[90] flex flex-col bg-neutral-50">
+        <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-3 py-2.5">
+          <button type="button" onClick={onClose} aria-label="关闭私聊" className="grid size-8 shrink-0 place-items-center text-neutral-600">
+            <IconChevronLeft className="size-5" />
+          </button>
+          <h3 className="text-sm font-bold text-neutral-950">私信</h3>
+        </header>
+        <div className="grid flex-1 place-items-center px-6 text-center text-xs text-neutral-400">
+          <p>{error || "正在打开对话..."}</p>
         </div>
       </section>
     );

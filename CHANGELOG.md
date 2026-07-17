@@ -12,6 +12,9 @@
 - The discovery page now reads current public content on every visit instead of serving a five-minute ISR snapshot, and check-in create/edit/delete operations invalidate the discovery route.
 - Personal-page footprint galleries now size themselves by image count with up to three images per row: one full-width image, two half-width images, or three equal thumbnails.
 
+### Open direct messages in place
+- The private-message action on a user post now opens the target conversation as an overlay on top of the current post instead of navigating through the personal messages page first. Closing the chat returns to the same post context.
+
 ### Diversify Mizuki's travel wardrobe
 - Mizuki's image-generation profile now uses a varied resort-casual wardrobe rather than a narrow outdoor-utility capsule. Linen sets, airy dresses, seaside layers, relaxed separates, seasonal getaway layers, and broader color rotations are available.
 - Cameras, backpacks, and hats are now optional scene-driven accessories instead of fixed identity markers, reducing repeated outfits caused by the face reference and the previous cargo-heavy trend filter.

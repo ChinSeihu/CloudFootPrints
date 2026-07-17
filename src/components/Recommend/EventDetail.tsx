@@ -10,6 +10,7 @@ import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
 import { CopyButton } from "@/components/CopyButton";
+import { DirectMessages } from "@/components/Me/DirectMessages";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
@@ -110,6 +111,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const cardTags = (event.tags?.length ? event.tags : tags).slice(0, 5);
 
   const [comments, setComments] = useState<CommentDTO[]>([]);
+  const [directMessageTarget, setDirectMessageTarget] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [posting, setPosting] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -309,7 +311,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   function startDirectMessage() {
     const authorId = event.author?.id;
     if (!authorId || user?.id === authorId) return;
-    router.push(`/me?chat=${encodeURIComponent(authorId)}`);
+    if (!user) {
+      setErr("请先登录后再发起私信");
+      return;
+    }
+    setDirectMessageTarget(authorId);
   }
 
   async function addComment() {
@@ -684,6 +690,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         </div>
         {shareFeedback}
         {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
+        {directMessageTarget && user && (
+          <DirectMessages
+            currentUserId={user.id}
+            initialConversations={[]}
+            initialTargetId={directMessageTarget}
+            openNonce={0}
+            onUnreadChange={() => undefined}
+            onClose={() => setDirectMessageTarget(null)}
+          />
+        )}
       </div>
     );
   }
