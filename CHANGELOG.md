@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-07-17
+
+### Diversify Mizuki's travel wardrobe
+- Mizuki's image-generation profile now uses a varied resort-casual wardrobe rather than a narrow outdoor-utility capsule. Linen sets, airy dresses, seaside layers, relaxed separates, seasonal getaway layers, and broader color rotations are available.
+- Cameras, backpacks, and hats are now optional scene-driven accessories instead of fixed identity markers, reducing repeated outfits caused by the face reference and the previous cargo-heavy trend filter.
+
+---
+
 ## 2026-07-15
 
 ### Add direct messaging and persona replies

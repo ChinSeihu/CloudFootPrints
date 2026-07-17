@@ -96,12 +96,13 @@ const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
   },
   C06: {
     wardrobe: [
-      "2026 Tokyo travel creator style: light outdoor utility vest, sun shirt, nylon skirt or wide cargo pants, packable windbreaker",
-      "city trekking feminine details: trail sneakers, camera sling bag, breathable layers, pocketed outerwear, hair tied back or natural loose hair",
+      "2026 Japanese resort-casual travel style: breezy linen shirt, relaxed wide-leg trousers, airy midi dress, soft wrap skirt, knitted tank or clean sleeveless top",
+      "seaside and boutique-hotel details: light striped overshirt, crochet or sheer cover-up, relaxed shorts with a loose blouse, flowing skirt, walkable leather sandals or clean low-profile sneakers",
+      "cool-weather getaway layers: fine cardigan over a simple dress, light denim jacket, soft knit with relaxed trousers, or a clean trench over an airy skirt",
     ],
-    palette: "sage green, sand beige, washed navy, cream, sun-faded orange",
-    avoid: ["sweet lace outfits", "clean-girl cardigan-and-skirt repetition", "office chic", "fragile shoes that cannot walk", "making a hat part of every outfit"],
-    accessories: ["camera sling bag", "trail sneakers", "thin outdoor watch", "packable tote", "optional bucket hat only for strong-sun outdoor trips"],
+    palette: "sea blue, sun-washed white, sand beige, coral, butter yellow, sage, terracotta and washed navy; rotate combinations instead of defaulting to beige",
+    avoid: ["repeating utility vests or cargo pants", "outdoor trekking uniform", "clean-girl cardigan-and-skirt repetition", "office chic", "fragile high heels", "making a camera bag, backpack or hat part of every outfit"],
+    accessories: ["woven mini bag", "simple leather sandals", "silk hair tie", "small gold earrings", "clean sneakers", "camera sling only when the scene involves active shooting", "sun hat only for strong-sun outdoor trips"],
     cameraProfile: "Nikon Zfc travel JPEG look: clear but not over-sharp, clean blues and greens, natural daylight, crisp outdoor documentary color, minimal grain",
   },
   C07: {
@@ -549,6 +550,10 @@ export type DailyOutfit = {
 };
 
 const PALETTES: OutfitPalette[] = [
+  { id: "sea_blue_white_sand", text: "sea blue, sun-washed white and sand beige", styles: ["resort_casual", "japanese_fresh"] },
+  { id: "coral_cream_terracotta", text: "soft coral, cream and a small terracotta accent", styles: ["resort_casual"] },
+  { id: "butter_sage_white", text: "butter yellow, pale sage and clean white", styles: ["resort_casual", "natural_clean"] },
+  { id: "washed_navy_linen", text: "washed navy, natural linen and warm tan", styles: ["resort_casual", "natural_clean"] },
   { id: "clear_white_blush", text: "clear white, blush pink and soft beige", styles: ["clean_girl", "sweet_soft", "japanese_fresh"] },
   { id: "ivory_greige_brown", text: "ivory, greige and warm brown", styles: ["intellectual", "office_chic", "french_vintage"] },
   { id: "cream_sage_oatmeal", text: "cream, sage green and oatmeal", styles: ["natural_clean", "clean_girl", "japanese_fresh"] },
@@ -570,6 +575,12 @@ const PALETTES: OutfitPalette[] = [
 ];
 
 const SILHOUETTES: OutfitSilhouette[] = [
+  { id: "resort_linen_set", text: "breezy linen shirt with relaxed wide-leg trousers and flat leather sandals", styles: ["resort_casual", "natural_clean"], tags: ["linen", "wide_pants"] },
+  { id: "airy_midi_woven_bag", text: "airy midi dress with a light shoulder layer and a small woven bag", styles: ["resort_casual", "japanese_fresh"], tags: ["long_skirt"] },
+  { id: "striped_overshirt_shorts", text: "loose striped overshirt with a clean tank, tailored relaxed shorts and low-profile sneakers", styles: ["resort_casual", "japanese_fresh"], tags: ["sneakers"] },
+  { id: "knit_tank_wrap_skirt", text: "simple knitted tank with a flowing wrap skirt and walkable sandals", styles: ["resort_casual", "natural_clean"], tags: ["knit", "long_skirt"] },
+  { id: "crochet_cover_wide_pants", text: "light crochet cover-up over a minimal top with fluid wide-leg trousers", styles: ["resort_casual"], tags: ["wide_pants"] },
+  { id: "denim_jacket_sundress", text: "soft sundress with a light denim jacket and clean sneakers", styles: ["resort_casual", "japanese_fresh"], tags: ["denim", "sneakers", "long_skirt"] },
   { id: "lace_blouse_mermaid_skirt", text: "lace blouse with a clean mermaid skirt", styles: ["clean_girl", "sweet_soft", "light_sensual"], tags: ["lace", "mermaid_skirt"] },
   { id: "sheer_blouse_wide_trousers", text: "sheer blouse with elegant wide-leg trousers", styles: ["office_chic", "clean_girl", "intellectual"], tags: ["sheer", "wide_pants"] },
   { id: "cropped_cardigan_satin_skirt", text: "cropped cardigan with a satin long skirt", styles: ["korean_casual", "sweet_soft", "light_sensual"], tags: ["cropped_cardigan", "satin_skirt"] },
@@ -621,6 +632,14 @@ function filterByPersonaStyle<T extends { styles?: FashionStyle[] }>(
   items: T[],
   persona: PersonaV2
 ): T[] {
+  const fashion =
+    (persona.fashionStyle as PersonaFashionStyle | undefined) ??
+    PERSONA_FASHION_STYLE[persona.id];
+  if (fashion?.primary === "resort_casual") {
+    const resortItems = items.filter((item) => item.styles?.includes("resort_casual"));
+    if (resortItems.length) return resortItems;
+  }
+
   const styles = personaFashionStyles(persona);
   if (!styles.length) return items;
 

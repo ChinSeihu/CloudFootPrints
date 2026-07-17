@@ -136,6 +136,7 @@ export type FashionStyle =
   | "natural_clean"
   | "clean_girl"
   | "japanese_fresh"
+  | "resort_casual"
   | "campus_academic"
   | "korean_clean"
   | "korean_casual"
@@ -203,6 +204,8 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
     "clean girl Tokyo lifestyle style with polished hair, natural makeup, simple coordinated outfits, lace or sheer details used subtly",
   japanese_fresh:
     "fresh Japanese casual style with white shirts, light denim, simple skirts, sneakers and airy colors",
+  resort_casual:
+    "relaxed resort-casual style for a stylish Japanese travel creator: breezy linen, airy dresses, relaxed separates, light layers and walkable sandals or sneakers; polished enough for a boutique hotel or seaside cafe, never costume-like tourist wear",
   campus_academic:
     "campus academic style with oxford shirts, knit vests, pleated skirts, loafers and scholarly colors",
   korean_clean:
@@ -254,9 +257,9 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
     fashionLevel: "stylish",
   },
   C06: {
-    primary: "japanese_fresh",
-    secondary: ["clean_girl", "athflow"],
-    trendTags: ["wide_pants", "hoodie", "sneakers", "cargo", "camera_bag"],
+    primary: "resort_casual",
+    secondary: ["japanese_fresh", "natural_clean"],
+    trendTags: ["linen", "wide_pants", "long_skirt", "sneakers"],
     fashionLevel: "stylish",
   },
   C07: {
@@ -1518,7 +1521,7 @@ export const PERSONAS: PersonaV2[] = [
   hasAvatar: true,
 
   appearance:
-    "长发，自然系穿搭，背包和相机几乎不离身",
+    "长发，轻松明快的度假休闲气质；穿搭会随目的地、季节和当天行程变化，相机或旅行包只在需要时携带",
 
   photoSkill: "pro",
 
