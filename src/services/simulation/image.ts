@@ -782,7 +782,8 @@ export function outfitClause(
     "Not luxury campaign.",
   ].join(" ");
 }
-// 组合最终 prompt = LLM 专业场景描述 + 我们的生图规则。LLM 失败则回退（photoDesc + 规则）。
+// 组合最终 prompt = LLM 专业场景描述 + 我们的生图规则。
+// 场景 LLM 失败时返回 null，避免把粗略 imageSpec 直接交给图片模型。
 type ImagePromptRequest = {
   persona: PersonaV2;
   imageSpec: ImageSpec;
@@ -792,15 +793,16 @@ type ImagePromptRequest = {
 export async function composePrompt(
   req: ImagePromptRequest,
   outfit?: DailyOutfit
-): Promise<string> {
+): Promise<string | null> {
   const scene = await scenePromptLLM(req);
+  if (!scene) return null;
 
   const fashion = fashionClause(req.persona, req.world);
   const outfitText = outfitClause(req.persona, req.world, outfit);
   const rules = buildRules(req.persona, req.world);
 
   return [
-    scene ?? imageSpecToText(req.imageSpec),
+    scene,
     fashion,
     outfitText,
     rules,
@@ -961,6 +963,7 @@ async function generateSingleCheckinImage(
   // 先让 LLM 写专业详细 prompt + 附加生图规则；
   // 并加载人物参考图（img2img 锁脸）
   const basePrompt = await composePrompt(req, req.outfit);
+  if (!basePrompt) return null;
 
   const refImage = shouldUseIdentityReference(req)
     ? loadRefImage(personaRefIndex(req.persona)) ?? undefined

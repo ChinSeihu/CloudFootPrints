@@ -8,6 +8,11 @@
 
 ## 2026-07-29
 
+### Prevent image-memory contamination during LLM outages
+- Image generation now stops before calling the image provider when the scene-prompt LLM is unavailable, instead of sending a coarse fallback `imageSpec` that can produce low-quality images.
+- Added a guarded cleanup utility that previews affected image-less PersonaV2 posts/check-ins, writes a recovery backup, and clears only their stored `imageSpec`; character life memories and content remain untouched.
+- Cleaned 20 image-less records from the July 25-29 outage window (9 check-ins and 11 posts). A recovery backup was written before the database transaction, and a follow-up dry run found no remaining candidates.
+
 ### Allow deleting images while editing a post
 - The post editor now shows every stored image with an individual delete control, including posts that are not eligible for AI image regeneration.
 - Saving an empty image list explicitly clears both the post gallery and its cover image, and discovery/profile caches are revalidated after the update.
