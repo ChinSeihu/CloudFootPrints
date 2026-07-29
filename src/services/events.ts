@@ -259,6 +259,7 @@ export type UpdateUserEventInput = {
   category?: EventCategory;
   description?: string | null;
   venueName?: string | null;
+  imageUrls?: string[];
   startTime?: string | null; // ISO
   endTime?: string | null; // ISO
   tags?: string[];
@@ -291,6 +292,11 @@ export async function updateUserEvent(
   if (input.endTime !== undefined) data.endTime = parseISO(input.endTime);
   if (input.tags !== undefined) data.tags = input.tags;
   if (input.signupEnabled !== undefined) data.signupEnabled = input.signupEnabled;
+  if (input.imageUrls !== undefined) {
+    const imageUrls = input.imageUrls.filter(Boolean);
+    data.imageUrls = imageUrls;
+    data.imageUrl = imageUrls[0] ?? null;
+  }
 
   const post = await prisma.post.update({ where: { id }, data });
   return { ok: true, event: normalizePost(post) };

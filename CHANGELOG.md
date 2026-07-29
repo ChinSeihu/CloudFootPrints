@@ -8,6 +8,10 @@
 
 ## 2026-07-29
 
+### Allow deleting images while editing a post
+- The post editor now shows every stored image with an individual delete control, including posts that are not eligible for AI image regeneration.
+- Saving an empty image list explicitly clears both the post gallery and its cover image, and discovery/profile caches are revalidated after the update.
+
 ### Remove repeated summer neck scarves and bow ties
 - Persona wardrobe prompts no longer use ambiguous generic ribbon details or optional silk scarves that image models could reinterpret as the same neck accessory across characters.
 - Summer image prompts now require a clean, breathable neckline and explicitly exclude scarves, neckerchiefs, bow ties, ascots, ribbon ties, sailor ties, and decorative collar bows. Hair ribbons remain available only for matching personas and must be visibly placed in the hair.

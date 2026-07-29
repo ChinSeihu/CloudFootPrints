@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteUserEvent, getEventById, updateUserEvent } from "@/services/events";
 import { getCurrentUserId } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -61,10 +62,15 @@ export async function PATCH(req: Request, ctx: Ctx) {
     endTime: b.endTime === null || typeof b.endTime === "string" ? (b.endTime as string | null) : undefined,
     tags: Array.isArray(b.tags) ? (b.tags as string[]) : undefined,
     signupEnabled: typeof b.signupEnabled === "boolean" ? b.signupEnabled : undefined,
+    imageUrls: Array.isArray(b.imageUrls)
+      ? b.imageUrls.filter((url): url is string => typeof url === "string")
+      : undefined,
   });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+  revalidatePath("/recommend");
+  revalidatePath("/me");
   return NextResponse.json({ ok: true });
 }
 

@@ -53,7 +53,13 @@ export function EditPostDialog({
   canRegenerateImage?: boolean;
   onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
 }) {
-  const [imageUrl, setImageUrl] = useState(event.imageUrl);
+  const [imageUrls, setImageUrls] = useState<string[]>(
+    event.imageUrls?.length
+      ? event.imageUrls
+      : event.imageUrl
+        ? [event.imageUrl]
+        : [],
+  );
   const [title, setTitle] = useState(event.title);
   const [category, setCategory] = useState<EventCategory>(event.category);
   const [description, setDescription] = useState(event.description ?? "");
@@ -89,6 +95,7 @@ export function EditPostDialog({
       endTime: toISO(end),
       tags,
       signupEnabled,
+      imageUrls,
     };
     try {
       const res = await fetch(`/api/events/${event.id}`, {
@@ -101,7 +108,10 @@ export function EditPostDialog({
         setError(d.error || "保存失败");
         return;
       }
-      onSaved(patch);
+      onSaved({
+        ...patch,
+        imageUrl: imageUrls[0] ?? null,
+      });
       onClose();
     } catch {
       setError("网络错误，请稍后再试");
@@ -116,7 +126,11 @@ export function EditPostDialog({
     setRegenerating(true);
     try {
       const result = await onRegenerateImage();
-      if (result?.imageUrl) setImageUrl(result.imageUrl);
+      if (result?.imageUrl) {
+        setImageUrls(
+          result.imageUrls?.length ? result.imageUrls : [result.imageUrl],
+        );
+      }
     } finally {
       setRegenerating(false);
     }
@@ -124,28 +138,53 @@ export function EditPostDialog({
 
   return (
     <Modal title="编辑发帖" onClose={onClose}>
-      {canRegenerateImage && (
+      {(imageUrls.length > 0 || canRegenerateImage) && (
         <div className="mb-5 rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
-          <div className="flex items-center gap-3">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
-            ) : (
-              <div className="h-14 w-14 rounded-xl bg-white/80 border border-violet-100" />
-            )}
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-neutral-900">发帖图片</div>
-              <div className="mt-0.5 text-xs text-neutral-500">按该条内容保存的图片记忆和角色模型重新生成。</div>
+              <div className="mt-0.5 text-xs text-neutral-500">
+                {imageUrls.length > 0 ? `${imageUrls.length} 张图片` : "暂无图片"}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={regenerateImage}
-              disabled={regenerating || saving}
-              className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-            >
-              {regenerating ? "生图中…" : "重新生图"}
-            </button>
+            {canRegenerateImage && (
+              <button
+                type="button"
+                onClick={regenerateImage}
+                disabled={regenerating || saving}
+                className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+              >
+                {regenerating ? "生图中…" : "重新生图"}
+              </button>
+            )}
           </div>
+          {imageUrls.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {imageUrls.map((src, index) => (
+                <div key={`${src}-${index}`} className="relative aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt=""
+                    className="h-full w-full rounded-xl object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setImageUrls((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-base leading-none text-white backdrop-blur transition hover:bg-black/75"
+                    aria-label={`删除第 ${index + 1} 张图片`}
+                    title="删除图片"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
