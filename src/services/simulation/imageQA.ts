@@ -23,6 +23,7 @@ Acceptance criteria:
 5. Hands and anatomy are hard checks. Reject images with extra or missing fingers, fused fingers, warped palms, twisted wrists, misplaced arms, broken joints, impossible body proportions, or implausible ways of holding objects. If hands are hidden, out of frame, or too blurred to judge and no clear defect is visible, that is acceptable.
 6. First-person viewpoint balance: the protagonist may appear if the capture method is plausible, such as selfie, mirror/window reflection, timer shot, tripod, phone placed on a table/floor, friend-taken snapshot, or group photo. Reject only when the image looks like an unexplained third-person portrait or both hands are clearly visible in an implausible POV.
 7. Reject text, watermark, logo, strange symbols or poster-like typography.
+8. Respect wardrobe exclusions in the original prompt. In particular, reject an unrequested scarf, neckerchief, bow tie, ascot, ribbon tie, sailor tie or decorative collar bow when the prompt requires a clean neckline, especially in summer.
 
 When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, plausible camera viewpoint, natural hands and anatomy, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
 
@@ -64,7 +65,7 @@ export async function judgeImage(
     `Original prompt:\n${basePrompt}`,
     "",
     "Check whether the generated image matches the intended image specification.",
-    "Check subject visibility, camera viewpoint, protagonist role, outfit, props, environment, lighting, mood, scene match, AI/CGI feel, skin texture, hands, two-handed POV problems, extra unrelated hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
+    "Check subject visibility, camera viewpoint, protagonist role, outfit, unwanted neck accessories, seasonal clothing suitability, props, environment, lighting, mood, scene match, AI/CGI feel, skin texture, hands, two-handed POV problems, extra unrelated hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
     'Return JSON only: {"ok": true/false, "reason": "short Chinese reason; if rejected name the main defect", "improvedPrompt": "corrected English prompt when rejected, otherwise null"}',
   ].join("\n");
 

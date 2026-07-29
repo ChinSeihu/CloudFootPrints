@@ -90,8 +90,8 @@ const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
       "2026 vintage mix details: sheer socks, loafers, small leather crossbody, vintage watch, softly patterned blouse",
     ],
     palette: "washed denim, cream, camel, faded red, dark brown",
-    avoid: ["sporty athleisure", "all-white clean girl repetition", "luxury editorial styling", "making a scarf part of every outfit"],
-    accessories: ["leather crossbody", "loafers", "vintage watch", "small earrings", "optional silk scarf only on occasional vintage-cafe or breezy street scenes"],
+    avoid: ["sporty athleisure", "all-white clean girl repetition", "luxury editorial styling", "decorative neckwear"],
+    accessories: ["leather crossbody", "loafers", "vintage watch", "small earrings"],
     cameraProfile: "Ricoh GR III street diary look: compact-camera realism, crisp urban texture, restrained contrast, natural shadows",
   },
   C06: {
@@ -147,8 +147,8 @@ const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
   },
   C11: {
     wardrobe: [
-      "campus Korean casual style: cropped cardigan, pleated skirt, soft hoodie, ribbon detail, Mary Janes or sneakers",
-      "2026 young Tokyo details: sheer cardigan, small backpack, hair ribbon, lace socks used subtly",
+      "campus Korean casual style: cropped cardigan, pleated skirt, soft hoodie, Mary Janes or sneakers",
+      "2026 young Tokyo details: sheer cardigan, small backpack, an optional ribbon clip worn only in the hair, lace socks used subtly",
     ],
     palette: "cream, baby blue, soft gray, blush pink, chocolate",
     avoid: ["mature office styling", "heavy outdoor gear", "dark livehouse styling"],
@@ -179,6 +179,25 @@ const PERSONA_VISUAL_STYLE: Record<string, PersonaVisualStyle> = {
 
 function personaVisualStyle(persona: PersonaV2): PersonaVisualStyle | undefined {
   return PERSONA_VISUAL_STYLE[persona.id];
+}
+
+function trendTagPrompt(tag: FashionTrendTag): string {
+  return tag === "ribbon"
+    ? "optional hair ribbon worn only in the hair, never at the neck"
+    : tag;
+}
+
+export function seasonalNecklineClause(world: ImageRequest["world"]): string {
+  const cleanNeckline =
+    "Keep the neckline clean and free of decorative tied fabric. Hair ribbons, when selected for a matching persona, must stay visibly in the hair and must never become neckwear.";
+
+  if (world.season !== "Summer") return cleanNeckline;
+
+  return [
+    cleanNeckline,
+    "For hot summer weather, use an open, breathable neckline.",
+    "Do not add a scarf, neckerchief, bow tie, ascot, ribbon tie, sailor tie or decorative collar bow.",
+  ].join(" ");
 }
 
 export async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
@@ -218,13 +237,16 @@ export function fashionClause(
     `Secondary styles: ${fashion.secondary
       .map((s) => FASHION_STYLE_PROMPTS[s])
       .join(" / ")}.`,
-    `Current trend tags to use when suitable: ${fashion.trendTags.join(", ")}.`,
+    `Current trend tags to use when suitable: ${fashion.trendTags
+      .map(trendTagPrompt)
+      .join(", ")}.`,
     visual ? `Persona wardrobe capsule: ${visual.wardrobe.join(" / ")}.` : "",
     visual ? `Persona color palette: ${visual.palette}.` : "",
     visual ? `Accessory pool, not a uniform: ${visual.accessories.join(", ")}.` : "",
     visual ? `Avoid for this persona: ${visual.avoid.join(", ")}.` : "",
     "The clothing should look like realistic 2026 Tokyo young-adult street style, not outdated 2010s generic Asian fashion.",
-    "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, ribbon or silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests, or cropped jackets only when they match the persona.",
+    "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests, cropped jackets, or a ribbon clip placed clearly in the hair only when they match the persona.",
+    seasonalNecklineClause(world),
     "Keep this person's fashion taste consistent across images.",
     "Create a fresh outfit every time.",
     "Do not copy the identity reference outfit.",
@@ -339,7 +361,8 @@ function buildRules(persona: PersonaV2, world: World): string {
     "Vary clothing colors, layers, outerwear, accessories, bags and shoes.",
     "Include thoughtful styling details such as layered outfits, seasonal outerwear, jewelry, hair accessories, manicured nails, bags or shoes when appropriate.",
     "Accessories are optional daily choices, not fixed identity markers. Do not put the same hat, scarf, bag, jewelry, hair accessory or shoes on the same persona in every image.",
-    "Avoid turning any accessory into a uniform. Hats and scarves should appear only when the season, weather, location or activity makes them feel natural.",
+    "Avoid turning any accessory into a uniform.",
+    seasonalNecklineClause(world),
     "Avoid repeating similar outfits or color combinations across images.",
 
     "Natural hands and anatomy.",
@@ -475,6 +498,12 @@ ${world.season} / ${world.weather}
 请生成英文图片 prompt。
 `;
 
+  const userWithWardrobe = [
+    user,
+    "[Wardrobe constraint]",
+    seasonalNecklineClause(world),
+  ].join("\n");
+
   try {
     if (useAnthropic) {
       const client = new Anthropic({ apiKey: key });
@@ -483,7 +512,7 @@ ${world.season} / ${world.weather}
         model: process.env.LLM_MODEL || "claude-haiku-4-5",
         max_tokens: 500,
         system,
-        messages: [{ role: "user", content: user }],
+        messages: [{ role: "user", content: userWithWardrobe }],
       });
 
       const t = res.content.find(
@@ -509,7 +538,7 @@ ${world.season} / ${world.weather}
           model: process.env.LLM_MODEL || "deepseek-chat",
           messages: [
             { role: "system", content: system },
-            { role: "user", content: user },
+            { role: "user", content: userWithWardrobe },
           ],
           temperature: 0.75,
           max_tokens: 500,
@@ -728,7 +757,8 @@ export function outfitClause(
     "This assigned outfit direction is mandatory when the protagonist appears.",
     "The outfit should feel like current 2026 Tokyo young-adult street fashion, especially around Omotesando, Daikanyama, Nakameguro, Ebisu, Shimokitazawa, Koenji and Jiyugaoka.",
     "Aim for a real outfit a stylish Tokyo woman would actually wear in 2026: contemporary, wearable, slightly eye-catching, and suitable for walking around the city.",
-    "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, ribbon hair clip, Mary Janes, ballet flats, trail sneakers or light utility vest.",
+    "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, a ribbon clip placed clearly in the hair, Mary Janes, ballet flats, trail sneakers or light utility vest.",
+    seasonalNecklineClause(world),
     "Do not treat the identity reference image as an outfit reference.",
     "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
     "Do NOT copy clothing, colors, shoes, bag or accessories from the identity reference.",

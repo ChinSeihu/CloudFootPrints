@@ -193,7 +193,7 @@ export const FASHION_STYLE_PROMPTS: Record<FashionStyle, string> = {
   minimal_chic:
     "minimal chic Tokyo style with clean silhouettes, neutral colors, wide trousers, simple tops and refined accessories",
   french_vintage:
-    "French vintage inspired style with wrap dresses, lace blouses, denim, leather bag, vintage watch, retro colors and an occasional scarf only when the scene suits it",
+    "French vintage inspired style with wrap dresses, lace blouses, denim, leather bags, vintage watches and retro colors, with a clean neckline and no decorative neckwear by default",
   athflow:
     "athflow casual style with hoodies, relaxed pants, sneakers, baseball caps and comfortable sporty layers",
   modern_chinese:

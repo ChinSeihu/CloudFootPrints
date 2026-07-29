@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-07-29
+
+### Remove repeated summer neck scarves and bow ties
+- Persona wardrobe prompts no longer use ambiguous generic ribbon details or optional silk scarves that image models could reinterpret as the same neck accessory across characters.
+- Summer image prompts now require a clean, breathable neckline and explicitly exclude scarves, neckerchiefs, bow ties, ascots, ribbon ties, sailor ties, and decorative collar bows. Hair ribbons remain available only for matching personas and must be visibly placed in the hair.
+- Image QA now rejects generated summer portraits that violate the neckline rule, allowing the retry prompt to correct the outfit before publishing.
+
+---
+
 ## 2026-07-17
 
 ### Cache daily official content without delaying live community data
