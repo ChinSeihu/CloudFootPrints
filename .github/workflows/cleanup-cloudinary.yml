@@ -1,0 +1,73 @@
+name: 清理未引用图床图片
+
+on:
+  # GitHub cron 不能表达严格的“每 10 天”，每天检查一次日期，命中周期才执行。
+  schedule:
+    - cron: "30 21 * * *" # UTC 21:30 = JST 06:30
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: "实际删除图片（关闭时只预览）"
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: cloudinary-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检查 10 天周期
+        id: cadence
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TODAY_DAYS=$(( $(date -u +%s) / 86400 ))
+          ANCHOR_DAYS=$(( $(date -u -d "2026-07-31" +%s) / 86400 ))
+          if [ $(( (TODAY_DAYS - ANCHOR_DAYS) % 10 )) -eq 0 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "今天不在 10 天清理周期内，跳过。"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cadence.outputs.run == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.cadence.outputs.run == 'true'
+        with:
+          node-version: "22"
+
+      - name: 安装依赖
+        if: steps.cadence.outputs.run == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: 生成 Prisma Client
+        if: steps.cadence.outputs.run == 'true'
+        run: yarn prisma generate
+
+      - name: 清理未引用图片
+        if: steps.cadence.outputs.run == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME || secrets.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          MANUAL_EXECUTE: ${{ github.event.inputs.execute }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          ARGS="--prefix=cloudfootprints/ --min-age-days=3 --max-delete=200"
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$MANUAL_EXECUTE" = "true" ]; then
+            ARGS="$ARGS --execute"
+          fi
+          yarn cleanup:cloudinary $ARGS
