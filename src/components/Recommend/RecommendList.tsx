@@ -9,6 +9,10 @@ import { displayTags } from "@/lib/tags";
 import { isUserPost } from "@/components/common/EventSource";
 import { moodTagOf } from "@/lib/moods";
 import { Avatar } from "@/components/common/Avatar";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { useAuth } from "@/components/Auth/AuthContext";
+import { EditCheckInDialog } from "@/components/Me/EditDialogs";
+import { DEMO_USERS } from "@/lib/demoUsers";
 import { EventDetail } from "./EventDetail";
 import type { CheckInDTO, CommentDTO, EventDTO, EventMetrics } from "@/lib/types";
 
@@ -200,6 +204,7 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
 }
 
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }) {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [previewGallery, setPreviewGallery] = useState<{ urls: string[]; initialIndex: number } | null>(null);
@@ -226,6 +231,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
   const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
   const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
+  const [checkinMenuId, setCheckinMenuId] = useState<string | null>(null);
+  const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
+  const [deletingCheckin, setDeletingCheckin] = useState<CheckInDTO | null>(null);
   const [activityVisibleCount, setActivityVisibleCount] = useState(12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
@@ -233,6 +241,42 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
   const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
   const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
+
+  useEffect(() => {
+    if (!checkinMenuId) return;
+    const closeMenu = () => setCheckinMenuId(null);
+    window.addEventListener("pointerdown", closeMenu);
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+    };
+  }, [checkinMenuId]);
+
+  function canManageCheckin(checkin: CheckInDTO): boolean {
+    if (checkin.isMine) return true;
+    return !!user?.isAdmin && DEMO_USERS.some((demo) => demo.username === checkin.author?.username);
+  }
+
+  async function deleteDiscoverCheckin(checkin: CheckInDTO) {
+    const response = await fetch(`/api/checkins/${encodeURIComponent(checkin.id)}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      window.alert(data?.error ?? "删除失败");
+      return;
+    }
+    setDiscoverCheckinRows((rows) => rows.filter((item) => item.id !== checkin.id));
+    setCheckinsOffset((offset) => Math.max(0, offset - 1));
+  }
+
+  function updateDiscoverCheckin(checkin: CheckInDTO, patch: Partial<CheckInDTO>) {
+    if (patch.isPublic === false) {
+      setDiscoverCheckinRows((rows) => rows.filter((item) => item.id !== checkin.id));
+      setCheckinsOffset((offset) => Math.max(0, offset - 1));
+      return;
+    }
+    setDiscoverCheckinRows((rows) =>
+      rows.map((item) => (item.id === checkin.id ? { ...item, ...patch } : item)),
+    );
+  }
 
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
@@ -632,7 +676,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || "来过这里";
     return (
-      <article key={checkin.id} className="rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+      <article key={checkin.id} className="relative rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
@@ -644,7 +688,51 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
                 <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)} · {checkin.event?.title ?? "东京"}</p>
               </div>
-              <span className="text-sm leading-none text-neutral-300">•••</span>
+              {canManageCheckin(checkin) && (
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    aria-label="足迹管理"
+                    aria-expanded={checkinMenuId === checkin.id}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => setCheckinMenuId((current) => current === checkin.id ? null : checkin.id)}
+                    className="grid h-7 w-7 place-items-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                      <circle cx="5" cy="12" r="1.7" />
+                      <circle cx="12" cy="12" r="1.7" />
+                      <circle cx="19" cy="12" r="1.7" />
+                    </svg>
+                  </button>
+                  {checkinMenuId === checkin.id && (
+                    <div
+                      onPointerDown={(event) => event.stopPropagation()}
+                      className="absolute right-0 top-8 z-30 w-28 overflow-hidden rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/10"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCheckinMenuId(null);
+                          setEditingCheckin(checkin);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+                      >
+                        编辑足迹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCheckinMenuId(null);
+                          setDeletingCheckin(checkin);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50"
+                      >
+                        删除足迹
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <p className={`mt-2 text-[13px] font-normal leading-5 text-neutral-800 ${expanded ? "" : "line-clamp-2"}`}>{text}</p>
             {text.length > 38 && (
@@ -995,6 +1083,25 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
       {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
+      {editingCheckin && (
+        <EditCheckInDialog
+          checkin={editingCheckin}
+          onClose={() => setEditingCheckin(null)}
+          onSaved={(patch) => updateDiscoverCheckin(editingCheckin, patch)}
+        />
+      )}
+      <ConfirmDialog
+        open={!!deletingCheckin}
+        title="删除足迹"
+        message="确定删除这条足迹吗？删除后无法恢复。"
+        confirmText="删除"
+        danger
+        onCancel={() => setDeletingCheckin(null)}
+        onConfirm={async () => {
+          if (deletingCheckin) await deleteDiscoverCheckin(deletingCheckin);
+          setDeletingCheckin(null);
+        }}
+      />
     </div>
   );
 }

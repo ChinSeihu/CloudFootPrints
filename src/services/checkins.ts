@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { DEMO_USERS } from "@/lib/demoUsers";
 
 // 领域逻辑：打卡查询/写入。
 
@@ -203,14 +204,27 @@ export type UpdateCheckinResult =
   | { ok: true; checkin: Awaited<ReturnType<typeof prisma.checkIn.update>> }
   | { ok: false; error: string };
 
+async function canManageCheckinOwner(ownerId: string, actorId: string, isAdmin: boolean) {
+  if (ownerId === actorId) return true;
+  if (!isAdmin) return false;
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { username: true },
+  });
+  return !!owner && DEMO_USERS.some((user) => user.username === owner.username);
+}
+
 export async function updateCheckin(
   id: string,
   userId: string,
   input: UpdateCheckinInput,
+  isAdmin = false,
 ): Promise<UpdateCheckinResult> {
   const existing = await prisma.checkIn.findUnique({ where: { id } });
   if (!existing) return { ok: false, error: "打卡记录不存在" };
-  if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
+  if (!(await canManageCheckinOwner(existing.userId, userId, isAdmin))) {
+    return { ok: false, error: "无权限编辑" };
+  }
   const moodTags = input.moodTags !== undefined ? normalizeMoodTags(input.moodTags, input.rating) : undefined;
   if (moodTags?.some((value) => value < 1 || value > 40)) {
     return { ok: false, error: "moodTags 必须在 1–40 之间" };
@@ -246,10 +260,13 @@ export type DeleteCheckinResult = { ok: true } | { ok: false; error: string };
 export async function deleteCheckin(
   id: string,
   userId: string = CURRENT_USER_ID,
+  isAdmin = false,
 ): Promise<DeleteCheckinResult> {
   const existing = await prisma.checkIn.findUnique({ where: { id } });
   if (!existing) return { ok: false, error: "打卡记录不存在" };
-  if (existing.userId !== userId) return { ok: false, error: "无权限删除" };
+  if (!(await canManageCheckinOwner(existing.userId, userId, isAdmin))) {
+    return { ok: false, error: "无权限删除" };
+  }
   await prisma.checkIn.delete({ where: { id } });
   return { ok: true };
 }
