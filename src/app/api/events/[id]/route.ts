@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteUserEvent, getEventById, updateUserEvent } from "@/services/events";
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentActor } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -44,8 +44,8 @@ export async function GET(_req: Request, ctx: Ctx) {
 
 // PATCH /api/events/[id] —— 作者编辑自己发布的 USER 活动（仅文字信息，不动坐标/图片）
 export async function PATCH(req: Request, ctx: Ctx) {
-  const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  const actor = await getCurrentActor();
+  if (!actor) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   const { id } = await ctx.params;
   let b: Record<string, unknown>;
   try {
@@ -53,7 +53,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   } catch {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
-  const result = await updateUserEvent(id, userId, {
+  const result = await updateUserEvent(id, actor.id, {
     title: typeof b.title === "string" ? b.title : undefined,
     category: typeof b.category === "string" ? (b.category as never) : undefined,
     description: b.description === null || typeof b.description === "string" ? (b.description as string | null) : undefined,
@@ -65,7 +65,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     imageUrls: Array.isArray(b.imageUrls)
       ? b.imageUrls.filter((url): url is string => typeof url === "string")
       : undefined,
-  });
+  }, actor.isAdmin);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
@@ -76,10 +76,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 // DELETE /api/events/[id] —— 只允许作者删除自己发布的 USER 活动
 export async function DELETE(_req: Request, ctx: Ctx) {
-  const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  const actor = await getCurrentActor();
+  if (!actor) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   const { id } = await ctx.params;
-  const result = await deleteUserEvent(id, userId);
+  const result = await deleteUserEvent(id, actor.id, actor.isAdmin);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

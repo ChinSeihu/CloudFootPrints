@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "sync:demo-users": "tsx scripts/sync-demo-users.ts",
+    "admin:create": "tsx scripts/create-admin.ts",
     "crop:avatars": "tsx scripts/crop-avatars.ts",
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",

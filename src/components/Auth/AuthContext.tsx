@@ -18,6 +18,7 @@ export type AuthUser = {
   hometown: string | null;
   status: string | null;
   lastLoginAt: string | null;
+  isAdmin: boolean;
 };
 
 type AuthContextValue = {
@@ -53,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // refresh 的状态更新发生在网络请求完成后。
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { refresh(); }, [refresh]);
 
   const logout = useCallback(async () => {

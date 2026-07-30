@@ -68,6 +68,15 @@ export type PublicUser = {
   lastLoginAt: string | null; // ISO 字符串（序列化给前端）
 };
 
+export type CurrentUser = PublicUser & {
+  isAdmin: boolean;
+};
+
+export type CurrentActor = {
+  id: string;
+  isAdmin: boolean;
+};
+
 export const PUBLIC_SELECT = {
   id: true,
   username: true,
@@ -85,9 +94,22 @@ export function toPublicUser<T extends { lastLoginAt: Date | null }>(u: T): Omit
 }
 
 // 当前登录用户的公开资料（无口令哈希），未登录返回 null。
-export async function getCurrentUser(): Promise<PublicUser | null> {
+export async function getCurrentUser(): Promise<CurrentUser | null> {
   const uid = await getCurrentUserId();
   if (!uid) return null;
-  const u = await prisma.user.findUnique({ where: { id: uid }, select: PUBLIC_SELECT });
+  const u = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { ...PUBLIC_SELECT, isAdmin: true },
+  });
   return u ? toPublicUser(u) : null;
+}
+
+// 需要做权限判断的 route 使用数据库中的实时角色，不把管理员身份写死在 JWT 中。
+export async function getCurrentActor(): Promise<CurrentActor | null> {
+  const uid = await getCurrentUserId();
+  if (!uid) return null;
+  return prisma.user.findUnique({
+    where: { id: uid },
+    select: { id: true, isAdmin: true },
+  });
 }

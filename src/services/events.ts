@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { Prisma, Event, Post } from "@prisma/client";
 import { type EventCategory, isEventCategory } from "@/lib/categories";
+import { DEMO_USERS } from "@/lib/demoUsers";
 import { unstable_cache } from "next/cache";
 
 // 领域逻辑：活动查询/写入。route handler 只调用这里，不写逻辑。
@@ -176,6 +177,20 @@ export async function listUserEvents(userId: string) {
   return attachAuthors(posts.map(normalizePost));
 }
 
+// 管理员后台：只列出角色库中的虚拟用户帖子，避免把真实用户内容混入管理范围。
+export async function listVirtualUserEvents() {
+  const users = await prisma.user.findMany({
+    where: { username: { in: DEMO_USERS.map((user) => user.username) } },
+    select: { id: true },
+  });
+  if (users.length === 0) return [];
+  const posts = await prisma.post.findMany({
+    where: { userId: { in: users.map((user) => user.id) } },
+    orderBy: { createdAt: "desc" },
+  });
+  return attachAuthors(posts.map(normalizePost));
+}
+
 // 锚点发帖：用户在地图上标记并发布一个活动（sourceType=USER）。
 // 用户已在地图上选点，故直接用其 lat/lng，无需地理编码。
 export type CreateUserEventInput = {
@@ -245,10 +260,26 @@ export async function createUserEvent(
 
 export type DeleteUserEventResult = { ok: true } | { ok: false; error: string };
 
-export async function deleteUserEvent(id: string, userId: string): Promise<DeleteUserEventResult> {
+async function canManagePostOwner(ownerId: string, actorId: string, isAdmin: boolean) {
+  if (ownerId === actorId) return true;
+  if (!isAdmin) return false;
+  const owner = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { username: true },
+  });
+  return !!owner && DEMO_USERS.some((user) => user.username === owner.username);
+}
+
+export async function deleteUserEvent(
+  id: string,
+  userId: string,
+  isAdmin = false,
+): Promise<DeleteUserEventResult> {
   const existing = await prisma.post.findUnique({ where: { id }, select: { userId: true } });
   if (!existing) return { ok: false, error: "发帖不存在" };
-  if (existing.userId !== userId) return { ok: false, error: "无权限删除" };
+  if (!(await canManagePostOwner(existing.userId, userId, isAdmin))) {
+    return { ok: false, error: "无权限删除" };
+  }
   await prisma.post.delete({ where: { id } });
   return { ok: true };
 }
@@ -274,10 +305,13 @@ export async function updateUserEvent(
   id: string,
   userId: string,
   input: UpdateUserEventInput,
+  isAdmin = false,
 ): Promise<UpdateUserEventResult> {
   const existing = await prisma.post.findUnique({ where: { id }, select: { userId: true } });
   if (!existing) return { ok: false, error: "发帖不存在" };
-  if (existing.userId !== userId) return { ok: false, error: "无权限编辑" };
+  if (!(await canManagePostOwner(existing.userId, userId, isAdmin))) {
+    return { ok: false, error: "无权限编辑" };
+  }
   if (input.title !== undefined && !input.title.trim()) return { ok: false, error: "缺少活动名称" };
   if (input.category !== undefined && !isEventCategory(input.category)) {
     return { ok: false, error: "非法分类" };

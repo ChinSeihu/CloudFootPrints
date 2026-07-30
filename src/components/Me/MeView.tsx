@@ -18,7 +18,7 @@ import { moodTagOf } from "@/lib/moods";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
-type Tab = "checkins" | "posts" | "favorites" | "messages";
+type Tab = "checkins" | "posts" | "managed" | "favorites" | "messages";
 
 function fmtDate(d: string | null): string {
   if (!d) return "时间未定";
@@ -34,6 +34,7 @@ function MeContent() {
   const [favSub, setFavSub] = useState<"favorites" | "signups">("favorites");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
+  const [managedPosts, setManagedPosts] = useState<EventDTO[]>([]);
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
   const [signups, setSignups] = useState<EventDTO[]>([]);
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
@@ -78,6 +79,14 @@ function MeContent() {
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    fetch("/api/admin/posts")
+      .then((response) => (response.ok ? response.json() : { events: [] }))
+      .then((data) => setManagedPosts(data.events ?? []))
+      .catch(() => setManagedPosts([]));
+  }, [user?.isAdmin]);
 
   useEffect(() => {
     function openChat(event: Event) {
@@ -144,7 +153,10 @@ function MeContent() {
       message: "确定删除这条发帖吗？",
       onOk: async () => {
         const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
-        if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
+        if (res.ok) {
+          setPosts((prev) => prev.filter((p) => p.id !== id));
+          setManagedPosts((prev) => prev.filter((p) => p.id !== id));
+        }
       },
     });
   }
@@ -210,6 +222,14 @@ function MeContent() {
     }
   }
 
+  const tabs: Array<[Tab, string, number]> = [
+    ["checkins", "足迹", checkins.length],
+    ["posts", "发帖", posts.length],
+    ...(user?.isAdmin ? [["managed", "管理", managedPosts.length] as [Tab, string, number]] : []),
+    ["favorites", "收藏", favorites.length],
+    ["messages", "消息", notices.length + conversations.length],
+  ];
+
   return (
     <div className="h-full overflow-y-auto">
       <ProfileHeader />
@@ -217,13 +237,8 @@ function MeContent() {
       {/* 照片墙暂时隐藏：避免占用个人页首屏空间。 */}
 
       <div className="px-4 pt-3 pb-0 border-b border-neutral-100">
-        <div className="flex items-end gap-7">
-          {([
-            ["checkins", "足迹", checkins.length],
-            ["posts", "发帖", posts.length],
-            ["favorites", "收藏", favorites.length],
-            ["messages", "消息", notices.length + conversations.length],
-          ] as const).map(([key, label, count]) => {
+        <div className="flex items-end gap-6 overflow-x-auto">
+          {tabs.map(([key, label, count]) => {
             const active = tab === key;
             const isMsg = key === "messages";
             const badge = isMsg ? unreadCount + directUnread : count;
@@ -438,6 +453,84 @@ function MeContent() {
               })}
             </ul>
           </>
+        ) : tab === "managed" ? (
+          <>{/* 管理员：虚拟用户发帖 */}
+            <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-2">
+              <div>
+                <h2 className="text-sm font-semibold text-neutral-900">虚拟用户发帖</h2>
+                <p className="mt-0.5 text-xs text-neutral-400">可编辑或删除角色账号发布的内容</p>
+              </div>
+              <CountBadge count={managedPosts.length} active tone="blue" />
+            </div>
+            {managedPosts.length === 0 && (
+              <p className="text-sm text-neutral-500">当前没有虚拟用户发帖。</p>
+            )}
+            <ul className="space-y-3">
+              {managedPosts.map((p) => {
+                const meta = CATEGORY_META[p.category];
+                return (
+                  <li key={p.id} className="overflow-hidden rounded-lg border border-black/10 bg-white transition-shadow hover:shadow-md">
+                    <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2">
+                      <Avatar user={p.author ?? null} size={28} />
+                      <span className="min-w-0 truncate text-xs font-semibold text-neutral-800">
+                        {p.author?.username ?? "虚拟用户"}
+                      </span>
+                      <span className="ml-auto shrink-0 text-[11px] text-neutral-400">
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString("zh-CN") : ""}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => setSelected(p)} className="block w-full text-left">
+                      {p.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.imageUrl} alt="" loading="lazy" className="max-h-44 w-full object-cover" />
+                      )}
+                      <div className="h-1" style={{ backgroundColor: meta.color }} />
+                      <div className="px-3 py-3">
+                        <div className="mb-1 flex items-center gap-1 text-[11px] text-neutral-500">
+                          <CategoryIcon category={p.category} className="h-3.5 w-3.5" />
+                          {meta.label} · {fmtDate(p.startTime)}
+                        </div>
+                        <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
+                        {p.venueName && (
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-neutral-500">
+                            <IconPin className="h-3 w-3 shrink-0" />
+                            {p.venueName}
+                          </div>
+                        )}
+                        {p.description && (
+                          <p className="mt-1 line-clamp-2 text-xs text-neutral-600">{p.description}</p>
+                        )}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-3 border-t border-neutral-100 px-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/?lat=${p.lat}&lng=${p.lng}`)}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600"
+                      >
+                        <IconMap className="h-3.5 w-3.5" />
+                        地图
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingPost(p)}
+                        className="ml-auto text-xs text-neutral-600 hover:text-blue-600"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deletePost(p.id)}
+                        className="text-xs text-red-500"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         ) : tab === "favorites" ? (
           (() => {
             const list = favSub === "favorites" ? favorites : signups;
@@ -586,7 +679,10 @@ function MeContent() {
         <EditPostDialog
           event={editingPost}
           onClose={() => setEditingPost(null)}
-          onSaved={(patch) => setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, ...patch } : p)))}
+          onSaved={(patch) => {
+            setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, ...patch } : p)));
+            setManagedPosts((prev) => prev.map((p) => (p.id === editingPost.id ? { ...p, ...patch } : p)));
+          }}
           canRegenerateImage={canRegenerateImages}
           onRegenerateImage={() => regeneratePost(editingPost.id)}
         />
