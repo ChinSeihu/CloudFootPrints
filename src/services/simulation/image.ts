@@ -1,17 +1,24 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
+import sharp from "sharp";
 import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, PERSONA_FASHION_STYLE, type FashionTrendTag, type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 import { imageSpecToText, type ImageSpec } from "./decide";
 
-// 读取人物单人参考图（public/refs/NN.png，由 scripts/crop-refs.ts 从 personV2.png 裁出）→ data URI。
-// 作为 Agnes img2img 的图参锁定人脸/外观。缺图返回 null（回退纯文本）。
-function loadRefImage(refIndex: number): string | null {
-  const p = `public/refs/${String(refIndex).padStart(2, "0")}.png`;
+// 身份参考只保留脸和发型，避免把原图里的服装、道具和背景带进新场景。
+async function loadRefImage(refIndex: number): Promise<string | null> {
+  const p = `public/avatars/persona-v2/${String(refIndex).padStart(2, "0")}.png`;
   try {
     if (!existsSync(p)) return null;
-    return `data:image/png;base64,${readFileSync(p).toString("base64")}`;
+    const left = refIndex === 6 ? 80 : refIndex === 12 ? 70 : 50;
+    const width = refIndex === 6 ? 190 : refIndex === 12 ? 200 : 220;
+    const face = await sharp(readFileSync(p))
+      .extract({ left, top: 0, width, height: 190 })
+      .resize({ width: 352 })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${face.toString("base64")}`;
   } catch {
     return null;
   }
@@ -189,7 +196,7 @@ function trendTagPrompt(tag: FashionTrendTag): string {
 
 export function seasonalNecklineClause(world: ImageRequest["world"]): string {
   const cleanNeckline =
-    "Keep the neckline clean and free of decorative tied fabric. Hair ribbons, when selected for a matching persona, must stay visibly in the hair and must never become neckwear.";
+    "Keep the neckline clean and free of decorative tied fabric.";
 
   if (world.season !== "Summer") return cleanNeckline;
 
@@ -245,8 +252,7 @@ export function fashionClause(
     visual ? `Accessory pool, not a uniform: ${visual.accessories.join(", ")}.` : "",
     visual ? `Avoid for this persona: ${visual.avoid.join(", ")}.` : "",
     "The clothing should look like realistic 2026 Tokyo young-adult street style, not outdated 2010s generic Asian fashion.",
-    "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests, cropped jackets, or a ribbon clip placed clearly in the hair only when they match the persona.",
-    seasonalNecklineClause(world),
+    "Use contemporary but wearable details such as sheer layers, mesh cardigans, nylon skirts, wide cargo pants, silver accessories, compact shoulder bags, ballet flats, trail sneakers, Mary Janes, light utility vests or cropped jackets only when they match the persona.",
     "Keep this person's fashion taste consistent across images.",
     "Create a fresh outfit every time.",
     "Do not copy the identity reference outfit.",
@@ -275,7 +281,7 @@ function povClause(persona: PersonaV2): string {
     "The image represents the final published photo, not the behind-the-scenes process of capturing it.",
     "The protagonist may appear often because this is an Instagram-style lifestyle account, but not in every image.",
     "Prefer natural daily-life framing: food, drinks, tickets, books, shop interiors, streets, stage, park, train window, hands, objects, reflections, back view, side view, or relaxed full-body moments.",
-    "When the protagonist appears, the framing should naturally imply a plausible capture method, such as a friend-taken photo, timer photo, reflection, side view, back view, group photo, or a phone placed somewhere out of frame.",
+    "When the protagonist appears, the framing should naturally imply a plausible capture method, such as a friend-taken photo, timer photo, reflection, side view, back view, or a phone placed somewhere out of frame.",
     "These capture methods should be implied only.",
     "Do not explicitly show cameras, phones, selfie sticks, tripods, ring lights, or the act of taking a photo unless the scene specifically requires it.",
     "Avoid showing the protagonist holding a phone to take a picture unless the scene explicitly requires a mirror selfie.",
@@ -288,6 +294,10 @@ function povClause(persona: PersonaV2): string {
 
 function shouldUseIdentityReference(req: GenerateCheckinImageInput): boolean {
   const { persona, imageSpec } = req;
+
+  if ((process.env.IMAGE_IDENTITY_REFERENCE ?? "true").toLowerCase() === "false") {
+    return false;
+  }
 
   if (persona.photoSkill === "pro") return true;
 
@@ -331,21 +341,29 @@ const anatomyRules = [
 
 // Agnes 无负向提示参数，所以把负向约束写进正向 prompt 里。
 // 重点：强调“最终发布照片”，避免生成拍摄过程本身。
-function buildRules(persona: PersonaV2, world: World): string {
+function buildRules(persona: PersonaV2, imageSpec: ImageSpec): string {
+  const soloProtagonist =
+    imageSpec.subjectVisible &&
+    imageSpec.subjectRole === "protagonist" &&
+    !/\b(friend|friends|group|couple)\b/i.test(
+      `${imageSpec.summary} ${imageSpec.action} ${imageSpec.environment}`
+    );
+
   return [
     "[Constraints]",
 
     povClause(persona),
-    fashionClause(persona, world),
     "Photorealistic candid smartphone snapshot of ordinary daily life in Tokyo.",
     "Authentic Japanese lifestyle photography with a subtle Japanese drama daily-life atmosphere.",
     "Inspired by contemporary Japanese lifestyle magazines and everyday photo diaries, but not a professional shoot.",
     "Looks like a real final photo shared on Threads or Instagram by a young person living in Tokyo.",
     "The image should depict the captured moment itself, not the process of taking the photo.",
 
-    "People are ordinary young Asian people living in Tokyo.",
+    soloProtagonist
+      ? "The recurring protagonist is the only prominent person. Never duplicate the protagonist or add a companion beside them. Incidental distant people may appear only as small, soft background detail."
+      : "Any requested people are ordinary young Asian people living in Tokyo.",
     "Calm, natural and subtle expressions.",
-    "Relaxed natural poses are allowed, like walking, looking aside, leaning on a railing, sitting at a cafe table, adjusting hair, holding a drink, or casually talking with friends.",
+    "Relaxed natural poses are allowed, like walking, looking aside, leaning on a railing, sitting at a cafe table, adjusting hair or holding a drink.",
     "Unposed moment.",
     "An unaware candid instant.",
     "Ordinary happiness rather than dramatic emotion.",
@@ -354,22 +372,12 @@ function buildRules(persona: PersonaV2, world: World): string {
     "The face must remain recognizable across different images.",
     "Do not change the person's facial identity, height, body type, or overall impression.",
 
-    "Every image should feature a fresh outfit when the protagonist appears.",
-    "Choose age-appropriate contemporary Japanese street fashion that naturally matches the season, weather, location and activity.",
-    "The outfit should feel young, current, tasteful and effortlessly stylish rather than overly fashionable.",
-    "Looks like what a real stylish young person in Tokyo would genuinely wear that day.",
-    "Vary clothing colors, layers, outerwear, accessories, bags and shoes.",
-    "Include thoughtful styling details such as layered outfits, seasonal outerwear, jewelry, hair accessories, manicured nails, bags or shoes when appropriate.",
     "Accessories are optional daily choices, not fixed identity markers. Do not put the same hat, scarf, bag, jewelry, hair accessory or shoes on the same persona in every image.",
     "Avoid turning any accessory into a uniform.",
-    seasonalNecklineClause(world),
     "Avoid repeating similar outfits or color combinations across images.",
 
-    "Natural hands and anatomy.",
-    "If hands are visible, fingers should be relaxed, correctly counted, naturally posed, and realistically holding objects.",
     "For close-up hands, show young natural hands with slender fingers, soft skin texture, neat nails, not rough, oversized, bulky, or masculine.",
     "In first-person smartphone POV, avoid showing both of the protagonist's hands at the same time unless it is physically plausible.",
-    "Avoid showing detailed hands unless they are necessary for the scene.",
 
     ...anatomyRules,
 
@@ -393,12 +401,6 @@ function buildRules(persona: PersonaV2, world: World): string {
     "No waxy skin.",
     "No over-smoothed beauty filter.",
     "No hyper-sharpening.",
-    "No malformed hands.",
-    "No extra fingers.",
-    "No fused fingers.",
-    "No twisted wrists.",
-    "No broken anatomy.",
-    "No impossible object grip.",
     "No two-handed POV unless explicitly plausible.",
     "No phone-taking-photo gesture unless explicitly required.",
     "No visible camera equipment.",
@@ -448,7 +450,7 @@ async function scenePromptLLM(
 
 目标：
 生成一张像东京年轻 INS 生活博主真实发布出来的最终照片，而不是拍照过程、拍摄现场、幕后花絮。
-发帖人本人出镜率为80%
+发帖人是否出镜完全由 imageSpec 决定。
 只描述最终画面本身：
 
 - 场景
@@ -473,7 +475,13 @@ async function scenePromptLLM(
 这些人是被观察到的人，不是发帖人本人。
 
 如果主角出镜：
-可以描述穿搭、动作、姿态，但不要改变人物长相。
+描述动作和姿态，但不要自行发明服装、领结、丝巾、发带或其他配饰。
+具体穿搭会由系统在后面单独提供。
+
+必须严格遵守 imageSpec.subjectVisible 和 imageSpec.subjectRole：
+- subjectVisible=false 时不要让发帖人本人出镜。
+- subjectRole=protagonist 且 imageSpec 没有提到朋友时，画面中只出现一位主角，不要添加陪同人物或重复人物。
+- 不要因为这是生活博主照片就擅自增加人物。
 
 不要输出：
 photorealistic, candid, smartphone photo, Kodak, film grain, CGI,
@@ -502,7 +510,32 @@ ${world.season} / ${world.weather}
     user,
     "[Wardrobe constraint]",
     seasonalNecklineClause(world),
+    "Do not invent or add any clothing accessory that is not explicitly requested by ImageSpec.",
   ].join("\n");
+
+  const startedAt = Date.now();
+  const finish = (raw: string | undefined): string | null => {
+    const prompt = raw?.trim().replace(/^["']|["']$/g, "") || "";
+    const words = prompt.split(/\s+/).filter(Boolean).length;
+    const hasTooMuchCjk = (prompt.match(/[\u3400-\u9fff]/g) ?? []).length > 4;
+    const valid = words >= 60 && words <= 170 && !hasTooMuchCjk;
+    const elapsedMs = Date.now() - startedAt;
+
+    if (!valid) {
+      console.warn(
+        `[image-prompt] rejected persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} words=${words} elapsedMs=${elapsedMs}`
+      );
+      return null;
+    }
+
+    console.info(
+      `[image-prompt] ready persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} model=${process.env.LLM_MODEL || (useAnthropic ? "claude-haiku-4-5" : "deepseek-chat")} words=${words} elapsedMs=${elapsedMs}`
+    );
+    if ((process.env.IMAGE_PROMPT_LOG ?? "").toLowerCase() === "true") {
+      console.info(`[image-prompt] scene persona=${persona.id} ${JSON.stringify(prompt)}`);
+    }
+    return prompt;
+  };
 
   try {
     if (useAnthropic) {
@@ -519,7 +552,7 @@ ${world.season} / ${world.weather}
         (b): b is Anthropic.TextBlock => b.type === "text"
       );
 
-      return t?.text.trim() || null;
+      return finish(t?.text);
     }
 
     const baseUrl = (
@@ -547,14 +580,22 @@ ${world.season} / ${world.weather}
       45000
     );
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(
+        `[image-prompt] request failed persona=${persona.id} provider=deepseek status=${res.status} elapsedMs=${Date.now() - startedAt}`
+      );
+      return null;
+    }
 
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
-    return (data.choices?.[0]?.message?.content ?? "").trim() || null;
-  } catch {
+    return finish(data.choices?.[0]?.message?.content);
+  } catch (error) {
+    console.warn(
+      `[image-prompt] request error persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : "unknown"}`
+    );
     return null;
   }
 }
@@ -757,7 +798,7 @@ export function outfitClause(
     "This assigned outfit direction is mandatory when the protagonist appears.",
     "The outfit should feel like current 2026 Tokyo young-adult street fashion, especially around Omotesando, Daikanyama, Nakameguro, Ebisu, Shimokitazawa, Koenji and Jiyugaoka.",
     "Aim for a real outfit a stylish Tokyo woman would actually wear in 2026: contemporary, wearable, slightly eye-catching, and suitable for walking around the city.",
-    "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, a ribbon clip placed clearly in the hair, Mary Janes, ballet flats, trail sneakers or light utility vest.",
+    "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, Mary Janes, ballet flats, trail sneakers or light utility vest.",
     seasonalNecklineClause(world),
     "Do not treat the identity reference image as an outfit reference.",
     "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
@@ -769,10 +810,6 @@ export function outfitClause(
     "Choose at most ONE small accessory.",
     "Keep the color palette limited to 2 or 3 harmonious colors.",
     "Do not combine too many statement pieces, excessive layering, mixed patterns, or mismatched colors.",
-
-    "If multiple people appear, every person must wear clearly different clothing colors, silhouettes and accessories.",
-    "Do not make two people wear matching outfits unless explicitly requested.",
-    "Avoid duplicated outfits between the protagonist and background people.",
 
     "Not runway fashion.",
     "Not outdated 2010s generic fashion.",
@@ -799,7 +836,7 @@ export async function composePrompt(
 
   const fashion = fashionClause(req.persona, req.world);
   const outfitText = outfitClause(req.persona, req.world, outfit);
-  const rules = buildRules(req.persona, req.world);
+  const rules = buildRules(req.persona, req.imageSpec);
 
   return [
     scene,
@@ -807,6 +844,33 @@ export async function composePrompt(
     outfitText,
     rules,
   ].join("\n\n");
+}
+
+function identityReferenceClause(): string {
+  return [
+    "[Identity Reference]",
+    "The reference image shows the same one protagonist requested by the scene, not an additional person.",
+    "Transfer only facial identity and hairstyle.",
+    "Ignore and replace every reference-image background, pose, garment, accessory and object.",
+    "Never duplicate the reference person in the finished image.",
+  ].join(" ");
+}
+
+function retryPrompt(
+  req: GenerateCheckinImageInput,
+  improvedPrompt: string,
+  outfit: DailyOutfit | undefined,
+  hasIdentityReference: boolean
+): string {
+  return [
+    hasIdentityReference ? identityReferenceClause() : "",
+    improvedPrompt,
+    `[Recurring protagonist] ${req.persona.appearance}. Keep one recognizable individual without duplicating them.`,
+    outfit ? `[Assigned outfit] ${outfit.items}` : "",
+    seasonalNecklineClause(req.world),
+    "Follow the intended subject, action, props, location and lighting exactly.",
+    "Keep any incidental background people distant, small and visually unimportant.",
+  ].filter(Boolean).join("\n\n");
 }
 // 把生成图（远程 URL 或 data URI）上传 Cloudinary（服务端抓取），得到自带 CORS 的持久链接。
 // 未配置 Cloudinary 时：若是 http(s) URL 直接返回原链；data URI 无法直接展示则返回 null。
@@ -966,20 +1030,28 @@ async function generateSingleCheckinImage(
   if (!basePrompt) return null;
 
   const refImage = shouldUseIdentityReference(req)
-    ? loadRefImage(personaRefIndex(req.persona)) ?? undefined
+    ? await loadRefImage(personaRefIndex(req.persona)) ?? undefined
     : undefined;
 
-  let prompt = basePrompt;
-  let lastRaw: string | null = null;
+  let prompt = refImage
+    ? `${identityReferenceClause()}\n\n${basePrompt}`
+    : basePrompt;
+  let acceptedRaw: string | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const raw = await provider.generate(prompt, refImage);
 
-    if (!raw) break;
+    if (!raw) {
+      console.warn(
+        `[image-generation] failed persona=${req.persona.id} provider=${provider.name} attempt=${attempt + 1}`
+      );
+      break;
+    }
 
-    lastRaw = raw;
-
-    if (!qaOn) break;
+    if (!qaOn) {
+      acceptedRaw = raw;
+      break;
+    }
 
     const qa = await judgeImage(
       raw,
@@ -987,15 +1059,22 @@ async function generateSingleCheckinImage(
       prompt
     );
 
-    if (qa.ok) break;
+    console.info(
+      `[image-qa] persona=${req.persona.id} attempt=${attempt + 1} ok=${qa.ok} reason=${JSON.stringify(qa.reason)}`
+    );
+
+    if (qa.ok) {
+      acceptedRaw = raw;
+      break;
+    }
 
     if (qa.improvedPrompt && attempt < retries) {
-      prompt = [
+      prompt = retryPrompt(
+        req,
         qa.improvedPrompt,
-        fashionClause(req.persona, req.world),
-        outfitClause(req.persona, req.world, req.outfit),
-        buildRules(req.persona, req.world),
-      ].join("\n\n");
+        req.outfit,
+        Boolean(refImage)
+      );
 
       continue;
     }
@@ -1003,9 +1082,14 @@ async function generateSingleCheckinImage(
     break;
   }
 
-  if (!lastRaw) return null;
+  if (!acceptedRaw) {
+    console.warn(
+      `[image-generation] discarded persona=${req.persona.id} provider=${provider.name} reason=no-qa-approved-image`
+    );
+    return null;
+  }
 
-  return persistToCloudinary(lastRaw);
+  return persistToCloudinary(acceptedRaw);
 }
 
 export async function generateCheckinImage(

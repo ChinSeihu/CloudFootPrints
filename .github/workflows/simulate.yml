@@ -48,11 +48,15 @@ jobs:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           AGNES_MODEL: ${{ secrets.AGNES_MODEL }}
           AGNES_API_URL: ${{ secrets.AGNES_API_URL }}
+          # Agnes 当前图生图会复制人物和参考图道具，暂时使用文生图 + 严格视觉质检。
+          IMAGE_IDENTITY_REFERENCE: "false"
           # LLM = DeepSeek（OpenAI 兼容端点）；与 extract 复用同一 LLM_API_KEY secret。
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_PROVIDER: deepseek
           LLM_MODEL: deepseek-chat
           LLM_BASE_URL: https://api.deepseek.com
+          # 记录 DeepSeek 生成的场景 prompt，便于区分提示词与生图模型问题。
+          IMAGE_PROMPT_LOG: "true"
           # 手动触发时的可选参数（schedule 触发时均为空 → 默认跑「今天」）。
           IN_DATE: ${{ github.event.inputs.date }}
           IN_FROM: ${{ github.event.inputs.from }}

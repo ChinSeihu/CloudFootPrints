@@ -24,6 +24,7 @@ Acceptance criteria:
 6. First-person viewpoint balance: the protagonist may appear if the capture method is plausible, such as selfie, mirror/window reflection, timer shot, tripod, phone placed on a table/floor, friend-taken snapshot, or group photo. Reject only when the image looks like an unexplained third-person portrait or both hands are clearly visible in an implausible POV.
 7. Reject text, watermark, logo, strange symbols or poster-like typography.
 8. Respect wardrobe exclusions in the original prompt. In particular, reject an unrequested scarf, neckerchief, bow tie, ascot, ribbon tie, sailor tie or decorative collar bow when the prompt requires a clean neckline, especially in summer.
+9. Respect the requested cast. When subjectRole is protagonist and no friends are requested, reject duplicated protagonists or prominent unrelated companions competing with the protagonist. Small, distant, blurred background people are acceptable.
 
 When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, plausible camera viewpoint, natural hands and anatomy, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
 
