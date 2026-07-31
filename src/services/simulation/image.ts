@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import sharp from "sharp";
 import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, PERSONA_FASHION_STYLE, type FashionTrendTag, type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
@@ -8,17 +7,10 @@ import { imageSpecToText, type ImageSpec } from "./decide";
 
 // 身份参考只保留脸和发型，避免把原图里的服装、道具和背景带进新场景。
 async function loadRefImage(refIndex: number): Promise<string | null> {
-  const p = `public/avatars/persona-v2/${String(refIndex).padStart(2, "0")}.png`;
+  const p = `public/identity-refs/${String(refIndex).padStart(2, "0")}.png`;
   try {
     if (!existsSync(p)) return null;
-    const left = refIndex === 6 ? 80 : refIndex === 12 ? 70 : 50;
-    const width = refIndex === 6 ? 190 : refIndex === 12 ? 200 : 220;
-    const face = await sharp(readFileSync(p))
-      .extract({ left, top: 0, width, height: 190 })
-      .resize({ width: 352 })
-      .png()
-      .toBuffer();
-    return `data:image/png;base64,${face.toString("base64")}`;
+    return `data:image/png;base64,${readFileSync(p).toString("base64")}`;
   } catch {
     return null;
   }

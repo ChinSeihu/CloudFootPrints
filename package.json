@@ -15,6 +15,7 @@
     "sync:demo-users": "tsx scripts/sync-demo-users.ts",
     "admin:create": "tsx scripts/create-admin.ts",
     "crop:avatars": "tsx scripts/crop-avatars.ts",
+    "crop:identity-refs": "tsx scripts/crop-identity-refs.ts",
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",
     "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
