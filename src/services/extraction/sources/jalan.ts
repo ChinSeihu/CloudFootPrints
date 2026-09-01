@@ -1,5 +1,5 @@
 import type { ExtractedEvent, RawDocument, Source } from "../types";
-import { extractLdEvents, ldToExtracted } from "./jsonLd";
+import { enrichExtractedEventTimeFromHtml, extractLdEvents, ldToExtracted } from "./jsonLd";
 
 // じゃらん（jalan.net，Recruit 旗下大型旅游媒体）首都圈活动列表。
 // SSR + 标准 schema.org JSON-LD（@type Event）。地域码（都道府县）：
@@ -53,16 +53,20 @@ function makeJalanSource(area: { code: string; label: string }): Source {
         for (const le of listEvents) {
           // 详情页带 streetAddress，地址更准；失败则回退列表页版本。
           let chosen = le;
+          let chosenHtml = listHtml;
           try {
             const detailHtml = await fetchShiftJis(le.url!);
             if (detailHtml) {
               const de = extractLdEvents(detailHtml).find((e) => e.name);
-              if (de) chosen = de;
+              if (de) {
+                chosen = de;
+                chosenHtml = detailHtml;
+              }
             }
           } catch {
             /* 详情失败 → 用列表版 */
           }
-          const ev = ldToExtracted(chosen);
+          const ev = enrichExtractedEventTimeFromHtml(ldToExtracted(chosen), chosenHtml);
           ev.sourceUrl = le.url ?? ev.sourceUrl; // sourceUrl 固定为 jalan 详情页
           prestructured.push(ev);
           await sleep(DETAIL_DELAY_MS);

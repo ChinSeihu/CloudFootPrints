@@ -1,6 +1,6 @@
 import type { EventCategory } from "@/lib/categories";
 import type { ExtractedEvent, RawDocument, Source } from "../types";
-import { extractLdEvents, ldToExtracted } from "./jsonLd";
+import { enrichExtractedEventTimeFromHtml, extractLdEvents, ldToExtracted } from "./jsonLd";
 
 // Walkerplus（综合活动媒体）东京活动。页面内嵌 schema.org JSON-LD（@type: Event）。
 // 解析/分类/映射见 ./jsonLd（与 jalan 共享）。robots 允许 /event_list/ 与 /event/。
@@ -84,7 +84,7 @@ function makeWalkerplusSource({ name, listUrl, maxPages, forceCategory }: Walker
             const key = `${de.name}|${de.startDate ?? ""}`;
             if (!seen.has(key)) {
               seen.add(key);
-              const ev = ldToExtracted(de);
+              const ev = enrichExtractedEventTimeFromHtml(ldToExtracted(de), html);
               ev.sourceUrl = de.url ?? url; // 官网优先，缺则用 walkerplus 详情页
               if (forceCategory) ev.category = forceCategory; // 子分类页强制分类
               all.push(ev);

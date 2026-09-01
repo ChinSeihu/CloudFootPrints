@@ -64,6 +64,100 @@ function normalizeLdDate(value: string | undefined): string | null {
   return trimmed;
 }
 
+export type HtmlEventTimeRange = {
+  startHour: number;
+  startMinute: number;
+  endHour?: number;
+  endMinute?: number;
+};
+
+/**
+ * Signature: `function extractEventTimeRangeFromHtml(html: string): HtmlEventTimeRange | null`
+ * Purpose: Extracts the primary advertised start/end time from a detail page's labelled 開催時間 section without using unrelated page clocks.
+ */
+export function extractEventTimeRangeFromHtml(html: string): HtmlEventTimeRange | null {
+  const text = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<(?:br\b[^>]*|\/(?:p|div|li|tr|dt|dd|h[1-6]))\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&[a-z]+;|&#\d+;/gi, " ");
+  const labelIndex = text.indexOf("開催時間");
+  if (labelIndex < 0) return null;
+
+  const afterLabel = text.slice(labelIndex + "開催時間".length, labelIndex + "開催時間".length + 600);
+  const section = afterLabel
+    .split(/(?:開催場所|場所|料金|予約|電話番号|住所|交通アクセス|駐車場|カテゴリ)/, 1)[0]
+    .split("※", 1)[0]
+    .replace(/[：]/g, ":")
+    .replace(/[‐‑‒–—−－]/g, "-")
+    .replace(/[～〜]/g, "~")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const rangePattern = /(?:(午前|午後|AM|PM)\s*)?([01]?\d|2[0-3])(?::|時)([0-5]\d)?分?\s*[~-]\s*(?:(午前|午後|AM|PM)\s*)?([01]?\d|2[0-3])(?::|時)([0-5]\d)?分?/gi;
+  const ranges = [...section.matchAll(rangePattern)];
+  if (ranges.length > 0) {
+    const first = ranges[0];
+    const last = ranges[ranges.length - 1];
+    let startHour = Number(first[2]);
+    let endHour = Number(last[5]);
+    if (/午後|PM/i.test(first[1] ?? "") && startHour < 12) startHour += 12;
+    if (/午前|AM/i.test(first[1] ?? "") && startHour === 12) startHour = 0;
+    const endPrefix = last[4] ?? last[1] ?? "";
+    if (/午後|PM/i.test(endPrefix) && endHour < 12) endHour += 12;
+    if (/午前|AM/i.test(endPrefix) && endHour === 12) endHour = 0;
+    return {
+      startHour,
+      startMinute: Number(first[3] ?? 0),
+      endHour,
+      endMinute: Number(last[6] ?? 0),
+    };
+  }
+
+  const single = section.match(/(?:(午前|午後|AM|PM)\s*)?([01]?\d|2[0-3])(?::|時)([0-5]\d)?分?/i);
+  if (!single) return null;
+  let startHour = Number(single[2]);
+  if (/午後|PM/i.test(single[1] ?? "") && startHour < 12) startHour += 12;
+  if (/午前|AM/i.test(single[1] ?? "") && startHour === 12) startHour = 0;
+  return { startHour, startMinute: Number(single[3] ?? 0) };
+}
+
+/**
+ * Signature: `function enrichExtractedEventTimeFromHtml(event: ExtractedEvent, html: string): ExtractedEvent`
+ * Purpose: Replaces date-only midnight placeholders with precise times advertised on the same event detail page while preserving already-specific JSON-LD timestamps.
+ */
+export function enrichExtractedEventTimeFromHtml(event: ExtractedEvent, html: string): ExtractedEvent {
+  const range = extractEventTimeRangeFromHtml(html);
+  if (!range) return event;
+
+  const next = { ...event };
+  const startDate = event.startTime?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  const parsedStart = event.startTime ? new Date(event.startTime) : null;
+  const startIsMidnight = !!parsedStart
+    && !Number.isNaN(parsedStart.getTime())
+    && (parsedStart.getUTCHours() === 0 || parsedStart.getUTCHours() === 15)
+    && parsedStart.getUTCMinutes() === 0
+    && parsedStart.getUTCSeconds() === 0;
+  if (startDate && startIsMidnight) {
+    next.startTime = `${startDate}T${String(range.startHour).padStart(2, "0")}:${String(range.startMinute).padStart(2, "0")}:00+09:00`;
+  }
+
+  const endDate = event.endTime?.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  const parsedEnd = event.endTime ? new Date(event.endTime) : null;
+  const endIsMidnight = !!parsedEnd
+    && !Number.isNaN(parsedEnd.getTime())
+    && (parsedEnd.getUTCHours() === 0 || parsedEnd.getUTCHours() === 15)
+    && parsedEnd.getUTCMinutes() === 0
+    && parsedEnd.getUTCSeconds() === 0;
+  if (endDate && endIsMidnight && range.endHour !== undefined) {
+    next.endTime = `${endDate}T${String(range.endHour).padStart(2, "0")}:${String(range.endMinute ?? 0).padStart(2, "0")}:00+09:00`;
+  }
+  return next;
+}
+
 // 从 HTML 抽取所有 schema.org Event（兼容顶层数组 / @graph / 单对象）。
 export function extractLdEvents(html: string): LdEvent[] {
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
