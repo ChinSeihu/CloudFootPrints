@@ -136,7 +136,7 @@ async function generateVirtualReply(conversationId: string, virtualUserId: strin
 身份：${persona.age}岁，${persona.occupation}；${persona.archetype}
 性格五维：开放性 ${persona.personality.openness}，尽责性 ${persona.personality.conscientiousness}，外向性 ${persona.personality.extraversion}，宜人性 ${persona.personality.agreeableness}，情绪敏感度 ${persona.personality.neuroticism}
 人生阶段：${virtualUser.charState?.lifeStage || personaLifeStageText(persona)}
-当前状态：${virtualUser.status || persona.dynamicContext.currentGoal}
+当前状态：${virtualUser.status || persona.initialContext.currentGoal}
 当前情绪：${emotion}
 目标：${goals.join("；")}
 兴趣：${personaInterestList(persona).join("、")}

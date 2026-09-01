@@ -23,6 +23,8 @@ export interface PersonaV2 {
 
   usernameKana?: string
 
+  legacyUsernames?: string[]
+
   age: number
 
   gender: "male" | "female"
@@ -48,7 +50,6 @@ export interface PersonaV2 {
     weekdayRadiusKm: number
     weekendRadiusKm: number
     explorationProbability: number
-    friendInfluence: number
   }
 
   personality: {
@@ -106,6 +107,7 @@ export interface PersonaV2 {
 
   acquaintances: string[]
 
+  /** @deprecated Runtime writing style is defined exclusively by WritingDNA. */
   voice: {
     length: "short" | "medium" | "long"
     emojiUsage: "none" | "low" | "medium" | "high"
@@ -113,7 +115,7 @@ export interface PersonaV2 {
     writingFeatures: string[]
   }
 
-  dynamicContext: {
+  initialContext: {
     currentStress: number
     currentGoal: string
     recentMemories: string[]
@@ -696,11 +698,15 @@ export function personaRefIndex(persona: PersonaV2): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/**
+ * Signature: `function personaGoals(persona: PersonaV2): string[]`
+ * Purpose: Merges stable goals with the persona's initial current goal into a deduplicated runtime goal list.
+ */
 export function personaGoals(persona: PersonaV2): string[] {
   return [
     ...persona.goals.shortTerm,
     ...persona.goals.longTerm,
-    persona.dynamicContext.currentGoal,
+    persona.initialContext.currentGoal,
   ].filter((goal, index, all): goal is string => !!goal && all.indexOf(goal) === index);
 }
 
@@ -708,12 +714,52 @@ export function personaLifeStageText(persona: PersonaV2): string {
   return `${persona.lifeStage.stage}: ${persona.lifeStage.description}; current concern: ${persona.lifeStage.currentConcern}`;
 }
 
+/**
+ * Signature: `function personaInterestList(persona: PersonaV2): string[]`
+ * Purpose: Produces prompt-ready interests while explicitly marking hidden interests and behavioral avoidances.
+ */
 export function personaInterestList(persona: PersonaV2): string[] {
   return [
     ...persona.interests.core,
     ...persona.interests.secondary,
     ...persona.interests.hidden.map((interest) => `hidden: ${interest}`),
+    ...persona.interests.avoid.map((interest) => `avoid: ${interest}`),
   ];
+}
+
+/**
+ * Signature: `function personaBehaviorText(persona: PersonaV2, isWeekend: boolean): string`
+ * Purpose: Converts mobility, weekend, spending, and social preferences into one authoritative behavior directive for simulation prompts.
+ */
+export function personaBehaviorText(persona: PersonaV2, isWeekend: boolean): string {
+  const spending = Object.entries(persona.spendingStyle)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, weight]) => `${category}:${weight}`)
+    .join("/");
+  const weekend = persona.weekendBehavior;
+  const radius = isWeekend
+    ? persona.mobilityProfile.weekendRadiusKm
+    : persona.mobilityProfile.weekdayRadiusKm;
+
+  return [
+    `${isWeekend ? "周末" : "平日"}通常活动半径约 ${radius}km，交通方式 ${persona.mobilityProfile.transport.join("/")}`,
+    `主动探索倾向 ${Math.round(persona.mobilityProfile.explorationProbability * 100)}%`,
+    `周末倾向 留在家${Math.round(weekend.stayHomeRate * 100)}%/独自探索${Math.round(weekend.soloExploreRate * 100)}%/见朋友${Math.round(weekend.meetupRate * 100)}%/远行${Math.round(weekend.travelRate * 100)}%`,
+    `朋友影响 ${persona.socialProfile.friendInfluence}/100`,
+    `消费优先级 ${spending}`,
+    `主动回避 ${persona.interests.avoid.join("、") || "无"}`,
+  ].join("；");
+}
+
+/**
+ * Signature: `function personaSocialCircle(persona: PersonaV2): { name: string; relation: string }[]`
+ * Purpose: Resolves stable persona friend and acquaintance IDs into prompt-ready social relationships.
+ */
+export function personaSocialCircle(persona: PersonaV2): { name: string; relation: string }[] {
+  return [
+    ...persona.friends.map((id) => ({ name: PERSONAS.find((candidate) => candidate.id === id)?.username, relation: "朋友" })),
+    ...persona.acquaintances.map((id) => ({ name: PERSONAS.find((candidate) => candidate.id === id)?.username, relation: "熟人" })),
+  ].filter((entry): entry is { name: string; relation: string } => Boolean(entry.name));
 }
 
 export function personaVoiceText(persona: PersonaV2): string {
@@ -905,7 +951,7 @@ export function personaSpots(persona: PersonaV2): LatLng[] {
   ]);
 }
 // 人物模型设计参考 ./PersonaV2_Migration_Guide.md
-export const PERSONAS: PersonaV2[] = [
+const PERSONA_DEFINITIONS: PersonaV2[] = [
   {
   id: "C01",
 
@@ -948,7 +994,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm: 8,
     weekendRadiusKm: 40,
     explorationProbability: 0.7,
-    friendInfluence: 0.8
   },
 
   personality: {
@@ -981,9 +1026,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary: [
-      "咖啡馆",
+      "旧杂志与字体",
       "电影",
-      "旅行"
+      "深夜广播"
     ],
 
     hidden: [
@@ -1063,7 +1108,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 45,
     currentGoal: "尝试重新建立社交连接",
     recentMemories: [],
@@ -1112,7 +1157,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:10,
     weekendRadiusKm:45,
     explorationProbability:0.65,
-    friendInfluence:0.7
   },
 
   personality:{
@@ -1144,9 +1188,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "摄影",
-      "甜品",
-      "旅行"
+      "室内材质",
+      "旧物修补",
+      "深夜料理"
     ],
 
     hidden:[
@@ -1222,7 +1266,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:50,
     currentGoal:"保持喜欢的生活节奏",
     recentMemories:[],
@@ -1243,7 +1287,7 @@ export const PERSONAS: PersonaV2[] = [
 
   occupation:"广告公司职员",
 
-  archetype:"都市白领",
+  archetype:"都市职场生活博主",
 
   hasAvatar:false,
 
@@ -1272,7 +1316,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:12,
     weekendRadiusKm:80,
     explorationProbability:0.8,
-    friendInfluence:0.9
   },
 
   personality:{
@@ -1302,8 +1345,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "摄影",
-      "咖啡馆"
+      "办公室午餐",
+      "广告观察",
+      "普拉提"
     ],
 
     hidden:[
@@ -1380,7 +1424,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:65,
     currentGoal:"升职",
     recentMemories:[],
@@ -1435,7 +1479,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm: 10,
     weekendRadiusKm: 70,
     explorationProbability: 0.95,
-    friendInfluence: 0.55
   },
 
   personality: {
@@ -1468,9 +1511,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary: [
-      "摄影",
-      "咖啡馆",
-      "古书店"
+      "城市基础设施",
+      "公共浴场",
+      "地方史"
     ],
 
     hidden: [
@@ -1549,7 +1592,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 25,
     currentGoal: "寻找新的东京路线",
     recentMemories: [],
@@ -1603,7 +1646,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm: 20,
     weekendRadiusKm: 250,
     explorationProbability: 0.98,
-    friendInfluence: 0.4
   },
 
   personality: {
@@ -1636,9 +1678,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary: [
-      "咖啡馆",
-      "酒店",
-      "地方美食"
+      "渡轮",
+      "地方铁路",
+      "清晨市场"
     ],
 
     hidden: [
@@ -1717,7 +1759,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 35,
     currentGoal: "策划夏季旅行路线",
     recentMemories: [],
@@ -1738,7 +1780,7 @@ export const PERSONAS: PersonaV2[] = [
 
   gender: "female",
 
-  occupation: "瑜伽教练",
+  occupation: "油画教师 / 瑜伽教练",
 
   archetype: "疗愈生活博主",
 
@@ -1770,7 +1812,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm: 8,
     weekendRadiusKm: 60,
     explorationProbability: 0.6,
-    friendInfluence: 0.5
   },
 
   personality: {
@@ -1796,16 +1837,16 @@ export const PERSONAS: PersonaV2[] = [
 
   interests: {
     core: [
+      "油画",
       "瑜伽",
       "植物",
-      "温泉",
-      "冥想"
+      "身体练习"
     ],
 
     secondary: [
-      "咖啡馆",
-      "阅读",
-      "旅行"
+      "颜料与画材",
+      "素描",
+      "陶器"
     ],
 
     hidden: [
@@ -1883,7 +1924,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 20,
     currentGoal: "筹备线上课程",
     recentMemories: [],
@@ -1937,7 +1978,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm: 15,
     weekendRadiusKm: 80,
     explorationProbability: 0.75,
-    friendInfluence: 0.9
   },
 
   personality: {
@@ -1971,8 +2011,8 @@ export const PERSONAS: PersonaV2[] = [
 
     secondary: [
       "拉面",
-      "摄影",
-      "旅行"
+      "音响器材",
+      "深夜街区"
     ],
 
     hidden: [
@@ -2050,7 +2090,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 45,
     currentGoal: "寻找值得推荐的新乐队",
     recentMemories: [],
@@ -2063,13 +2103,15 @@ export const PERSONAS: PersonaV2[] = [
   {
   id: "C09",
 
-  username: "小林ゆい",
+  username: "ゆい",
+
+  legacyUsernames: ["小林ゆい"],
 
   age: 31,
 
   gender: "female",
 
-  occupation: "古着店主",
+  occupation: "古着生活博主",
 
   archetype: "古着生活博主",
 
@@ -2101,7 +2143,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:10,
     weekendRadiusKm:70,
     explorationProbability:0.7,
-    friendInfluence:0.8
   },
 
   personality:{
@@ -2134,9 +2175,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "咖啡馆",
-      "摄影",
-      "旅行"
+      "衣物修补",
+      "跳蚤市场",
+      "店铺陈列"
     ],
 
     hidden:[
@@ -2211,7 +2252,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:45,
     currentGoal:"寻找下一件值得分享的旧物",
     recentMemories:[],
@@ -2264,7 +2305,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:12,
     weekendRadiusKm:100,
     explorationProbability:0.85,
-    friendInfluence:0.7
   },
 
   personality:{
@@ -2297,9 +2337,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "旅行",
-      "展览",
-      "电影"
+      "印刷",
+      "天气变化",
+      "摄影器材维修"
     ],
 
     hidden:[
@@ -2377,7 +2417,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:35,
     currentGoal:"寻找新的拍摄主题",
     recentMemories:[],
@@ -2430,7 +2470,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:12,
     weekendRadiusKm:120,
     explorationProbability:0.8,
-    friendInfluence:0.7
   },
 
   personality:{
@@ -2463,9 +2502,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "旅行",
-      "咖啡馆",
-      "展览"
+      "校园生活",
+      "日语表达",
+      "家乡料理"
     ],
 
     hidden:[
@@ -2544,7 +2583,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:50,
     currentGoal:"准备毕业方向",
     recentMemories:[],
@@ -2597,7 +2636,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:10,
     weekendRadiusKm:100,
     explorationProbability:0.85,
-    friendInfluence:0.75
   },
 
   personality:{
@@ -2625,13 +2663,14 @@ export const PERSONAS: PersonaV2[] = [
     core:[
       "宠物",
       "散步",
-      "摄影",
-      "咖啡馆"
+      "犬类行为",
+      "宠物友好空间"
     ],
 
     secondary:[
-      "旅行",
-      "露营"
+      "居家收纳",
+      "简单料理",
+      "周末露营"
     ],
 
     hidden:[
@@ -2708,7 +2747,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:20,
     currentGoal:"寻找宠物友好场所",
     recentMemories:[],
@@ -2761,7 +2800,6 @@ export const PERSONAS: PersonaV2[] = [
     weekdayRadiusKm:12,
     weekendRadiusKm:80,
     explorationProbability:0.9,
-    friendInfluence:0.85
   },
 
   personality:{
@@ -2794,8 +2832,9 @@ export const PERSONAS: PersonaV2[] = [
     ],
 
     secondary:[
-      "旅行",
-      "杂货店"
+      "茶饮搭配",
+      "包装设计",
+      "烘焙工艺"
     ],
 
     hidden:[
@@ -2872,7 +2911,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext:{
+  initialContext:{
     currentStress:35,
     currentGoal:"寻找夏季限定甜品",
     recentMemories:[],
@@ -2929,8 +2968,6 @@ export const PERSONAS: PersonaV2[] = [
     weekendRadiusKm: 90,
 
     explorationProbability: 0.8,
-
-    friendInfluence: 0.7
   },
 
   personality: {
@@ -2957,16 +2994,16 @@ export const PERSONAS: PersonaV2[] = [
   interests: {
     core: [
       "生活记录",
-      "摄影",
-      "甜品",
-      "咖啡馆"
+      "花艺",
+      "家庭料理",
+      "季节变化"
     ],
 
     secondary: [
-      "花艺",
-      "旅行",
       "散步",
-      "阅读"
+      "随笔",
+      "老电影",
+      "家居整理"
     ],
 
     hidden: [
@@ -3063,7 +3100,7 @@ export const PERSONAS: PersonaV2[] = [
     ]
   },
 
-  dynamicContext: {
+  initialContext: {
     currentStress: 50,
 
     currentGoal:
@@ -3077,6 +3114,10 @@ export const PERSONAS: PersonaV2[] = [
   fashionStyle: PERSONA_FASHION_STYLE["C03"]
 }
 ];
+
+export const PERSONAS: PersonaV2[] = [...PERSONA_DEFINITIONS].sort(
+  (a, b) => personaRefIndex(a) - personaRefIndex(b)
+);
 export const RELATIONSHIP_GRAPH = {
   C01:["C02","C05"],
   C02:["C01","C13"],
@@ -3314,7 +3355,7 @@ export const INITIAL_MEMORY_SEEDS: InitialMemorySeed[] = [
     memory: "对鼓点、贝斯线、旧音箱和小型 Live House 的空气感很敏感，容易被一段声音带走情绪。",
   },
 
-  // C09 小林ゆい｜古着生活博主
+  // C09 ゆい｜古着生活博主
   {
     personaId: "C09",
     kind: "work",
@@ -3425,8 +3466,12 @@ export const INITIAL_MEMORY_SEEDS: InitialMemorySeed[] = [
   },
 ];
 
+/**
+ * Signature: `function personaOf(username: string): PersonaV2 | undefined`
+ * Purpose: Resolves a persona by its current or legacy username so historical database identities remain compatible.
+ */
 export function personaOf(username: string): PersonaV2 | undefined {
-  return PERSONAS.find((p) => p.username === username);
+  return PERSONAS.find((p) => p.username === username || p.legacyUsernames?.includes(username));
 }
 
 export function personaById(id: string): PersonaV2 | undefined {

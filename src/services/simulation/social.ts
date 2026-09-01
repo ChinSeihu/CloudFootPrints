@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import {
   PERSONAS,
   knownAreaSpotInText,
+  personaBehaviorText,
   personaGoals,
   personaInterestList,
   personaOf,
@@ -158,6 +159,10 @@ function personLine(persona: PersonaV2): string {
   ].join("\n");
 }
 
+/**
+ * Signature: `function buildPrompt(input: { persona: PersonaV2; dateKey: string; world: Awaited<ReturnType<typeof getOrCreateWorldState>>; recentMemories: string[]; recentOwnPosts: string[]; candidates: SocialCandidate[]; replies: ReplyCandidate[]; preferPost: boolean }): string`
+ * Purpose: Builds one social-action prompt using the canonical voice, behavior constraints, recent writing, and available interaction targets.
+ */
 function buildPrompt(input: {
   persona: PersonaV2;
   dateKey: string;
@@ -185,6 +190,7 @@ You are simulating one Tokyo community account. Produce exactly one small social
 
 Person:
 ${personLine(input.persona)}
+Behavior: ${personaBehaviorText(input.persona, isWeekendDate(input.dateKey))}
 
 Date: ${input.dateKey}
 World: ${input.world.season}, ${input.world.weather}, ${input.world.cityMood}
@@ -207,6 +213,8 @@ ${spotList}
 
 Rules:
 - Match the person's voice model. Do not use a generic friendly assistant tone.
+- Respect mobility, spending priorities, avoided interests, and social influence without reciting their values.
+- Vary triggers across work aftermath, errands, body/weather, relationships, home life, transit, neighborhood observations, and occasional core interests. Do not default to cafes, travel, photography, or exhibitions.
 - If action is "post", create a normal community post, not a footprint/check-in.
 - Posts can be casual plans, invitations, small thoughts, questions, or recommendations.
 - Comments should be 8-60 Chinese/Japanese-mixed natural characters when possible.
@@ -446,6 +454,15 @@ function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecisi
     return best[Math.floor(r * best.length)]?.spot ?? fallback;
   }
   return spots[Math.floor(r * spots.length)] ?? fallback;
+}
+
+/**
+ * Signature: `function isWeekendDate(dateKey: string): boolean`
+ * Purpose: Classifies a Tokyo date so social generation uses the same weekend behavior standard as daily simulation.
+ */
+function isWeekendDate(dateKey: string): boolean {
+  const weekday = new Date(`${dateKey}T12:00:00+09:00`).getUTCDay();
+  return weekday === 0 || weekday === 6;
 }
 
 function shouldGeneratePostImage(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date): boolean {

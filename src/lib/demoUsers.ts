@@ -24,7 +24,7 @@ export const DEMO_USERS: DemoUser[] = PERSONAS.map((persona, index) => ({
   username: persona.username,
   signature: profileSignature(persona),
   hometown: persona.homeArea,
-  status: persona.dynamicContext.currentGoal,
+  status: persona.initialContext.currentGoal,
   coverUrl: cover(index),
   avatarUrl: refAvatar(persona),
 }));

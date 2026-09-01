@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db";
 import {
   PERSONAS,
   knownAreaSpotInText,
+  personaBehaviorText,
   personaGoals,
   personaLifeStageText,
   personaOf,
+  personaSocialCircle,
   personaSpots,
   type PersonaV2,
 } from "@/lib/personas";
@@ -75,8 +77,46 @@ function dateLabel(dateKey: string): string {
   return `${Number(dateKey.slice(5, 7))}月${Number(dateKey.slice(8, 10))}日 周${WEEKDAYS[wd]}`;
 }
 
-function spotsOf(p: PersonaV2): { options: SpotOption[]; coords: { lat: number; lng: number }[] } {
-  const list = personaSpots(p);
+/**
+ * Signature: `function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number`
+ * Purpose: Calculates great-circle distance for enforcing a persona's weekday or weekend mobility radius.
+ */
+function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+/**
+ * Signature: `function isWeekendDate(dateKey: string): boolean`
+ * Purpose: Classifies a Tokyo calendar date for weekend-specific mobility and behavior decisions.
+ */
+function isWeekendDate(dateKey: string): boolean {
+  const weekday = new Date(`${dateKey}T12:00:00+09:00`).getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
+
+/**
+ * Signature: `function spotsOf(p: PersonaV2, dateKey: string): { options: SpotOption[]; coords: { lat: number; lng: number }[] }`
+ * Purpose: Produces deterministic daily location candidates constrained by home radius, exploration tendency, and weekend mode.
+ */
+function spotsOf(p: PersonaV2, dateKey: string): { options: SpotOption[]; coords: { lat: number; lng: number }[] } {
+  const all = personaSpots(p);
+  const home = all[0];
+  const weekend = isWeekendDate(dateKey);
+  const radius = weekend ? p.mobilityProfile.weekendRadiusKm : p.mobilityProfile.weekdayRadiusKm;
+  const rnd = seeded(`mobility|${dateKey}|${p.id}`);
+  const modeRoll = rnd();
+  const behavior = p.weekendBehavior;
+  const stayHome = weekend && modeRoll < behavior.stayHomeRate;
+  const travel = weekend && modeRoll >= 1 - behavior.travelRate;
+  const explores = travel || rnd() < p.mobilityProfile.explorationProbability * (weekend ? 1 : 0.25);
+  const inRadius = home ? all.filter((spot) => distanceKm(home, spot) <= radius) : all;
+  const list = stayHome && home ? [home] : explores ? (travel ? all : inRadius) : inRadius.slice(0, Math.max(3, p.frequentAreas.length + 1));
   return {
     options: list.map((s, i) => ({ index: i, name: s.name })),
     coords: list.map((s) => ({ lat: s.lat, lng: s.lng })),
@@ -117,13 +157,14 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const emotion: Record<string, number> = (state?.emotion as Record<string, number>) ?? { ...persona.emotionBaseline };
   const goals = state?.goals?.length ? state.goals : personaGoals(persona);
   const lifeStage = state?.lifeStage ?? personaLifeStageText(persona);
-  const cast: { name: string; relation: string }[] = Array.isArray(state?.cast) ? (state!.cast as { name: string; relation: string }[]) : [];
+  const savedCast: CastEntry[] = Array.isArray(state?.cast) ? (state!.cast as CastEntry[]) : [];
+  const cast = mergeCast(savedCast, personaSocialCircle(persona));
 
   // 参与度掷点（按 日期|用户 复现）。不参与 = 平淡无事的一天，不调 LLM、不留内容。
   const roll = seeded(`${dateKey}|${username}`)();
   if (roll > engagementProb(persona, emotion)) return { username, status: "skipped-quiet" };
 
-  const { options, coords } = spotsOf(persona);
+  const { options, coords } = spotsOf(persona, dateKey);
 
   if (dry) return { username, status: "memory", note: "(dry-run，未调用 LLM)" };
 
@@ -141,6 +182,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const decision = await decideDay({
     persona, world, dateLabel: dateLabel(dateKey),
     emotion, goals, lifeStage, recentMemories, recentNotes, spots: options, cast,
+    behavior: personaBehaviorText(persona, isWeekendDate(dateKey)),
   });
   if (!decision) return { username, status: "no-decision" };
 

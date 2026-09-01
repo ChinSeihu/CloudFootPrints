@@ -78,6 +78,7 @@ export type DecideInput = {
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
   spots: SpotOption[]; // 可选打卡地点（home + roam），index 对应
   cast: { name: string; relation: string }[]; // 系统外常出现的熟人（让"又见到某人"有连续性）
+  behavior: string; // 人物移动、周末、消费、回避与社交偏好的统一行为约束
 };
 
 
@@ -322,6 +323,10 @@ export function resolveSpotIndex(
   return picked?.index ?? null;
 }
 
+/**
+ * Signature: `function buildUserPrompt(inp: DecideInput): string`
+ * Purpose: Builds the daily-decision prompt with persona continuity, behavioral constraints, social context, and recent-content diversity safeguards.
+ */
 function buildUserPrompt(inp: DecideInput): string {
   const spotList = inp.spots.map((s) => `${s.index}. ${s.name}`).join("\n");
   const mem = inp.recentMemories.length ? inp.recentMemories.map((m) => `- ${m}`).join("\n") : "（暂无）";
@@ -335,6 +340,7 @@ function buildUserPrompt(inp: DecideInput): string {
 最大矛盾：${inp.persona.coreConflict}
 兴趣：${personaInterestList(inp.persona).join("、")}
 笔触口吻（务必遵守）：${personaVoiceText(inp.persona)}
+行为约束（作为概率倾向，不要机械逐项复述）：${inp.behavior}
 当前情绪(0-100)：${emo}
 当前目标：${inp.goals.join("；") || "（无）"}
 
@@ -348,6 +354,9 @@ ${mem}
 
 【最近发的足迹】（避免重复题材/用词；若连续同一兴趣，今天换别的）
 ${notes}
+
+【内容多样性】
+不要默认写咖啡、旅行、摄影或展览。优先从当天真实触发点选一个：工作余波、通勤、家务采购、身体状态、天气、关系变化、临时差事、居住街区观察、失败或无事发生。核心兴趣只在当天确实发生时出现；回避项不要主动安排。
 
 【你生活里常出现的人】
 ${inp.cast.length ? inp.cast.map((c) => `- ${c.name}（${c.relation}）`).join("\n") : "（暂无，按需自然引入）"}

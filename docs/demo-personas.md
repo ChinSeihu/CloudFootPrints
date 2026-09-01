@@ -17,18 +17,18 @@
 `PersonaV2` 是结构化事实源，主要字段包括：
 
 - `id`: 角色 ID，例如 `C01`，同时对应 `public/refs/01.png`。
-- `username / usernameKana`: 展示名与假名。
+- `username / usernameKana / legacyUsernames`: 展示名、假名和仅供同步迁移/旧内容识别的历史用户名。
 - `age / gender / occupation / archetype`: 基础身份。
 - `appearance / photoSkill`: 外观与摄影能力，供 Image Agent 使用。
 - `homeArea / frequentAreas / explorationAreas`: 生活据点与移动范围。
-- `mobilityProfile`: 通勤方式、平日/周末半径、探索概率、朋友影响。
+- `mobilityProfile`: 通勤方式、平日/周末半径和探索概率；朋友影响统一读取 `socialProfile.friendInfluence`。
 - `personality / socialProfile / emotionBaseline`: 决策和情绪回归的基础参数。
 - `lifeStage / coreConflict`: 长期人生状态与核心张力。
 - `interests`: `core / secondary / hidden / avoid` 四层兴趣。
 - `weekendBehavior / spendingStyle / goals`: 周末行为、消费偏好和目标。
 - `friends / acquaintances`: 使用角色 ID 表示关系，例如 `C02`。
-- `voice`: 结构化口吻，不直接当字符串使用。
-- `dynamicContext`: 当前压力、当前目标、近期记忆和计划。
+- `writingDNA`: 当前唯一运行口吻标准；旧 `voice` 仅为兼容历史人物数据，不参与生成。
+- `initialContext`: 首次初始化使用的压力、目标、近期记忆和计划，运行后状态以 `CharacterState` 为准。
 
 ## V2 派生函数
 
@@ -38,6 +38,8 @@
 - `personaLifeStageText(persona)`: 把结构化人生阶段格式化为可写入 `CharacterState.lifeStage` 的字符串。
 - `personaInterestList(persona)`: 合并核心、次级和隐藏兴趣，用于 LLM prompt。
 - `personaVoiceText(persona)`: 把结构化口吻转成 prompt 文本。
+- `personaBehaviorText(persona, isWeekend)`: 把移动半径、周末倾向、消费优先级、回避兴趣和朋友影响转成统一行为约束。
+- `personaSocialCircle(persona)`: 把角色 ID 关系解析成每日决策可使用的朋友/熟人名册。
 - `personaSpots(persona)`: 返回可打卡坐标候选点，用于 `sim-run.ts` 调用链。
 - `personaRefIndex(persona)`: 从 `Cxx` 推导 `public/refs/xx.png`。
 - `friendPairs()`: 把 `friends` 中的角色 ID 转成用户名关系对。
@@ -51,13 +53,13 @@
 | C01 | さくら | 28 | 出版社编辑 | 文艺观察系 | 渋谷 |
 | C02 | 美咲 | 29 | 自由平面设计师 | 设计咖啡生活 | 中目黒 |
 | C03 | 遥 | 30 | 品牌内容编辑 | 温柔系生活记录博主 | 三軒茶屋 |
-| C04 | 麻衣 | 24 | 广告公司职员 | 都市白领 | 表参道 |
+| C04 | 麻衣 | 24 | 广告公司职员 | 都市职场生活博主 | 表参道 |
 | C05 | 遥香 | 28 | 内容创作者 | City Walk 博主 | 蔵前 |
 | C06 | 美月 | 27 | 旅行内容创作者 | 旅行博主 | 自由が丘 |
-| C07 | 凛 | 30 | 油画教师 | 疗愈生活博主 | 自由が丘 |
+| C07 | 凛 | 30 | 油画教师 / 瑜伽教练 | 疗愈生活博主 | 二子玉川 |
 | C08 | 湊 | 26 | 音乐内容创作者 | Live House 博主 | 下北沢 |
 | C09 | ゆい | 31 | 古着生活博主 | 古着生活博主 | 吉祥寺 |
-| C10 | たけし | 35 | 摄影师 | 东京街拍摄影博主 | 浅草 |
+| C10 | たけし | 35 | 视觉内容创作者 | 东京街拍摄影博主 | 浅草 |
 | C11 | 林雨晴 | 23 | 大学院生 | 中国留学生生活博主 | 高田馬場 |
 | C12 | 莉子 | 28 | SNS运营 | 宠物生活博主 | 代々木 |
 | C13 | 真理 | 27 | 自由撰稿人 | 甜品探店博主 | 恵比寿 |
@@ -86,7 +88,7 @@ scripts/sim-run.ts
     -> maintenance: relationships / community / memory / signature / lifeEvents
 ```
 
-`engine.ts` 的参与概率使用 `socialProfile.socialNeed` 与 `personality.extraversion`，地点来自 `personaSpots()`，不再读取旧的 `home`/`roam`。`PERSONA_SPOTS` 只是少量锚点；实际候选会同时从 `homeArea / frequentAreas / explorationAreas` 派生，避免长期限定在固定场地。
+`engine.ts` 的参与概率使用 `socialProfile.socialNeed` 与 `personality.extraversion`。每日地点先由 `personaSpots()` 汇总，再按照平日/周末活动半径、探索概率和周末模式筛选；稳定的 `friends / acquaintances` 也会与运行中熟人名册合并。`PERSONA_SPOTS` 只是少量锚点，不能绕过人物移动约束。
 
 `decide.ts` 的 prompt 使用：
 
@@ -94,6 +96,7 @@ scripts/sim-run.ts
 - `coreConflict`
 - `personaInterestList()`
 - `personaVoiceText()`
+- `personaBehaviorText()`
 - `goals`
 - `lifeStage`
 - `personaSpots()` 提供的地点列表

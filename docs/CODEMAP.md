@@ -108,7 +108,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - Orchestrator: `src/services/simulation/engine.ts`.
 - Daily decision/location: `decide.ts`; social pass: `social.ts`; world state: `world.ts`.
-- Personas and relationships: `src/lib/personas.ts`, `relationships.ts`, `community.ts`.
+- Personas, canonical voice/behavior constraints, and relationships: `src/lib/personas.ts`, `relationships.ts`, `community.ts`.
 - Memory/life/status: `memory.ts`, `lifeEvents.ts`, `signature.ts`.
 - Image pipeline: `image.ts`, `imageQA.ts`, `regenerate.ts`, `src/lib/cloudinary.ts`.
 - Script/API entry points: `scripts/sim-*.ts`, `src/app/api/simulate/route.ts`.
@@ -209,7 +209,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `sim-reset.ts` — resets and reseeds simulation content.
 - `sim-run.ts` — CLI daily simulation entry.
 - `split-posts.ts` — one-time Event-to-Post migration helper.
-- `sync-demo-users.ts` — synchronizes PersonaV2 definitions into database users.
+- `sync-demo-users.ts` — synchronizes PersonaV2 definitions into database users and safely renames configured legacy usernames.
 - `eval/dataset.json` — extraction evaluation cases.
 - `fixtures/chiyoda-events.txt` — representative Chiyoda raw event extraction input.
 - `fixtures/mori-art-museum.txt` — representative museum raw event extraction input.
