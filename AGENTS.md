@@ -12,6 +12,8 @@ The primary objective is to minimize unnecessary context usage while producing c
 
 Treat context as a limited resource.
 
+Before inspecting source code, consult `docs/CODEMAP.md` and use its feature index to identify the smallest likely file set. Treat the map as navigation, not as a substitute for reading the exact code being changed.
+
 Never explore the repository unless necessary.
 
 Always follow this workflow:
@@ -84,6 +86,35 @@ Do not refactor unrelated code.
 Do not rename files or folders unless requested.
 
 Preserve existing architecture.
+
+When adding, deleting, moving, or materially changing the responsibility of a file, update `docs/CODEMAP.md` in the same change.
+
+## Function and Component Documentation
+
+Every newly created named function, class method, React component, hook, route handler, and script entry function must have a concise TSDoc comment immediately above it that includes:
+
+* `Signature:` followed by the complete callable signature in backticks.
+* `Purpose:` describing what it does, its important side effect, or the boundary it owns.
+
+Example:
+
+```ts
+/**
+ * Signature: `async function getEventById(id: string): Promise<NormalizedEvent | null>`
+ * Purpose: Loads one official event or user post and returns the shared event DTO shape.
+ */
+export async function getEventById(id: string) {
+```
+
+Keep the comment synchronized when the signature or responsibility changes. Do not add comments that merely restate the function name.
+
+Exemptions:
+
+* small inline callbacks passed directly to `map`, `filter`, event props, timers, or promise handlers
+* trivial local closures whose behavior is fully obvious at the call site
+* generated code and third-party declarations
+
+When an existing named function or component is materially changed, add or refresh the same documentation if it does not already exist.
 
 ---
 
