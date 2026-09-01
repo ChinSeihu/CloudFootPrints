@@ -209,7 +209,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `sim-reset.ts` — resets and reseeds simulation content.
 - `sim-run.ts` — CLI daily simulation entry.
 - `split-posts.ts` — one-time Event-to-Post migration helper.
-- `sync-demo-users.ts` — synchronizes PersonaV2 definitions into database users and safely renames configured legacy usernames.
+- `sync-demo-users.ts` — synchronizes PersonaV2 definitions, state snapshots, and relationships into database users.
 - `eval/dataset.json` — extraction evaluation cases.
 - `fixtures/chiyoda-events.txt` — representative Chiyoda raw event extraction input.
 - `fixtures/mori-art-museum.txt` — representative museum raw event extraction input.

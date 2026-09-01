@@ -23,8 +23,6 @@ export interface PersonaV2 {
 
   usernameKana?: string
 
-  legacyUsernames?: string[]
-
   age: number
 
   gender: "male" | "female"
@@ -2103,9 +2101,7 @@ const PERSONA_DEFINITIONS: PersonaV2[] = [
   {
   id: "C09",
 
-  username: "ゆい",
-
-  legacyUsernames: ["小林ゆい"],
+  username: "小林ゆい",
 
   age: 31,
 
@@ -3355,7 +3351,7 @@ export const INITIAL_MEMORY_SEEDS: InitialMemorySeed[] = [
     memory: "对鼓点、贝斯线、旧音箱和小型 Live House 的空气感很敏感，容易被一段声音带走情绪。",
   },
 
-  // C09 ゆい｜古着生活博主
+  // C09 小林ゆい｜古着生活博主
   {
     personaId: "C09",
     kind: "work",
@@ -3468,10 +3464,10 @@ export const INITIAL_MEMORY_SEEDS: InitialMemorySeed[] = [
 
 /**
  * Signature: `function personaOf(username: string): PersonaV2 | undefined`
- * Purpose: Resolves a persona by its current or legacy username so historical database identities remain compatible.
+ * Purpose: Resolves the canonical persona definition for a database username.
  */
 export function personaOf(username: string): PersonaV2 | undefined {
-  return PERSONAS.find((p) => p.username === username || p.legacyUsernames?.includes(username));
+  return PERSONAS.find((p) => p.username === username);
 }
 
 export function personaById(id: string): PersonaV2 | undefined {

@@ -17,7 +17,7 @@
 `PersonaV2` 是结构化事实源，主要字段包括：
 
 - `id`: 角色 ID，例如 `C01`，同时对应 `public/refs/01.png`。
-- `username / usernameKana / legacyUsernames`: 展示名、假名和仅供同步迁移/旧内容识别的历史用户名。
+- `username / usernameKana`: 与数据库账号一致的标准用户名和假名。
 - `age / gender / occupation / archetype`: 基础身份。
 - `appearance / photoSkill`: 外观与摄影能力，供 Image Agent 使用。
 - `homeArea / frequentAreas / explorationAreas`: 生活据点与移动范围。
@@ -58,7 +58,7 @@
 | C06 | 美月 | 27 | 旅行内容创作者 | 旅行博主 | 自由が丘 |
 | C07 | 凛 | 30 | 油画教师 / 瑜伽教练 | 疗愈生活博主 | 二子玉川 |
 | C08 | 湊 | 26 | 音乐内容创作者 | Live House 博主 | 下北沢 |
-| C09 | ゆい | 31 | 古着生活博主 | 古着生活博主 | 吉祥寺 |
+| C09 | 小林ゆい | 31 | 古着生活博主 | 古着生活博主 | 吉祥寺 |
 | C10 | たけし | 35 | 视觉内容创作者 | 东京街拍摄影博主 | 浅草 |
 | C11 | 林雨晴 | 23 | 大学院生 | 中国留学生生活博主 | 高田馬場 |
 | C12 | 莉子 | 28 | SNS运营 | 宠物生活博主 | 代々木 |

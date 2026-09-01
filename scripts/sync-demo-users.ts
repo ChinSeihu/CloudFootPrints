@@ -14,7 +14,7 @@ const DEMO_PASSWORD = "demo-pass-1234";
 
 /**
  * Signature: `async function main(): Promise<void>`
- * Purpose: Synchronizes persona identities, including safe legacy-username renames, state snapshots, relationships, and mutual follows.
+ * Purpose: Synchronizes canonical persona profiles, state snapshots, relationships, and mutual follows into demo users.
  */
 async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -27,23 +27,15 @@ async function main(): Promise<void> {
     const demo = DEMO_USERS.find((user) => user.username === persona.username);
     if (!demo) continue;
 
-    const currentUser = await prisma.user.findUnique({
+    const existing = await prisma.user.findUnique({
       where: { username: demo.username },
       select: { id: true },
     });
-    const legacyUser = currentUser || !persona.legacyUsernames?.length
-      ? null
-      : await prisma.user.findFirst({
-          where: { username: { in: persona.legacyUsernames } },
-          select: { id: true },
-        });
-    const existing = currentUser ?? legacyUser;
 
     const user = existing
       ? await prisma.user.update({
           where: { id: existing.id },
           data: {
-            username: demo.username,
             signature: demo.signature,
             hometown: demo.hometown,
             status: demo.status,
