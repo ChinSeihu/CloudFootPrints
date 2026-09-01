@@ -1247,6 +1247,28 @@ export function MapExplorer() {
       );
       const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
       if (hits.length > 0) return; // 命中要素交给各自 handler
+
+      // 标签、柔光和聚合徽章也属于活动的可视区域；扩 4px 容错，避免边缘点击误落探索锚点。
+      const eventVisualLayers = ["event-glyph", "event-point-halo", "event-cluster-halo", "event-cluster-badge", "event-cluster-count"].filter(
+        (layer) => map.getLayer(layer),
+      );
+      const hitPad = 4;
+      const hitBox: [maplibregl.PointLike, maplibregl.PointLike] = [
+        [e.point.x - hitPad, e.point.y - hitPad],
+        [e.point.x + hitPad, e.point.y + hitPad],
+      ];
+      const visualHits = eventVisualLayers.length ? map.queryRenderedFeatures(hitBox, { layers: eventVisualLayers }) : [];
+      if (visualHits.length > 0) {
+        // 文字标签本身没有独立 layer click handler，在这里打开对应活动。
+        const labelHit = visualHits.find((feature) => feature.layer.id === "event-glyph");
+        if (labelHit) {
+          const event = toPopupEvent(labelHit.properties ?? {});
+          if (event.id) {
+            openEventsPopup((labelHit.geometry as GeoJSON.Point).coordinates as [number, number], [event]);
+          }
+        }
+        return;
+      }
       if (placingRef.current) return; // 正在放置发帖/打卡锚点时不抢
       setExploreAnchor({ lat: e.lngLat.lat, lng: e.lngLat.lng });
     });
