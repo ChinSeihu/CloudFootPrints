@@ -273,19 +273,15 @@ function pickWeighted<T>(items: Array<{ item: T; score: number }>): T | null {
   return items[0].item;
 }
 
+/**
+ * Signature: `function resolveSpotIndex(post: { activity?: ActivityType; areaHint?: AreaHint; spotIndex?: number | null; note?: string; imageSpec?: ImageSpec }, spots: SpotLike[]): number | null`
+ * Purpose: Selects the location candidate whose name/area best matches generated content, using the model-proposed index only when content provides no stronger location evidence.
+ */
 export function resolveSpotIndex(
   post: { activity?: ActivityType; areaHint?: AreaHint; spotIndex?: number | null; note?: string; imageSpec?: ImageSpec },
   spots: SpotLike[]
 ): number | null {
-  if (!post) return null;
-
-  // LLM 偶尔给了合法 spotIndex，也可以保留
-  if (
-    typeof post.spotIndex === "number" &&
-    spots.some((s) => s.index === post.spotIndex)
-  ) {
-    return post.spotIndex;
-  }
+  if (!post || spots.length === 0) return null;
 
   const activity = post.activity ?? "random";
   const areaHint = post.areaHint ?? "any";
@@ -298,16 +294,30 @@ export function resolveSpotIndex(
 
   const scored = spots.map((spot) => ({
     item: spot,
+    contentScore: scoreSpotByContent(spot, content),
     score:
       scoreSpotByActivity(spot, activity) +
       scoreSpotByAreaHint(spot, areaHint) +
       scoreSpotByContent(spot, content),
   }));
 
+  const bestContentScore = Math.max(...scored.map((x) => x.contentScore));
+  if (bestContentScore > 0) {
+    const contentMatches = scored.filter((x) => x.contentScore === bestContentScore);
+    const bestMatchScore = Math.max(...contentMatches.map((x) => x.score));
+    return contentMatches.find((x) => x.score === bestMatchScore)?.item.index ?? null;
+  }
+
+  if (
+    typeof post.spotIndex === "number" &&
+    spots.some((spot) => spot.index === post.spotIndex)
+  ) {
+    return post.spotIndex;
+  }
+
   const bestScore = Math.max(...scored.map((x) => x.score));
-  const picked = bestScore > 0
-    ? scored.find((x) => x.score === bestScore)?.item
-    : pickWeighted(scored);
+  const best = scored.filter((x) => x.score === bestScore);
+  const picked = bestScore > 0 ? pickWeighted(best) : pickWeighted(scored);
 
   return picked?.index ?? null;
 }

@@ -3,6 +3,7 @@ import { Prisma, ReactionType, type EventCategory } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   PERSONAS,
+  knownAreaSpotInText,
   personaGoals,
   personaInterestList,
   personaOf,
@@ -422,23 +423,28 @@ function scoreSpotForPost(
   return score;
 }
 
-function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date) {
+/**
+ * Signature: `function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date): SocialPostSpot`
+ * Purpose: Chooses a verified post coordinate, prioritizing a place explicitly mentioned in the generated text and distributing tied candidates deterministically.
+ */
+function pickPostSpot(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date): SocialPostSpot {
   const spots = personaSpots(persona);
-  const fallback = {
-    name: persona.homeArea,
-    lat: 35.681236,
-    lng: 139.767125,
-  };
+  const fallback = spots[0] ?? { name: "Tokyo", lat: 35.681236, lng: 139.767125 };
   if (!spots.length) return fallback;
+
+  const mentionedArea = knownAreaSpotInText(`${decision.title ?? ""} ${decision.text ?? ""}`);
+  if (mentionedArea) return mentionedArea;
 
   const scored = spots.map((spot) => ({
     spot,
     score: scoreSpotForPost(spot, decision),
   }));
   const bestScore = Math.max(...scored.map((x) => x.score));
-  if (bestScore > 0) return scored.find((x) => x.score === bestScore)?.spot ?? fallback;
-
   const r = seeded(`${userId}|post-location|${when.toISOString()}|${decision.title ?? ""}`)();
+  if (bestScore > 0) {
+    const best = scored.filter((x) => x.score === bestScore);
+    return best[Math.floor(r * best.length)]?.spot ?? fallback;
+  }
   return spots[Math.floor(r * spots.length)] ?? fallback;
 }
 

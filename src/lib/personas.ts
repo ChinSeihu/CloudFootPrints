@@ -805,29 +805,65 @@ const AREA_COORDS: Record<string, Omit<LatLng, "name">> = {
   Shimokitazawa: { lat: 35.6613, lng: 139.6679 },
   "Futako-tamagawa": { lat: 35.612, lng: 139.626 },
   Sangenjaya: { lat: 35.643, lng: 139.669 },
+  渋谷: { lat: 35.659, lng: 139.698 },
+  代官山: { lat: 35.6485, lng: 139.703 },
+  中目黒: { lat: 35.6447, lng: 139.699 },
+  恵比寿: { lat: 35.647, lng: 139.71 },
+  神保町: { lat: 35.6959, lng: 139.7577 },
+  清澄白河: { lat: 35.681, lng: 139.8 },
+  自由が丘: { lat: 35.607, lng: 139.668 },
+  表参道: { lat: 35.665, lng: 139.712 },
+  新宿: { lat: 35.69, lng: 139.7 },
+  銀座: { lat: 35.671, lng: 139.765 },
+  蔵前: { lat: 35.704, lng: 139.791 },
+  浅草: { lat: 35.7148, lng: 139.7967 },
+  谷中: { lat: 35.727, lng: 139.767 },
+  根津: { lat: 35.717, lng: 139.763 },
+  横浜: { lat: 35.465, lng: 139.622 },
+  鎌倉: { lat: 35.319, lng: 139.55 },
+  熱海: { lat: 35.096, lng: 139.071 },
+  箱根: { lat: 35.232, lng: 139.107 },
+  高円寺: { lat: 35.705, lng: 139.65 },
+  吉祥寺: { lat: 35.7003, lng: 139.5704 },
+  上野: { lat: 35.7138, lng: 139.777 },
+  池袋: { lat: 35.7295, lng: 139.7109 },
+  神楽坂: { lat: 35.703, lng: 139.739 },
+  代々木: { lat: 35.683, lng: 139.702 },
+  代々木公園: { lat: 35.672, lng: 139.694 },
+  駒沢公園: { lat: 35.626, lng: 139.662 },
+  下北沢: { lat: 35.6613, lng: 139.6679 },
+  二子玉川: { lat: 35.612, lng: 139.626 },
+  三軒茶屋: { lat: 35.643, lng: 139.669 },
+  高田馬場: { lat: 35.7126, lng: 139.7039 },
+  等々力: { lat: 35.6084, lng: 139.6476 },
+  川崎: { lat: 35.5308, lng: 139.7029 },
+  小田原: { lat: 35.255, lng: 139.159 },
+  葉山: { lat: 35.2729, lng: 139.5868 },
+  川越: { lat: 35.9251, lng: 139.4858 },
+  千葉: { lat: 35.6073, lng: 140.1063 },
+  立川: { lat: 35.6982, lng: 139.4136 },
+  河口湖: { lat: 35.498, lng: 138.768 },
+  軽井沢: { lat: 36.348, lng: 138.636 },
+  轻井泽: { lat: 36.348, lng: 138.636 },
+  日光: { lat: 36.7199, lng: 139.6982 },
+  伊豆: { lat: 34.9765, lng: 138.9469 },
+  京都: { lat: 35.0116, lng: 135.7681 },
 };
 
-function hashText(text: string): number {
-  let h = 2166136261;
-  for (const ch of text) {
-    h ^= ch.codePointAt(0) ?? 0;
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-function fallbackAreaCoord(name: string): Omit<LatLng, "name"> {
-  const h = hashText(name);
-  const lat = 35.6812 + (((h & 0xff) / 255) - 0.5) * 0.16;
-  const lng = 139.7671 + ((((h >>> 8) & 0xff) / 255) - 0.5) * 0.22;
-  return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
-}
-
-function areaSpot(name: string, label: string): LatLng {
-  const coord = AREA_COORDS[name] ?? fallbackAreaCoord(name);
+/**
+ * Signature: `function areaSpot(name: string, label: string): LatLng | null`
+ * Purpose: Resolves a configured area to a verified static coordinate and refuses to invent coordinates for unknown place names.
+ */
+function areaSpot(name: string, label: string): LatLng | null {
+  const coord = AREA_COORDS[name];
+  if (!coord) return null;
   return { name: `${name} ${label}`, ...coord };
 }
 
+/**
+ * Signature: `function uniqueSpots(spots: LatLng[]): LatLng[]`
+ * Purpose: Removes exact duplicate location candidates while preserving their configured order.
+ */
 function uniqueSpots(spots: LatLng[]): LatLng[] {
   const seen = new Set<string>();
   const out: LatLng[] = [];
@@ -840,11 +876,31 @@ function uniqueSpots(spots: LatLng[]): LatLng[] {
   return out;
 }
 
+/**
+ * Signature: `function knownAreaSpotInText(text: string): LatLng | null`
+ * Purpose: Resolves an explicitly mentioned configured neighborhood or destination to its real coordinate for text/location consistency.
+ */
+export function knownAreaSpotInText(text: string): LatLng | null {
+  const normalized = text.toLowerCase();
+  const match = Object.keys(AREA_COORDS)
+    .filter((name) => /[^\x00-\x7F]/.test(name))
+    .sort((a, b) => b.length - a.length)
+    .find((name) => normalized.includes(name.toLowerCase()));
+  return match ? { name: match, ...AREA_COORDS[match] } : null;
+}
+
+/**
+ * Signature: `function personaSpots(persona: PersonaV2): LatLng[]`
+ * Purpose: Builds a persona's verified home, frequent, exploration, and hand-curated location candidate pool.
+ */
 export function personaSpots(persona: PersonaV2): LatLng[] {
-  return uniqueSpots([
+  const areaSpots = [
     areaSpot(persona.homeArea, "home area"),
     ...persona.frequentAreas.map((area) => areaSpot(area, "frequent area")),
     ...persona.explorationAreas.map((area) => areaSpot(area, "exploration area")),
+  ].filter((spot): spot is LatLng => spot !== null);
+  return uniqueSpots([
+    ...areaSpots,
     ...(PERSONA_SPOTS[persona.id] ?? []),
   ]);
 }

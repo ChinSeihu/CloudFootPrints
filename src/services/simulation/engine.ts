@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import {
   PERSONAS,
+  knownAreaSpotInText,
   personaGoals,
   personaLifeStageText,
   personaOf,
@@ -174,9 +175,14 @@ if (decision.post && coords.length) {
     decision.post.spotIndex >= 0 &&
     decision.post.spotIndex < coords.length
       ? decision.post.spotIndex
-      : 0;
+      : Math.floor(rnd() * coords.length);
 
-  const base = coords[idx];
+  const mentionedArea = knownAreaSpotInText([
+    note,
+    decision.post.imageSpec?.summary ?? "",
+    decision.post.imageSpec?.environment ?? "",
+  ].join(" "));
+  const base = mentionedArea ?? coords[idx];
 
   const jLat = base.lat + (rnd() - 0.5) * 0.00035;
   const jLng = base.lng + (rnd() - 0.5) * 0.00035;
