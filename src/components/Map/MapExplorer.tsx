@@ -501,6 +501,9 @@ export function MapExplorer() {
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [showStations, setShowStations] = useState(true);
+  const [showUserPosts, setShowUserPosts] = useState(() => typeof window === "undefined" || localStorage.getItem("tem_show_user_posts") !== "0");
+  const [showUserCheckins, setShowUserCheckins] = useState(() => typeof window === "undefined" || localStorage.getItem("tem_show_user_checkins") !== "0");
+  const showUserCheckinsRef = useRef(showUserCheckins);
   const [showTrail, setShowTrail] = useState(false); // 足迹轨迹线
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
   const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
@@ -556,6 +559,11 @@ export function MapExplorer() {
       map.setLayoutProperty("station-icon", "visibility", showStations ? "visible" : "none");
     }
   }, [mapReady, showStations]);
+
+  // 用户内容显隐：在进入 GeoJSON 聚合前过滤，避免隐藏内容仍计入聚合数量。
+  useEffect(() => {
+    localStorage.setItem("tem_show_user_posts", showUserPosts ? "1" : "0");
+  }, [showUserPosts]);
   // 足迹轨迹线开关
   useEffect(() => {
     const map = mapRef.current;
@@ -634,11 +642,16 @@ export function MapExplorer() {
     );
   }, [events, filters]);
 
-  // 用 ref 持有最新的 filtered，供 handleReady 设置初始数据
-  const filteredRef = useRef(filtered);
+  const mapEvents = useMemo(
+    () => showUserPosts ? filtered : filtered.filter((event) => event.sourceType !== "USER"),
+    [filtered, showUserPosts],
+  );
+
+  // 用 ref 持有最新的地图可见活动，供 handleReady 设置初始数据
+  const filteredRef = useRef(mapEvents);
   useEffect(() => {
-    filteredRef.current = filtered;
-  });
+    filteredRef.current = mapEvents;
+  }, [mapEvents]);
 
   const fetchEvents = useCallback(async (bbox: BBox) => {
     lastBboxRef.current = bbox;
@@ -702,16 +715,23 @@ export function MapExplorer() {
   // 更新活动 GeoJSON source
   useEffect(() => {
     const src = mapRef.current?.getSource("events") as maplibregl.GeoJSONSource | undefined;
-    src?.setData(eventsToFC(filtered));
-  }, [filtered]);
+    src?.setData(eventsToFC(mapEvents));
+  }, [mapEvents]);
 
   const updateCheckinSource = useCallback(() => {
     const src = mapRef.current?.getSource("checkins") as maplibregl.GeoJSONSource | undefined;
-    src?.setData(checkinsToFC(checkinsRef.current));
+    const visibleCheckins = showUserCheckinsRef.current ? checkinsRef.current : [];
+    src?.setData(checkinsToFC(visibleCheckins));
     const trail = mapRef.current?.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
-    trail?.setData(checkinTrailToFC(checkinsRef.current));
-    loadCheckinPhotos(mapRef.current, checkinsRef.current);
+    trail?.setData(checkinTrailToFC(visibleCheckins));
+    loadCheckinPhotos(mapRef.current, visibleCheckins);
   }, []);
+
+  useEffect(() => {
+    showUserCheckinsRef.current = showUserCheckins;
+    localStorage.setItem("tem_show_user_checkins", showUserCheckins ? "1" : "0");
+    updateCheckinSource();
+  }, [showUserCheckins, updateCheckinSource]);
 
   const fetchCheckins = useCallback(async () => {
     try {
@@ -2260,6 +2280,22 @@ export function MapExplorer() {
                 >
                   景点
                   <span className={`h-2.5 w-2.5 rounded-full ${showLandmarks ? "bg-blue-600" : "bg-neutral-300"}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUserCheckins((v) => !v)}
+                  className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserCheckins ? "bg-rose-50 text-rose-700" : "text-neutral-500 hover:bg-neutral-100"}`}
+                >
+                  用户足迹
+                  <span className={`h-2.5 w-2.5 rounded-full ${showUserCheckins ? "bg-rose-500" : "bg-neutral-300"}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUserPosts((v) => !v)}
+                  className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserPosts ? "bg-violet-50 text-violet-700" : "text-neutral-500 hover:bg-neutral-100"}`}
+                >
+                  用户发帖
+                  <span className={`h-2.5 w-2.5 rounded-full ${showUserPosts ? "bg-violet-500" : "bg-neutral-300"}`} />
                 </button>
                 <StyleSwitcher value={theme} onChange={setTheme} />
               </div>
