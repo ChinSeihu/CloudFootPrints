@@ -14,6 +14,7 @@ import { useAuth } from "@/components/Auth/AuthContext";
 import { EditCheckInDialog } from "@/components/Me/EditDialogs";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import { EventDetail } from "./EventDetail";
+import { TodayPicks } from "./TodayPicks";
 import type { CheckInDTO, CommentDTO, EventDTO, EventMetrics } from "@/lib/types";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
@@ -203,6 +204,10 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
   return kind === "posts" ? "暂时还没有用户发布" : "附近还没有公开足迹";
 }
 
+/**
+ * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }): React.ReactElement`
+ * Purpose: Renders the activity discovery and community feeds, including explainable daily recommendations.
+ */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }) {
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
@@ -394,7 +399,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const recommended = useMemo(() => {
     const flagged = rankedOfficial.filter((e) => e.featuredToday);
     const rest = rankedOfficial.filter((e) => !e.featuredToday);
-    return [...flagged, ...rest].slice(0, 6);
+    return [...flagged, ...rest].slice(0, 18);
   }, [rankedOfficial]);
 
   const activityList = useMemo(() => {
@@ -865,6 +870,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
       {tab === "OFFICIAL" ? (
         <div className="space-y-5">
+          {!hasOfficialSearch && <TodayPicks events={recommended} onOpen={openEvent} />}
           {hero && !hasOfficialSearch && (
             <section className="relative overflow-hidden rounded-lg bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
               <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
@@ -937,25 +943,6 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </div>
           </section>
 
-          <section className="pt-3">
-            <SectionTitle
-              title="为你推荐"
-              icon="spark"
-              tone="violet"
-              action={<span className="text-[10px] font-medium text-neutral-400">精选优先 · 近期与热度排序</span>}
-            />
-            <div className="grid grid-cols-3 items-start gap-2">
-              {recommended.slice(0, 3).map((ev) => (
-                <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="min-w-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-                  {ev.imageUrl && <div className="aspect-[4/3] bg-neutral-100"><img src={ev.imageUrl} alt="" className="h-full w-full object-cover" /></div>}
-                  <div className="p-2">
-                    <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900">{ev.title}</h3>
-                    <p className="mt-1 truncate text-[10px] text-neutral-400">{fmtDate(ev.startTime)}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
           </SectionBand>
           )}
 

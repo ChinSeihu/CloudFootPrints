@@ -319,6 +319,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - `EventDetail.tsx` — official-event/user-post detail and interaction UI.
 - `RecommendList.tsx` — activity/discovery feed, filters, check-in cards, and pagination.
+- `TodayPicks.tsx` — explainable daily top-three recommendations with device-local preference feedback.
 
 ### `src/lib/`
 
