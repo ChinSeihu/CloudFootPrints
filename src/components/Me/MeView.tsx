@@ -226,7 +226,7 @@ function MeContent() {
     ["checkins", "足迹", checkins.length],
     ["posts", "发帖", posts.length],
     ...(user?.isAdmin ? [["managed", "管理", managedPosts.length] as [Tab, string, number]] : []),
-    ["favorites", "收藏", favorites.length],
+    ["favorites", "想去", favorites.length],
     ["messages", "消息", notices.length + conversations.length],
   ];
 
@@ -535,9 +535,9 @@ function MeContent() {
           (() => {
             const list = favSub === "favorites" ? favorites : signups;
             return (
-              <>{/* 收藏 / 报名 二级切换 */}
+              <>{/* 想去 / 报名 二级切换 */}
                 <div className="flex gap-2 mb-3">
-                  {([["favorites", "收藏", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
+                  {([["favorites", "想去", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
                     const active = favSub === key;
                     return (
                       <button
@@ -557,7 +557,7 @@ function MeContent() {
                 {loaded && list.length === 0 && (
                   <p className="text-sm text-neutral-500">
                     {favSub === "favorites"
-                      ? "还没有收藏。在活动详情里点 🔖 收藏，就会出现在这里。"
+                      ? "还没有想去的活动。在推荐卡点“想去”，或在活动详情里收藏，就会出现在这里。"
                       : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
                   </p>
                 )}
@@ -594,7 +594,7 @@ function MeContent() {
                           {favSub === "favorites" ? (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
                               <IconBookmark filled className="w-3.5 h-3.5" />
-                              已收藏
+                              想去
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-2">

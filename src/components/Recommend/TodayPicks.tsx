@@ -3,10 +3,11 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/Auth/AuthContext";
 import { CATEGORY_META } from "@/lib/categories";
 import type { EventDTO } from "@/lib/types";
 
-type PickFeedback = "want" | "pass";
+type PickFeedback = "pass";
 
 const STORAGE_KEY = "tokyo-event-map:recommend-feedback:v1";
 
@@ -35,10 +36,13 @@ type TodayPicksProps = {
 
 /**
  * Signature: `function TodayPicks({ events, onOpen }: TodayPicksProps): React.ReactElement | null`
- * Purpose: Presents three explainable daily recommendations and persists lightweight preference feedback locally.
+ * Purpose: Presents three explainable daily recommendations, stores “want to go” as account favorites, and keeps dismissals device-local.
  */
 export function TodayPicks({ events, onOpen }: TodayPicksProps) {
+  const { user } = useAuth();
   const [feedback, setFeedback] = useState<Record<string, PickFeedback>>({});
+  const [favoriteEvents, setFavoriteEvents] = useState<EventDTO[]>([]);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -55,11 +59,29 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch("/api/favorites")
+      .then((response) => response.ok ? response.json() : { events: [] })
+      .then((data: { events?: EventDTO[] }) => {
+        if (!cancelled) setFavoriteEvents(Array.isArray(data.events) ? data.events : []);
+      })
+      .catch(() => {
+        if (!cancelled) setFavoriteEvents([]);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const favoriteIds = useMemo(
+    () => new Set(user ? favoriteEvents.map((event) => event.id) : []),
+    [favoriteEvents, user],
+  );
+
   const picks = useMemo(() => {
-    const wanted = events.filter((event) => feedback[event.id] === "want");
     const likedCategories = new Map<EventDTO["category"], number>();
     const likedTags = new Map<string, number>();
-    for (const event of wanted) {
+    for (const event of user ? favoriteEvents : []) {
       likedCategories.set(event.category, (likedCategories.get(event.category) ?? 0) + 1);
       for (const tag of event.tags) likedTags.set(tag, (likedTags.get(tag) ?? 0) + 1);
     }
@@ -70,7 +92,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         event,
         score:
           (events.length - index) * 2 +
-          (feedback[event.id] === "want" ? 40 : 0) +
+          (favoriteIds.has(event.id) ? 40 : 0) +
           (likedCategories.get(event.category) ?? 0) * 8 +
           event.tags.reduce((sum, tag) => sum + (likedTags.get(tag) ?? 0) * 3, 0),
       }))
@@ -88,7 +110,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
       }
     }
     return selected;
-  }, [events, feedback]);
+  }, [events, favoriteEvents, favoriteIds, feedback, user]);
 
   if (!ready || picks.length === 0) return null;
 
@@ -128,7 +150,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                 ? "关注度较高，热门时段可能拥挤"
                 : "费用与临时变更请以官方页面为准";
           const source = event.sourceUrl ? "官方来源" : event.trustLevel >= 2 ? "已核验活动" : "待补充来源";
-          const isWanted = feedback[event.id] === "want";
+          const isWanted = favoriteIds.has(event.id);
 
           return (
             <article key={event.id} className="overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10">
@@ -159,16 +181,40 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                 <button
                   type="button"
                   aria-pressed={isWanted}
-                  onClick={() => {
-                    const next = { ...feedback };
-                    if (isWanted) delete next[event.id];
-                    else next[event.id] = "want";
-                    setFeedback(next);
-                    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                  disabled={savingId === event.id}
+                  onClick={async () => {
+                    if (!user) {
+                      window.alert("请先到“我的”页面登录，再把活动加入想去");
+                      return;
+                    }
+                    if (savingId) return;
+                    setSavingId(event.id);
+                    setFavoriteEvents((current) => isWanted
+                      ? current.filter((item) => item.id !== event.id)
+                      : [event, ...current]);
+                    try {
+                      const response = await fetch(`/api/events/${encodeURIComponent(event.id)}/reactions`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "FAVORITE" }),
+                      });
+                      const data = await response.json().catch(() => null) as { active?: boolean; error?: string } | null;
+                      if (!response.ok) throw new Error(data?.error ?? "保存失败");
+                      setFavoriteEvents((current) => data?.active
+                        ? current.some((item) => item.id === event.id) ? current : [event, ...current]
+                        : current.filter((item) => item.id !== event.id));
+                    } catch (error) {
+                      setFavoriteEvents((current) => isWanted
+                        ? current.some((item) => item.id === event.id) ? current : [event, ...current]
+                        : current.filter((item) => item.id !== event.id));
+                      window.alert(error instanceof Error ? error.message : "保存失败，请稍后再试");
+                    } finally {
+                      setSavingId(null);
+                    }
                   }}
-                  className={`rounded-lg px-3 py-2 text-xs font-bold transition ${isWanted ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
+                  className={`rounded-lg px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${isWanted ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
                 >
-                  {isWanted ? "已想去 ✓" : "♡ 想去"}
+                  {savingId === event.id ? "保存中…" : isWanted ? "已想去 ✓" : "♡ 想去"}
                 </button>
                 <button
                   type="button"
