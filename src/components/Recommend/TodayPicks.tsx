@@ -166,7 +166,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
           return (
             <article
               key={event.id}
-              className={`overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10 transition-[transform,translate,scale,opacity] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${dismissingId === event.id ? "-translate-x-[calc(100vw+2rem)] -rotate-1 scale-95 opacity-0" : "translate-x-0 rotate-0 scale-100 opacity-100"}`}
+              className={`overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10 transition-[transform,translate,scale,opacity] duration-[380ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${dismissingId === event.id ? "-translate-x-[calc(100vw+2rem)] -rotate-1 scale-95 opacity-0" : "translate-x-0 rotate-0 scale-100 opacity-100"}`}
             >
               <button type="button" onClick={() => onOpen(event)} className="block w-full text-left">
                 <div className="relative aspect-[16/8] bg-slate-200">
@@ -241,7 +241,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                       setFeedback(next);
                       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                       setDismissingId(null);
-                    }, 500);
+                    }, 380);
                   }}
                   className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500 transition-[transform,background-color] duration-200 hover:bg-slate-200 active:scale-95 disabled:pointer-events-none"
                 >

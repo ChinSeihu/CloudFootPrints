@@ -569,7 +569,7 @@ function MeContent() {
                         : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
                   </p>
                 )}
-                <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
+                <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3">
                   {list.map((p) => {
                     const meta = CATEGORY_META[p.category];
                     return (
@@ -577,7 +577,7 @@ function MeContent() {
                         key={p.id}
                         type="button"
                         onClick={() => setSelected(p)}
-                        className="mb-3 w-full text-left break-inside-avoid rounded-xl border border-black/10 overflow-hidden bg-white hover:shadow-md transition-shadow"
+                        className="min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white text-left transition-shadow hover:shadow-md"
                       >
                         {p.imageUrl && (
                           // eslint-disable-next-line @next/next/no-img-element
