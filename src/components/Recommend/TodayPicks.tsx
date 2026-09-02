@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- extractor images come from many external domains, matching the existing discovery feed. */
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { CATEGORY_META } from "@/lib/categories";
@@ -39,10 +40,12 @@ type TodayPicksProps = {
  * Purpose: Presents three explainable daily recommendations, stores “want to go” as account favorites, and keeps dismissals device-local.
  */
 export function TodayPicks({ events, onOpen }: TodayPicksProps) {
+  const router = useRouter();
   const { user } = useAuth();
   const [feedback, setFeedback] = useState<Record<string, PickFeedback>>({});
   const [favoriteEvents, setFavoriteEvents] = useState<EventDTO[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -125,6 +128,13 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-sky-100 ring-1 ring-white/15">每日更新</span>
       </div>
 
+      {errorNotice ? (
+        <div role="status" className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 ring-1 ring-rose-200">
+          <span>{errorNotice}</span>
+          <button type="button" onClick={() => setErrorNotice(null)} aria-label="关闭提示" className="grid size-6 shrink-0 place-items-center rounded-full text-base text-rose-500 hover:bg-rose-100">×</button>
+        </div>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-3">
         {picks.map((event, index) => {
           const meta = CATEGORY_META[event.category];
@@ -184,10 +194,11 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                   disabled={savingId === event.id}
                   onClick={async () => {
                     if (!user) {
-                      window.alert("请先到“我的”页面登录，再把活动加入想去");
+                      router.push("/me");
                       return;
                     }
                     if (savingId) return;
+                    setErrorNotice(null);
                     setSavingId(event.id);
                     setFavoriteEvents((current) => isWanted
                       ? current.filter((item) => item.id !== event.id)
@@ -207,7 +218,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                       setFavoriteEvents((current) => isWanted
                         ? current.some((item) => item.id === event.id) ? current : [event, ...current]
                         : current.filter((item) => item.id !== event.id));
-                      window.alert(error instanceof Error ? error.message : "保存失败，请稍后再试");
+                      setErrorNotice(error instanceof Error ? error.message : "保存失败，请稍后再试");
                     } finally {
                       setSavingId(null);
                     }
