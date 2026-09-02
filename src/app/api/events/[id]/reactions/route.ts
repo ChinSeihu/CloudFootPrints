@@ -19,7 +19,10 @@ export async function GET(_req: Request, ctx: Ctx) {
   }
 }
 
-// POST /api/events/[id]/reactions  body: { type: "LIKE" | "FAVORITE" } —— 切换
+/**
+ * Signature: `async function POST(request: Request, ctx: Ctx): Promise<NextResponse>`
+ * Purpose: Toggles a LIKE, WANT, FAVORITE, or SIGNUP reaction for the authenticated user.
+ */
 export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const userId = await getCurrentUserId();
@@ -32,8 +35,8 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
   const type = (body as { type?: unknown })?.type;
-  if (type !== ReactionType.LIKE && type !== ReactionType.FAVORITE && type !== ReactionType.SIGNUP) {
-    return NextResponse.json({ error: "type 必须是 LIKE / FAVORITE / SIGNUP" }, { status: 400 });
+  if (type !== ReactionType.LIKE && type !== ReactionType.WANT && type !== ReactionType.FAVORITE && type !== ReactionType.SIGNUP) {
+    return NextResponse.json({ error: "type 必须是 LIKE / WANT / FAVORITE / SIGNUP" }, { status: 400 });
   }
 
   try {

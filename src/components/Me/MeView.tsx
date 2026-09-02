@@ -25,16 +25,20 @@ function fmtDate(d: string | null): string {
   return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// 登录后的个人页内容：资料卡 + 打卡照片拼图 + 打卡/发帖/收藏/消息 tab。
+/**
+ * Signature: `function MeContent(): React.ReactElement`
+ * Purpose: Renders the signed-in profile with posts, check-ins, activity collections, and messages.
+ */
 function MeContent() {
   const router = useRouter();
   const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("checkins");
-  const [favSub, setFavSub] = useState<"favorites" | "signups">("favorites");
+  const [favSub, setFavSub] = useState<"wants" | "favorites" | "signups">("wants");
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
   const [managedPosts, setManagedPosts] = useState<EventDTO[]>([]);
+  const [wants, setWants] = useState<EventDTO[]>([]);
   const [favorites, setFavorites] = useState<EventDTO[]>([]);
   const [signups, setSignups] = useState<EventDTO[]>([]);
   const [notices, setNotices] = useState<ReplyNoticeDTO[]>([]);
@@ -53,9 +57,10 @@ function MeContent() {
 
   useEffect(() => {
     (async () => {
-      const [c, p, f, s, n, m] = await Promise.all([
+      const [c, p, w, f, s, n, m] = await Promise.all([
         fetch("/api/checkins").then((r) => (r.ok ? r.json() : { checkins: [] })).catch(() => ({ checkins: [] })),
         fetch("/api/events?mine=1").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
+        fetch("/api/wants").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/favorites").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/signups").then((r) => (r.ok ? r.json() : { events: [] })).catch(() => ({ events: [] })),
         fetch("/api/replies").then((r) => (r.ok ? r.json() : { notices: [] })).catch(() => ({ notices: [] })),
@@ -63,6 +68,7 @@ function MeContent() {
       ]);
       setCheckins(c.checkins ?? []);
       setPosts(p.events ?? []);
+      setWants(w.events ?? []);
       setFavorites(f.events ?? []);
       setSignups(s.events ?? []);
       setNotices(n.notices ?? []);
@@ -226,7 +232,7 @@ function MeContent() {
     ["checkins", "足迹", checkins.length],
     ["posts", "发帖", posts.length],
     ...(user?.isAdmin ? [["managed", "管理", managedPosts.length] as [Tab, string, number]] : []),
-    ["favorites", "想去", favorites.length],
+    ["favorites", "活动", new Set([...wants, ...favorites, ...signups].map((event) => event.id)).size],
     ["messages", "消息", notices.length + conversations.length],
   ];
 
@@ -533,11 +539,11 @@ function MeContent() {
           </>
         ) : tab === "favorites" ? (
           (() => {
-            const list = favSub === "favorites" ? favorites : signups;
+            const list = favSub === "wants" ? wants : favSub === "favorites" ? favorites : signups;
             return (
-              <>{/* 想去 / 报名 二级切换 */}
+              <>{/* 想去 / 收藏 / 报名 二级切换 */}
                 <div className="flex gap-2 mb-3">
-                  {([["favorites", "想去", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
+                  {([["wants", "想去", wants.length], ["favorites", "收藏", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
                     const active = favSub === key;
                     return (
                       <button
@@ -556,9 +562,11 @@ function MeContent() {
                 </div>
                 {loaded && list.length === 0 && (
                   <p className="text-sm text-neutral-500">
-                    {favSub === "favorites"
-                      ? "还没有想去的活动。在推荐卡点“想去”，或在活动详情里收藏，就会出现在这里。"
-                      : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
+                    {favSub === "wants"
+                      ? "还没有想去的活动。在推荐卡点“想去”，就会出现在这里。"
+                      : favSub === "favorites"
+                        ? "还没有收藏。在活动详情里点收藏，就会出现在这里。"
+                        : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
                   </p>
                 )}
                 <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
@@ -591,10 +599,15 @@ function MeContent() {
                           {p.description && (
                             <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
                           )}
-                          {favSub === "favorites" ? (
+                          {favSub === "wants" ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-rose-500 mt-2">
+                              <IconHeart filled className="w-3.5 h-3.5" />
+                              想去
+                            </span>
+                          ) : favSub === "favorites" ? (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
                               <IconBookmark filled className="w-3.5 h-3.5" />
-                              想去
+                              已收藏
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-2">

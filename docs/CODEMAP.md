@@ -68,7 +68,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Domain logic: `src/services/comments.ts`, `reactions.ts`, `replies.ts`.
 - Event endpoints: `src/app/api/events/[id]/comments`, `reactions`, and `click`.
 - Check-in endpoints: `src/app/api/checkins/[id]/comments` and `reactions`.
-- Cross-page collections: `src/app/api/favorites/route.ts`, `signups/route.ts`.
+- Cross-page activity collections: `src/app/api/wants/route.ts`, `favorites/route.ts`, `signups/route.ts`.
 - UI consumers: `src/components/Recommend/EventDetail.tsx`, `RecommendList.tsx`.
 
 ### AI guide

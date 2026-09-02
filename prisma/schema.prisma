@@ -28,6 +28,7 @@ enum SourceType {
 
 enum ReactionType {
   LIKE // 点赞
+  WANT // 想去
   FAVORITE // 收藏
   SIGNUP // 报名（仅当 Event.signupEnabled 时有意义）
 }

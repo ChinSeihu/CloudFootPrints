@@ -43,7 +43,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [feedback, setFeedback] = useState<Record<string, PickFeedback>>({});
-  const [favoriteEvents, setFavoriteEvents] = useState<EventDTO[]>([]);
+  const [wantedEvents, setWantedEvents] = useState<EventDTO[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
@@ -66,26 +66,26 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    fetch("/api/favorites")
+    fetch("/api/wants")
       .then((response) => response.ok ? response.json() : { events: [] })
       .then((data: { events?: EventDTO[] }) => {
-        if (!cancelled) setFavoriteEvents(Array.isArray(data.events) ? data.events : []);
+        if (!cancelled) setWantedEvents(Array.isArray(data.events) ? data.events : []);
       })
       .catch(() => {
-        if (!cancelled) setFavoriteEvents([]);
+        if (!cancelled) setWantedEvents([]);
       });
     return () => { cancelled = true; };
   }, [user]);
 
-  const favoriteIds = useMemo(
-    () => new Set(user ? favoriteEvents.map((event) => event.id) : []),
-    [favoriteEvents, user],
+  const wantedIds = useMemo(
+    () => new Set(user ? wantedEvents.map((event) => event.id) : []),
+    [wantedEvents, user],
   );
 
   const picks = useMemo(() => {
     const likedCategories = new Map<EventDTO["category"], number>();
     const likedTags = new Map<string, number>();
-    for (const event of user ? favoriteEvents : []) {
+    for (const event of user ? wantedEvents : []) {
       likedCategories.set(event.category, (likedCategories.get(event.category) ?? 0) + 1);
       for (const tag of event.tags) likedTags.set(tag, (likedTags.get(tag) ?? 0) + 1);
     }
@@ -96,7 +96,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         event,
         score:
           (events.length - index) * 2 +
-          (favoriteIds.has(event.id) ? 40 : 0) +
+          (wantedIds.has(event.id) ? 40 : 0) +
           (likedCategories.get(event.category) ?? 0) * 8 +
           event.tags.reduce((sum, tag) => sum + (likedTags.get(tag) ?? 0) * 3, 0),
       }))
@@ -114,7 +114,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
       }
     }
     return selected;
-  }, [events, favoriteEvents, favoriteIds, feedback, user]);
+  }, [events, wantedEvents, wantedIds, feedback, user]);
 
   if (!ready || picks.length === 0) return null;
 
@@ -161,12 +161,12 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                 ? "关注度较高，热门时段可能拥挤"
                 : "费用与临时变更请以官方页面为准";
           const source = event.sourceUrl ? "官方来源" : event.trustLevel >= 2 ? "已核验活动" : "待补充来源";
-          const isWanted = favoriteIds.has(event.id);
+          const isWanted = wantedIds.has(event.id);
 
           return (
             <article
               key={event.id}
-              className={`overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10 transition-[transform,opacity] duration-300 ease-in-out ${dismissingId === event.id ? "translate-x-[110%] scale-95 opacity-0" : "translate-x-0 scale-100 opacity-100"}`}
+              className={`overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10 transition-[transform,translate,scale,opacity] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${dismissingId === event.id ? "-translate-x-[calc(100vw+2rem)] -rotate-1 scale-95 opacity-0" : "translate-x-0 rotate-0 scale-100 opacity-100"}`}
             >
               <button type="button" onClick={() => onOpen(event)} className="block w-full text-left">
                 <div className="relative aspect-[16/8] bg-slate-200">
@@ -204,22 +204,22 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                     if (savingId) return;
                     setErrorNotice(null);
                     setSavingId(event.id);
-                    setFavoriteEvents((current) => isWanted
+                    setWantedEvents((current) => isWanted
                       ? current.filter((item) => item.id !== event.id)
                       : [event, ...current]);
                     try {
                       const response = await fetch(`/api/events/${encodeURIComponent(event.id)}/reactions`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ type: "FAVORITE" }),
+                        body: JSON.stringify({ type: "WANT" }),
                       });
                       const data = await response.json().catch(() => null) as { active?: boolean; error?: string } | null;
                       if (!response.ok) throw new Error(data?.error ?? "保存失败");
-                      setFavoriteEvents((current) => data?.active
+                      setWantedEvents((current) => data?.active
                         ? current.some((item) => item.id === event.id) ? current : [event, ...current]
                         : current.filter((item) => item.id !== event.id));
                     } catch (error) {
-                      setFavoriteEvents((current) => isWanted
+                      setWantedEvents((current) => isWanted
                         ? current.some((item) => item.id === event.id) ? current : [event, ...current]
                         : current.filter((item) => item.id !== event.id));
                       setErrorNotice(error instanceof Error ? error.message : "保存失败，请稍后再试");
@@ -241,7 +241,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                       setFeedback(next);
                       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                       setDismissingId(null);
-                    }, 300);
+                    }, 500);
                   }}
                   className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500 transition-[transform,background-color] duration-200 hover:bg-slate-200 active:scale-95 disabled:pointer-events-none"
                 >

@@ -100,6 +100,14 @@ export function listFavoriteEvents(userId: string) {
   return listEventsByReaction(userId, ReactionType.FAVORITE);
 }
 
+/**
+ * Signature: `function listWantedEvents(userId: string): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Lists the user's want-to-go activities in newest-first order using the dedicated WANT reaction.
+ */
+export function listWantedEvents(userId: string) {
+  return listEventsByReaction(userId, ReactionType.WANT);
+}
+
 // 当前用户报名的活动。
 export function listSignupEvents(userId: string) {
   return listEventsByReaction(userId, ReactionType.SIGNUP);
