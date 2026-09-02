@@ -17,7 +17,7 @@ async function loadRefImage(refIndex: number): Promise<string | null> {
 }
 
 // Image Agent（V7 Phase 4）：把"生活"转成生活化照片。统一 ImageProvider 接口，
-// 当前可选 provider：none（默认，不出图）/ agnes（外部生成 API，按 env 接入）。
+// 当前可选 provider：none（默认，不出图）/ agnes / gemini / openai。
 // 设计目标：接口先行、provider 可替换；外观以 public/personV2.png + personas.appearance 为基准；
 // 默认主观镜头（手机随手拍），仅摄影强者用客观构图。生成图统一上传 Cloudinary（CORS + 持久）。
 
@@ -929,6 +929,68 @@ class AgnesProvider implements ImageProvider {
   }
 }
 
+/**
+ * OpenAI GPT Image provider using generations for text-only requests and edits for identity references.
+ */
+class OpenAIImageProvider implements ImageProvider {
+  readonly name = "openai";
+
+  /**
+   * Signature: `async generate(prompt: string, refImage?: string): Promise<string | null>`
+   * Purpose: Generates a PNG with GPT Image 2, switching to multipart image edits when an identity reference is present.
+   */
+  async generate(prompt: string, refImage?: string): Promise<string | null> {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) return null;
+
+    const base = (process.env.OPENAI_IMAGE_API_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+    const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
+    const size = process.env.OPENAI_IMAGE_SIZE || "1024x1024";
+    const quality = process.env.OPENAI_IMAGE_QUALITY || "medium";
+
+    try {
+      let response: Response;
+      const reference = refImage?.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+
+      if (reference) {
+        const form = new FormData();
+        form.append("model", model);
+        form.append("prompt", prompt);
+        form.append("size", size);
+        form.append("quality", quality);
+        form.append("output_format", "png");
+        form.append(
+          "image[]",
+          new Blob([Uint8Array.from(Buffer.from(reference[2], "base64"))], { type: reference[1] }),
+          "identity-reference.png",
+        );
+        response = await fetchT(`${base}/images/edits`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}` },
+          body: form,
+        }, 180000);
+      } else {
+        response = await fetchT(`${base}/images/generations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({ model, prompt, size, quality, output_format: "png", n: 1 }),
+        }, 180000);
+      }
+
+      if (!response.ok) {
+        console.warn(`[image-generation] OpenAI request failed status=${response.status}`);
+        return null;
+      }
+      const data = (await response.json()) as { data?: Array<{ b64_json?: string }> };
+      const encoded = data.data?.[0]?.b64_json;
+      return encoded ? `data:image/png;base64,${encoded}` : null;
+    } catch (error) {
+      console.warn("[image-generation] OpenAI request failed", error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
+}
+
 // ── Provider：Google Gemini 2.5 Flash Image ──
 // 鉴权 = x-goog-api-key 头（已实测确认）；返回图片在 candidates[0].content.parts[].inlineData(base64)。
 // 需要 env：IMAGE_PROVIDER=gemini、GEMINI_API_KEY、(可选) GEMINI_IMAGE_MODEL。
@@ -966,8 +1028,13 @@ class GeminiProvider implements ImageProvider {
   }
 }
 
+/**
+ * Signature: `function getImageProvider(): ImageProvider`
+ * Purpose: Resolves the configured image backend without changing the shared generation pipeline.
+ */
 export function getImageProvider(): ImageProvider {
   const p = (process.env.IMAGE_PROVIDER || "none").toLowerCase();
+  if (p === "openai") return new OpenAIImageProvider();
   if (p === "gemini") return new GeminiProvider();
   if (p === "agnes") return new AgnesProvider();
   return new NoopProvider();
