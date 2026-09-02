@@ -931,13 +931,14 @@ class AgnesProvider implements ImageProvider {
 
 /**
  * OpenAI GPT Image provider using generations for text-only requests and edits for identity references.
+ * Quota or rate-limit responses fall back to the previously configured Agnes image model.
  */
 class OpenAIImageProvider implements ImageProvider {
   readonly name = "openai";
 
   /**
    * Signature: `async generate(prompt: string, refImage?: string): Promise<string | null>`
-   * Purpose: Generates a PNG with GPT Image 2, switching to multipart image edits when an identity reference is present.
+   * Purpose: Generates a PNG with GPT Image 2, uses multipart edits for identity references, and falls back to Agnes on HTTP 429.
    */
   async generate(prompt: string, refImage?: string): Promise<string | null> {
     const key = process.env.OPENAI_API_KEY;
@@ -978,6 +979,10 @@ class OpenAIImageProvider implements ImageProvider {
       }
 
       if (!response.ok) {
+        if (response.status === 429) {
+          console.warn("[image-generation] OpenAI quota or rate limit reached; falling back to Agnes");
+          return new AgnesProvider().generate(prompt, refImage);
+        }
         console.warn(`[image-generation] OpenAI request failed status=${response.status}`);
         return null;
       }

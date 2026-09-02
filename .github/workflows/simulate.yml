@@ -20,6 +20,15 @@ on:
         description: "回填结束日 (YYYY-MM-DD)"
         required: false
         default: ""
+      image_model:
+        description: "生图模型（OpenAI 无额度或限流时会自动降级到 Agnes）"
+        required: true
+        type: choice
+        default: "gpt-image-2"
+        options:
+          - "gpt-image-2"
+          - "agnes-image-2.1-flash"
+          - "none"
 
 # 避免与上一次未结束的运行重叠
 concurrency:
@@ -66,12 +75,27 @@ jobs:
           IN_DATE: ${{ github.event.inputs.date }}
           IN_FROM: ${{ github.event.inputs.from }}
           IN_TO: ${{ github.event.inputs.to }}
+          IN_IMAGE_MODEL: ${{ github.event.inputs.image_model }}
         run: |
           ARGS=""
+          case "$IN_IMAGE_MODEL" in
+            "gpt-image-2")
+              export IMAGE_PROVIDER="openai"
+              export OPENAI_IMAGE_MODEL="gpt-image-2"
+              ;;
+            "agnes-image-2.1-flash")
+              export IMAGE_PROVIDER="agnes"
+              export AGNES_MODEL="agnes-image-2.1-flash"
+              ;;
+            "none")
+              export IMAGE_PROVIDER="none"
+              ;;
+          esac
           if [ -n "$IN_FROM" ] && [ -n "$IN_TO" ]; then
             ARGS="--from=$IN_FROM --to=$IN_TO"
           elif [ -n "$IN_DATE" ]; then
             ARGS="--date=$IN_DATE"
           fi
           echo "运行参数: ${ARGS:-(今天)}"
+          echo "生图模型: ${IN_IMAGE_MODEL:-$IMAGE_PROVIDER（定时任务配置）}"
           npx tsx scripts/sim-run.ts $ARGS

@@ -5,6 +5,7 @@
 ### 增加 OpenAI GPT Image 2 生图选项
 - 社区人物配图新增 `IMAGE_PROVIDER=openai`，默认使用 `gpt-image-2`；文生图调用 generations，身份参考图调用高保真 edits，并沿用现有质检、重试和 Cloudinary 持久化流程。
 - 新增 OpenAI 图片 API 地址、模型、尺寸与质量环境配置，并接入社区推演 GitHub Actions secrets。
+- 社区推演手动 Action 新增生图模型下拉选择；选择 OpenAI 时如遇额度不足或限流（HTTP 429），自动降级到原有 `agnes-image-2.1-flash`。
 
 ### 增加“今天适合你的 3 个地方”
 - 活动发现页新增每日三选推荐，以活动主题和体验为核心展示推荐理由、注意事项、来源状态与虚拟人物补充视角。
