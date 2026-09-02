@@ -18,6 +18,16 @@ const ADVISORS: Partial<Record<EventDTO["category"], { name: string; avatar: str
   SPORTS: { name: "健太", avatar: "/avatars/persona-v2/03.png", angle: "户外行动派" },
 };
 
+const CONTENT_REASONS: Record<EventDTO["category"], string> = {
+  EXHIBITION: "适合留出一段完整时间，慢慢看展，也能顺便探索周边",
+  MARKET: "适合边走边逛，在摊位与街区里发现计划外的小惊喜",
+  LIVE: "适合用一场现场演出切换日常节奏，感受东京当下的声音",
+  FESTIVAL: "适合体验季节氛围和在地文化，现场感通常比照片更丰富",
+  TALK: "适合对主题做一次集中了解，也可能遇见兴趣相近的人",
+  SPORTS: "适合想活动身体、换个环境度过半天的人",
+  OTHER: "适合作为今天探索东京的新鲜一站，不必沿用常规路线",
+};
+
 type TodayPicksProps = {
   events: EventDTO[];
   onOpen: (event: EventDTO) => void;
@@ -88,7 +98,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">Today in Tokyo</p>
           <h2 className="mt-1 text-lg font-black tracking-tight">今天适合你的 3 个地方</h2>
-          <p className="mt-1 text-[11px] text-slate-300">你的选择会影响下次推荐，仅保存在当前设备</p>
+          <p className="mt-1 text-[11px] text-slate-300">从东京近期活动中，挑出三个值得出发的灵感</p>
         </div>
         <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-sky-100 ring-1 ring-white/15">每日更新</span>
       </div>
@@ -99,12 +109,10 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
           const advisor = ADVISORS[event.category] ?? { name: "葵", avatar: "/avatars/persona-v2/02.png", angle: "东京生活探索者" };
           const start = event.startTime ? new Date(event.startTime) : null;
           const reason = event.featuredToday
-            ? "今日编辑精选，信息完整度和近期关注度较高"
+            ? `今天值得优先留意：${CONTENT_REASONS[event.category]}`
             : event.tags.length > 0
-              ? `与你可能喜欢的「${event.tags[0]}」主题相关`
-              : event.trustLevel >= 2
-                ? `信息完整度较高的${meta.label}活动`
-                : `${meta.label}类别中近期关注度较高`;
+              ? `围绕「${event.tags[0]}」展开，${CONTENT_REASONS[event.category]}`
+              : CONTENT_REASONS[event.category];
           const caution = !event.startTime
             ? "具体举办时间仍待确认"
             : event.signupEnabled
