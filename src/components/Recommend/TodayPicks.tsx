@@ -108,10 +108,17 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
           const meta = CATEGORY_META[event.category];
           const advisor = ADVISORS[event.category] ?? { name: "葵", avatar: "/avatars/persona-v2/02.png", angle: "东京生活探索者" };
           const start = event.startTime ? new Date(event.startTime) : null;
-          const reason = event.featuredToday
-            ? `今天值得优先留意：${CONTENT_REASONS[event.category]}`
+          const preferredContent = event.summary && event.summary.trim().length >= 24
+            ? event.summary
+            : event.description ?? event.summary;
+          const contentSummary = preferredContent
+            ?.replace(/\s+/g, " ")
+            .trim()
+            .replace(/[。！？!?]+$/, "");
+          const reason = contentSummary
+            ? `${contentSummary.slice(0, 76)}${contentSummary.length > 76 ? "…" : ""}`
             : event.tags.length > 0
-              ? `围绕「${event.tags[0]}」展开，${CONTENT_REASONS[event.category]}`
+              ? `围绕「${event.tags.slice(0, 2).join("、")}」展开，${CONTENT_REASONS[event.category]}`
               : CONTENT_REASONS[event.category];
           const caution = !event.startTime
             ? "具体举办时间仍待确认"
