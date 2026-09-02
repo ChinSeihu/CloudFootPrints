@@ -48,8 +48,8 @@ jobs:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           AGNES_MODEL: ${{ secrets.AGNES_MODEL }}
           AGNES_API_URL: ${{ secrets.AGNES_API_URL }}
-          # Agnes 当前图生图会复制人物和参考图道具，暂时使用文生图 + 严格视觉质检。
-          IMAGE_IDENTITY_REFERENCE: "false"
+          # 使用人物身份参考图锁定脸和发型；场景、服装与道具仍由每日 prompt 决定。
+          IMAGE_IDENTITY_REFERENCE: "true"
           # LLM = DeepSeek（OpenAI 兼容端点）；与 extract 复用同一 LLM_API_KEY secret。
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_PROVIDER: deepseek
