@@ -45,6 +45,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const [feedback, setFeedback] = useState<Record<string, PickFeedback>>({});
   const [favoriteEvents, setFavoriteEvents] = useState<EventDTO[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -163,7 +164,10 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
           const isWanted = favoriteIds.has(event.id);
 
           return (
-            <article key={event.id} className="overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10">
+            <article
+              key={event.id}
+              className={`overflow-hidden rounded-xl bg-white text-slate-950 shadow-lg ring-1 ring-white/10 transition-[transform,opacity] duration-300 ease-in-out ${dismissingId === event.id ? "translate-x-[110%] scale-95 opacity-0" : "translate-x-0 scale-100 opacity-100"}`}
+            >
               <button type="button" onClick={() => onOpen(event)} className="block w-full text-left">
                 <div className="relative aspect-[16/8] bg-slate-200">
                   {event.imageUrl ? (
@@ -223,18 +227,23 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                       setSavingId(null);
                     }
                   }}
-                  className={`rounded-lg px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${isWanted ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
+                  className={`rounded-lg px-3 py-2 text-xs font-bold transition-[transform,background-color,color] duration-200 active:scale-95 disabled:pointer-events-none ${isWanted ? "scale-[1.03] bg-rose-500 text-white" : "scale-100 bg-rose-50 text-rose-600 hover:bg-rose-100"}`}
                 >
-                  {savingId === event.id ? "保存中…" : isWanted ? "已想去 ✓" : "♡ 想去"}
+                  {isWanted ? "♥ 已想去" : "♡ 想去"}
                 </button>
                 <button
                   type="button"
+                  disabled={dismissingId !== null}
                   onClick={() => {
-                    const next = { ...feedback, [event.id]: "pass" as const };
-                    setFeedback(next);
-                    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                    setDismissingId(event.id);
+                    window.setTimeout(() => {
+                      const next = { ...feedback, [event.id]: "pass" as const };
+                      setFeedback(next);
+                      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                      setDismissingId(null);
+                    }, 300);
                   }}
-                  className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-200"
+                  className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500 transition-[transform,background-color] duration-200 hover:bg-slate-200 active:scale-95 disabled:pointer-events-none"
                 >
                   不感兴趣
                 </button>
