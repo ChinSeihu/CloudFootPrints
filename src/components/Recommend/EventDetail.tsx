@@ -100,6 +100,10 @@ function TinyLoading({ label = "加载中" }: { label?: string }) {
   );
 }
 
+/**
+ * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
+ * Purpose: Renders official activities, user activities, and life updates with type-appropriate metadata and actions.
+ */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
   const { openGuide } = useGuide();
@@ -583,6 +587,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${event.postKind === "LIFE" ? "bg-violet-50 text-violet-600" : "bg-indigo-50 text-indigo-600"}`}>
+                      {event.postKind === "LIFE" ? "生活动态" : "用户活动"}
+                    </span>
                     {event.author?.id && user?.id !== event.author.id && (
                       <button type="button" onClick={startDirectMessage} className="text-[11px] font-semibold text-violet-600">私信</button>
                     )}
@@ -670,7 +677,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                       <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
                       <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
                     </span>
-                    <span >活动时间：{fmtCompact(event.startTime)}{event.endTime ? ` - ${fmtCompact(event.endTime)}` : ""}</span>
+                    {event.postKind === "LIFE" ? (
+                      <span>发布时间：{event.createdAt ? fmtCompact(event.createdAt) : ""}</span>
+                    ) : (
+                      <span>活动时间：{fmtCompact(event.startTime)}{event.endTime ? ` - ${fmtCompact(event.endTime)}` : ""}</span>
+                    )}
                   </section>
                   <button type="button" onClick={jumpToMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
                     <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

@@ -10,6 +10,7 @@ import { DateRangeDropdown } from "./DateRangeDropdown";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type PostDraft = {
+  kind: "LIFE" | "ACTIVITY";
   lat: number;
   lng: number;
   title: string;
@@ -25,6 +26,7 @@ export type PostDraft = {
 };
 
 type Props = {
+  kind: "LIFE" | "ACTIVITY";
   lat: number;
   lng: number;
   eventId?: string | null;
@@ -37,7 +39,11 @@ type Props = {
 const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
 // 锚点发帖："这里有个活动"——在地图上标记并发布一个活动（sourceType=USER）。
-export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
+/**
+ * Signature: `function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props): React.JSX.Element`
+ * Purpose: Collects either a location-based life update or a time-bounded user activity without conflating their time semantics.
+ */
+export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<EventCategory>("OTHER");
   const [description, setDescription] = useState("");
@@ -84,9 +90,13 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
     setTags((prev) => prev.filter((x) => x !== t));
   }
 
+  /**
+   * Signature: `async function handleSubmit(): Promise<void>`
+   * Purpose: Validates fields by post kind, uploads optional images, and submits the normalized draft.
+   */
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
-    if (!start) {
+    if (kind === "ACTIVITY" && !start) {
       setError("请选择活动日期");
       return;
     }
@@ -112,6 +122,7 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
         }
       }
       await onSubmit({
+        kind,
         lat,
         lng,
         title,
@@ -119,10 +130,10 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
         description,
         venueName,
         imageUrls,
-        startTime: toISO(start),
-        endTime: toISO(end),
+        startTime: kind === "ACTIVITY" ? toISO(start) : null,
+        endTime: kind === "ACTIVITY" ? toISO(end) : null,
         tags,
-        signupEnabled,
+        signupEnabled: kind === "ACTIVITY" && signupEnabled,
         eventId: eventId ?? null,
       });
     } finally {
@@ -131,20 +142,25 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
   }
 
   return (
-    <BottomSheet title="发布活动" hint={targetTitle ? `关联到「${targetTitle}」` : "把附近正在发生或即将开始的活动分享给大家"} onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet
+      title={kind === "ACTIVITY" ? "发布活动" : "发布动态"}
+      hint={targetTitle ? `关联到「${targetTitle}」` : kind === "ACTIVITY" ? "把附近正在发生或即将开始的活动分享给大家" : "分享此刻与这个地点有关的见闻"}
+      onClose={onCancel}
+      onSnapChange={onSnapChange}
+    >
       <div className="mb-5">
-        <label className={labelCls}>活动名称 <span className="text-red-400">*</span></label>
+        <label className={labelCls}>{kind === "ACTIVITY" ? "活动名称" : "动态标题"} <span className="text-red-400">*</span></label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={50}
           className={`${fieldCls} h-12 rounded-2xl bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]`}
-          placeholder="例如：下北沢古着市集"
+          placeholder={kind === "ACTIVITY" ? "例如：下北沢古着市集" : "例如：傍晚在河边散步"}
         />
       </div>
 
       <div className="mb-5">
-        <label className={labelCls}>分类</label>
+        <label className={labelCls}>{kind === "ACTIVITY" ? "活动分类" : "内容分类"}</label>
         <div className="grid grid-cols-4 gap-2">
           {EVENT_CATEGORIES.map((c) => {
             const active = c === category;
@@ -176,10 +192,13 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
         </div>
       </div>
 
-      <div className="mb-5">
-        <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
-        <DateRangeDropdown start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
-      </div>
+      {kind === "ACTIVITY" && (
+        <div className="mb-5">
+          <label className={labelCls}>活动时间 <span className="text-red-400">*</span></label>
+          <DateRangeDropdown start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
+          <p className="mt-1.5 text-[11px] text-neutral-500">未填写结束时间时，开始时间同时作为地图上的截止时间。</p>
+        </div>
+      )}
 
       {/* 图片（可选，可多张，客户端压缩后上传图床） */}
       <div className="mb-6">
@@ -270,7 +289,7 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
       </div>
 
       {/* 报名模式 */}
-      <div className="mb-5">
+      {kind === "ACTIVITY" && <div className="mb-5">
         <button
           type="button"
           onClick={() => setSignupEnabled((v) => !v)}
@@ -284,7 +303,7 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${signupEnabled ? "left-[1.125rem]" : "left-0.5"}`} />
           </span>
         </button>
-      </div>
+      </div>}
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
@@ -300,10 +319,10 @@ export function PostDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit,
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || !title.trim() || !start}
+          disabled={submitting || !title.trim() || (kind === "ACTIVITY" && !start)}
           className="flex h-[3.25rem] flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.28)] transition active:scale-[0.99] disabled:opacity-40"
         >
-          {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : "发布活动"}
+          {phase === "uploading" ? "上传图片…" : submitting ? "发布中…" : kind === "ACTIVITY" ? "发布活动" : "发布动态"}
         </button>
       </div>
     </BottomSheet>

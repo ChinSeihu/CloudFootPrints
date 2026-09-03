@@ -416,7 +416,7 @@ function MeContent() {
                       <div className="px-3 pt-3">
                         <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                           <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                          {meta.label} · {fmtDate(p.startTime)}
+                          {p.postKind === "LIFE" ? "生活动态" : "用户活动"} · {meta.label} · {fmtDate(p.postKind === "LIFE" ? p.createdAt ?? null : p.startTime)}
                         </div>
                         <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
                         {p.venueName && (
@@ -725,7 +725,10 @@ function MeContent() {
   );
 }
 
-// 个人页：未登录显示登录/注册，登录后显示资料 + 足迹。
+/**
+ * Signature: `function MeView(): React.JSX.Element`
+ * Purpose: Renders authentication, profile content, footprints, and type-aware LIFE/ACTIVITY post management.
+ */
 export function MeView() {
   const { user, loading } = useAuth();
   if (loading) {

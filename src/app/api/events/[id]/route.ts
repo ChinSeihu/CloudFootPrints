@@ -27,6 +27,7 @@ export async function GET(_req: Request, ctx: Ctx) {
         startTime: e.startTime ? e.startTime.toISOString() : null,
         endTime: e.endTime ? e.endTime.toISOString() : null,
         sourceType: e.sourceType,
+        postKind: e.postKind,
         sourceUrl: e.sourceUrl,
         trustLevel: e.trustLevel,
         tags: e.tags ?? [],
@@ -42,7 +43,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   }
 }
 
-// PATCH /api/events/[id] —— 作者编辑自己发布的 USER 活动（仅文字信息，不动坐标/图片）
+// PATCH /api/events/[id] —— 作者编辑自己的生活动态或用户活动（不动坐标）。
 export async function PATCH(req: Request, ctx: Ctx) {
   const actor = await getCurrentActor();
   if (!actor) return NextResponse.json({ error: "请先登录" }, { status: 401 });

@@ -508,6 +508,10 @@ function findReply(id: string | undefined, commentId: string | undefined, replie
   return replies.find((c) => c.id === id && c.commentId === commentId) ?? null;
 }
 
+/**
+ * Signature: `async function writePost(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date, world: Awaited<ReturnType<typeof getOrCreateWorldState>>): Promise<Post | null>`
+ * Purpose: Persists simulated social output as a LIFE post whose publication time is separate from activity scheduling.
+ */
 async function writePost(
   persona: PersonaV2,
   userId: string,
@@ -532,11 +536,12 @@ async function writePost(
       venueName: spot.name,
       lat: spot.lat,
       lng: spot.lng,
-      startTime: when,
       tags: ["demo", "social"],
-      signupEnabled: decision.signupEnabled === true,
+      signupEnabled: false,
       userId,
       imageSpec: imageSpec ? (JSON.parse(JSON.stringify(imageSpec)) as Prisma.InputJsonValue) : undefined,
+      kind: "LIFE",
+      startTime: null,
       createdAt: when,
       updatedAt: when,
     },

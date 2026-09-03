@@ -10,12 +10,16 @@ export const revalidate = 0;
 // 东京全域大致范围，作为 v1 数据来源（与推荐页一致）。
 const TOKYO_BBOX = { minLat: 35.5, maxLat: 35.85, minLng: 139.5, maxLng: 139.95 };
 
+/**
+ * Signature: `async function CalendarPage(): Promise<React.JSX.Element>`
+ * Purpose: Displays official and user activities by active date while excluding non-schedulable LIFE updates.
+ */
 export default async function CalendarPage() {
   let events: EventDTO[] = [];
   let dbError = false;
   try {
     const rows = await getEventsInBounds(TOKYO_BBOX);
-    events = rows.map((e) => ({
+    events = rows.filter((e) => e.postKind !== "LIFE").map((e) => ({
       id: e.id,
       title: e.title,
       description: e.description,
@@ -30,6 +34,7 @@ export default async function CalendarPage() {
       startTime: e.startTime ? e.startTime.toISOString() : null,
       endTime: e.endTime ? e.endTime.toISOString() : null,
       sourceType: e.sourceType,
+      postKind: e.postKind,
       sourceUrl: e.sourceUrl,
       trustLevel: e.trustLevel,
       tags: e.tags ?? [],

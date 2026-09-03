@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import type { Prisma, Event, Post } from "@prisma/client";
+import type { Prisma, Event, Post, PostKind } from "@prisma/client";
 import { type EventCategory, isEventCategory } from "@/lib/categories";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import { unstable_cache } from "next/cache";
@@ -37,6 +37,7 @@ export type NormalizedEvent = {
   startTime: Date | null;
   endTime: Date | null;
   sourceType: string;
+  postKind: PostKind | null;
   sourceUrl: string | null;
   trustLevel: number;
   featuredToday: boolean;
@@ -61,20 +62,23 @@ export function normalizeOfficial(e: Event): NormalizedEvent {
     category: e.category, venueName: e.venueName, address: e.address,
     imageUrl: e.imageUrl, imageUrls: [], lat: e.lat, lng: e.lng,
     startTime: e.startTime, endTime: e.endTime,
-    sourceType: e.sourceType, sourceUrl: e.sourceUrl, trustLevel: e.trustLevel,
+    sourceType: e.sourceType, postKind: null, sourceUrl: e.sourceUrl, trustLevel: e.trustLevel,
     tags: e.tags, signupEnabled: false, featuredToday: e.featuredToday, userId: null,
     createdAt: e.createdAt, updatedAt: e.updatedAt,
   };
 }
 
-// 用户发帖 → 统一形状（sourceType=USER；无摘要/地址/来源链接；低信任）。
+/**
+ * Signature: `function normalizePost(p: Post): NormalizedEvent`
+ * Purpose: Converts a LIFE or ACTIVITY Post into the shared event-shaped read model without losing its post kind.
+ */
 export function normalizePost(p: Post): NormalizedEvent {
   return {
     id: p.id, title: p.title, description: p.description, summary: null,
     category: p.category, venueName: p.venueName, address: null,
     imageUrl: p.imageUrl, imageUrls: p.imageUrls, lat: p.lat, lng: p.lng,
     startTime: p.startTime, endTime: p.endTime,
-    sourceType: "USER", sourceUrl: null, trustLevel: 10,
+    sourceType: "USER", postKind: p.kind, sourceUrl: null, trustLevel: 10,
     tags: p.tags, signupEnabled: p.signupEnabled, featuredToday: false, userId: p.userId,
     createdAt: p.createdAt, updatedAt: p.updatedAt,
   };
@@ -114,12 +118,17 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery) => 
   });
 }, ["official-events-in-bounds-v1"], { revalidate: 86_400, tags: ["official-events"] });
 
+/**
+ * Signature: `async function getFreshUserPosts(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Loads uncached user and virtual-user posts inside the requested map bounds and optional time/category filters.
+ */
 async function getFreshUserPosts(q: EventQuery) {
+  const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
-  const postWhere: Prisma.PostWhereInput = {};
+  const postWhere: Prisma.PostWhereInput = { ...bbox };
   if (q.category) postWhere.category = q.category;
   if (or) postWhere.OR = or;
-  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ startTime: "asc" }], take: 500 });
+  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }], take: 500 });
   return attachAuthors(posts.map(normalizePost));
 }
 
@@ -194,6 +203,7 @@ export async function listVirtualUserEvents() {
 // 锚点发帖：用户在地图上标记并发布一个活动（sourceType=USER）。
 // 用户已在地图上选点，故直接用其 lat/lng，无需地理编码。
 export type CreateUserEventInput = {
+  kind: PostKind;
   title: string;
   category: EventCategory;
   description?: string | null;
@@ -220,6 +230,10 @@ export type CreateUserEventResult =
   | { ok: true; event: NormalizedEvent }
   | { ok: false; error: string };
 
+/**
+ * Signature: `async function createUserEventRow(input: CreateUserEventInput, userId: string): Promise<NormalizedEvent>`
+ * Purpose: Persists one typed user post with LIFE or ACTIVITY invariants supplied by the service boundary.
+ */
 async function createUserEventRow(input: CreateUserEventInput, userId: string): Promise<NormalizedEvent> {
   const imageUrls = (input.imageUrls ?? []).filter(Boolean);
   const linkedEvent = input.eventId ? await prisma.event.findUnique({ where: { id: input.eventId }, select: { id: true } }) : null;
@@ -232,6 +246,7 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
       imageUrl: imageUrls[0] ?? input.imageUrl ?? null, // 封面 = 首图
       imageUrls,
       imageSpec: input.imageSpec ?? undefined,
+      kind: input.kind,
       lat: input.lat,
       lng: input.lng,
       startTime: parseISO(input.startTime),
@@ -245,11 +260,16 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
   return normalizePost(post);
 }
 
+/**
+ * Signature: `async function createUserEvent(input: CreateUserEventInput, userId: string): Promise<CreateUserEventResult>`
+ * Purpose: Validates and creates a LIFE update or a time-required ACTIVITY post.
+ */
 export async function createUserEvent(
   input: CreateUserEventInput,
   userId: string,
 ): Promise<CreateUserEventResult> {
   if (!input.title?.trim()) return { ok: false, error: "缺少活动名称" };
+  if (input.kind === "ACTIVITY" && !input.startTime) return { ok: false, error: "请选择活动开始时间" };
   if (!isEventCategory(input.category)) return { ok: false, error: "非法分类" };
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     return { ok: false, error: "缺少或非法的坐标" };
@@ -301,18 +321,22 @@ export type UpdateUserEventResult =
   | { ok: true; event: NormalizedEvent }
   | { ok: false; error: string };
 
+/**
+ * Signature: `async function updateUserEvent(id: string, userId: string, input: UpdateUserEventInput, isAdmin?: boolean): Promise<UpdateUserEventResult>`
+ * Purpose: Updates a user post while enforcing LIFE versus ACTIVITY time and signup invariants.
+ */
 export async function updateUserEvent(
   id: string,
   userId: string,
   input: UpdateUserEventInput,
   isAdmin = false,
 ): Promise<UpdateUserEventResult> {
-  const existing = await prisma.post.findUnique({ where: { id }, select: { userId: true } });
+  const existing = await prisma.post.findUnique({ where: { id }, select: { userId: true, kind: true, startTime: true, endTime: true } });
   if (!existing) return { ok: false, error: "发帖不存在" };
   if (!(await canManagePostOwner(existing.userId, userId, isAdmin))) {
     return { ok: false, error: "无权限编辑" };
   }
-  if (input.title !== undefined && !input.title.trim()) return { ok: false, error: "缺少活动名称" };
+  if (input.title !== undefined && !input.title.trim()) return { ok: false, error: "缺少标题" };
   if (input.category !== undefined && !isEventCategory(input.category)) {
     return { ok: false, error: "非法分类" };
   }
@@ -322,10 +346,19 @@ export async function updateUserEvent(
   if (input.category !== undefined) data.category = input.category;
   if (input.description !== undefined) data.description = input.description?.trim() || null;
   if (input.venueName !== undefined) data.venueName = input.venueName?.trim() || null;
-  if (input.startTime !== undefined) data.startTime = parseISO(input.startTime);
-  if (input.endTime !== undefined) data.endTime = parseISO(input.endTime);
+  if (existing.kind === "ACTIVITY") {
+    const nextStart = input.startTime !== undefined ? parseISO(input.startTime) : existing.startTime;
+    const nextEnd = input.endTime !== undefined ? parseISO(input.endTime) : existing.endTime;
+    if (!nextStart) return { ok: false, error: "请选择活动开始时间" };
+    if (nextEnd && nextEnd < nextStart) return { ok: false, error: "结束时间不能早于开始时间" };
+    if (input.startTime !== undefined) data.startTime = nextStart;
+    if (input.endTime !== undefined) data.endTime = nextEnd;
+  } else {
+    data.startTime = null;
+    data.endTime = null;
+  }
   if (input.tags !== undefined) data.tags = input.tags;
-  if (input.signupEnabled !== undefined) data.signupEnabled = input.signupEnabled;
+  if (input.signupEnabled !== undefined) data.signupEnabled = existing.kind === "ACTIVITY" && input.signupEnabled;
   if (input.imageUrls !== undefined) {
     const imageUrls = input.imageUrls.filter(Boolean);
     data.imageUrls = imageUrls;

@@ -70,8 +70,9 @@ model Event {
   @@index([featuredToday, startTime])
 }
 
-// 用户发帖（"这里有个活动"）。与抓取的官方活动 Event 分表存储：
-// Post = 用户生产内容（可编辑/删除、带作者、可多图、可报名）；Event = 官方抓取（只读、带来源元数据）。
+// 用户内容。Post.kind 区分普通生活动态 LIFE 与可参与活动 ACTIVITY：
+// LIFE 使用 createdAt 作为发布时间；ACTIVITY 使用 startTime/endTime 和可选报名。
+// 与抓取的官方活动 Event 分表存储：Post 可编辑/删除且带作者，Event 只读并带来源元数据。
 // 地图/推荐读路径把两表并起来统一成 EventDTO（Post 映射为 sourceType="USER"）。
 model Post {
   id            String        @id @default(cuid())
@@ -82,6 +83,7 @@ model Post {
   imageUrl      String? // 封面图（= imageUrls[0]）
   imageUrls     String[]      @default([]) // 多图
   imageSpec     Json?
+  kind          PostKind      @default(ACTIVITY)
   lat           Float
   lng           Float
   startTime     DateTime?
@@ -103,6 +105,12 @@ model Post {
   @@index([userId, createdAt])
   @@index([startTime])
   @@index([category])
+  @@index([kind, lat, lng])
+}
+
+enum PostKind {
+  LIFE
+  ACTIVITY
 }
 
 // 美食 POI（来源 OpenStreetMap / Overpass）。常驻地点，按地图视野查询 + 聚合显示。

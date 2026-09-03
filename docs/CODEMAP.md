@@ -175,6 +175,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `migrations/20260704120000_add_checkin_interactions/migration.sql` — check-in comments/reactions.
 - `migrations/20260715110000_add_direct_messages/migration.sql` — direct messaging.
 - `migrations/20260731120000_add_user_admin_role/migration.sql` — admin role.
+- `migrations/20260903120000_split_post_kind/migration.sql` — LIFE/ACTIVITY post semantics and existing social-post backfill.
 
 ### `public/`
 
@@ -303,7 +304,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `MapView.tsx` — MapLibre creation and bounds observer.
 - `markers.ts` — DOM marker factories.
 - `PopularCard.tsx` — anchor/center-based nearby event card and recommendation intents.
-- `PostDialog.tsx` — user-post draft form.
+- `PostDialog.tsx` — LIFE update / ACTIVITY post form with separate time semantics.
 - `RoutePanel.tsx` — rail/walking route selection and presentation.
 - `StyleSwitcher.tsx` — map theme switcher.
 - `WeatherAnimation.tsx` — visual weather overlay.
@@ -353,7 +354,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `checkins.ts` — check-in queries, visibility, creation, update, deletion, and discover pagination.
 - `comments.ts` — polymorphic event/post/check-in comments and replies.
 - `directMessages.ts` — direct-conversation authorization, reads, send, and read markers.
-- `events.ts` — official Event + user Post normalization, queries, and post mutations.
+- `events.ts` — official Event + LIFE/ACTIVITY user Post normalization, map queries, and post mutations.
 - `follows.ts` — follow state, lists, mutations, and demo mutual follows.
 - `foodPoi.ts`, `hotPepperPoi.ts` — spatial food POI queries and bbox parsing.
 - `guideEvents.ts` — builds authoritative activity context for the AI guide.

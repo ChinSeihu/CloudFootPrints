@@ -23,6 +23,7 @@ export type EventDTO = {
   startTime: string | null;
   endTime: string | null;
   sourceType: string;
+  postKind: "LIFE" | "ACTIVITY" | null;
   sourceUrl: string | null;
   trustLevel: number;
   featuredToday?: boolean;

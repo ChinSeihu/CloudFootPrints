@@ -43,7 +43,10 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/events —— 锚点发帖：创建用户发布的活动（sourceType=USER）。
+/**
+ * Signature: `async function POST(request: Request): Promise<NextResponse>`
+ * Purpose: Creates either a LIFE update without activity time or a time-bounded ACTIVITY post at a map location.
+ */
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -55,12 +58,14 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "请先登录后再发帖" }, { status: 401 });
 
   const b = (body ?? {}) as Record<string, unknown>;
-  if (typeof b.startTime !== "string" || !b.startTime) {
+  const kind = b.kind === "LIFE" ? "LIFE" : "ACTIVITY";
+  if (kind === "ACTIVITY" && (typeof b.startTime !== "string" || !b.startTime)) {
     return NextResponse.json({ error: "请选择活动开始时间" }, { status: 400 });
   }
   const result = await createUserEvent(
     {
       title: typeof b.title === "string" ? b.title : "",
+      kind,
       category: b.category as EventCategory,
       description: typeof b.description === "string" ? b.description : null,
       venueName: typeof b.venueName === "string" ? b.venueName : null,

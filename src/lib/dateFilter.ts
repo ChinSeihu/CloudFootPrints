@@ -32,13 +32,16 @@ function dayEnd(s: string): number {
   return new Date(`${s}T23:59:59.999+09:00`).getTime();
 }
 
-// 活动 [start, end] 是否与日期范围 [from, to] 有重叠。
-// 未定档（无 startTime）的活动始终视为命中（与既有行为一致）。
+/**
+ * Signature: `function eventInDayRange(ev: EventDTO, range: DayRange): boolean`
+ * Purpose: Filters activities by their active interval and LIFE posts by their publication date.
+ */
 export function eventInDayRange(ev: EventDTO, range: DayRange): boolean {
   if (isAllDates(range)) return true;
-  if (!ev.startTime) return true;
-  const start = new Date(ev.startTime).getTime();
-  const end = ev.endTime ? new Date(ev.endTime).getTime() : start;
+  const primaryTime = ev.postKind === "LIFE" ? ev.createdAt : ev.startTime;
+  if (!primaryTime) return true;
+  const start = new Date(primaryTime).getTime();
+  const end = ev.postKind === "LIFE" ? start : ev.endTime ? new Date(ev.endTime).getTime() : start;
   const lo = range.from ? dayStart(range.from) : -Infinity;
   const hi = range.to ? dayEnd(range.to) : Infinity;
   return start <= hi && end >= lo;

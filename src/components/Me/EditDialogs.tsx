@@ -40,6 +40,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 // ───────── 编辑发帖（仅文字信息，不动坐标/图片）─────────
+/**
+ * Signature: `function EditPostDialog(props: { event: EventDTO; onClose: () => void; onSaved: (patch: Partial<EventDTO>) => void; canRegenerateImage?: boolean; onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null> }): React.JSX.Element`
+ * Purpose: Edits shared post fields while exposing activity-only time and signup controls only for ACTIVITY posts.
+ */
 export function EditPostDialog({
   event,
   onClose,
@@ -53,6 +57,7 @@ export function EditPostDialog({
   canRegenerateImage?: boolean;
   onRegenerateImage?: () => Promise<{ imageUrl: string; imageUrls: string[] } | null>;
 }) {
+  const isActivity = event.postKind !== "LIFE";
   const [imageUrls, setImageUrls] = useState<string[]>(
     event.imageUrls?.length
       ? event.imageUrls
@@ -80,10 +85,14 @@ export function EditPostDialog({
     setTagInput("");
   }
 
+  /**
+   * Signature: `async function save(): Promise<void>`
+   * Purpose: Validates and persists post edits according to LIFE or ACTIVITY time semantics.
+   */
   async function save() {
     if (!title.trim() || saving) return;
-    if (!start) { setError("请选择活动开始时间"); return; }
-    if (start && end && new Date(end) < new Date(start)) { setError("结束时间不能早于开始时间"); return; }
+    if (isActivity && !start) { setError("请选择活动开始时间"); return; }
+    if (isActivity && start && end && new Date(end) < new Date(start)) { setError("结束时间不能早于开始时间"); return; }
     setError(null);
     setSaving(true);
     const patch = {
@@ -91,10 +100,10 @@ export function EditPostDialog({
       category,
       description: description.trim() || null,
       venueName: venueName.trim() || null,
-      startTime: toISO(start),
-      endTime: toISO(end),
+      startTime: isActivity ? toISO(start) : null,
+      endTime: isActivity ? toISO(end) : null,
       tags,
-      signupEnabled,
+      signupEnabled: isActivity && signupEnabled,
       imageUrls,
     };
     try {
@@ -137,7 +146,7 @@ export function EditPostDialog({
   }
 
   return (
-    <Modal title="编辑发帖" onClose={onClose}>
+    <Modal title={isActivity ? "编辑活动" : "编辑动态"} onClose={onClose}>
       {(imageUrls.length > 0 || canRegenerateImage) && (
         <div className="mb-5 rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
           <div className="flex items-center justify-between gap-3">
@@ -211,13 +220,13 @@ export function EditPostDialog({
         </div>
       </div>
 
-      <div className="mb-5">
+      {isActivity && <div className="mb-5">
         <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
         <div className="space-y-2">
           <DateTimeField value={start} onChange={setStart} placeholder="开始时间（必选）" />
           <DateTimeField value={end} onChange={setEnd} placeholder="结束时间（可选）" />
         </div>
-      </div>
+      </div>}
 
       <div className="mb-5">
         <label className={labelCls}>地点名（可选）</label>
@@ -249,7 +258,7 @@ export function EditPostDialog({
         </div>
       </div>
 
-      <div className="mb-5">
+      {isActivity && <div className="mb-5">
         <button type="button" onClick={() => setSignupEnabled((v) => !v)} className="w-full flex items-center justify-between rounded-xl bg-neutral-50 border border-neutral-200 px-3.5 py-3">
           <span className="text-left">
             <span className="block text-sm text-neutral-800">开启报名</span>
@@ -259,7 +268,7 @@ export function EditPostDialog({
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${signupEnabled ? "left-[1.125rem]" : "left-0.5"}`} />
           </span>
         </button>
-      </div>
+      </div>}
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 

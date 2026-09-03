@@ -87,15 +87,30 @@ function userPostBadgeSvg(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.2" fill="#a855f7" stroke="#ffffff" stroke-width="2.6"/><g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.7" y="10.1" width="12.6" height="8.9" rx="2.1"/><path d="M10.5 10.1l1.2-2h4.6l1.2 2"/><circle cx="14" cy="14.6" r="2.2"/></g></svg>`;
 }
 
+/**
+ * Signature: `function userActivityBadgeSvg(): string`
+ * Purpose: Draws a calendar badge that distinguishes user activities from ordinary life updates on the map.
+ */
+function userActivityBadgeSvg(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12.2" fill="#4f46e5" stroke="#ffffff" stroke-width="2.6"/><g fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8.5" width="12" height="11" rx="2"/><path d="M8 12h12M11 7v3M17 7v3"/><path d="M11 15h2M15 15h2"/></g></svg>`;
+}
+
+/**
+ * Signature: `async function loadUserPostBadge(map: maplibregl.Map): Promise<void>`
+ * Purpose: Registers separate camera and calendar map images for LIFE and ACTIVITY user content.
+ */
 async function loadUserPostBadge(map: maplibregl.Map): Promise<void> {
-  await new Promise<void>((resolve) => {
-    const name = "userpost-badge";
+  const badges = [
+    { name: "userpost-badge", svg: userPostBadgeSvg() },
+    { name: "useractivity-badge", svg: userActivityBadgeSvg() },
+  ];
+  await Promise.all(badges.map(({ name, svg }) => new Promise<void>((resolve) => {
     if (map.hasImage(name)) return resolve();
     const img = new Image(28, 28);
     img.onload = () => { if (!map.hasImage(name)) map.addImage(name, img, { pixelRatio: 2 }); resolve(); };
     img.onerror = () => resolve();
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(userPostBadgeSvg());
-  });
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  })));
 }
 
 function clusterBadgeSvg(kind: "official" | "user" | "mixed" | "footprint"): string {
@@ -310,8 +325,12 @@ function hotpepperToFC(pois: HotPepperPoiDTO[]): GeoJSON.FeatureCollection<GeoJS
   };
 }
 
-// 过期：活动结束时间（endTime，无则 startTime）早于现在。未定档（无 startTime）不算过期。
+/**
+ * Signature: `function isExpired(ev: EventDTO, now: number): boolean`
+ * Purpose: Keeps LIFE posts persistent while treating ACTIVITY endTime, or startTime without an end, as its deadline.
+ */
 function isExpired(ev: EventDTO, now: number): boolean {
+  if (ev.postKind === "LIFE") return false;
   if (!ev.startTime) return false;
   const end = ev.endTime ? new Date(ev.endTime).getTime() : new Date(ev.startTime).getTime();
   return end < now;
@@ -340,7 +359,9 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
         address: ev.address ?? "",
         startTime: ev.startTime ?? "",
         endTime: ev.endTime ?? "",
+        createdAt: ev.createdAt ?? "",
         sourceType: ev.sourceType,
+        postKind: ev.postKind ?? "",
         sourceUrl: ev.sourceUrl ?? "",
         imageUrl: ev.imageUrl ?? "",
         description: ev.description ?? "",
@@ -432,9 +453,13 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
   }
 }
 
-type Mode = "checkin" | "post";
+type Mode = "checkin" | "life" | "activity";
 type PlacementTarget = { id: string; title: string; lat?: number; lng?: number } | null;
 
+/**
+ * Signature: `function MapExplorer(): React.JSX.Element`
+ * Purpose: Owns map discovery, type-aware LIFE/ACTIVITY rendering, filtering, placement, and publishing interactions.
+ */
 export function MapExplorer() {
   const router = useRouter();
   const routerRef = useRef(router);
@@ -501,7 +526,8 @@ export function MapExplorer() {
   const [theme, setTheme] = useState<MapTheme>("soft");
   const [showLandmarks, setShowLandmarks] = useState(true);
   const [showStations, setShowStations] = useState(true);
-  const [showUserPosts, setShowUserPosts] = useState(() => typeof window === "undefined" || localStorage.getItem("tem_show_user_posts") !== "0");
+  const [showLifePosts, setShowLifePosts] = useState(() => typeof window === "undefined" || (localStorage.getItem("tem_show_life_posts") ?? localStorage.getItem("tem_show_user_posts")) !== "0");
+  const [showUserActivities, setShowUserActivities] = useState(() => typeof window === "undefined" || (localStorage.getItem("tem_show_user_activities") ?? localStorage.getItem("tem_show_user_posts")) !== "0");
   const [showUserCheckins, setShowUserCheckins] = useState(() => typeof window === "undefined" || localStorage.getItem("tem_show_user_checkins") !== "0");
   const showUserCheckinsRef = useRef(showUserCheckins);
   const [showTrail, setShowTrail] = useState(false); // 足迹轨迹线
@@ -562,8 +588,11 @@ export function MapExplorer() {
 
   // 用户内容显隐：在进入 GeoJSON 聚合前过滤，避免隐藏内容仍计入聚合数量。
   useEffect(() => {
-    localStorage.setItem("tem_show_user_posts", showUserPosts ? "1" : "0");
-  }, [showUserPosts]);
+    localStorage.setItem("tem_show_life_posts", showLifePosts ? "1" : "0");
+  }, [showLifePosts]);
+  useEffect(() => {
+    localStorage.setItem("tem_show_user_activities", showUserActivities ? "1" : "0");
+  }, [showUserActivities]);
   // 足迹轨迹线开关
   useEffect(() => {
     const map = mapRef.current;
@@ -643,8 +672,11 @@ export function MapExplorer() {
   }, [events, filters]);
 
   const mapEvents = useMemo(
-    () => showUserPosts ? filtered : filtered.filter((event) => event.sourceType !== "USER"),
-    [filtered, showUserPosts],
+    () => filtered.filter((event) => {
+      if (event.sourceType !== "USER") return true;
+      return event.postKind === "LIFE" ? showLifePosts : showUserActivities;
+    }),
+    [filtered, showLifePosts, showUserActivities],
   );
 
   // 用 ref 持有最新的地图可见活动，供 handleReady 设置初始数据
@@ -919,7 +951,7 @@ export function MapExplorer() {
       source: "events",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], "userpost-badge", ["concat", "glyph-", ["get", "category"]]],
+        "icon-image": ["case", ["==", ["get", "sourceType"], "USER"], ["case", ["==", ["get", "postKind"], "LIFE"], "userpost-badge", "useractivity-badge"], ["concat", "glyph-", ["get", "category"]]],
         "icon-size": ["case", ["==", ["get", "sourceType"], "USER"], 1.25, 0.85],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -947,7 +979,7 @@ export function MapExplorer() {
     type PopupEvent = {
       id: string; title: string; category: string;
       venueName: string; address: string;
-      startTime: string; sourceType: string; sourceUrl: string;
+      startTime: string; createdAt: string; sourceType: string; postKind: string; sourceUrl: string;
       imageUrl: string; description: string;
     };
     const toPopupEvent = (p: Record<string, unknown>): PopupEvent => ({
@@ -957,7 +989,9 @@ export function MapExplorer() {
       venueName: String(p.venueName ?? ""),
       address: String(p.address ?? ""),
       startTime: String(p.startTime ?? ""),
+      createdAt: String(p.createdAt ?? ""),
       sourceType: String(p.sourceType ?? ""),
+      postKind: String(p.postKind ?? ""),
       sourceUrl: String(p.sourceUrl ?? ""),
       imageUrl: String(p.imageUrl ?? ""),
       description: String(p.description ?? ""),
@@ -974,8 +1008,9 @@ export function MapExplorer() {
       const color = CATEGORY_COLORS[ev.category] ?? "#6b7280";
       const meta = CATEGORY_META[ev.category as keyof typeof CATEGORY_META];
       const label = meta?.label ?? ev.category;
-      const when = ev.startTime
-        ? new Date(ev.startTime).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      const displayTime = ev.postKind === "LIFE" ? ev.createdAt : ev.startTime;
+      const when = displayTime
+        ? new Date(displayTime).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
         : "时间未定";
       const venue = [ev.venueName, ev.address].filter(Boolean).map(escapeHtml).join(" · ");
       const copyText = ev.address || ev.venueName;
@@ -1007,7 +1042,7 @@ export function MapExplorer() {
           ${venueRow}
           <div class="tem-card-meta">
             <span class="tem-card-time">${when}</span>
-            ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">用户发帖</span>` : `<span class="tem-card-sourcehint">官方活动</span>`}
+            ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">${ev.postKind === "LIFE" ? "生活动态" : "用户活动"}</span>` : `<span class="tem-card-sourcehint">官方活动</span>`}
           </div>
           <div class="tem-card-tabs" role="tablist">
             <button class="tem-card-tab active" data-tab="detail" type="button">详情</button>
@@ -1160,7 +1195,7 @@ export function MapExplorer() {
             ev.stopPropagation();
             popup.remove();
             const pe = evs.find((e) => e.id === id);
-            if (pe) openPlacement("post", { id, title: pe.title, lat: coords[1], lng: coords[0] });
+            if (pe) openPlacement("activity", { id, title: pe.title, lat: coords[1], lng: coords[0] });
             return;
           }
           if (action === "favorite") {
@@ -1711,7 +1746,7 @@ export function MapExplorer() {
       });
       popup.getElement()?.querySelector('[data-action="post"]')?.addEventListener("click", () => {
         popup.remove();
-        openPlacement("post", { id: "", title: p.name!, lat: coords[1], lng: coords[0] });
+        openPlacement("activity", { id: "", title: p.name!, lat: coords[1], lng: coords[0] });
       });
       popup.getElement()?.querySelector('[data-action="checkin"]')?.addEventListener("click", () => {
         popup.remove();
@@ -2020,7 +2055,7 @@ export function MapExplorer() {
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, eventId: draft.eventId ?? null, lat, lng }),
+      body: JSON.stringify({ kind: draft.kind, title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, eventId: draft.eventId ?? null, lat, lng }),
     });
     clearPlacing();
     setDialogAt(null);
@@ -2313,11 +2348,19 @@ export function MapExplorer() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowUserPosts((v) => !v)}
-                  className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserPosts ? "bg-violet-50 text-violet-700" : "text-neutral-500 hover:bg-neutral-100"}`}
+                  onClick={() => setShowLifePosts((v) => !v)}
+                  className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showLifePosts ? "bg-violet-50 text-violet-700" : "text-neutral-500 hover:bg-neutral-100"}`}
                 >
-                  用户发帖
-                  <span className={`h-2.5 w-2.5 rounded-full ${showUserPosts ? "bg-violet-500" : "bg-neutral-300"}`} />
+                  生活动态
+                  <span className={`h-2.5 w-2.5 rounded-full ${showLifePosts ? "bg-violet-500" : "bg-neutral-300"}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUserActivities((v) => !v)}
+                  className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserActivities ? "bg-indigo-50 text-indigo-700" : "text-neutral-500 hover:bg-neutral-100"}`}
+                >
+                  用户活动
+                  <span className={`h-2.5 w-2.5 rounded-full ${showUserActivities ? "bg-indigo-500" : "bg-neutral-300"}`} />
                 </button>
                 <StyleSwitcher value={theme} onChange={setTheme} />
               </div>
@@ -2351,7 +2394,23 @@ export function MapExplorer() {
             </div>
             <button
               type="button"
-              onClick={() => openPublishPlacement("post")}
+              onClick={() => openPublishPlacement("life")}
+              className="mb-2.5 flex w-full items-center gap-3 rounded-2xl border border-violet-100 bg-violet-50/80 px-3.5 py-3 text-left shadow-[0_8px_22px_rgba(124,58,237,0.08)] transition active:scale-[0.99]"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-violet-600 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h3l1.5-2h7L17 7h3v11H4Z" />
+                  <circle cx="12" cy="12.5" r="3" />
+                </svg>
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-neutral-950">动态 · 分享此刻</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">发布与这个地点有关的照片和见闻</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openPublishPlacement("activity")}
               className="mb-2.5 flex w-full items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/80 px-3.5 py-3 text-left shadow-[0_8px_22px_rgba(37,99,235,0.08)] transition active:scale-[0.99]"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-blue-600 shadow-sm">
@@ -2361,7 +2420,7 @@ export function MapExplorer() {
                 </svg>
               </span>
               <span>
-                <span className="block text-sm font-bold text-neutral-950">发帖 · 标记活动</span>
+                <span className="block text-sm font-bold text-neutral-950">活动 · 邀请参加</span>
                 <span className="mt-0.5 block text-xs text-neutral-500">分享即将或正在进行的活动</span>
               </span>
             </button>
@@ -2405,8 +2464,9 @@ export function MapExplorer() {
           onSubmit={submitCheckIn}
         />
       )}
-      {dialogAt && mode === "post" && (
+      {dialogAt && mode !== "checkin" && (
         <PostDialog
+          kind={mode === "life" ? "LIFE" : "ACTIVITY"}
           lat={dialogAt.lat}
           lng={dialogAt.lng}
           eventId={checkinTarget?.id ?? null}

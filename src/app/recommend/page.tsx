@@ -45,6 +45,10 @@ async function loadEventMetrics(ids: string[]) {
   return metrics;
 }
 
+/**
+ * Signature: `async function RecommendPage(): Promise<React.JSX.Element>`
+ * Purpose: Builds the discovery feed while applying separate publication and expiration semantics to LIFE and ACTIVITY content.
+ */
 export default async function RecommendPage() {
   let events: EventDTO[] = [];
   let checkins: CheckInDTO[] = [];
@@ -59,7 +63,7 @@ export default async function RecommendPage() {
     const upcoming = rows
       // 过期活动默认不显示（结束时间早于现在；未定档活动保留）。
       .filter((e) => {
-        if (e.sourceType === "USER") return true;
+        if (e.postKind === "LIFE") return true;
         if (!e.startTime) return true;
         const end = (e.endTime ?? e.startTime).getTime();
         return end >= now;
@@ -80,6 +84,7 @@ export default async function RecommendPage() {
         startTime: e.startTime ? e.startTime.toISOString() : null,
         endTime: e.endTime ? e.endTime.toISOString() : null,
         sourceType: e.sourceType,
+        postKind: e.postKind,
         sourceUrl: e.sourceUrl,
         trustLevel: e.trustLevel,
         featuredToday: e.featuredToday,
