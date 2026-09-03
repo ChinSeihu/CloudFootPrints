@@ -637,7 +637,7 @@ function MeContent() {
                               onClick={() => router.push(buildJourneyMapUrl(p, "checkin"))}
                               className="rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
                             >
-                              {journey.stage === "visited" ? "已留足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
+                              {journey.stage === "visited" ? "已留足迹" : journey.stage === "ended" ? "去过，留足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
                             </button>
                           </div>
                         )}

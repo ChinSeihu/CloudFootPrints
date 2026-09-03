@@ -26,7 +26,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Map publishing and check-ins
 
 - Post form: `src/components/Map/PostDialog.tsx`.
-- Check-in form: `src/components/Map/CheckInDialog.tsx`.
+- Check-in form: `src/components/Map/CheckInDialog.tsx` — owns footprint content plus optional nearby/searchable activity association.
 - Shared sheet/styles: `src/components/Map/BottomSheet.tsx`, `src/components/Map/formStyles.ts`.
 - Placement and submission orchestration: `src/components/Map/MapExplorer.tsx`.
 - APIs: `src/app/api/events/route.ts`, `src/app/api/checkins/route.ts`.

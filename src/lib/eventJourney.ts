@@ -20,7 +20,7 @@ export function getJourneyStatus(event: EventDTO, now: number, visited: boolean)
   if (!Number.isFinite(start)) return { stage: "unscheduled", label: "已加入想去 · 时间待定", canCheckIn: false };
   const endValue = event.endTime ? new Date(event.endTime).getTime() : start;
   const end = Number.isFinite(endValue) ? endValue : start;
-  if (now > end) return { stage: "ended", label: "活动已结束 · 可以记录足迹", canCheckIn: true };
+  if (now > end) return { stage: "ended", label: "活动已结束 · 你去了吗？", canCheckIn: true };
   if (now >= start) return { stage: "active", label: "活动进行中 · 到访后记录足迹", canCheckIn: true };
 
   const hours = Math.ceil((start - now) / 3_600_000);
@@ -28,6 +28,20 @@ export function getJourneyStatus(event: EventDTO, now: number, visited: boolean)
   const days = Math.ceil(hours / 24);
   if (days <= 7) return { stage: "soon", label: `本周提醒 · ${days} 天后开始`, canCheckIn: false };
   return { stage: "planned", label: `已加入想去 · ${days} 天后开始`, canCheckIn: false };
+}
+
+/**
+ * Signature: `function distanceMeters(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number`
+ * Purpose: Calculates the approximate surface distance between two coordinates for privacy-preserving on-device arrival detection.
+ */
+export function distanceMeters(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const earthRadius = 6_371_000;
+  const latDelta = radians(to.lat - from.lat);
+  const lngDelta = radians(to.lng - from.lng);
+  const a = Math.sin(latDelta / 2) ** 2
+    + Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(lngDelta / 2) ** 2;
+  return 2 * earthRadius * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /**

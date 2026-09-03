@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IconPlus } from "@/components/icons";
 import { MoodSelector } from "@/components/common/MoodSelector";
 import { compressImage } from "@/lib/image";
@@ -19,19 +19,29 @@ export type CheckInDraft = {
   eventId?: string | null;
 };
 
+export type CheckInEventOption = {
+  id: string;
+  title: string;
+  venueName?: string | null;
+  startTime?: string | null;
+};
+
 type Props = {
   lat: number;
   lng: number;
   eventId?: string | null;
   targetTitle?: string | null;
+  nearbyEvents?: CheckInEventOption[];
   onCancel: () => void;
   onSubmit: (draft: CheckInDraft) => Promise<void>;
   onSnapChange?: (snap: "peek" | "full") => void;
 };
 
-// 足迹创建不再让用户手填时间：真实用户默认使用提交时间；
-// 虚拟人物仍由 simulation/engine.ts 通过服务端 visitedAt 传入虚拟时间。
-export function CheckInDialog({ lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
+/**
+ * Signature: `function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents, onCancel, onSubmit, onSnapChange }: Props): React.JSX.Element`
+ * Purpose: Creates a footprint and lets the user confirm, replace, search, or remove its optional activity association.
+ */
+export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [], onCancel, onSubmit, onSnapChange }: Props) {
   const [note, setNote] = useState("");
   const [moodTags, setMoodTags] = useState<number[]>([]);
   const [isPublic, setIsPublic] = useState(false);
@@ -40,9 +50,44 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, onCancel, onSubm
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<"" | "uploading">("");
   const [error, setError] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CheckInEventOption | null>(
+    eventId ? { id: eventId, title: targetTitle ?? "已选活动" } : null,
+  );
+  const [eventQuery, setEventQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CheckInEventOption[]>([]);
+  const [searchingEvents, setSearchingEvents] = useState(false);
 
   const canUpload = cloudinaryConfigured();
   const MAX_IMAGES = 6;
+  const associationOptions = useMemo(() => {
+    const byId = new Map<string, CheckInEventOption>();
+    if (selectedEvent) byId.set(selectedEvent.id, selectedEvent);
+    for (const option of nearbyEvents) byId.set(option.id, option);
+    for (const option of searchResults) byId.set(option.id, option);
+    return [...byId.values()];
+  }, [nearbyEvents, searchResults, selectedEvent]);
+
+  useEffect(() => {
+    const query = eventQuery.trim();
+    if (query.length < 2) {
+      queueMicrotask(() => { setSearchResults([]); setSearchingEvents(false); });
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearchingEvents(true);
+      try {
+        const response = await fetch(`/api/events?search=${encodeURIComponent(query)}`, { signal: controller.signal });
+        const data = response.ok ? await response.json() as { events?: CheckInEventOption[] } : {};
+        setSearchResults(data.events ?? []);
+      } catch (searchError) {
+        if ((searchError as Error).name !== "AbortError") setSearchResults([]);
+      } finally {
+        setSearchingEvents(false);
+      }
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [eventQuery]);
 
   function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
@@ -87,7 +132,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, onCancel, onSubm
         moodTags,
         photoUrls,
         isPublic,
-        eventId: eventId ?? null,
+        eventId: selectedEvent?.id ?? null,
       });
     } finally {
       setSubmitting(false);
@@ -95,7 +140,36 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, onCancel, onSubm
   }
 
   return (
-    <BottomSheet title="留下足迹" hint={targetTitle ? `关联到「${targetTitle}」` : "记录这次到访的感受"} onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet title="留下足迹" hint={selectedEvent ? `关联到「${selectedEvent.title}」` : "记录这次到访的感受"} onClose={onCancel} onSnapChange={onSnapChange}>
+      <div className="mb-6">
+        <label className={labelCls}>关联活动（可选）</label>
+        <div className="space-y-2 rounded-2xl border border-neutral-200 bg-white p-3 shadow-[0_6px_18px_rgba(15,23,42,0.04)]">
+          {associationOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setSelectedEvent(option)}
+              className={`flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left transition ${selectedEvent?.id === option.id ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200" : "text-neutral-700 hover:bg-neutral-50"}`}
+            >
+              <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${selectedEvent?.id === option.id ? "border-blue-600" : "border-neutral-300"}`}>
+                {selectedEvent?.id === option.id && <span className="h-2 w-2 rounded-full bg-blue-600" />}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold">{option.title}</span>
+                {option.venueName && <span className="mt-0.5 block truncate text-[11px] text-neutral-400">{option.venueName}</span>}
+              </span>
+            </button>
+          ))}
+          <button type="button" onClick={() => setSelectedEvent(null)} className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs transition ${selectedEvent === null ? "bg-neutral-100 font-semibold text-neutral-700" : "text-neutral-500 hover:bg-neutral-50"}`}>
+            <span className={`grid h-4 w-4 place-items-center rounded-full border ${selectedEvent === null ? "border-neutral-600" : "border-neutral-300"}`}>{selectedEvent === null && <span className="h-2 w-2 rounded-full bg-neutral-600" />}</span>
+            不关联活动，仅记录地点
+          </button>
+          <div className="border-t border-neutral-100 pt-2">
+            <input value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} className={`${fieldCls} h-10`} placeholder="输入活动名称，搜索其他活动" />
+            <p className="mt-1 text-[11px] text-neutral-400">{searchingEvents ? "正在搜索…" : eventQuery.trim().length === 1 ? "至少输入 2 个字" : "可从上方结果中选择已有活动"}</p>
+          </div>
+        </div>
+      </div>
       <div className="mb-6">
         <label className={labelCls}>想说点什么</label>
         <textarea

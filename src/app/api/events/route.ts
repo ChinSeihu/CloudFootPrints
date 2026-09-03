@@ -5,16 +5,29 @@ import {
   getMapEventsInBounds,
   listUserEvents,
   parseEventQuery,
+  searchActivities,
 } from "@/services/events";
 import { getCurrentUserId } from "@/lib/auth";
 import { normalizeTags } from "@/lib/tags";
 import type { EventCategory } from "@/lib/categories";
 
-// GET /api/events?mine=1                      —— 我的发帖（无需 bbox）
-// GET /api/events?minLat=&maxLat=&minLng=&maxLng=&category=&from=&to=
-// 薄 handler：只解析参数、调 service、返回响应。
+/**
+ * Signature: `async function GET(request: Request): Promise<NextResponse>`
+ * Purpose: Returns personal posts, bounded event feeds, or a limited activity-name search used by optional check-in association.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+
+  const search = searchParams.get("search")?.trim();
+  if (search) {
+    try {
+      const events = await searchActivities(search);
+      return NextResponse.json({ events });
+    } catch (err) {
+      console.error("GET /api/events?search failed:", err);
+      return NextResponse.json({ error: "搜索活动失败" }, { status: 500 });
+    }
+  }
 
   if (searchParams.get("mine")) {
     try {

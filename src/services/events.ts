@@ -154,6 +154,33 @@ export async function getMapEventsInBounds(q: EventQuery) {
   return getEventsInBounds(q);
 }
 
+/**
+ * Signature: `async function searchActivities(query: string, limit?: number): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Searches existing official and user-created activities by title or venue for optional check-in association, excluding LIFE posts.
+ */
+export async function searchActivities(query: string, limit = 12) {
+  const keyword = query.trim().slice(0, 60);
+  if (keyword.length < 2) return [];
+  const take = Math.min(Math.max(limit, 1), 20);
+  const [events, posts] = await Promise.all([
+    prisma.event.findMany({
+      where: { OR: [{ title: { contains: keyword, mode: "insensitive" } }, { venueName: { contains: keyword, mode: "insensitive" } }] },
+      orderBy: { startTime: "desc" },
+      take,
+    }),
+    prisma.post.findMany({
+      where: {
+        kind: "ACTIVITY",
+        OR: [{ title: { contains: keyword, mode: "insensitive" } }, { venueName: { contains: keyword, mode: "insensitive" } }],
+      },
+      orderBy: { startTime: "desc" },
+      take,
+    }),
+  ]);
+  const combined = [...events.map(normalizeOfficial), ...posts.map(normalizePost)].slice(0, take);
+  return attachAuthors(combined);
+}
+
 // 给一批活动附作者公开信息（仅 Post 有 userId；官方活动 author 为 null）。
 async function attachAuthors<T extends { userId: string | null }>(events: T[]) {
   const ids = [...new Set(events.map((e) => e.userId).filter((x): x is string => !!x))];

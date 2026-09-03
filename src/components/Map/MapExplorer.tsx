@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type maplibregl from "maplibre-gl";
 import { MapView } from "./MapView";
 import { Filters, type FilterState } from "./Filters";
-import { CheckInDialog, type CheckInDraft } from "./CheckInDialog";
+import { CheckInDialog, type CheckInDraft, type CheckInEventOption } from "./CheckInDialog";
 import { PostDialog, type PostDraft } from "./PostDialog";
 import { WeatherPanel } from "./WeatherPanel";
 import { StyleSwitcher } from "./StyleSwitcher";
@@ -17,6 +17,7 @@ import { LANDMARK_IMAGES } from "@/lib/landmarkImages";
 import { Lightbox } from "@/components/common/Lightbox";
 import { LinePanel, type LineDetail, type PanelLine } from "./LinePanel";
 import { RoutePanel, type RoutePlan, type RoutePlace } from "./RoutePanel";
+import { distanceMeters } from "@/lib/eventJourney";
 import { FOOD_SPOTS_ALL, FOOD_KINDS, FOOD_KIND_META, type FoodKind } from "@/lib/foodSpots";
 import { FOOD_SPOT_IMAGES } from "@/lib/foodSpotImages";
 import { useGuide } from "@/components/Guide/GuideContext";
@@ -455,6 +456,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
 
 type Mode = "checkin" | "life" | "activity";
 type PlacementTarget = { id: string; title: string; lat?: number; lng?: number } | null;
+type JourneyTarget = { id: string; title: string; lat: number; lng: number };
 
 /**
  * Signature: `function MapExplorer(): React.JSX.Element`
@@ -521,6 +523,9 @@ export function MapExplorer() {
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
   const [checkinTarget, setCheckinTarget] = useState<PlacementTarget>(null);
+  const [journeyTarget, setJourneyTarget] = useState<JourneyTarget | null>(null);
+  const [arrivalDistance, setArrivalDistance] = useState<number | null>(null);
+  const [checkinSuccess, setCheckinSuccess] = useState<{ title: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [theme, setTheme] = useState<MapTheme>("soft");
@@ -539,6 +544,7 @@ export function MapExplorer() {
   const [publishDragY, setPublishDragY] = useState(0);
   const publishDragStartRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [suppressNearbyCard, setSuppressNearbyCard] = useState(true);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -546,6 +552,30 @@ export function MapExplorer() {
   const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
   const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
+
+  // 首屏默认隐藏附近活动，确认不是路线/到访深链后再显示，避免抽屉闪现与水合不一致。
+  useEffect(() => {
+    const action = new URLSearchParams(window.location.search).get("action");
+    if (action !== "route" && action !== "checkin") {
+      queueMicrotask(() => setSuppressNearbyCard(false));
+    }
+  }, []);
+
+  // 仅在用户主动为某个活动打开路线后监听位置；距离计算只在浏览器内完成。
+  useEffect(() => {
+    if (!journeyTarget || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const current = { lat: position.coords.latitude, lng: position.coords.longitude };
+        userLocationRef.current = current;
+        setUserLocation(current);
+        setArrivalDistance(distanceMeters(current, journeyTarget));
+      },
+      () => setArrivalDistance(null),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [journeyTarget]);
 
   // 读取/持久化底图主题选择
   useEffect(() => {
@@ -678,6 +708,14 @@ export function MapExplorer() {
     }),
     [filtered, showLifePosts, showUserActivities],
   );
+  const nearbyCheckinEvents = useMemo<CheckInEventOption[]>(() => {
+    if (!dialogAt || mode !== "checkin") return [];
+    return mapEvents
+      .filter((event) => event.postKind !== "LIFE" && distanceMeters(dialogAt, event) <= 200)
+      .sort((left, right) => distanceMeters(dialogAt, left) - distanceMeters(dialogAt, right))
+      .slice(0, 8)
+      .map((event) => ({ id: event.id, title: event.title, venueName: event.venueName, startTime: event.startTime }));
+  }, [dialogAt, mapEvents, mode]);
 
   // 用 ref 持有最新的地图可见活动，供 handleReady 设置初始数据
   const filteredRef = useRef(mapEvents);
@@ -1974,6 +2012,7 @@ export function MapExplorer() {
         const title = sp.get("title") ?? "活动地点";
         const target = { id: eventId, title, lat, lng };
         if (action === "route") {
+          setJourneyTarget(target);
           openRouteRef.current({ to: { name: title, lat, lng, station: false } });
         } else if (action === "checkin") {
           openTargetCheckinRef.current(target);
@@ -2030,6 +2069,18 @@ export function MapExplorer() {
     setDialogAt({ lat: c.lat, lng: c.lng });
   }
 
+  /**
+   * Signature: `function startJourneyCheckin(): void`
+   * Purpose: Closes route guidance and opens a footprint form associated with the arrived-at journey activity.
+   */
+  function startJourneyCheckin() {
+    if (!journeyTarget) return;
+    clearRouteLine();
+    setRoutePanel(null);
+    setArrivalDistance(null);
+    openPlacement("checkin", journeyTarget);
+  }
+
   useEffect(() => {
     openTargetCheckinRef.current = (target) => openPlacement("checkin", target);
   });
@@ -2059,7 +2110,9 @@ export function MapExplorer() {
     setDialogAt(null);
     setCheckinTarget(null);
     if (res.ok) {
-      showToast("已留下足迹");
+      setJourneyTarget(null);
+      setArrivalDistance(null);
+      setCheckinSuccess({ title: checkinTarget?.title ?? "这次到访" });
       await fetchCheckins();
     } else {
       showToast("记录失败（数据库可能未配置）");
@@ -2459,16 +2512,18 @@ export function MapExplorer() {
         </div>
       )}
 
-      <PopularCard
-        events={filtered}
-        center={exploreAnchor ?? center}
-        anchored={!!exploreAnchor}
-        onClearAnchor={() => setExploreAnchor(null)}
-        onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
-        onViewAll={() => router.push("/recommend")}
-        onPlanRoute={openNearbyRouteGuide}
-        onRecommendIntent={openRecommendIntentGuide}
-      />
+      {!suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
+        <PopularCard
+          events={filtered}
+          center={exploreAnchor ?? center}
+          anchored={!!exploreAnchor}
+          onClearAnchor={() => setExploreAnchor(null)}
+          onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
+          onViewAll={() => router.push("/recommend")}
+          onPlanRoute={openNearbyRouteGuide}
+          onRecommendIntent={openRecommendIntentGuide}
+        />
+      )}
       {/* 表单为全屏可吸附 sheet：默认 peek（露出地图拖锚点），上拉展开填写，下拉收起 */}
       {dialogAt && mode === "checkin" && (
         <CheckInDialog
@@ -2476,6 +2531,7 @@ export function MapExplorer() {
           lng={dialogAt.lng}
           eventId={checkinTarget?.id ?? null}
           targetTitle={checkinTarget?.title ?? null}
+          nearbyEvents={nearbyCheckinEvents}
           onCancel={cancelDialog}
           onSubmit={submitCheckIn}
         />
@@ -2494,6 +2550,34 @@ export function MapExplorer() {
       {toast && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 bg-black/80 text-white text-sm px-4 py-2 rounded-full">
           {toast}
+        </div>
+      )}
+
+      {journeyTarget && arrivalDistance !== null && arrivalDistance <= 500 && !dialogAt && (
+        <div className="fixed left-3 right-3 top-4 z-[1100] mx-auto max-w-md rounded-2xl border border-emerald-200 bg-white/95 p-3 pr-10 shadow-[0_14px_40px_rgba(15,23,42,0.18)] backdrop-blur">
+          <button type="button" aria-label="稍后记录" onClick={() => { setJourneyTarget(null); setArrivalDistance(null); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-lg text-neutral-400 hover:bg-neutral-100">×</button>
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-lg">✓</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-neutral-950">你已到达「{journeyTarget.title}」附近</p>
+              <p className="mt-0.5 text-xs text-neutral-500">距离约 {Math.max(1, Math.round(arrivalDistance))} 米，是否留下足迹？</p>
+            </div>
+            <button type="button" onClick={startJourneyCheckin} className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white">记录到访</button>
+          </div>
+        </div>
+      )}
+
+      {checkinSuccess && (
+        <div className="fixed inset-0 z-[1200] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true" aria-label="足迹记录成功">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</span>
+            <h2 className="mt-4 text-lg font-black text-neutral-950">足迹已记录</h2>
+            <p className="mt-2 text-sm text-neutral-500">「{checkinSuccess.title}」已经加入你的足迹。</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setCheckinSuccess(null)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700">返回地图</button>
+              <button type="button" onClick={() => router.push("/me")} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white">查看足迹</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2525,7 +2609,7 @@ export function MapExplorer() {
           initial={routePanel}
           stationNames={stationNamesRef.current}
           coordOf={(name) => stationCoordRef.current.get(name)}
-          onClose={() => { clearRouteLine(); setRoutePanel(null); }}
+          onClose={() => { clearRouteLine(); setRoutePanel(null); setJourneyTarget(null); setArrivalDistance(null); }}
           onShowRoute={(plan) => showRouteLine(plan)}
           onClearRoute={() => clearRouteLine()}
         />
