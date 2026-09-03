@@ -26,6 +26,7 @@ export async function GET() {
       startTime: event.startTime ? event.startTime.toISOString() : null,
       endTime: event.endTime ? event.endTime.toISOString() : null,
       sourceType: event.sourceType,
+      postKind: event.postKind,
       sourceUrl: event.sourceUrl,
       trustLevel: event.trustLevel,
       tags: event.tags ?? [],

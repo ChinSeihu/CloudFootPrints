@@ -607,7 +607,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     });
   }
 
-  function imageGrid(urls: string[], title: string, compact = false, inline = false) {
+  /**
+   * Signature: `function imageGrid(urls: string[], title: string, inline?: boolean): React.ReactNode`
+   * Purpose: Renders one check-in photo at its natural ratio with a safe height cap, or multiple photos as uniformly sized thumbnails.
+   */
+  function imageGrid(urls: string[], title: string, inline = false) {
     if (urls.length === 0) return null;
     if (inline) {
       return (
@@ -625,8 +629,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     }
     if (urls.length === 1) {
       return (
-        <button type="button" onClick={() => setPreviewGallery({ urls, initialIndex: 0 })} className={`mt-2 grid w-full place-items-center overflow-hidden rounded-lg bg-neutral-100 ${compact ? "" : "max-h-72 min-h-40"}`}>
-          <img src={urls[0]} alt={title} className={compact ? "max-h-72 w-full object-cover" : "max-h-72 w-full object-cover"} />
+        <button type="button" onClick={() => setPreviewGallery({ urls, initialIndex: 0 })} className="mt-2 grid max-h-[min(60vh,28rem)] w-full place-items-center overflow-hidden rounded-lg bg-neutral-100">
+          <img src={urls[0]} alt={title} className="block h-auto max-h-[min(60vh,28rem)] w-full object-contain" />
         </button>
       );
     }
@@ -634,8 +638,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     return (
       <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
         {visible.map((src, index) => (
-          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className={`relative grid min-w-0 place-items-center overflow-hidden bg-neutral-100 ${compact ? "h-24" : "h-36 max-h-40"}`}>
-            <img src={src} alt={title} className={compact ? "max-h-40 w-full object-cover" : "max-h-40 w-full object-cover"} />
+          <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className="relative aspect-square min-w-0 overflow-hidden bg-neutral-100">
+            <img src={src} alt={title} className="h-full w-full object-cover" />
             <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
               {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
             </span>
@@ -667,7 +671,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     );
   }
 
-  function renderCheckinCard(checkin: CheckInDTO, compact = false) {
+  /**
+   * Signature: `function renderCheckinCard(checkin: CheckInDTO): React.ReactNode`
+   * Purpose: Renders a discoverable check-in card with responsive photos, management, reactions, and comments.
+   */
+  function renderCheckinCard(checkin: CheckInDTO) {
     const moods = (checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : [])
       .map((value) => moodTagOf(value))
       .filter((mood): mood is NonNullable<ReturnType<typeof moodTagOf>> => !!mood);
@@ -746,9 +754,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               </button>
             )}
           </div>
-          {!expanded && imageGrid(urls, text, compact, true)}
+          {!expanded && imageGrid(urls, text, true)}
         </div>
-        {expanded && imageGrid(urls, text, compact, false)}
+        {expanded && imageGrid(urls, text, false)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
@@ -1002,7 +1010,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
-                {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin, true))}
+                {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
               </div>
             )}
           </section>

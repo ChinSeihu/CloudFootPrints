@@ -70,6 +70,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Check-in endpoints: `src/app/api/checkins/[id]/comments` and `reactions`.
 - Cross-page activity collections: `src/app/api/wants/route.ts`, `favorites/route.ts`, `signups/route.ts`.
 - UI consumers: `src/components/Recommend/EventDetail.tsx`, `RecommendList.tsx`.
+- Want-to-go journey state and map deep links: `src/lib/eventJourney.ts`; personal reminder/actions live in `src/components/Me/MeView.tsx`, while `src/components/Map/MapExplorer.tsx` consumes route/check-in deep links.
 
 ### AI guide
 

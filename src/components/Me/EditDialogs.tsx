@@ -282,7 +282,11 @@ export function EditPostDialog({
   );
 }
 
-// ───────── 编辑打卡（备注/评分/照片/时间，不改坐标）─────────
+// ───────── 编辑打卡（备注/评分/照片，不改坐标和打卡时间）─────────
+/**
+ * Signature: `function EditCheckInDialog(props: { checkin: CheckInDTO; onClose: () => void; onSaved: (patch: Partial<CheckInDTO>) => void; canRegenerateImage?: boolean; onRegenerateImage?: (photoUrls: string[]) => Promise<{ imageUrl: string; imageUrls: string[] } | null> }): React.JSX.Element`
+ * Purpose: Edits a footprint's content, mood, photos, and visibility while preserving its original location and check-in time.
+ */
 export function EditCheckInDialog({
   checkin,
   onClose,
@@ -299,7 +303,6 @@ export function EditCheckInDialog({
   const [note, setNote] = useState(checkin.note ?? "");
   const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
   const [isPublic, setIsPublic] = useState(checkin.isPublic);
-  const [visitedAt, setVisitedAt] = useState(isoToLocal(checkin.createdAt));
   const [keptUrls, setKeptUrls] = useState<string[]>(checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : []);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -345,7 +348,7 @@ export function EditCheckInDialog({
         }
       }
       const photoUrls = [...keptUrls, ...newUrls];
-      const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, isPublic, visitedAt: toISO(visitedAt) };
+      const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, isPublic };
       const res = await fetch(`/api/checkins/${checkin.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -356,7 +359,7 @@ export function EditCheckInDialog({
         setError(d.error || "保存失败");
         return;
       }
-      onSaved({ note: patch.note, rating: patch.rating, moodTags, photoUrls, photoUrl: photoUrls[0] ?? null, isPublic, createdAt: patch.visitedAt ?? checkin.createdAt });
+      onSaved({ note: patch.note, rating: patch.rating, moodTags, photoUrls, photoUrl: photoUrls[0] ?? null, isPublic });
       onClose();
     } catch {
       setError("网络错误，请稍后再试");
@@ -384,11 +387,6 @@ export function EditCheckInDialog({
 
   return (
     <Modal title="编辑足迹" onClose={onClose}>
-      <div className="mb-5">
-        <label className={labelCls}>到访时间</label>
-        <DateTimeField value={visitedAt} onChange={setVisitedAt} placeholder="默认现在" />
-      </div>
-
       <div className="mb-5">
         <label className={labelCls}>想说点什么</label>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={`${fieldCls} resize-none`} placeholder="这家展览的灯光很好…" />

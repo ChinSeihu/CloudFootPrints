@@ -15,6 +15,7 @@ import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
 import { DirectMessages } from "./DirectMessages";
 import { moodTagOf } from "@/lib/moods";
+import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/eventJourney";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
@@ -53,7 +54,12 @@ function MeContent() {
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [journeyNow] = useState(() => Date.now());
   const canRegenerateImages = !!user && DEMO_USERS.some((demo) => demo.username === user.username);
+  const visitedEventIds = useMemo(
+    () => new Set(checkins.flatMap((checkin) => [checkin.eventId, checkin.postId].filter((id): id is string => !!id))),
+    [checkins],
+  );
 
   useEffect(() => {
     (async () => {
@@ -539,7 +545,7 @@ function MeContent() {
           </>
         ) : tab === "favorites" ? (
           (() => {
-            const list = favSub === "wants" ? wants : favSub === "favorites" ? favorites : signups;
+            const list = favSub === "wants" ? sortJourneyEvents(wants, journeyNow, visitedEventIds) : favSub === "favorites" ? favorites : signups;
             return (
               <>{/* 想去 / 收藏 / 报名 二级切换 */}
                 <div className="flex gap-2 mb-3">
@@ -572,19 +578,19 @@ function MeContent() {
                 <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3">
                   {list.map((p) => {
                     const meta = CATEGORY_META[p.category];
+                    const journey = getJourneyStatus(p, journeyNow, visitedEventIds.has(p.id));
                     return (
-                      <button
+                      <article
                         key={p.id}
-                        type="button"
-                        onClick={() => setSelected(p)}
                         className="min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white text-left transition-shadow hover:shadow-md"
                       >
-                        {p.imageUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
-                        )}
-                        <div className="h-1.5" style={{ backgroundColor: meta.color }} />
-                        <div className="p-3">
+                        <button type="button" onClick={() => setSelected(p)} className="block w-full text-left">
+                          {p.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.imageUrl} alt="" loading="lazy" className="w-full max-h-44 object-cover" />
+                          )}
+                          <div className="h-1.5" style={{ backgroundColor: meta.color }} />
+                          <div className="p-3 pb-2">
                           <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                             <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
                             {meta.label} · {fmtDate(p.startTime)}
@@ -600,9 +606,9 @@ function MeContent() {
                             <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
                           )}
                           {favSub === "wants" ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-rose-500 mt-2">
+                            <span className={`inline-flex items-center gap-1 text-xs mt-2 ${journey.stage === "soon" || journey.stage === "active" ? "font-semibold text-rose-600" : "text-rose-500"}`}>
                               <IconHeart filled className="w-3.5 h-3.5" />
-                              想去
+                              {journey.label}
                             </span>
                           ) : favSub === "favorites" ? (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
@@ -614,8 +620,28 @@ function MeContent() {
                               ✓ 已报名
                             </span>
                           )}
-                        </div>
-                      </button>
+                          </div>
+                        </button>
+                        {favSub === "wants" && (
+                          <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 p-2">
+                            <button
+                              type="button"
+                              onClick={() => router.push(buildJourneyMapUrl(p, "route"))}
+                              className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                            >
+                              <IconMap className="h-3.5 w-3.5" />路线
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!journey.canCheckIn}
+                              onClick={() => router.push(buildJourneyMapUrl(p, "checkin"))}
+                              className="rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
+                            >
+                              {journey.stage === "visited" ? "已留足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
+                            </button>
+                          </div>
+                        )}
+                      </article>
                     );
                   })}
                 </div>

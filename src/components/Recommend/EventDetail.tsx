@@ -12,6 +12,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { CopyButton } from "@/components/CopyButton";
 import { DirectMessages } from "@/components/Me/DirectMessages";
 import { copyToClipboard } from "@/lib/clipboard";
+import { buildJourneyMapUrl, getJourneyStatus } from "@/lib/eventJourney";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -133,6 +134,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [sort, setSort] = useState<CommentSort>("hot");
   const [authorFollowActive, setAuthorFollowActive] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [journeyNow] = useState(() => Date.now());
   const shareNoticeTimer = useRef<number | null>(null);
 
   const [reactions, setReactions] = useState<ReactionState>({
@@ -415,8 +417,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     </div>
   );
 
+  /**
+   * Signature: `function jumpToMap(): void`
+   * Purpose: Opens the map with this activity preselected as the route destination.
+   */
   function jumpToMap() {
-    router.push(`/?lat=${event.lat}&lng=${event.lng}`);
+    router.push(buildJourneyMapUrl(event, "route"));
+  }
+
+  /**
+   * Signature: `function recordVisit(): void`
+   * Purpose: Opens the map at this activity and pre-fills an associated check-in so arrival becomes a footprint.
+   */
+  function recordVisit() {
+    router.push(buildJourneyMapUrl(event, "checkin"));
   }
 
   function askGuide() {
@@ -542,19 +556,30 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     );
   }
 
+  /**
+   * Signature: `function detailActionStrip(sourceLabel: string): React.JSX.Element`
+   * Purpose: Renders detail actions, including direct routing and post-arrival footprint creation for activities.
+   */
   function detailActionStrip(sourceLabel: string) {
+    const journey = getJourneyStatus(event, journeyNow, false);
     const baseClass = "flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 text-center text-[11px] font-semibold text-neutral-700 transition hover:bg-white sm:gap-1.5 sm:py-2";
     const iconClass = "grid h-7 w-7 place-items-center rounded-full bg-white text-violet-500 shadow-sm ring-1 ring-neutral-100 sm:h-8 sm:w-8";
     return (
-      <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2">
+      <div className={`grid ${journey.canCheckIn && event.postKind !== "LIFE" ? "grid-cols-5" : "grid-cols-4"} gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2`}>
         <button type="button" onClick={askGuide} className={baseClass}>
           <span className={iconClass}><IconSparkles className="h-3.5 w-3.5" /></span>
           <span className="truncate">问导游</span>
         </button>
         <button type="button" onClick={jumpToMap} className={baseClass}>
           <span className={iconClass}><IconMap className="h-3.5 w-3.5" /></span>
-          <span className="truncate">看地图</span>
+          <span className="truncate">路线</span>
         </button>
+        {journey.canCheckIn && event.postKind !== "LIFE" && (
+          <button type="button" onClick={recordVisit} className={baseClass}>
+            <span className={iconClass}><IconPin className="h-3.5 w-3.5" /></span>
+            <span className="truncate">记录到访</span>
+          </button>
+        )}
         <button type="button" onClick={shareEvent} className={baseClass}>
           <span className={iconClass}><ShareIcon className="h-3.5 w-3.5" /></span>
           <span className="truncate">分享</span>
@@ -587,9 +612,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${event.postKind === "LIFE" ? "bg-violet-50 text-violet-600" : "bg-indigo-50 text-indigo-600"}`}>
-                      {event.postKind === "LIFE" ? "生活动态" : "用户活动"}
-                    </span>
                     {event.author?.id && user?.id !== event.author.id && (
                       <button type="button" onClick={startDirectMessage} className="text-[11px] font-semibold text-violet-600">私信</button>
                     )}

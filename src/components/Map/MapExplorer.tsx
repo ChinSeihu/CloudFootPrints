@@ -1947,6 +1947,10 @@ export function MapExplorer() {
     });
   }, []);
 
+  /**
+   * Signature: `const handleReady: (map: maplibregl.Map) => Promise<void>`
+   * Purpose: Initializes map layers and consumes optional location, route, or activity check-in deep-link parameters.
+   */
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
       mapRef.current = map;
@@ -1965,6 +1969,18 @@ export function MapExplorer() {
       const lng = parseFloat(sp.get("lng") ?? "");
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         map.flyTo({ center: [lng, lat], zoom: 16 });
+        const action = sp.get("action");
+        const eventId = sp.get("eventId") ?? "";
+        const title = sp.get("title") ?? "活动地点";
+        const target = { id: eventId, title, lat, lng };
+        if (action === "route") {
+          openRouteRef.current({ to: { name: title, lat, lng, station: false } });
+        } else if (action === "checkin") {
+          openTargetCheckinRef.current(target);
+        }
+        if (action === "route" || action === "checkin") {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       } else if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
