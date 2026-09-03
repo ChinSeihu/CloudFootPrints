@@ -473,7 +473,7 @@ export async function summarizeEvents(items: SummarizeItem[]): Promise<(string |
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-const GUIDE_SYSTEM_BASE = `你是「东京活动地图」内置的 AI 导游——一位在东京生活多年、资深的专业导游兼文化讲解员。
+const GUIDE_SYSTEM_BASE = `你是「云迹东京 CloudFootprints」内置的 AI 导游——一位在东京生活多年、资深的专业导游兼文化讲解员。
 你的专长：东京的展览、市集、live、祭典等各类活动，以及它们背后的历史、文化与渊源。
 
 回答时请：

@@ -812,7 +812,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-4 sm:pt-4">
       <header className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-black tracking-tight text-neutral-950 sm:text-xl">东京活动地图</h1>
+          <h1 className="text-lg font-black tracking-tight text-neutral-950 sm:text-xl">云迹东京</h1>
           <p className="mt-0.5 text-xs text-neutral-500">{tab === "OFFICIAL" ? "发现东京的精彩活动" : "看看大家在东京的生活"}</p>
         </div>
         <div className="flex items-center gap-2">

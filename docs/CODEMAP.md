@@ -180,6 +180,9 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `public/`
 
+- `brand-icon.svg` — CloudFootprints cloud-and-footprint browser and install icon.
+- `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
+
 - `stations.json`, `lines.json` — generated static rail topology used by the map and route planner.
 - `avatars/*.png`, `avatars/persona-v2/*.png` — user/demo avatar assets.
 - `identity-refs/*.png` — persona identity reference crops for image generation.
@@ -219,7 +222,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `src/app/`
 
-- `layout.tsx` — root metadata/providers/analytics/navigation shell.
+- `layout.tsx`, `icon.svg` — root brand metadata/icon plus providers, analytics, and navigation shell.
 - `template.tsx` — route-transition template wrapper.
 - `page.tsx` — map page server entry rendering `MapExplorer`.
 - `globals.css` — global Tailwind styles and MapLibre popup/card styling.

@@ -165,7 +165,7 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
     <div className="min-h-full bg-slate-50 px-4 pb-5 pt-3">
       <header className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black text-neutral-950">东京活动地图</h1>
+          <h1 className="text-xl font-black text-neutral-950">云迹东京</h1>
           <p className="mt-0.5 text-xs text-neutral-500">本月活动一览</p>
         </div>
         <div className="flex gap-2">

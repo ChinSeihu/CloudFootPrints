@@ -1,0 +1,17 @@
+{
+  "name": "云迹东京｜CloudFootprints Tokyo",
+  "short_name": "云迹东京",
+  "description": "发现活动，规划路线，记录属于你的东京足迹。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c6ae6",
+  "icons": [
+    {
+      "src": "/brand-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

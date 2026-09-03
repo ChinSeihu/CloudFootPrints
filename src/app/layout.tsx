@@ -19,10 +19,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "东京活动地图",
-  description: "在地图上一眼看全附近正在举行的活动",
+  applicationName: "云迹东京",
+  title: {
+    default: "云迹东京｜发现活动，记录足迹",
+    template: "%s｜云迹东京",
+  },
+  description: "发现东京附近的活动与生活动态，规划路线、记录到访，并留下属于你的城市足迹。",
+  icons: {
+    icon: [{ url: "/brand-icon.svg", type: "image/svg+xml" }],
+    shortcut: "/brand-icon.svg",
+    apple: "/brand-icon.svg",
+  },
+  manifest: "/manifest.webmanifest",
 };
 
+/**
+ * Signature: `function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element`
+ * Purpose: Provide the CloudFootprints Tokyo document shell, product metadata, shared providers, and primary navigation.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
