@@ -371,7 +371,7 @@ function MeContent() {
                             alt=""
                             loading="lazy"
                             onClick={() => setLightbox({ images: imgs, index: i })}
-                            className={`w-full rounded-xl object-cover cursor-zoom-in ${imgs.length === 1 ? "aspect-[4/3] max-h-52" : "aspect-square"}`}
+                            className={`h-auto w-full cursor-zoom-in rounded-xl bg-neutral-100 object-contain ${imgs.length === 1 ? "max-h-[70vh] sm:max-h-[640px]" : "max-h-72"}`}
                           />
                         ))}
                       </div>

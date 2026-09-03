@@ -5,7 +5,7 @@ import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 import { imageSpecToText, type ImageSpec } from "./decide";
 
-// 身份参考只保留脸和发型，避免把原图里的服装、道具和背景带进新场景。
+// 身份参考只用于人物身份与稳定脸部特征，发型、服装、道具和背景均可随新场景变化。
 async function loadRefImage(refIndex: number): Promise<string | null> {
   const p = `public/identity-refs/${String(refIndex).padStart(2, "0")}.png`;
   try {
@@ -231,7 +231,7 @@ export function fashionClause(
       "[Fashion Direction]",
       `Season/weather: ${world.season} / ${world.weather}.`,
       "Create a fresh contemporary Tokyo outfit.",
-      "Use the identity reference only for face, hairstyle, body type and identity.",
+      "Use the identity reference only for facial identity and stable body proportions; its hairstyle is not binding.",
       "Do not copy the reference outfit.",
     ].join(" ");
   }
@@ -802,7 +802,8 @@ export function outfitClause(
     "Use trend details only when they match the persona: sheer layers, mesh cardigan, nylon skirt, balloon skirt, wide cargo pants, cropped jacket, compact shoulder bag, silver accessories, Mary Janes, ballet flats, trail sneakers or light utility vest.",
     seasonalNecklineClause(world),
     "Do not treat the identity reference image as an outfit reference.",
-    "Use the identity reference ONLY for face, hairstyle, body type, height and overall identity.",
+    "Use the identity reference ONLY for facial identity, body type, height and overall identity.",
+    "The reference hairstyle is not an identity constraint; restyle the hair naturally for today's outfit, activity and setting.",
     "Do NOT copy clothing, colors, shoes, bag or accessories from the identity reference.",
 
     "The outfit must be simple, well-balanced and realistically stylish.",
@@ -868,7 +869,7 @@ function composeOpenAIImagePrompt(
 ): string {
   const { persona, imageSpec, world } = req;
   const subject = imageSpec.subjectVisible
-    ? `The recurring protagonist is visible: ${persona.appearance}. Preserve their facial identity, hairstyle, age, body type and overall impression.`
+    ? `The recurring protagonist is visible: ${persona.appearance}. Preserve their facial identity, age and body type, but allow the hairstyle to change naturally for this moment.`
     : "The recurring protagonist is not visible; do not add them to the frame.";
   const cast = imageSpec.subjectRole === "protagonist"
     ? "Keep the protagonist as the only prominent person unless the scene explicitly requests a friend."
@@ -896,8 +897,11 @@ function identityReferenceClause(): string {
   return [
     "[Identity Reference]",
     "The reference image shows the same one protagonist requested by the scene, not an additional person.",
-    "Transfer only facial identity and hairstyle.",
-    "Ignore and replace every reference-image background, pose, garment, accessory and object.",
+    "Use it only to recognize stable identity traits: facial structure, age, body proportions, and overall identity.",
+    "Do not preserve or copy the reference hairstyle; hair styling may change naturally to suit the requested scene, activity, weather, and outfit.",
+    "Do not copy the reference image's exact facial expression, gaze direction, head angle, face orientation, camera angle, crop, pose, or lighting.",
+    "Create a genuinely new view of the same person whose expression, head turn, gaze, and body pose respond naturally to the requested action and scene.",
+    "Ignore and replace every reference-image background, composition, garment, accessory and object.",
     "Never duplicate the reference person in the finished image.",
   ].join(" ");
 }
