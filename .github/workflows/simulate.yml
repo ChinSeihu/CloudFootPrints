@@ -29,6 +29,10 @@ on:
           - "gpt-image-2"
           - "agnes-image-2.1-flash"
           - "none"
+      regenerate_images_date:
+        description: "仅重新生成该东京日期的模拟图片 (YYYY-MM-DD)，留空则正常推演"
+        required: false
+        default: ""
 
 # 避免与上一次未结束的运行重叠
 concurrency:
@@ -57,8 +61,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_IMAGE_API_URL: ${{ secrets.OPENAI_IMAGE_API_URL }}
           OPENAI_IMAGE_MODEL: ${{ secrets.OPENAI_IMAGE_MODEL }}
-          OPENAI_IMAGE_SIZE: ${{ secrets.OPENAI_IMAGE_SIZE }}
-          OPENAI_IMAGE_QUALITY: ${{ secrets.OPENAI_IMAGE_QUALITY }}
+          OPENAI_IMAGE_SIZE: "1024x1536"
+          OPENAI_IMAGE_QUALITY: "medium"
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           AGNES_MODEL: ${{ secrets.AGNES_MODEL }}
           AGNES_API_URL: ${{ secrets.AGNES_API_URL }}
@@ -76,6 +80,7 @@ jobs:
           IN_FROM: ${{ github.event.inputs.from }}
           IN_TO: ${{ github.event.inputs.to }}
           IN_IMAGE_MODEL: ${{ github.event.inputs.image_model }}
+          IN_REGENERATE_IMAGES_DATE: ${{ github.event.inputs.regenerate_images_date }}
         run: |
           ARGS=""
           case "$IN_IMAGE_MODEL" in
@@ -91,7 +96,11 @@ jobs:
               export IMAGE_PROVIDER="none"
               ;;
           esac
-          if [ -n "$IN_FROM" ] && [ -n "$IN_TO" ]; then
+          if [ -n "$IN_REGENERATE_IMAGES_DATE" ]; then
+            echo "重新生成模拟图片: $IN_REGENERATE_IMAGES_DATE"
+            npx tsx scripts/regenerate-sim-images.ts --date="$IN_REGENERATE_IMAGES_DATE" --apply
+            exit 0
+          elif [ -n "$IN_FROM" ] && [ -n "$IN_TO" ]; then
             ARGS="--from=$IN_FROM --to=$IN_TO"
           elif [ -n "$IN_DATE" ]; then
             ARGS="--date=$IN_DATE"

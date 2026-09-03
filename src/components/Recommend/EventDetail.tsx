@@ -619,16 +619,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           <main className="mt-3 flex-1 sm:mt-6">
             {images.length > 0 && (
               <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-7 sm:px-7 [&::-webkit-scrollbar]:hidden">
-                <div className="flex snap-x snap-mandatory gap-2.5 sm:gap-3">
+                <div className="flex items-start snap-x snap-mandatory gap-2.5 sm:gap-3">
                   {images.map((src, index) => (
                     <button
                       key={`${src}-${index}`}
                       type="button"
                       onClick={() => setLightbox({ images, index })}
-                      className="relative h-[236px] w-[calc(100vw-32px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100 sm:h-72 sm:w-[calc(100vw-56px)]"
+                      className="relative block w-[calc(100vw-32px)] max-w-[866px] shrink-0 snap-center overflow-hidden rounded-2xl bg-neutral-100 sm:w-[calc(100vw-56px)]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="h-full w-full object-cover" />
+                      <img src={src} alt="" className="block h-auto w-full" />
                       {images.length > 1 && (
                         <span className="absolute bottom-3 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
                           {index + 1}/{images.length}

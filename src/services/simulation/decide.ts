@@ -345,6 +345,7 @@ function buildUserPrompt(inp: DecideInput): string {
 当前目标：${inp.goals.join("；") || "（无）"}
 
 【今天】${inp.dateLabel}，东京${inp.world.season}，天气${inp.world.weather}，城市氛围：${inp.world.cityMood}。近期热点：${inp.world.viralTopics.join("、")}。
+【东京当日气候与物候】${inp.world.climateContext}
 
 【人物长期记忆】（长期稳定存在，会影响行为、人际关系和兴趣；不需要每天提起，但场景合适时应自然延续）
 ${longTermMem}

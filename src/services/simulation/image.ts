@@ -199,6 +199,14 @@ export function seasonalNecklineClause(world: ImageRequest["world"]): string {
   ].join(" ");
 }
 
+/**
+ * Signature: `function seasonalAppearanceClause(world: ImageRequest["world"]): string`
+ * Purpose: Prevents calendar-season stereotypes from overriding Tokyo's actual visual phenology, especially during September residual heat.
+ */
+function seasonalAppearanceClause(world: ImageRequest["world"]): string {
+  return `Tokyo date-specific climate and vegetation: ${world.climateContext}`;
+}
+
 export async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
@@ -502,6 +510,7 @@ ${world.season} / ${world.weather}
     user,
     "[Wardrobe constraint]",
     seasonalNecklineClause(world),
+    seasonalAppearanceClause(world),
     "Do not invent or add any clothing accessory that is not explicitly requested by ImageSpec.",
   ].join("\n");
 
@@ -819,12 +828,21 @@ type ImagePromptRequest = {
   world: ImageRequest["world"];
 };
 
+/**
+ * Signature: `async function composePrompt(req: ImagePromptRequest, outfit?: DailyOutfit, providerName?: string): Promise<string | null>`
+ * Purpose: Builds a provider-specific image prompt, retaining the established Agnes prompt while giving GPT Image a shorter photographic brief.
+ */
 export async function composePrompt(
   req: ImagePromptRequest,
-  outfit?: DailyOutfit
+  outfit?: DailyOutfit,
+  providerName = "agnes",
 ): Promise<string | null> {
   const scene = await scenePromptLLM(req);
   if (!scene) return null;
+
+  if (providerName === "openai") {
+    return composeOpenAIImagePrompt(req, scene, outfit);
+  }
 
   const fashion = fashionClause(req.persona, req.world);
   const outfitText = outfitClause(req.persona, req.world, outfit);
@@ -834,8 +852,44 @@ export async function composePrompt(
     scene,
     fashion,
     outfitText,
+    seasonalAppearanceClause(req.world),
     rules,
   ].join("\n\n");
+}
+
+/**
+ * Signature: `function composeOpenAIImagePrompt(req: ImagePromptRequest, scene: string, outfit?: DailyOutfit): string`
+ * Purpose: Produces a concise GPT Image 2 brief that prioritizes an ordinary captured moment without Agnes-specific keyword and negative-prompt stacking.
+ */
+function composeOpenAIImagePrompt(
+  req: ImagePromptRequest,
+  scene: string,
+  outfit?: DailyOutfit,
+): string {
+  const { persona, imageSpec, world } = req;
+  const subject = imageSpec.subjectVisible
+    ? `The recurring protagonist is visible: ${persona.appearance}. Preserve their facial identity, hairstyle, age, body type and overall impression.`
+    : "The recurring protagonist is not visible; do not add them to the frame.";
+  const cast = imageSpec.subjectRole === "protagonist"
+    ? "Keep the protagonist as the only prominent person unless the scene explicitly requests a friend."
+    : `The visual subject is ${imageSpec.subjectRole}; do not turn an observed person or object into the protagonist.`;
+  const outfitDirection = imageSpec.subjectVisible
+    ? outfit?.items ?? imageSpec.outfit ?? "Choose simple, plausible clothing for the season and activity."
+    : "No protagonist outfit is needed.";
+  const avoid = imageSpec.avoid?.length
+    ? imageSpec.avoid.join("; ")
+    : "none beyond the critical constraints below";
+
+  return [
+    "Create one believable personal photo from an ordinary day in Tokyo. It should feel incidentally captured, not art-directed or generated to demonstrate a style.",
+    `[Moment] ${scene}`,
+    `[Subject] ${subject} ${cast}`,
+    `[Action and place] ${imageSpec.action}. ${imageSpec.environment}.`,
+    `[Conditions] ${world.season}; ${world.weather}; ${imageSpec.lighting ?? "available ambient light"}; mood: ${imageSpec.mood ?? "ordinary and understated"}. ${seasonalAppearanceClause(world)}`,
+    `[Clothing] ${outfitDirection}`,
+    `[Capture] Use a plausible ${imageSpec.camera} viewpoint. Natural consumer-camera exposure, ordinary depth of field, restrained color, real skin and material texture, small incidental imperfections, and an unforced composition. Do not beautify or dramatize the moment.`,
+    `[Avoid] ${avoid}. No duplicated protagonist, unmistakable extra limbs or hands, broken anatomy, plastic skin, CGI rendering, poster text, watermark, or logo.`,
+  ].join("\n");
 }
 
 function identityReferenceClause(): string {
@@ -848,12 +902,28 @@ function identityReferenceClause(): string {
   ].join(" ");
 }
 
+/**
+ * Signature: `function retryPrompt(req: GenerateCheckinImageInput, improvedPrompt: string, outfit: DailyOutfit | undefined, hasIdentityReference: boolean, providerName: string): string`
+ * Purpose: Builds a provider-specific correction prompt after image quality review rejects a generated result.
+ */
 function retryPrompt(
   req: GenerateCheckinImageInput,
   improvedPrompt: string,
   outfit: DailyOutfit | undefined,
-  hasIdentityReference: boolean
+  hasIdentityReference: boolean,
+  providerName: string,
 ): string {
+  if (providerName === "openai") {
+    return [
+      hasIdentityReference ? identityReferenceClause() : "",
+      improvedPrompt,
+      `Preserve the intended moment: ${req.imageSpec.action}; ${req.imageSpec.environment}.`,
+      `Recurring protagonist: ${req.persona.appearance}. Do not duplicate the protagonist.`,
+      outfit ? `Clothing: ${outfit.items}` : "",
+      "Keep the result understated and physically plausible. Correct only the identified defect; do not turn it into a polished commercial photograph.",
+    ].filter(Boolean).join("\n");
+  }
+
   return [
     hasIdentityReference ? identityReferenceClause() : "",
     improvedPrompt,
@@ -946,7 +1016,7 @@ class OpenAIImageProvider implements ImageProvider {
 
     const base = (process.env.OPENAI_IMAGE_API_URL || "https://api.openai.com/v1").replace(/\/$/, "");
     const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
-    const size = process.env.OPENAI_IMAGE_SIZE || "1024x1024";
+    const size = process.env.OPENAI_IMAGE_SIZE || "1024x1536";
     const quality = process.env.OPENAI_IMAGE_QUALITY || "medium";
 
     try {
@@ -1073,6 +1143,10 @@ function companionPortraitSpec(spec: ImageSpec): ImageSpec {
   };
 }
 
+/**
+ * Signature: `async function generateSingleCheckinImage(req: GenerateCheckinImageInput): Promise<string | null>`
+ * Purpose: Generates, reviews, retries, uploads, and returns one simulated check-in image using the selected provider.
+ */
 async function generateSingleCheckinImage(
   req: GenerateCheckinImageInput
 ): Promise<string | null> {
@@ -1090,7 +1164,7 @@ async function generateSingleCheckinImage(
 
   // 先让 LLM 写专业详细 prompt + 附加生图规则；
   // 并加载人物参考图（img2img 锁脸）
-  const basePrompt = await composePrompt(req, req.outfit);
+  const basePrompt = await composePrompt(req, req.outfit, provider.name);
   if (!basePrompt) return null;
 
   const refImage = shouldUseIdentityReference(req)
@@ -1120,7 +1194,8 @@ async function generateSingleCheckinImage(
     const qa = await judgeImage(
       raw,
       req.imageSpec,
-      prompt
+      prompt,
+      provider.name === "openai" ? "openai-relaxed" : "strict",
     );
 
     console.info(
@@ -1137,7 +1212,8 @@ async function generateSingleCheckinImage(
         req,
         qa.improvedPrompt,
         req.outfit,
-        Boolean(refImage)
+        Boolean(refImage),
+        provider.name,
       );
 
       continue;
@@ -1156,6 +1232,10 @@ async function generateSingleCheckinImage(
   return persistToCloudinary(acceptedRaw);
 }
 
+/**
+ * Signature: `async function generateCheckinImage(req: GenerateCheckinImageInput): Promise<string | null>`
+ * Purpose: Generates one image using the provider selected by the current environment.
+ */
 export async function generateCheckinImage(
   req: GenerateCheckinImageInput
 ): Promise<string | null> {

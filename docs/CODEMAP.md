@@ -208,6 +208,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `sim-inspect.ts` — reports simulation/persona state.
 - `sim-reset.ts` — resets and reseeds simulation content.
 - `sim-run.ts` — CLI daily simulation entry.
+- `regenerate-sim-images.ts` — previews or replaces simulated post/check-in images created on one Tokyo date.
 - `split-posts.ts` — one-time Event-to-Post migration helper.
 - `sync-demo-users.ts` — synchronizes PersonaV2 definitions, state snapshots, and relationships into database users.
 - `eval/dataset.json` — extraction evaluation cases.

@@ -11,6 +11,7 @@ async function fetchT(url: string, init: RequestInit, ms: number): Promise<Respo
 }
 
 export type QAResult = { ok: boolean; reason: string; improvedPrompt: string | null };
+export type ImageQAProfile = "strict" | "openai-relaxed";
 
 const QA_SYSTEM = `You are a very strict quality reviewer for generated lifestyle photos.
 Judge whether the image is acceptable. If any hard failure is present, return ok=false.
@@ -28,6 +29,18 @@ Acceptance criteria:
 
 When rejecting, write a corrected English image prompt that fixes the specific issue while preserving the original intent. The improved prompt must include: documentary smartphone photo, plausible camera viewpoint, natural hands and anatomy, realistic skin texture, subtle 35mm film grain, muted film colors, imperfect casual framing.`;
 
+const OPENAI_RELAXED_QA_SYSTEM = `You review generated lifestyle photos for obvious, user-visible failures.
+Accept a usable ordinary social post even when it has minor aesthetic, styling, framing, background, finger, facial, or identity imperfections.
+
+Reject only when at least one hard failure is clearly visible:
+1. Obvious AI, CGI, illustration, or synthetic plastic appearance.
+2. Severe human anatomy failure, such as an unmistakable extra hand or limb, a missing major limb, severely fused hands, a broken joint or body connection, a duplicated protagonist, or a grossly malformed face.
+3. A major contradiction with the requested subject, activity, place, or visible-person requirement.
+4. Prominent generated text, watermark, or logo.
+
+Do not reject for mild polish, ordinary pose awkwardness, subtle skin smoothing, small background artifacts, uncertain finger count, slight identity mismatch, clothing variation, camera mismatch, or a composition that is somewhat more professional than requested.
+When rejecting, provide a short corrected English prompt that addresses only the hard failure and preserves the original scene.`;
+
 function safeParse(text: string): unknown {
   let t = text.trim();
   if (t.startsWith("```")) t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -41,10 +54,15 @@ function safeParse(text: string): unknown {
   }
 }
 
+/**
+ * Signature: `async function judgeImage(imageRef: string, imageSpec: ImageSpec, basePrompt: string, profile?: ImageQAProfile): Promise<QAResult>`
+ * Purpose: Reviews a generated image with either the established strict criteria or a relaxed GPT Image acceptance threshold.
+ */
 export async function judgeImage(
   imageRef: string,
   imageSpec: ImageSpec,
-  basePrompt: string
+  basePrompt: string,
+  profile: ImageQAProfile = "strict"
 ): Promise<QAResult> {
   const base = process.env.AGNES_API_URL;
   const key = process.env.AGNES_API_KEY;
@@ -66,7 +84,9 @@ export async function judgeImage(
     `Original prompt:\n${basePrompt}`,
     "",
     "Check whether the generated image matches the intended image specification.",
-    "Check subject visibility, camera viewpoint, protagonist role, outfit, unwanted neck accessories, seasonal clothing suitability, props, environment, lighting, mood, scene match, AI/CGI feel, skin texture, hands, two-handed POV problems, extra unrelated hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
+    profile === "openai-relaxed"
+      ? "Reject only obvious AI/CGI appearance, clearly severe human anatomy defects, major scene contradictions, duplicated protagonists, or prominent generated text/watermarks. Accept minor aesthetic and anatomical uncertainty."
+      : "Check subject visibility, camera viewpoint, protagonist role, outfit, unwanted neck accessories, seasonal clothing suitability, props, environment, lighting, mood, scene match, AI/CGI feel, skin texture, hands, two-handed POV problems, extra unrelated hands, anatomy, face, teeth, eyes, hair, text/watermarks.",
     'Return JSON only: {"ok": true/false, "reason": "short Chinese reason; if rejected name the main defect", "improvedPrompt": "corrected English prompt when rejected, otherwise null"}',
   ].join("\n");
 
@@ -83,7 +103,13 @@ export async function judgeImage(
           model,
           max_tokens: 700,
           messages: [
-            { role: "system", content: QA_SYSTEM },
+            {
+              role: "system",
+              content:
+                profile === "openai-relaxed"
+                  ? OPENAI_RELAXED_QA_SYSTEM
+                  : QA_SYSTEM,
+            },
             {
               role: "user",
               content: [

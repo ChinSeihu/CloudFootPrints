@@ -88,6 +88,10 @@ async function personaForUser(userId: string) {
   return { user, persona };
 }
 
+/**
+ * Signature: `async function regenerateCheckinImage(checkinId: string, userId: string, requestedPhotoUrls?: string[]): Promise<RegenResult>`
+ * Purpose: Generates and appends a replacement check-in image using the environment-selected provider.
+ */
 export async function regenerateCheckinImage(
   checkinId: string,
   userId: string,
@@ -140,6 +144,10 @@ export async function regenerateCheckinImage(
   return { ok: true, imageUrl, imageUrls: nextPhotoUrls };
 }
 
+/**
+ * Signature: `async function regeneratePostImage(postId: string, userId: string): Promise<RegenResult>`
+ * Purpose: Generates and replaces a simulated post image using the environment-selected provider.
+ */
 export async function regeneratePostImage(
   postId: string,
   userId: string,

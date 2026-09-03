@@ -4,6 +4,10 @@ import { regenerateCheckinImage } from "@/services/simulation/regenerate";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/**
+ * Signature: `async function POST(req: Request, ctx: Ctx): Promise<NextResponse>`
+ * Purpose: Regenerates a personal-page check-in image using the environment-selected image provider.
+ */
 export async function POST(req: Request, ctx: Ctx) {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
