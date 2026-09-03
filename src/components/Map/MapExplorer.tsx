@@ -31,6 +31,7 @@ import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter"
 import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
+import { Mascot, useMascotVariant } from "@/components/Mascot/Mascot";
 
 // ── 颜色映射（与 categories.ts 保持同步） ──
 const CATEGORY_COLORS: Record<string, string> = {
@@ -464,6 +465,7 @@ type JourneyTarget = { id: string; title: string; lat: number; lng: number };
  */
 export function MapExplorer() {
   const router = useRouter();
+  const mascotVariant = useMascotVariant();
   const routerRef = useRef(router);
   useEffect(() => { routerRef.current = router; });
 
@@ -2370,11 +2372,8 @@ export function MapExplorer() {
               aria-label="发帖"
               className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-600 text-white shadow-[0_10px_22px_rgba(124,58,237,0.32)]">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-100 to-rose-50 shadow-[0_10px_22px_rgba(124,58,237,0.2)] ring-1 ring-violet-200">
+                <Mascot character="footprint" variant={mascotVariant} className="h-7 w-7" title="发布内容" />
               </span>
               发帖
             </button>
@@ -2557,7 +2556,9 @@ export function MapExplorer() {
         <div className="fixed left-3 right-3 top-4 z-[1100] mx-auto max-w-md rounded-2xl border border-emerald-200 bg-white/95 p-3 pr-10 shadow-[0_14px_40px_rgba(15,23,42,0.18)] backdrop-blur">
           <button type="button" aria-label="稍后记录" onClick={() => { setJourneyTarget(null); setArrivalDistance(null); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-lg text-neutral-400 hover:bg-neutral-100">×</button>
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 text-lg">✓</span>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-50 to-violet-50 ring-1 ring-emerald-100">
+              <Mascot character="michiru" variant={mascotVariant} className="h-10 w-10" title="路灵 Michiru" />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-neutral-950">你已到达「{journeyTarget.title}」附近</p>
               <p className="mt-0.5 text-xs text-neutral-500">距离约 {Math.max(1, Math.round(arrivalDistance))} 米，是否留下足迹？</p>
@@ -2570,7 +2571,9 @@ export function MapExplorer() {
       {checkinSuccess && (
         <div className="fixed inset-0 z-[1200] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true" aria-label="足迹记录成功">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</span>
+            <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-rose-50 via-white to-violet-50 ring-1 ring-violet-100">
+              <Mascot character="kumoashi" variant={mascotVariant} className="h-[4.5rem] w-[4.5rem]" title="云足 Kumoashi" />
+            </span>
             <h2 className="mt-4 text-lg font-black text-neutral-950">足迹已记录</h2>
             <p className="mt-2 text-sm text-neutral-500">「{checkinSuccess.title}」已经加入你的足迹。</p>
             <div className="mt-5 grid grid-cols-2 gap-3">

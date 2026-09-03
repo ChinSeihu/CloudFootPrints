@@ -261,6 +261,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/`
 
 - `BottomNav.tsx` — app-wide bottom navigation.
+- `Mascot/Mascot.tsx` — compact Kumoashi, Michiru, and shared-footprint SVG marks plus the device-local standard/feminine presentation preference.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — shared page loading presentation.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.
