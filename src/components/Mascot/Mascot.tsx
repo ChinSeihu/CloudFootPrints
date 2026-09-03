@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 export type MascotVariant = "standard" | "feminine";
 export type MascotCharacter = "kumoashi" | "michiru" | "footprint";
+export type MascotNavRole = "map" | "calendar" | "discover" | "profile";
 
 const STORAGE_KEY = "tem_mascot_variant";
 const CHANGE_EVENT = "tem:mascot-variant";
@@ -45,6 +46,44 @@ export function useMascotVariant(): MascotVariant {
 export function setMascotVariant(variant: MascotVariant): void {
   window.localStorage.setItem(STORAGE_KEY, variant);
   window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+const NAV_ROLE_INDEX: Record<MascotNavRole, number> = {
+  map: 0,
+  calendar: 1,
+  discover: 2,
+  profile: 3,
+};
+
+/**
+ * Signature: `function MascotNavIcon({ role, variant, className, title }: MascotNavIconProps): React.JSX.Element`
+ * Purpose: Render one full-quality 3D IP pose from the standard or feminine navigation sprite strip.
+ */
+export function MascotNavIcon({
+  role,
+  variant,
+  className = "h-11 w-8",
+  title,
+}: {
+  role: MascotNavRole;
+  variant: MascotVariant;
+  className?: string;
+  title?: string;
+}) {
+  const index = NAV_ROLE_INDEX[role];
+  return (
+    <span
+      className={`block shrink-0 bg-no-repeat ${className}`}
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      style={{
+        backgroundImage: `url(/brand/mascots/nav-${variant}.png)`,
+        backgroundSize: "400% 100%",
+        backgroundPosition: `${(index / 3) * 100}% center`,
+      }}
+    />
+  );
 }
 
 /**

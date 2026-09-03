@@ -31,7 +31,7 @@ import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter"
 import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
-import { Mascot, useMascotVariant } from "@/components/Mascot/Mascot";
+import { Mascot, MascotNavIcon, useMascotVariant } from "@/components/Mascot/Mascot";
 
 // ── 颜色映射（与 categories.ts 保持同步） ──
 const CATEGORY_COLORS: Record<string, string> = {
@@ -2557,7 +2557,7 @@ export function MapExplorer() {
           <button type="button" aria-label="稍后记录" onClick={() => { setJourneyTarget(null); setArrivalDistance(null); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-lg text-neutral-400 hover:bg-neutral-100">×</button>
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-50 to-violet-50 ring-1 ring-emerald-100">
-              <Mascot character="michiru" variant={mascotVariant} className="h-10 w-10" title="路灵 Michiru" />
+              <MascotNavIcon role="map" variant={mascotVariant} className="h-10 w-7" title="路灵 Michiru" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-neutral-950">你已到达「{journeyTarget.title}」附近</p>
@@ -2572,7 +2572,7 @@ export function MapExplorer() {
         <div className="fixed inset-0 z-[1200] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true" aria-label="足迹记录成功">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
             <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-rose-50 via-white to-violet-50 ring-1 ring-violet-100">
-              <Mascot character="kumoashi" variant={mascotVariant} className="h-[4.5rem] w-[4.5rem]" title="云足 Kumoashi" />
+              <MascotNavIcon role="profile" variant={mascotVariant} className="h-[4.5rem] w-12" title="云足 Kumoashi" />
             </span>
             <h2 className="mt-4 text-lg font-black text-neutral-950">足迹已记录</h2>
             <p className="mt-2 text-sm text-neutral-500">「{checkinSuccess.title}」已经加入你的足迹。</p>

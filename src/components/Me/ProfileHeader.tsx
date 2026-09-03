@@ -9,7 +9,7 @@ import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 import type { PublicUser } from "@/lib/auth";
-import { Mascot, setMascotVariant, useMascotVariant, type MascotVariant } from "@/components/Mascot/Mascot";
+import { MascotNavIcon, setMascotVariant, useMascotVariant, type MascotVariant } from "@/components/Mascot/Mascot";
 
 type FollowMode = "following" | "followers";
 type FollowStats = { followingCount: number; followerCount: number };
@@ -341,7 +341,7 @@ export function ProfileHeader() {
                           : "border-neutral-200 bg-white text-neutral-500"
                       }`}
                     >
-                      <Mascot character="kumoashi" variant={variant} className="h-7 w-7" />
+                      <MascotNavIcon role="profile" variant={variant} className="h-9 w-6" />
                       {variant === "standard" ? "标准形象" : "女性形象"}
                     </button>
                   ))}
