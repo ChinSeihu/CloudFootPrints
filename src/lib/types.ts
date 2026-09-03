@@ -56,7 +56,8 @@ export type CommentDTO = {
 
 export type ReplyNoticeDTO = {
   id: string;
-  type: "reply" | "post";
+  type: "reply" | "post" | "checkin_comment" | "checkin_like";
+  targetType: "event" | "checkin";
   text: string;
   author?: UserBrief | null;
   eventId: string;

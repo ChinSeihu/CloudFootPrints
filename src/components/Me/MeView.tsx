@@ -17,13 +17,21 @@ import { DirectMessages } from "./DirectMessages";
 import { moodTagOf } from "@/lib/moods";
 import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/eventJourney";
 import { DEMO_USERS } from "@/lib/demoUsers";
-import type { CheckInDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
+import type { CheckInDTO, CommentDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 
 type Tab = "checkins" | "posts" | "managed" | "favorites" | "messages";
 
 function fmtDate(d: string | null): string {
   if (!d) return "时间未定";
   return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Signature: `function fmtInteractionTime(value: string): string`
+ * Purpose: Formats a footprint comment timestamp compactly while retaining both date and time.
+ */
+function fmtInteractionTime(value: string): string {
+  return new Date(value).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -51,6 +59,11 @@ function MeContent() {
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [editingPost, setEditingPost] = useState<EventDTO | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
+  const [openCheckinInteraction, setOpenCheckinInteraction] = useState<string | null>(null);
+  const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
+  const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
+  const [checkinReplyTo, setCheckinReplyTo] = useState<Record<string, { id: string; username: string } | null>>({});
+  const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ message: string; onOk: () => void | Promise<void> } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -150,14 +163,97 @@ function MeContent() {
     if (readKey) localStorage.setItem(readKey, String(now));
   }
 
-  // 点消息 → 拉取对应活动详情并打开
-  async function openNoticeEvent(eventId: string) {
+  /**
+   * Signature: `async function openNotice(notice: ReplyNoticeDTO): Promise<void>`
+   * Purpose: Opens an interacted-with activity or switches to and focuses the corresponding personal footprint.
+   */
+  async function openNotice(notice: ReplyNoticeDTO) {
+    if (notice.targetType === "checkin") {
+      setTab("checkins");
+      setOpenCheckinInteraction(notice.eventId);
+      await loadCheckinInteractions(notice.eventId);
+      window.setTimeout(() => document.getElementById(`checkin-${notice.eventId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+      return;
+    }
     try {
-      const d = await fetch(`/api/events/${eventId}`).then((r) => (r.ok ? r.json() : null));
+      const d = await fetch(`/api/events/${notice.eventId}`).then((r) => (r.ok ? r.json() : null));
       if (d?.event) setSelected(d.event);
     } catch {
       /* 忽略 */
     }
+  }
+
+  /**
+   * Signature: `async function loadCheckinInteractions(id: string): Promise<void>`
+   * Purpose: Loads recent comments and the current user's like state for one personal footprint.
+   */
+  async function loadCheckinInteractions(id: string) {
+    const [commentsResponse, reactionsResponse] = await Promise.all([
+      fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=20&replyLimit=10`),
+      fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`),
+    ]);
+    if (commentsResponse.ok) {
+      const data = await commentsResponse.json() as { comments?: CommentDTO[]; totalCount?: number };
+      setCheckinComments((current) => ({ ...current, [id]: data.comments ?? [] }));
+      setCheckinMetricOverrides((current) => ({ ...current, [id]: { ...current[id], commentCount: data.totalCount ?? data.comments?.length ?? 0 } }));
+    }
+    if (reactionsResponse.ok) {
+      const data = await reactionsResponse.json() as { likeCount?: number; likedByMe?: boolean };
+      setCheckinMetricOverrides((current) => ({ ...current, [id]: { ...current[id], likeCount: data.likeCount ?? 0, likedByMe: data.likedByMe ?? false } }));
+    }
+  }
+
+  /**
+   * Signature: `async function togglePersonalCheckinLike(checkin: CheckInDTO): Promise<void>`
+   * Purpose: Optimistically toggles a like on a personal footprint and reconciles the displayed count with the server.
+   */
+  async function togglePersonalCheckinLike(checkin: CheckInDTO) {
+    const override = checkinMetricOverrides[checkin.id];
+    const count = override?.likeCount ?? checkin.metrics?.likeCount ?? 0;
+    const liked = override?.likedByMe ?? false;
+    setCheckinMetricOverrides((current) => ({ ...current, [checkin.id]: { ...current[checkin.id], likeCount: Math.max(0, count + (liked ? -1 : 1)), likedByMe: !liked } }));
+    const response = await fetch(`/api/checkins/${encodeURIComponent(checkin.id)}/reactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "LIKE" }),
+    });
+    if (!response.ok) {
+      setCheckinMetricOverrides((current) => ({ ...current, [checkin.id]: { ...current[checkin.id], likeCount: count, likedByMe: liked } }));
+      return;
+    }
+    const data = await response.json() as { active: boolean; count: number };
+    setCheckinMetricOverrides((current) => ({ ...current, [checkin.id]: { ...current[checkin.id], likeCount: data.count, likedByMe: data.active } }));
+  }
+
+  /**
+   * Signature: `async function togglePersonalCheckinComments(id: string): Promise<void>`
+   * Purpose: Opens or closes a footprint's comment panel and loads its interaction data on first use.
+   */
+  async function togglePersonalCheckinComments(id: string) {
+    const opening = openCheckinInteraction !== id;
+    setOpenCheckinInteraction(opening ? id : null);
+    if (opening && !checkinComments[id]) await loadCheckinInteractions(id);
+  }
+
+  /**
+   * Signature: `async function submitPersonalCheckinComment(id: string): Promise<void>`
+   * Purpose: Posts a comment to a personal footprint and updates its visible comment list and count.
+   */
+  async function submitPersonalCheckinComment(id: string) {
+    const text = (checkinDrafts[id] ?? "").trim();
+    if (!text) return;
+    const replyTo = checkinReplyTo[id];
+    const response = await fetch(`/api/checkins/${encodeURIComponent(id)}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, parentId: replyTo?.id ?? null }),
+    });
+    if (!response.ok) return;
+    const data = await response.json() as { comment: CommentDTO };
+    setCheckinDrafts((current) => ({ ...current, [id]: "" }));
+    setCheckinReplyTo((current) => ({ ...current, [id]: null }));
+    setCheckinComments((current) => ({ ...current, [id]: [data.comment, ...(current[id] ?? [])] }));
+    setCheckinMetricOverrides((current) => ({ ...current, [id]: { ...current[id], commentCount: (current[id]?.commentCount ?? 0) + 1 } }));
   }
 
   function deletePost(id: string) {
@@ -306,8 +402,17 @@ function MeContent() {
                 const day = d.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
                 const weekday = d.toLocaleDateString("zh-CN", { weekday: "short" });
                 const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+                const interaction = checkinMetricOverrides[c.id];
+                const likeCount = interaction?.likeCount ?? c.metrics?.likeCount ?? 0;
+                const commentCount = interaction?.commentCount ?? c.metrics?.commentCount ?? 0;
+                const likedByMe = interaction?.likedByMe === true;
+                const interactionOpen = openCheckinInteraction === c.id;
+                const comments = checkinComments[c.id] ?? [];
+                const commentThreads = comments
+                  .filter((comment) => !comment.parentId)
+                  .map((comment) => ({ comment, replies: comments.filter((reply) => reply.parentId === comment.id) }));
                 return (
-                <li key={c.id} className="grid grid-cols-[54px_minmax(0,1fr)] gap-3">
+                <li id={`checkin-${c.id}`} key={c.id} className="grid scroll-mt-20 grid-cols-[54px_minmax(0,1fr)] gap-3">
                   <div className="relative text-right">
                     <div className="sticky top-2">
                       <div className="text-[13px] font-semibold text-neutral-800 tabular-nums">{day}</div>
@@ -384,17 +489,72 @@ function MeContent() {
                     );
                   })()}
                   <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-neutral-400">
-                    <span className="inline-flex items-center gap-1">
-                      <IconHeart className="h-3.5 w-3.5 text-rose-400" />
-                      {c.metrics?.likeCount ?? 0}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
+                    <button type="button" onClick={() => togglePersonalCheckinLike(c)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition ${likedByMe ? "bg-rose-50 text-rose-600" : "hover:bg-neutral-100"}`}>
+                      <IconHeart filled={likedByMe} className="h-3.5 w-3.5 text-rose-400" />
+                      {likeCount}
+                    </button>
+                    <button type="button" onClick={() => togglePersonalCheckinComments(c.id)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 transition ${interactionOpen ? "bg-blue-50 text-blue-600" : "hover:bg-neutral-100"}`}>
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                       </svg>
-                      {c.metrics?.commentCount ?? 0}
-                    </span>
+                      {commentCount}
+                    </button>
                   </div>
+                  {interactionOpen && (
+                    <div className="mt-2 rounded-xl bg-neutral-50 p-3">
+                      {comments.length > 0 ? (
+                        <div className="space-y-3">
+                          {commentThreads.map(({ comment, replies }) => (
+                            <div key={comment.id}>
+                              <div className="flex items-center gap-2 text-[11px]">
+                                <span className="font-semibold text-neutral-800">{comment.author?.username ?? "用户"}</span>
+                                <time className="text-neutral-400">{fmtInteractionTime(comment.createdAt)}</time>
+                              </div>
+                              <p className="mt-1 text-[12px] leading-5 text-neutral-700">{comment.text}</p>
+                              <button
+                                type="button"
+                                onClick={() => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: comment.parentId ?? comment.id, username: comment.author?.username ?? "用户" } }))}
+                                className="mt-1 text-[11px] font-semibold text-blue-500 hover:text-blue-700"
+                              >
+                                回复
+                              </button>
+                              {replies.length > 0 && (
+                                <div className="mt-2 space-y-2 border-l border-neutral-200 pl-3 ml-4">
+                                  {replies.map((reply) => (
+                                    <div key={reply.id}>
+                                      <div className="flex items-center gap-2 text-[11px]">
+                                        <span className="font-semibold text-neutral-800">{reply.author?.username ?? "用户"}</span>
+                                        <time className="text-neutral-400">{fmtInteractionTime(reply.createdAt)}</time>
+                                      </div>
+                                      <p className="mt-1 text-[12px] leading-5 text-neutral-700">{reply.text}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-neutral-400">还没有评论。</p>
+                      )}
+                      {checkinReplyTo[c.id] && (
+                        <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-600">
+                          <span>回复 @{checkinReplyTo[c.id]?.username}</span>
+                          <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [c.id]: null }))}>取消</button>
+                        </div>
+                      )}
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          value={checkinDrafts[c.id] ?? ""}
+                          onChange={(event) => setCheckinDrafts((current) => ({ ...current, [c.id]: event.target.value }))}
+                          onKeyDown={(event) => { if (event.key === "Enter") void submitPersonalCheckinComment(c.id); }}
+                          placeholder={checkinReplyTo[c.id] ? `回复 @${checkinReplyTo[c.id]?.username}` : "写一条评论"}
+                          className="min-w-0 flex-1 rounded-full bg-white px-3 py-2 text-xs outline-none ring-1 ring-neutral-200 focus:ring-blue-300"
+                        />
+                        <button type="button" onClick={() => submitPersonalCheckinComment(c.id)} className="rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white">发送</button>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </li>
                 );
@@ -659,33 +819,39 @@ function MeContent() {
             ) : (
             <>
             {loaded && notices.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有新消息。当别人评论你的帖子或回复你的评论时，会出现在这里。</p>
+              <p className="text-sm text-neutral-500">还没有新消息。帖子和足迹收到评论、回复或点赞后，会出现在这里。</p>
             )}
             <ul className="space-y-2.5">
               {notices.map((n) => (
                 <li key={n.id}>
                   <button
                     type="button"
-                    onClick={() => openNoticeEvent(n.eventId)}
+                    onClick={() => openNotice(n)}
                     className="w-full text-left rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <Avatar user={n.author} size={28} />
                       <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
                       <span className="text-[11px] text-neutral-400 shrink-0">
-                        {n.type === "reply" ? "回复了你的评论" : "评论了你的帖子"}
+                        {n.type === "reply"
+                          ? "回复了你的评论"
+                          : n.type === "checkin_comment"
+                            ? "评论了你的足迹"
+                            : n.type === "checkin_like"
+                              ? "赞了你的足迹"
+                              : "评论了你的帖子"}
                       </span>
                       <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
                         {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
                       </span>
                     </div>
-                    <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>
+                    {n.type !== "checkin_like" && <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>}
                     {n.type === "reply" && n.parentText && (
                       <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
                         你：{n.parentText}
                       </p>
                     )}
-                    <div className="text-[11px] text-blue-500 mt-1.5 truncate">在《{n.eventTitle}》· 查看 ›</div>
+                    <div className="text-[11px] text-blue-500 mt-1.5 truncate">{n.targetType === "checkin" ? "足迹" : "在"}《{n.eventTitle}》· 查看 ›</div>
                   </button>
                 </li>
               ))}
