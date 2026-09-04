@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { IconSparkles, IconPin } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
 import { EventDetail } from "@/components/Recommend/EventDetail";
+import { MASCOT_OPTIONS, MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
+import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
 import type { ChatMessage } from "@/lib/llm";
 import type { GuideRoutePlan } from "@/lib/guideRoute";
 import type { EventDTO } from "@/lib/types";
@@ -122,10 +124,14 @@ function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: st
 
 /**
  * Signature: `function GuideChat(): React.JSX.Element | null`
- * Purpose: Renders topic-aware guide chat and keeps its composer within the visible viewport when a mobile keyboard opens.
+ * Purpose: Renders the selected IP as a topic-aware guide with welcome, reply and thinking feedback while keeping the composer above mobile keyboards.
  */
 export function GuideChat() {
   const { open, topic, closeGuide } = useGuide();
+  const identity = useMascotIdentity();
+  const hasMascot = identity !== "none";
+  const guideName = MASCOT_OPTIONS.find((option) => option.id === identity)?.name ?? "AI 导游";
+  const isMichiru = identity.startsWith("michiru");
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -256,8 +262,8 @@ export function GuideChat() {
     <div ref={panelRef} className="fixed inset-x-0 top-[var(--guide-top,0px)] z-[1000] flex h-[var(--guide-height,100dvh)] flex-col overflow-hidden bg-white">
       <div className="shrink-0 flex items-center justify-between px-4 h-14 border-b border-black/5">
         <div className="flex items-center gap-2 font-semibold">
-          <IconSparkles className="w-5 h-5 text-violet-600" />
-          AI 导游
+          {hasMascot ? <MascotNavIcon identity={identity} role="discover" className="h-10 w-10" /> : <IconSparkles className="w-5 h-5 text-violet-600" />}
+          <span>{hasMascot ? guideName : "AI 导游"}{hasMascot && <span className="ml-2 text-xs font-normal text-neutral-400">AI 导游</span>}</span>
         </div>
         <button
           type="button"
@@ -272,6 +278,15 @@ export function GuideChat() {
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-sm text-neutral-500 leading-relaxed">
+            {hasMascot && (
+              <div className="mb-4 flex items-center gap-3 rounded-2xl bg-violet-50/70 p-3">
+                <MascotAnimation className="h-20 w-20" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-neutral-800">我是{guideName}，你的东京向导</p>
+                  <p className="mt-1 text-xs leading-5 text-violet-700">{isMichiru ? "告诉我想去哪，我帮你把路线安排好。" : "今天想去哪？一起找找喜欢的地方吧。"}</p>
+                </div>
+              </div>
+            )}
             {topic ? (
               <>
                 <p className="font-medium text-neutral-700 mb-1">关于「{topic.title}」</p>
@@ -279,7 +294,7 @@ export function GuideChat() {
               </>
             ) : (
               <>
-                <p className="font-medium text-neutral-700 mb-1">你好，我是你的东京 AI 导游 🗼</p>
+                {!hasMascot && <p className="font-medium text-neutral-700 mb-1">你好，我是你的东京 AI 导游 🗼</p>}
                 <p>展览、市集、live、祭典——想了解活动信息、历史文化渊源，或要路线与推荐，随时问我：</p>
               </>
             )}
@@ -287,6 +302,12 @@ export function GuideChat() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
+            {m.role === "assistant" && hasMascot && (
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+                <MascotNavIcon identity={identity} role="discover" className="h-8 w-8" />
+                <span>{guideName}</span>
+              </div>
+            )}
             <div
               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                 m.role === "user" ? "bg-violet-600 text-white" : "bg-neutral-100 text-neutral-800"
@@ -317,9 +338,10 @@ export function GuideChat() {
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-neutral-100 rounded-2xl px-3.5 py-2.5 text-sm text-neutral-400">
-              导游思考中…
+          <div role="status" className="flex items-center justify-start gap-2">
+            {hasMascot && <MascotAnimation animated className="h-14 w-14" />}
+            <div className="bg-neutral-100 rounded-2xl px-3.5 py-2.5 text-sm text-neutral-500">
+              {hasMascot ? `${guideName}正在${isMichiru ? "整理路线与建议" : "寻找适合你的灵感"}…` : "导游思考中…"}
             </div>
           </div>
         )}

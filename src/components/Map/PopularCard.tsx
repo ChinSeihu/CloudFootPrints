@@ -4,6 +4,7 @@ import { type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, type EventCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
 import { isUserPost } from "@/components/common/EventSource";
+import { MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import type { EventDTO } from "@/lib/types";
 
 type Props = {
@@ -120,9 +121,10 @@ function EventImagePlaceholder({ title, color }: { title: string; color: string 
 
 /**
  * Signature: `function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props)`
- * Purpose: Shows nearby recommendations and keeps the anchor/reopen controls available when no events match.
+ * Purpose: Shows nearby recommendations with the selected IP guide entry and preserves anchor controls when no events match.
  */
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
+  const mascotIdentity = useMascotIdentity();
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
   const [activeIntent, setActiveIntent] = useState<RecommendIntent | null>(null);
@@ -291,8 +293,9 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
           <button
             type="button"
             onClick={() => onPlanRoute(shown.map(({ e }) => e))}
-            className="rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
           >
+            <MascotNavIcon identity={mascotIdentity} role="discover" className="h-7 w-7" />
             AI 帮我规划
           </button>
         </div>
