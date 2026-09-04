@@ -35,6 +35,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Activities, discovery, and detail
 
 - Recommendation/discovery page: `src/app/recommend/page.tsx`.
+- Cached browsing shell: `src/components/common/BrowsePage.tsx` — independent activity/check-in/metric reads, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains tab-local view state.
+- Deferred public activity metrics: `src/app/api/events/metrics/route.ts` — bounded IDs and database-aggregated reaction/click counts.
 - Feed and filters: `src/components/Recommend/RecommendList.tsx`.
 - Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx`.
 - Shared event reads/writes: `src/services/events.ts`.

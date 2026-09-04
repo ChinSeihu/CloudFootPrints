@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { useBrowseState } from "@/components/common/useBrowseState";
+
 import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type maplibregl from "maplibre-gl";
@@ -522,7 +524,7 @@ export function MapExplorer() {
   const checkinsRef = useRef<CheckInDTO[]>([]);
 
   const [events, setEvents] = useState<EventDTO[]>([]);
-  const [filters, setFilters] = useState<FilterState>({
+  const [filters, setFilters] = useBrowseState<FilterState>("map:filters", {
     categories: new Set(),
     dateRange: ALL_DATES,
     mineOnly: false,

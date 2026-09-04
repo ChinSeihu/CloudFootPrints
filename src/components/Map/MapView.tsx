@@ -10,6 +10,8 @@ const DEFAULT_STYLE =
 // 东京站附近
 const TOKYO_CENTER: [number, number] = [139.7671, 35.6812];
 
+let savedCamera: { center: [number, number]; zoom: number; bearing: number; pitch: number } | null = null;
+
 type Props = {
   /** 地图实例就绪后回调，父组件用它来增删 marker。 */
   onReady: (map: maplibregl.Map) => void;
@@ -17,6 +19,10 @@ type Props = {
   onBoundsChange: (bbox: BBox) => void;
 };
 
+/**
+ * Signature: `function MapView({ onReady, onBoundsChange }: Props): React.JSX.Element`
+ * Purpose: Owns the map lifecycle and restores the last camera when returning to the map.
+ */
 export function MapView({ onReady, onBoundsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // 用 ref 持有最新回调，避免把它们放进 effect 依赖导致地图重建。
@@ -38,6 +44,7 @@ export function MapView({ onReady, onBoundsChange }: Props) {
       style: styleUrl,
       center: TOKYO_CENTER,
       zoom: 12,
+      ...savedCamera,
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -67,7 +74,10 @@ export function MapView({ onReady, onBoundsChange }: Props) {
     });
     map.on("moveend", emitBounds);
 
-    return () => map.remove();
+    return () => {
+      savedCamera = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+      map.remove();
+    };
   }, []);
 
   // 注意：用 h-full w-full 而非 absolute inset-0。

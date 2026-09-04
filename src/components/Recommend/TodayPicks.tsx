@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- extractor images come from many external domains, matching the existing discovery feed. */
 
+import { useBrowseState } from "@/components/common/useBrowseState";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -37,17 +38,17 @@ type TodayPicksProps = {
 
 /**
  * Signature: `function TodayPicks({ events, onOpen }: TodayPicksProps): React.ReactElement | null`
- * Purpose: Presents daily recommendations, synchronizes account WANT reactions with details, and keeps dismissals device-local.
+ * Purpose: Presents daily recommendations, synchronizes account WANT reactions with details, and keeps dismissals device-local, and retains loaded picks to prevent return-navigation layout shifts.
  */
 export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [feedback, setFeedback] = useState<Record<string, PickFeedback>>({});
-  const [wantedEvents, setWantedEvents] = useState<EventDTO[]>([]);
+  const [feedback, setFeedback] = useBrowseState<Record<string, PickFeedback>>(`picks:${user?.id ?? "guest"}:feedback`, {});
+  const [wantedEvents, setWantedEvents] = useBrowseState<EventDTO[]>(`picks:${user?.id ?? "guest"}:wanted`, []);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useBrowseState(`picks:${user?.id ?? "guest"}:ready`, false);
   const [wantsRevision, setWantsRevision] = useState(0);
 
   useEffect(() => {

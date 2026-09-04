@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrowseState } from "@/components/common/useBrowseState";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -209,10 +210,10 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
 }
 
 /**
- * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }): React.ReactElement`
+ * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string }): React.ReactElement`
  * Purpose: Renders the activity discovery and community feeds, including explainable daily recommendations.
  */
-export function RecommendList({ events, checkins, initialCheckinsHasMore = false }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean }) {
+export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string }) {
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -220,23 +221,23 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [previewGallery, setPreviewGallery] = useState<{ urls: string[]; initialIndex: number } | null>(null);
   const targetId = useRef<string | null>(null);
   const resolvedRef = useRef(false);
-  const [tab, setTab] = useState<TopTab>("OFFICIAL");
-  const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
-  const [dateRange, setDateRange] = useState<DayRange>(ALL_DATES);
+  const [tab, setTab] = useBrowseState<TopTab>(`recommend:${user?.id ?? "guest"}:tab`, "OFFICIAL");
+  const [cat, setCat] = useBrowseState<EventCategory | "ALL">(`recommend:${user?.id ?? "guest"}:cat`, "ALL");
+  const [dateRange, setDateRange] = useBrowseState<DayRange>(`recommend:${user?.id ?? "guest"}:dateRange`, ALL_DATES);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useBrowseState(`recommend:${user?.id ?? "guest"}:searchOpen`, false);
+  const [query, setQuery] = useBrowseState(`recommend:${user?.id ?? "guest"}:query`, "");
   const [heroIndex, setHeroIndex] = useState(0);
-  const [discoverFilter, setDiscoverFilter] = useState<DiscoverFilter>("new");
-  const [discoverFullType, setDiscoverFullType] = useState<DiscoverFullType>("posts");
+  const [discoverFilter, setDiscoverFilter] = useBrowseState<DiscoverFilter>(`recommend:${user?.id ?? "guest"}:discoverFilter`, "new");
+  const [discoverFullType, setDiscoverFullType] = useBrowseState<DiscoverFullType>(`recommend:${user?.id ?? "guest"}:discoverFullType`, "posts");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [discoverCheckinRows, setDiscoverCheckinRows] = useState<CheckInDTO[]>(checkins);
-  const [checkinsOffset, setCheckinsOffset] = useState(checkins.length);
-  const [checkinsHasMore, setCheckinsHasMore] = useState(initialCheckinsHasMore);
+  const [discoverCheckinRows, setDiscoverCheckinRows] = useBrowseState<CheckInDTO[]>(`recommend:${user?.id ?? "guest"}:discoverCheckinRows`, checkins);
+  const [checkinsOffset, setCheckinsOffset] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsOffset`, checkins.length);
+  const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore);
   const [checkinsLoadingMore, setCheckinsLoadingMore] = useState(false);
   const [checkinsLoadError, setCheckinsLoadError] = useState(false);
-  const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
+  const [expandedCheckins, setExpandedCheckins] = useBrowseState<Set<string>>(`recommend:${user?.id ?? "guest"}:expandedCheckins`, () => new Set());
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
   const [commentLoadState, setCommentLoadState] = useState<Record<string, "loading" | "error" | "ready">>({});
@@ -249,7 +250,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [checkinMenuId, setCheckinMenuId] = useState<string | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [deletingCheckin, setDeletingCheckin] = useState<CheckInDTO | null>(null);
-  const [activityVisibleCount, setActivityVisibleCount] = useState(12);
+  const [activityVisibleCount, setActivityVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:activityVisibleCount`, 12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
   const allDiscoverRef = useRef<HTMLElement | null>(null);
@@ -359,7 +360,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     );
   }, [discoverFilter, userLocation]);
 
+  const previousCheckins = useRef(checkins);
   useEffect(() => {
+    if (previousCheckins.current === checkins) return;
+    previousCheckins.current = checkins;
     setDiscoverCheckinRows(checkins);
     setCheckinsOffset(checkins.length);
     setCheckinsHasMore(initialCheckinsHasMore);
@@ -489,11 +493,17 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     return () => clearInterval(timer);
   }, [featuredEvents.length]);
 
+  const previousFilters = useRef({ cat, dateRange, query });
   useEffect(() => {
-    setActivityVisibleCount(12);
-  }, [cat, dateRange, query]);
+    const previous = previousFilters.current;
+    if (previous.cat !== cat || previous.dateRange !== dateRange || previous.query !== query) setActivityVisibleCount(12);
+    previousFilters.current = { cat, dateRange, query };
+  }, [cat, dateRange, query, setActivityVisibleCount]);
 
+  const previousSearch = useRef(query);
   useEffect(() => {
+    if (previousSearch.current === query) return;
+    previousSearch.current = query;
     if (!hasOfficialSearch) return;
     const timer = window.setTimeout(() => {
       allActivitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -673,7 +683,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         <div className="flex h-20 w-[34%] min-w-[6.25rem] shrink-0 gap-1 overflow-hidden rounded-lg bg-neutral-100">
           {urls.slice(0, 3).map((src, index) => (
             <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className="relative min-w-0 flex-1 overflow-hidden bg-neutral-100">
-              <img src={src} alt={title} className="h-full w-full object-cover" />
+              <img loading="lazy" decoding="async" src={src} alt={title} className="h-full w-full object-cover" />
               <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
                 {index + 1}/{urls.length}
               </span>
@@ -685,7 +695,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     if (urls.length === 1) {
       return (
         <button type="button" onClick={() => setPreviewGallery({ urls, initialIndex: 0 })} className="mt-2 grid max-h-[min(60vh,28rem)] w-full place-items-center overflow-hidden rounded-lg bg-neutral-100">
-          <img src={urls[0]} alt={title} className="block h-auto max-h-[min(60vh,28rem)] w-full object-contain" />
+          <img loading="lazy" decoding="async" src={urls[0]} alt={title} className="block h-auto max-h-[min(60vh,28rem)] w-full object-contain" />
         </button>
       );
     }
@@ -694,7 +704,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       <div className="mt-2 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
         {visible.map((src, index) => (
           <button key={`${src}-${index}`} type="button" onClick={() => setPreviewGallery({ urls, initialIndex: index })} className="relative aspect-square min-w-0 overflow-hidden bg-neutral-100">
-            <img src={src} alt={title} className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={src} alt={title} className="h-full w-full object-cover" />
             <span className="absolute bottom-1 right-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
               {index === visible.length - 1 && urls.length > visible.length ? `${visible.length}/${urls.length}` : `${index + 1}/${urls.length}`}
             </span>
@@ -712,7 +722,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       <button key={post.id} type="button" onClick={() => openEvent(post)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         {imgs.length > 0 && (
           <div className="relative aspect-[4/3] bg-neutral-100">
-            <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={imgs[0]} alt="" className="h-full w-full object-cover" />
             {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
           </div>
         )}
@@ -1005,6 +1015,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </SectionBand>
           )}
 
+          {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
           {activityList.length > 0 && (
             <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
@@ -1047,7 +1058,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="大家在东京（用户发帖）" icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{eventsNotice ?? discoverEmptyText(discoverFilter, "posts")}</div>
             ) : (
               <MasonryGrid>
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
@@ -1058,7 +1069,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section>
             <SectionTitle title="附近足迹（用户签到）" icon="trail" tone="rose" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverCheckins.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
@@ -1091,7 +1102,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               discoverPosts.length > 0 ? (
                 <MasonryGrid>{discoverPosts.map((post) => renderPostCard(post))}</MasonryGrid>
               ) : (
-                <MascotFeedback>{discoverEmptyText(discoverFilter, "posts")}</MascotFeedback>
+                <MascotFeedback>{eventsNotice ?? discoverEmptyText(discoverFilter, "posts")}</MascotFeedback>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
@@ -1103,7 +1114,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
               </>
             ) : (
-              <MascotFeedback>{discoverEmptyText(discoverFilter, "checkins")}</MascotFeedback>
+              <MascotFeedback>{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</MascotFeedback>
             )}
             </div>
           </section>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrowseState } from "@/components/common/useBrowseState";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconChevronLeft, IconChevronRight, IconPin } from "@/components/icons";
@@ -49,23 +50,27 @@ function heatColor(count: number, max: number): { backgroundColor: string; color
   };
 }
 
+/**
+ * Signature: `function CalendarView({ events }: { events: EventDTO[] }): React.JSX.Element`
+ * Purpose: Renders activities while retaining the selected calendar month, date and filters across navigation.
+ */
 export function CalendarView({ events }: { events: EventDTO[] }) {
   const todayKey = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }), []);
-  const [year, setYear] = useState(() => Number(todayKey.slice(0, 4)));
-  const [month, setMonth] = useState(() => Number(todayKey.slice(5, 7)) - 1);
-  const [selected, setSelectedDate] = useState(todayKey);
+  const [year, setYear] = useBrowseState("calendar:year", () => Number(todayKey.slice(0, 4)));
+  const [month, setMonth] = useBrowseState("calendar:month", () => Number(todayKey.slice(5, 7)) - 1);
+  const [selected, setSelectedDate] = useBrowseState("calendar:selected", todayKey);
   const [detail, setDetail] = useState<EventDTO | null>(null);
-  const [dayTab, setDayTab] = useState<"starting" | "ongoing">("starting");
-  const [cat, setCat] = useState<EventCategory | "ALL">("ALL");
-  const [query, setQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [dayTab, setDayTab] = useBrowseState<"starting" | "ongoing">("calendar:dayTab", () => events.some(e => e.startTime && tokyoDateKey(e.startTime) === selected) ? "starting" : "ongoing");
+  const [cat, setCat] = useBrowseState<EventCategory | "ALL">("calendar:cat", "ALL");
+  const [query, setQuery] = useBrowseState("calendar:query", "");
+  const [searchOpen, setSearchOpen] = useBrowseState("calendar:searchOpen", false);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
     const node = dayRefs.current.get(selected) ?? dayRefs.current.get(todayKey);
-    node?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    if (node?.parentElement) node.parentElement.scrollTo({ left: node.offsetLeft - node.parentElement.clientWidth / 2 + node.clientWidth / 2 });
   }, [selected, todayKey, month, year]);
 
   useEffect(() => {
@@ -132,9 +137,13 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
     return { startingEvents: starting.sort(byTime), ongoingEvents: ongoing.sort(byTime) };
   }, [selectedEvents, selected]);
 
+  const previousDay = useRef({ selected, starting: startingEvents.length, ongoing: ongoingEvents.length });
   useEffect(() => {
+    const previous = previousDay.current;
+    if (previous.selected === selected && previous.starting === startingEvents.length && previous.ongoing === ongoingEvents.length) return;
+    previousDay.current = { selected, starting: startingEvents.length, ongoing: ongoingEvents.length };
     setDayTab(startingEvents.length === 0 && ongoingEvents.length > 0 ? "ongoing" : "starting");
-  }, [selected, startingEvents.length, ongoingEvents.length]);
+  }, [selected, startingEvents.length, ongoingEvents.length, setDayTab]);
 
   function setMonthDate(nextYear: number, nextMonth: number, day = Number(selected.slice(8, 10))) {
     setYear(nextYear);
