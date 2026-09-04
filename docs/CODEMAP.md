@@ -80,6 +80,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - Client state/chat/FAB: `src/components/Guide/GuideContext.tsx`, `GuideChat.tsx`, `GuideFab.tsx`.
 - Chat endpoint: `src/app/api/chat/route.ts`.
+- Streaming protocol: `src/lib/guideStream.ts` — UTF-8 SSE framing and partial JSON reply decoding; `streamGuideReply` in `src/lib/llm.ts` handles both providers and cancellation.
 - Activity grounding: `src/services/guideEvents.ts`.
 - Route-plan endpoint/types: `src/app/api/guide/route-plan/route.ts`, `src/lib/guideRoute.ts`.
 - LLM calls: `src/lib/llm.ts`.

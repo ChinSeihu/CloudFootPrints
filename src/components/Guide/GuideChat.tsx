@@ -1,5 +1,7 @@
 "use client";
 
+import { readSSE } from "@/lib/guideStream";
+
 import { useEffect, useRef, useState } from "react";
 import { IconSparkles, IconPin } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
@@ -207,7 +209,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
 
   /**
    * Signature: `async function send(text: string): Promise<void>`
-   * Purpose: Sends a guide question with note-taking feedback until the reply or error arrives.
+   * Purpose: Streams guide text into one persisted message, preserving partial output and restoring the question on failure.
    */
   async function send(text: string) {
     const t = text.trim();
@@ -227,23 +229,36 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
         body: JSON.stringify({ messages: apiMessages }),
         signal: controller.signal,
       });
-      const data = await res.json();
-      if (res.ok) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content: (typeof data.reply === "string" && data.reply.trim()) || "抱歉，刚才没答上来，请再问一次或换个问法。",
-            suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
-            events: Array.isArray(data.events) ? data.events : [],
-          },
-        ]);
-      } else {
-        setMessages((m) => [...m, { role: "assistant", content: data.error || "出错了" }]);
-      }
+      if (!res.ok || !res.body) throw new Error("guide unavailable");
+      let hasReply = false;
+      let completed = false;
+      let lastPaint = 0;
+      let latest = "";
+      const paint = (content: string, extra: Partial<UIMessage> = {}) => {
+        if (!content) return;
+        const message: UIMessage = { role: "assistant", content, ...extra };
+        if (!hasReply) { setMessages(m => [...m, message]); hasReply = true; }
+        else setMessages(m => [...m.slice(0, -1), message]);
+        lastPaint = Date.now();
+      };
+      try {
+        for await (const frame of readSSE(res.body)) {
+          const data = JSON.parse(frame) as { type: string; reply?: string; suggestions?: string[]; events?: { id: string; title: string }[] };
+          if (data.type === "reply" && typeof data.reply === "string") {
+            latest = data.reply;
+            if (Date.now() - lastPaint >= 80) paint(latest);
+          } else if (data.type === "done" && typeof data.reply === "string") {
+            latest = data.reply;
+            paint(latest, { suggestions: data.suggestions ?? [], events: data.events ?? [] });
+            completed = true;
+          } else if (data.type === "error") throw new Error("guide interrupted");
+        }
+        if (!completed) throw new Error("stream interrupted");
+      } finally { if (!completed && latest) paint(latest); }
     } catch {
       if (controller.signal.aborted) return;
-      setMessages((m) => [...m, { role: "assistant", content: "网络错误，请稍后再试。" }]);
+      setMessages((m) => [...m, { role: "assistant", content: "回答中断了，已保留收到的内容。问题已放回输入框，可以重新发送。" }]);
+      setInput(current => current || t);
     } finally {
       setLoading(false);
     }
@@ -389,7 +404,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
         ))}
         {detailRequest && <div><LoadingFeedback compact scene="calendar" text="打开活动卡片…" /><button type="button" onClick={() => setDetailRequest(null)} className="rounded-full px-3 py-2 text-xs text-neutral-500">取消打开</button></div>}
         {detailError && <p role="alert" className="text-sm text-rose-600">暂时无法打开活动，请稍后再点一次。</p>}
-        {loading && (
+        {loading && messages[messages.length - 1]?.role !== "assistant" && (
           <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : `${hasMascot ? guideName : "导游"}正在翻看笔记，寻找适合你的建议…`} />
         )}
         {/* 每次回答后，展示 AI 推测用户意图给出的后续问题，点击即追问 */}
@@ -458,6 +473,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
           placeholder="问问东京的活动…"
           className="min-w-0 flex-1 border border-neutral-300 rounded-full px-4 py-2 text-base sm:text-sm"
         />
+        {loading && <button type="button" onClick={() => requestRef.current?.abort()} className="px-3 py-2 text-sm text-neutral-600">停止生成</button>}
         <button
           type="button"
           onClick={() => send(input)}

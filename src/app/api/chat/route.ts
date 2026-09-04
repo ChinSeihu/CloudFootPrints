@@ -1,31 +1,36 @@
 import { NextResponse } from "next/server";
-import { chatWithGuide, type ChatMessage } from "@/lib/llm";
+import { streamGuideReply, type ChatMessage } from "@/lib/llm";
 import { buildGuideEventsContext } from "@/services/guideEvents";
-
-// 薄 handler：AI 导游多轮对话交给 lib/llm。只保留最近若干轮，控制上下文与成本。
-export async function POST(req: Request) {
-  let messages: ChatMessage[];
-  try {
-    const body = (await req.json()) as { messages?: ChatMessage[] };
-    messages = Array.isArray(body.messages) ? body.messages : [];
-  } catch {
+/**
+ * Signature: `async function POST(req: Request): Promise<Response>`
+ * Purpose: Streams guide text and final activity cards, propagating client cancellation to the model.
+ */
+export async function POST(req: Request): Promise<Response> {
+  const body = await req.json().catch(() => null);
+  if (!Array.isArray(body?.messages) || !body.messages.length || body.messages.length > 100 || !body.messages.every((m: ChatMessage) => m && ["user", "assistant"].includes(m.role) && typeof m.content === "string" && m.content.length <= 100000)) {
     return NextResponse.json({ error: "请求格式错误" }, { status: 400 });
   }
-  if (messages.length === 0) {
-    return NextResponse.json({ error: "缺少消息" }, { status: 400 });
-  }
-  try {
-    // 注入近期真实活动，让导游能回答“今天/近期有什么活动”（失败则空、不阻塞）。
-    const { context, refs } = await buildGuideEventsContext().catch(() => ({ context: "", refs: [] }));
-    const { reply, suggestions, referenced } = await chatWithGuide(messages.slice(-12), context);
-    // 把导游提到的活动编号映射回 {id,title}，供前端渲染可点击卡片 → 打开详情。
-    const refMap = new Map(refs.map((r) => [r.token, r]));
-    const events = referenced
-      .map((t) => refMap.get(t))
-      .filter((r): r is NonNullable<typeof r> => !!r)
-      .map((r) => ({ id: r.id, title: r.title }));
-    return NextResponse.json({ reply, suggestions, events });
-  } catch {
-    return NextResponse.json({ error: "AI 导游暂时不可用（可能未配置 LLM_API_KEY），请稍后再试。" }, { status: 502 });
-  }
+  const messages = (body.messages as ChatMessage[]).slice(-12);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  req.signal.addEventListener("abort", abort, { once: true });
+  if (req.signal.aborted) controller.abort();
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(output) {
+      const emit = (data: unknown) => { if (!controller.signal.aborted) output.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)); };
+      try {
+        emit({ type: "start" });
+        const { context, refs } = await buildGuideEventsContext().catch(() => ({ context: "", refs: [] }));
+        if (controller.signal.aborted) return;
+        const result = await streamGuideReply(messages, context, controller.signal, reply => emit({ type: "reply", reply }));
+        const refMap = new Map(refs.map(r => [r.token, r]));
+        const events = result.referenced.flatMap(token => { const ref = refMap.get(token); return ref ? [{ id: ref.id, title: ref.title }] : []; });
+        emit({ type: "done", reply: result.reply, suggestions: result.suggestions, events });
+      } catch { emit({ type: "error", error: "回答中断了，请稍后重试。" }); }
+      finally { req.signal.removeEventListener("abort", abort); if (!controller.signal.aborted) output.close(); }
+    },
+    cancel() { controller.abort(); },
+  });
+  return new Response(stream, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" } });
 }

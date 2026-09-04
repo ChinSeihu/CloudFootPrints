@@ -1,3 +1,4 @@
+import { readSSE, partialGuideReply } from "@/lib/guideStream";
 import Anthropic from "@anthropic-ai/sdk";
 import { EVENT_CATEGORIES, isEventCategory, type EventCategory } from "@/lib/categories";
 
@@ -722,4 +723,48 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
   if (!res.ok) throw new Error(`persona chat failed: ${res.status}`);
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   return (data.choices?.[0]?.message?.content ?? "").trim();
+}
+
+/**
+ * Signature: `async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply>`
+ * Purpose: Streams the structured reply from either provider and avoids extra model calls for missing suggestions.
+ */
+export async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply> {
+  const system = `${guideSystem()}\n\n${context}\n先输出 reply，再输出 suggestions 和 referenced。`;
+  let raw = "";
+  let previous = "";
+  const append = (delta: string) => {
+    raw += delta;
+    const reply = partialGuideReply(raw);
+    if (reply && reply !== previous) { previous = reply; onReply(reply); }
+  };
+  if (getProvider() === "anthropic") {
+    const stream = await getAnthropic().messages.create({
+      model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
+      max_tokens: GUIDE_CHAT_MAX_TOKENS, system, tools: [GUIDE_TOOL],
+      tool_choice: { type: "tool", name: "emit_guide_reply" }, messages, stream: true,
+    }, { signal });
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "input_json_delta") append(event.delta.partial_json);
+    }
+  } else {
+    const base = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
+    const response = await fetch(`${base}/chat/completions`, {
+      method: "POST", signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+      body: JSON.stringify({ model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL, stream: true,
+        messages: [{ role: "system", content: `${system}\n只输出 JSON：{"reply":"纯文本正文","suggestions":["相关追问"],"referenced":["E1"]}。提供3个相关追问。正文不出现活动编号。` }, ...messages],
+        response_format: { type: "json_object" }, temperature: 0.7, max_tokens: GUIDE_CHAT_MAX_TOKENS }),
+    });
+    if (!response.ok || !response.body) throw new Error("guide provider unavailable");
+    for await (const frame of readSSE(response.body)) {
+      if (frame === "[DONE]") break;
+      const data = JSON.parse(frame) as { error?: unknown; choices?: { delta?: { content?: string } }[] };
+      if (data.error) throw new Error("guide provider error");
+      append(data.choices?.[0]?.delta?.content ?? "");
+    }
+  }
+  const result = JSON.parse(raw) as Partial<GuideReply>;
+  if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("empty guide reply");
+  return { reply: result.reply, suggestions: cleanSuggestions(result.suggestions), referenced: cleanTokens(result.referenced) };
 }
