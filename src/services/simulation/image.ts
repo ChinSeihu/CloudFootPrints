@@ -525,16 +525,16 @@ ${world.season} / ${world.weather}
 
     if (!valid) {
       console.warn(
-        `[image-prompt] rejected persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} words=${words} elapsedMs=${elapsedMs}`
+        `[image-prompt] rejected persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} words=${words} elapsedMs=${elapsedMs}`
       );
       return null;
     }
 
     console.info(
-      `[image-prompt] ready persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} model=${process.env.LLM_MODEL || (useAnthropic ? "claude-haiku-4-5" : "deepseek-chat")} words=${words} elapsedMs=${elapsedMs}`
+      `[image-prompt] ready persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} model=${process.env.LLM_MODEL || (useAnthropic ? "claude-haiku-4-5" : "deepseek-chat")} words=${words} elapsedMs=${elapsedMs}`
     );
     if ((process.env.IMAGE_PROMPT_LOG ?? "").toLowerCase() === "true") {
-      console.info(`[image-prompt] scene persona=${persona.id} ${JSON.stringify(prompt)}`);
+      console.info(`[image-prompt] scene persona=${persona.id} name=${JSON.stringify(persona.username)} ${JSON.stringify(prompt)}`);
     }
     return prompt;
   };
@@ -584,7 +584,7 @@ ${world.season} / ${world.weather}
 
     if (!res.ok) {
       console.warn(
-        `[image-prompt] request failed persona=${persona.id} provider=deepseek status=${res.status} elapsedMs=${Date.now() - startedAt}`
+        `[image-prompt] request failed persona=${persona.id} name=${JSON.stringify(persona.username)} provider=deepseek status=${res.status} elapsedMs=${Date.now() - startedAt}`
       );
       return null;
     }
@@ -596,7 +596,7 @@ ${world.season} / ${world.weather}
     return finish(data.choices?.[0]?.message?.content);
   } catch (error) {
     console.warn(
-      `[image-prompt] request error persona=${persona.id} provider=${useAnthropic ? "anthropic" : "deepseek"} elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : "unknown"}`
+      `[image-prompt] request error persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : "unknown"}`
     );
     return null;
   }
@@ -1197,7 +1197,7 @@ async function generateSingleCheckinImage(
   if (provider.name === "none") return null;
 
   if (!simulationUploadConfigured()) {
-    console.error(`[image-generation] skipped persona=${req.persona.id} reason=missing-cloudinary-config`);
+    console.error(`[image-generation] skipped persona=${req.persona.id} name=${JSON.stringify(req.persona.username)} reason=missing-cloudinary-config`);
     return null;
   }
 
@@ -1229,7 +1229,7 @@ async function generateSingleCheckinImage(
 
     if (!raw) {
       console.warn(
-        `[image-generation] failed persona=${req.persona.id} provider=${provider.name} attempt=${attempt + 1}`
+        `[image-generation] failed persona=${req.persona.id} name=${JSON.stringify(req.persona.username)} provider=${provider.name} attempt=${attempt + 1}`
       );
       break;
     }
@@ -1247,7 +1247,7 @@ async function generateSingleCheckinImage(
     );
 
     console.info(
-      `[image-qa] persona=${req.persona.id} attempt=${attempt + 1} ok=${qa.ok} reason=${JSON.stringify(qa.reason)}`
+      `[image-qa] persona=${req.persona.id} name=${JSON.stringify(req.persona.username)} attempt=${attempt + 1} ok=${qa.ok} reason=${JSON.stringify(qa.reason)}`
     );
 
     if (qa.ok) {
@@ -1272,12 +1272,14 @@ async function generateSingleCheckinImage(
 
   if (!acceptedRaw) {
     console.warn(
-      `[image-generation] discarded persona=${req.persona.id} provider=${provider.name} reason=no-qa-approved-image`
+      `[image-generation] discarded persona=${req.persona.id} name=${JSON.stringify(req.persona.username)} provider=${provider.name} reason=no-qa-approved-image`
     );
     return null;
   }
 
-  return persistToCloudinary(acceptedRaw);
+  const savedUrl = await persistToCloudinary(acceptedRaw);
+  console.info(`[image-persistence] persona=${req.persona.id} name=${JSON.stringify(req.persona.username)} saved=${Boolean(savedUrl)}`);
+  return savedUrl;
 }
 
 /**

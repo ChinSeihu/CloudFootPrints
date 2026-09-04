@@ -9,7 +9,11 @@ function arg(name: string): string | undefined {
 
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
 
-function tokyoToday(): string {
+/**
+ * Signature: `function tokyoYesterday(): string`
+ * Purpose: Returns the default simulation date (yesterday in Tokyo).
+ */
+function tokyoYesterday(): string {
   return new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
     timeZone: "Asia/Tokyo",
   });
@@ -28,6 +32,10 @@ function dateRange(from: string, to: string): string[] {
   return out;
 }
 
+/**
+ * Signature: `async function main(): Promise<void>`
+ * Purpose: Runs requested dates and reports each character's distinct outcome without merging skipped states.
+ */
 async function main() {
   const dry = hasFlag("dry");
   const only = arg("only")?.split(",").map((s) => s.trim()).filter(Boolean);
@@ -35,7 +43,8 @@ async function main() {
   const to = arg("to");
   const single = arg("date");
 
-  const dates = from && to ? dateRange(from, to) : [single ?? tokyoToday()];
+  const dates = from && to ? dateRange(from, to) : [single ?? tokyoYesterday()];
+  console.log(`日期来源：${from && to ? "指定日期范围" : single ? "指定日期" : "默认东京昨天"}；实际推演日期：${dates.join(", ")}`);
   const rangeText = dates.length > 1 ? `-${dates[dates.length - 1]}` : "";
   console.log(`模拟 ${dates.length} 天（${dates[0]}${rangeText}）${dry ? " [dry]" : ""}${only ? ` only=${only.join(",")}` : ""}\n`);
 
@@ -49,7 +58,9 @@ async function main() {
     const r = await simulateDay(date, { only, dry });
     const checkins = r.results.filter((x) => x.status === "posted");
     const memories = r.results.filter((x) => x.status === "memory");
-    const quiet = r.results.filter((x) => x.status === "skipped-quiet" || x.status === "skipped-done");
+    const quiet = r.results.filter((x) => x.status === "skipped-quiet");
+    const done = r.results.filter((x) => x.status === "skipped-done");
+    const undecided = r.results.filter((x) => x.status === "no-decision");
 
     totalCheckins += checkins.length;
     totalMemories += memories.length;
@@ -61,8 +72,15 @@ async function main() {
       ? ` / 社交 发帖${r.social.posts} 评论${r.social.comments} 回复${r.social.replies}${r.social.skipped ? " skipped" : ""}`
       : "";
 
-    console.log(`■ ${date}  [${r.world}]  足迹 ${checkins.length} / 记忆 ${memories.length} / 平静 ${quiet.length}${socialText}${r.maintenance ? `  · ${r.maintenance}` : ""}`);
-    for (const p of checkins) console.log(`   - 足迹 ${p.username}: ${p.note}`);
+    console.log(`■ ${date}  [${r.world}]  足迹 ${checkins.length} / 记忆 ${memories.length} / 当天不行动 ${quiet.length} / 已完成跳过 ${done.length} / 无决策或失败 ${undecided.length}${socialText}${r.maintenance ? `  · ${r.maintenance}` : ""}`);
+    const labels = {
+      posted: "已发布足迹",
+      memory: "仅生成记忆",
+      "skipped-quiet": "当天不行动（参与度判定）",
+      "skipped-done": "已完成跳过（当天已有模拟记忆，不重复推演或补图）",
+      "no-decision": "无决策或失败（检查角色配置、用户及前面的错误日志）",
+    };
+    for (const p of r.results) console.log(`   - ${p.username} [${p.status}] ${labels[p.status]}${p.note ? `：${p.note}` : ""}`);
     for (const note of r.social?.notes ?? []) console.log(`   - ${note}`);
   }
 

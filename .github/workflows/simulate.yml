@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: "模拟某一天 (YYYY-MM-DD)，留空 = 今天(东京)"
+        description: "模拟某一天 (YYYY-MM-DD)，留空 = 昨天(东京)"
         required: false
         default: ""
       from:
@@ -78,7 +78,7 @@ jobs:
           LLM_BASE_URL: https://api.deepseek.com
           # 记录 DeepSeek 生成的场景 prompt，便于区分提示词与生图模型问题。
           IMAGE_PROMPT_LOG: "true"
-          # 手动触发时的可选参数（schedule 触发时均为空 → 默认跑「今天」）。
+          # 手动触发时的可选参数（schedule 触发时均为空 → 默认跑东京昨天）。
           IN_DATE: ${{ github.event.inputs.date }}
           IN_FROM: ${{ github.event.inputs.from }}
           IN_TO: ${{ github.event.inputs.to }}
@@ -108,6 +108,6 @@ jobs:
           elif [ -n "$IN_DATE" ]; then
             ARGS="--date=$IN_DATE"
           fi
-          echo "运行参数: ${ARGS:-(今天)}"
+          echo "运行参数: ${ARGS:-(默认东京昨天；实际日期见脚本日志)}"
           echo "生图模型: ${IN_IMAGE_MODEL:-$IMAGE_PROVIDER（定时任务配置）}"
           npx tsx scripts/sim-run.ts $ARGS
