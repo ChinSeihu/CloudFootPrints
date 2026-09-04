@@ -1,0 +1,53 @@
+.scene {
+  --accent: #4963be;
+  --soft: #e9edfc;
+  position: relative;
+  width: 208px;
+  height: 208px;
+  flex: none;
+  isolation: isolate;
+}
+.scene[data-identity="kumoashi-sakura"], .scene[data-identity="michiru-lilac"] {
+  --accent: #a45bc2;
+  --soft: #f4eafa;
+}
+.halo { position: absolute; inset: 24px 12px 12px; border-radius: 50%; background: radial-gradient(ellipse, var(--soft), transparent 70%); }
+.shadow { position: absolute; bottom: 9px; left: 57px; width: 94px; height: 9px; border-radius: 50%; background: #28396416; animation: shadow 2.8s ease-in-out infinite; }
+.character { position: absolute; width: 182px; height: 182px; left: 13px; top: 0; transform-origin: 50% 85%; animation: look 2.8s ease-in-out infinite; }
+.portrait { display: block; width: 100%; height: 100%; }
+.hand { position: absolute; width: 25px; height: 23px; border-radius: 48% 48% 44% 44%; background: radial-gradient(ellipse at 35% 25%, white 30%, #e6e9f4 75%, #c9d1e5); box-shadow: 0 2px 3px #22366d20; }
+.calendar { position: absolute; width: 87px; height: 68px; left: 59px; top: 125px; perspective: 400px; transform: rotate(-4deg); }
+.calendarBase, .turnPage { position: absolute; inset: 0; border-radius: 8px; background: #fffdf8; border: 1px solid #d4dceb; box-shadow: 0 3px 0 #d7ddeb, 0 5px 8px #24346318; }
+.calendarBase::before, .turnPage::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 15px; border-radius: 7px 7px 0 0; background: #f398a5; }
+.turnPage { transform-origin: 50% 7px; backface-visibility: hidden; animation: page 2.8s cubic-bezier(.45,0,.25,1) infinite; }
+.pageGrid { position: absolute; inset: 25px 13px 10px; background: radial-gradient(circle, #bbc9e0 2.5px, transparent 3px) 0 0 / 15px 14px; }
+.dateMark { position: absolute; left: 34px; top: 29px; width: 20px; height: 20px; border-radius: 50%; background: var(--soft); border: 2px solid var(--accent); }
+.binding { position: absolute; inset: -5px 17px auto; display: flex; justify-content: space-between; }
+.binding i { width: 5px; height: 14px; border-radius: 4px; background: #64759b; box-shadow: 1px 0 1px white; }
+.holdHand { left: 45px; top: 155px; transform: rotate(-12deg); }
+.turnHand { left: 137px; top: 150px; transform-origin: 3px 23px; animation: hand 2.8s cubic-bezier(.45,0,.25,1) infinite; }
+.calendarSpark { position: absolute; left: 154px; top: 112px; color: #e8ab55; font-size: 23px; animation: found 2.8s ease-in-out infinite; }
+.cards { position: absolute; left: 50px; top: 147px; width: 87px; height: 43px; transform: rotate(-8deg); }
+.cards i { position: absolute; width: 37px; height: 45px; border: 3px solid white; border-radius: 5px; background: linear-gradient(155deg, #bce3df 55%, #92b6cc 55%); box-shadow: 0 2px 5px #293e6920; }
+.cards i:nth-child(2) { left: 24px; top: -4px; transform: rotate(12deg); background: linear-gradient(155deg, #f2d9b5 55%, #dcae9f 55%); }
+.cards i:nth-child(3) { left: 47px; transform: rotate(24deg); background: linear-gradient(155deg, #dacded 55%, #aba8d6 55%); }
+.searchArm { position: absolute; left: 118px; top: 92px; width: 65px; height: 99px; transform-origin: 30% 95%; animation: search 3.2s cubic-bezier(.45,0,.3,1) infinite; }
+.glass { position: absolute; top: 0; left: 0; width: 56px; height: 56px; border-radius: 50%; border: 6px solid var(--accent); background: linear-gradient(140deg, #fff9, #bce5f066); box-shadow: inset 0 0 0 2px #ffffff80, 1px 3px 4px #20376224; }
+.glass span { position: absolute; width: 22px; height: 10px; top: 5px; left: 5px; border-radius: 50%; background: #ffffffa0; transform: rotate(-35deg); }
+.glass i { position: absolute; top: 44px; left: 32px; width: 12px; height: 38px; border-radius: 6px; background: linear-gradient(90deg, var(--accent), #91a1db); transform: rotate(-25deg); transform-origin: top; }
+.searchHand { left: 34px; top: 65px; transform: rotate(-20deg); }
+.discoverySpark { position: absolute; left: 37px; top: 102px; color: #dda64c; font-size: 28px; animation: found 3.2s ease-in-out infinite; }
+.smallSpark { position: absolute; left: 173px; top: 76px; color: var(--accent); font-size: 19px; animation: found 3.2s .18s ease-in-out infinite; }
+.scene[data-scene="discover"] .character { animation-name: searchLook; animation-duration: 3.2s; }
+@keyframes look { 0%,100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(2px) rotate(-2deg); } 65% { transform: translateY(-2px) rotate(1deg); } }
+@keyframes shadow { 0%,100% { transform: scaleX(1); opacity: .8; } 55% { transform: scaleX(.9); opacity: .55; } }
+@keyframes page { 0%,18%,100% { transform: rotateX(0); opacity: 1; } 52%,72% { transform: rotateX(155deg); opacity: 1; } 73% { transform: rotateX(155deg); opacity: 0; } 74%,82% { transform: rotateX(0); opacity: 0; } 92% { transform: rotateX(0); opacity: 1; } }
+@keyframes hand { 0%,18%,100% { transform: translate(0,0) rotate(0); } 50%,65% { transform: translate(-12px,-36px) rotate(-30deg); } 84% { transform: translate(2px,-2px) rotate(5deg); } }
+@keyframes search { 0%,100% { transform: translate(0,0) rotate(0); } 30% { transform: translate(-24px,4px) rotate(-18deg); } 65% { transform: translate(5px,-5px) rotate(12deg); } 82% { transform: translate(5px,-5px) rotate(8deg); } }
+@keyframes searchLook { 0%,100% { transform: rotate(0) translateY(0); } 30% { transform: rotate(-3deg) translateY(2px); } 65%,80% { transform: rotate(2deg) translateY(-2px); } }
+@keyframes found { 0%,35%,100% { transform: scale(.55); opacity: 0; } 58%,76% { transform: scale(1); opacity: 1; } }
+.scene[data-paused="true"] *, .scene[data-paused="true"] *::before { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .scene *::before { animation: none !important; }
+  .calendarSpark, .discoverySpark, .smallSpark { opacity: 0; }
+}

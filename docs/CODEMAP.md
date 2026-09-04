@@ -269,7 +269,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `BottomNav.tsx` — app-wide bottom navigation.
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
-- `PageLoading.tsx` — shared page loading presentation.
+- `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.
+- `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar/discovery actions, four IP portraits, reduced-motion and hidden-tab handling.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.
 
 ### `src/components/Auth/`
