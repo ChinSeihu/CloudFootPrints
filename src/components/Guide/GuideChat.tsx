@@ -306,7 +306,7 @@ export function GuideChat() {
           <div className="text-sm text-neutral-500 leading-relaxed">
             {hasMascot && (
               <div className="mb-4 flex items-center gap-3 rounded-2xl bg-violet-50/70 p-3">
-                <MascotAnimation className="h-20 w-20" />
+                <MascotAnimation animated kind="welcome" className="h-20 w-20" />
                 <div className="min-w-0">
                   <p className="font-semibold text-neutral-800">我是{guideName}，你的东京向导</p>
                   <p className="mt-1 text-xs leading-5 text-violet-700">{isMichiru ? "告诉我想去哪，我帮你把路线安排好。" : "今天想去哪？一起找找喜欢的地方吧。"}</p>

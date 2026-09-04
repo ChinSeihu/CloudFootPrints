@@ -74,7 +74,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### AI guide
 
-- Shared character feedback: `src/components/Mascot/MascotFeedback.tsx` — full-body frame playback, empty/loading feedback and delayed route-loading UI; `src/app/loading.tsx` — route Suspense fallback.
+- Shared character feedback: `src/components/Mascot/MascotFeedback.tsx` — continuous welcome/success compatibility wrapper, quiet empty states and delayed loading feedback; `src/app/loading.tsx` — route Suspense fallback.
 
 - Client state/chat/FAB: `src/components/Guide/GuideContext.tsx`, `GuideChat.tsx`, `GuideFab.tsx`.
 - Chat endpoint: `src/app/api/chat/route.ts`.
@@ -270,6 +270,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.
+- `Mascot/MascotMotion.tsx`, `Mascot/MascotMotion.module.css` — scalable SVG portrait composition, continuous welcome motion, one-shot success and static idle feedback; replaces eight-frame playback.
 - `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar, discovery, album, route, note-taking, upload, painting and letter actions; four IP portraits, reduced-motion and hidden-tab handling.
 - `Mascot/LoadingFeedback.tsx` — delayed section/chat loading, compact scenes and long-wait text; shared by profile, maps, transport, guide/detail, upload/regeneration, messages/follows and discovery pagination.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.

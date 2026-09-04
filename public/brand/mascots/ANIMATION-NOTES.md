@@ -1,5 +1,9 @@
 # Full-body character animation candidates
 
+## Retired eight-frame runtime playback
+
+The old PNG sheets below are archived references only. Runtime `MascotAnimation` now delegates to `MascotMotion`: a stable portrait from `loading-portraits.webp`, continuously animated vector hand for welcome, one-shot nod/check for success, and a quiet static idle. No 140ms timer or frame index remains. Welcome runs over 4.8 seconds with rest between gestures; success settles within 1.15 seconds. Reduced motion shows the final check immediately. No new generated images were needed.
+
 ## Stage 3: upload, painting and letters
 
 Reuses the same portrait atlas; added continuous upload/photo, palette/painting and letter/envelope layers. Integrated into publishing/check-in submissions, avatar/cover uploads, edit saves and regeneration, direct messages, follows and discovery pagination. Detail waiting uses the page/card action; timetable and train waiting reuse the map. Existing animation pause and accessibility behavior remains shared. Mobile-size regeneration was verified with a local deferred callback, including completion and image replacement, without invoking image-generation APIs.
@@ -12,7 +16,7 @@ Reuses the existing portrait atlas without new generated assets. CSS continuousl
 
 `loading-portraits.webp` is a 1024-square transparent 2×2 atlas: Kumoashi, Kumoashi Sakura, Michiru, Michiru Lilac in reading order. Generated using built-in imagegen from `menu-user-v4.png`, resized and encoded with Sharp. The source PNG remains in the Codex generated_images folder.
 
-`LoadingScene.tsx` and its CSS module animate stable portraits, hands, pages and a magnifying glass continuously over 2.8/3.2-second loops. This is layered 2.5D motion, not a 30fps video or full character rig. Reduced motion removes animation; hidden documents pause it. No-IP mode omits the scene. The old eight-frame wave below remains in other feedback until subsequent rollout.
+`LoadingScene.tsx` and its CSS module animate stable portraits, hands, pages and a magnifying glass continuously over 2.8/3.2-second loops. This is layered 2.5D motion, not a 30fps video or full character rig. Reduced motion removes animation; hidden documents pause it. No-IP mode omits the scene. The old eight-frame wave was temporarily retained in this stage; it is now retired as described above.
 
 Validation: desktop Chromium sample had a 16.7ms median requestAnimationFrame interval over 180 callbacks with none over 34ms; this measures browser scheduling in that environment, not a real-phone frame-rate guarantee. Checked a 390×844 viewport, no-IP mode, alternate portrait selection and reduced motion.
 
