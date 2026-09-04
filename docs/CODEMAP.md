@@ -182,7 +182,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `public/`
 
-- `brand-icon.svg` — CloudFootprints cloud-and-footprint browser and install icon.
+- `brand-icon.png`, `brand-icon-192.png`, `apple-touch-icon.png` — Kumoashi mascot install icons (512/192px) and Apple touch icon (180px).
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
 - `brand/mascots/` — archived character sheets, September 4 design reference, current user-supplied V4 menu atlas, historical V3 atlas, prompts, and asset guidance.
 
@@ -225,7 +225,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `src/app/`
 
-- `layout.tsx`, `icon.svg` — root brand metadata/icon plus providers, analytics, and navigation shell.
+- `layout.tsx`, `icon.png` — root brand metadata/icon plus providers, analytics, and navigation shell.
 - `template.tsx` — route-transition template wrapper.
 - `page.tsx` — map page server entry rendering `MapExplorer`.
 - `globals.css` — global Tailwind styles and MapLibre popup/card styling.

@@ -33,3 +33,11 @@
 - `src/components/Mascot/Mascot.tsx` 负责导航条带定位和角色偏好切换；共用足印等纯符号场景仍可使用矢量标记。
 - 标准版与女性版需要保持相同角色职责和基础轮廓；调整动作、服装或发型时，不应改变角色身份。
 - 新增导出图时使用可读文件名，不要用生成任务 ID 覆盖这些最终稿。
+
+## 网站图标（2026-09-04）
+
+使用内置 imagegen，以 `menu-user-v4.png` 第三行云足·晴空为参考生成头像；导出至 `public/brand-icon.png`（512）、`public/brand-icon-192.png`（192）、`public/apple-touch-icon.png`（180）和 `src/app/icon.png`（48）。
+
+最终提示词：
+
+> Create one square website favicon/app icon using exactly Kumoashi male character in THIRD ROW of reference (white cloud face, blue tilted hat with coral heart and cyan star, blue scarf). Single close-up head portrait, large clear smiling eyes both open. Preserve reference identity and premium 3D toy look. No map, cards, props, text or other characters. Face and hat occupy central 78% square so usable as install icon safe area. Solid very pale lavender background to give white cloud silhouette contrast. Crisp simple recognizable at 32px. Output square PNG. Save final image locally.
