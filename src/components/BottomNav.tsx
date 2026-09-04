@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MascotNavIcon, useMascotIdentity, type MascotNavRole } from "@/components/Mascot/Mascot";
+import { MascotNavIcon, useMascotIdentity, type MascotNavRole, type MascotIdentity } from "@/components/Mascot/Mascot";
 
 const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> = [
   { href: "/", label: "地图", role: "map" },
@@ -12,9 +12,16 @@ const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> 
   { href: "/me", label: "我的", role: "profile" },
 ] as const;
 
+const ACTIVE_COLORS: Record<Exclude<MascotIdentity, "none">, string> = {
+  kumoashi: "text-sky-700",
+  "kumoashi-sakura": "text-rose-600",
+  michiru: "text-teal-700",
+  "michiru-lilac": "text-violet-700",
+};
+
 /**
  * Signature: `function BottomNav(): React.JSX.Element`
- * Purpose: Renders character navigation or a compact text-only mode with accessible active and focus states.
+ * Purpose: Renders character-led selection feedback or compact text navigation, retaining accessible active and focus states.
  */
 export function BottomNav() {
   const pathname = usePathname();
@@ -48,14 +55,18 @@ export function BottomNav() {
             onPointerEnter={() => router.prefetch(tab.href)}
             onTouchStart={() => router.prefetch(tab.href)}
             aria-current={active ? "page" : undefined}
-            className={`group mx-auto flex h-[68px] w-full max-w-24 flex-col items-center justify-center gap-0 rounded-[22px] text-xs motion-safe:transition-[transform,box-shadow,color,background-color] motion-safe:duration-200 motion-safe:ease-out motion-safe:active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 ${
-              active ? "bg-gradient-to-b from-violet-50/50 to-violet-100/80 font-semibold text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_3px_10px_-4px_rgba(109,40,217,0.28)]" : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
+            className={`group relative isolate mx-auto flex h-[68px] w-full max-w-24 flex-col items-center justify-center gap-0 rounded-2xl text-xs motion-safe:transition-colors motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 ${
+              active ? ACTIVE_COLORS[mascotIdentity] : "text-neutral-500 hover:text-neutral-700"
             }`}
           >
-            <span className={`grid h-[50px] w-14 shrink-0 place-items-center motion-safe:transition-[transform,filter] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-active:translate-y-0 motion-safe:group-active:scale-95 ${active ? "drop-shadow-[0_2px_2px_rgba(76,29,149,0.2)] motion-safe:-translate-y-0.5 motion-safe:scale-[1.03]" : "motion-safe:group-hover:-translate-y-0.5"}`}>
+            <span aria-hidden="true" className={`pointer-events-none absolute bottom-[19px] h-2.5 w-10 rounded-[50%] bg-current blur-[3px] motion-safe:transition-[opacity,transform] motion-safe:duration-300 ${active ? "scale-x-100 opacity-20" : "scale-x-50 opacity-0"}`} />
+            <span className={`relative grid h-[50px] w-14 shrink-0 place-items-center motion-safe:transition-[transform,filter,opacity] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-active:translate-y-0 motion-safe:group-active:scale-95 ${active ? "-translate-y-1 scale-110 opacity-100 drop-shadow-[0_3px_2px_rgba(30,41,59,0.12)]" : "opacity-75 saturate-[0.8] group-hover:opacity-100 motion-safe:group-hover:-translate-y-0.5"}`}>
               <MascotNavIcon role={tab.role} identity={mascotIdentity} className="h-[52px] w-[52px]" />
             </span>
-            <span className="relative leading-4">{tab.label}</span>
+            <span className={`relative leading-4 ${active ? "font-bold" : "font-medium"}`}>
+              <span aria-hidden="true" className={`absolute -left-2.5 top-1.5 h-1 w-1 rounded-full bg-current motion-safe:transition-[opacity,transform] motion-safe:duration-200 ${active ? "scale-100 opacity-100" : "scale-0 opacity-0"}`} />
+              {tab.label}
+            </span>
           </Link>
         );
       })}
