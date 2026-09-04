@@ -118,6 +118,10 @@ function EventImagePlaceholder({ title, color }: { title: string; color: string 
   );
 }
 
+/**
+ * Signature: `function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props)`
+ * Purpose: Shows nearby recommendations and keeps the anchor/reopen controls available when no events match.
+ */
 export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
@@ -154,8 +158,6 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       if (closeTimer.current != null) window.clearTimeout(closeTimer.current);
     };
   }, []);
-
-  if (events.length === 0) return null;
 
   function setSheetOffset(offset: number, animated: boolean) {
     const sheet = sheetRef.current;
@@ -334,6 +336,11 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       </div>
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {shown.length === 0 && (
+          <p role="status" className="w-full rounded-2xl bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
+            当前范围和筛选条件下暂无活动，试试移动地图或调整筛选。
+          </p>
+        )}
         {shown.slice(0, 6).map(({ e: ev, d }) => {
           const meta = CATEGORY_META[ev.category];
           const favorited = favoriteIds.has(ev.id);

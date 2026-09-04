@@ -464,6 +464,10 @@ type JourneyTarget = { id: string; title: string; lat: number; lng: number };
  * Signature: `function MapExplorer(): React.JSX.Element`
  * Purpose: Owns map discovery, type-aware LIFE/ACTIVITY rendering, filtering, placement, and publishing interactions.
  */
+/**
+ * Signature: `function MapExplorer()`
+ * Purpose: Coordinates map content, exploration anchors, nearby recommendations, and route/publishing panels.
+ */
 export function MapExplorer() {
   const router = useRouter();
   const mascotVariant = useMascotVariant();
@@ -556,13 +560,7 @@ export function MapExplorer() {
   const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
 
-  // 首屏默认隐藏附近活动，确认不是路线/到访深链后再显示，避免抽屉闪现与水合不一致。
-  useEffect(() => {
-    const action = new URLSearchParams(window.location.search).get("action");
-    if (action !== "route" && action !== "checkin") {
-      queueMicrotask(() => setSuppressNearbyCard(false));
-    }
-  }, []);
+  // 首屏等地图消费深链后再显示推荐；后续由路线/发布面板自身的显隐控制。
 
   // 仅在用户主动为某个活动打开路线后监听位置；距离计算只在浏览器内完成。
   useEffect(() => {
@@ -860,8 +858,14 @@ export function MapExplorer() {
   useEffect(() => { handleDeleteEventRef.current = handleDeleteEvent; });
 
   // ── 活动聚合图层 ──
+  /**
+   * Signature: `const setupEventClusters: (map: maplibregl.Map, mlg: typeof maplibregl) => Promise<void>`
+   * Purpose: Preloads event images before registering the source, layers, and event/anchor interactions.
+   */
   const setupEventClusters = useCallback(async (map: maplibregl.Map, mlg: typeof maplibregl) => {
     if (map.getSource("events")) return;
+    // 先备齐图标，再一次性注册活动图层，避免初始化期间重复解析瓦片。
+    await Promise.all([loadClusterBadges(map), loadUserPostBadge(map), loadCategoryGlyphIcons(map)]);
     // 活动聚合：缩小时合并成带数量的大圆（不加 icon）；放大到单点时 = 分类色圆 + 分类图标。
     map.addSource("events", {
       type: "geojson",
@@ -921,7 +925,6 @@ export function MapExplorer() {
       },
     });
 
-    await loadClusterBadges(map);
     map.addLayer({
       id: "event-cluster-badge",
       type: "symbol",
@@ -984,8 +987,6 @@ export function MapExplorer() {
     });
 
     // 分类白色图标叠在单点上（图标更大，辨识度更高）
-    await loadUserPostBadge(map);
-    await loadCategoryGlyphIcons(map);
     map.addLayer({
       id: "event-glyph",
       type: "symbol",
@@ -1259,7 +1260,9 @@ export function MapExplorer() {
     };
 
     // 点击单个活动点：把同位置/极近的点一起收集，做成堆叠卡片
-    map.on("click", "event-point", (e) => {
+    const eventPointLayers = ["event-point", "event-glyph", "event-point-halo"];
+    const eventClusterLayers = ["event-clusters", "event-cluster-halo", "event-cluster-badge", "event-cluster-count"];
+    map.on("click", eventPointLayers, (e) => {
       const f = e.features?.[0];
       if (!f) return;
       // 以点击像素为中心扩 14px 取邻近点，覆盖"地址极其接近"的重叠情况
@@ -1279,7 +1282,7 @@ export function MapExplorer() {
     });
 
     // 点击聚合圆：叶子彼此极近（放大也分不开）→ 堆叠卡片；否则放大展开
-    map.on("click", "event-clusters", (e) => {
+    map.on("click", eventClusterLayers, (e) => {
       const f = e.features?.[0];
       if (!f) return;
       const clusterId = f.properties?.cluster_id as number;
@@ -1311,40 +1314,19 @@ export function MapExplorer() {
       });
     });
 
-    for (const layer of ["event-clusters", "event-point", "event-glyph"]) {
+    for (const layer of [...eventClusterLayers, ...eventPointLayers]) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }
 
     // 点击地图空白处 → 落「探索锚点」，人气活动改以锚点为基准
     map.on("click", (e) => {
-      const interactive = ["event-point", "event-clusters", "checkin-point", "checkin-clusters", "landmark-icon", "food-icon", "osmfood-icon", "station-icon"].filter(
+      const interactive = [...eventPointLayers, ...eventClusterLayers, "checkin-point", "checkin-clusters", "landmark-icon", "food-icon", "osmfood-icon", "station-icon"].filter(
         (l) => map.getLayer(l),
       );
       const hits = interactive.length ? map.queryRenderedFeatures(e.point, { layers: interactive }) : [];
       if (hits.length > 0) return; // 命中要素交给各自 handler
 
-      // 标签、柔光和聚合徽章也属于活动的可视区域；扩 4px 容错，避免边缘点击误落探索锚点。
-      const eventVisualLayers = ["event-glyph", "event-point-halo", "event-cluster-halo", "event-cluster-badge", "event-cluster-count"].filter(
-        (layer) => map.getLayer(layer),
-      );
-      const hitPad = 4;
-      const hitBox: [maplibregl.PointLike, maplibregl.PointLike] = [
-        [e.point.x - hitPad, e.point.y - hitPad],
-        [e.point.x + hitPad, e.point.y + hitPad],
-      ];
-      const visualHits = eventVisualLayers.length ? map.queryRenderedFeatures(hitBox, { layers: eventVisualLayers }) : [];
-      if (visualHits.length > 0) {
-        // 文字标签本身没有独立 layer click handler，在这里打开对应活动。
-        const labelHit = visualHits.find((feature) => feature.layer.id === "event-glyph");
-        if (labelHit) {
-          const event = toPopupEvent(labelHit.properties ?? {});
-          if (event.id) {
-            openEventsPopup((labelHit.geometry as GeoJSON.Point).coordinates as [number, number], [event]);
-          }
-        }
-        return;
-      }
       if (placingRef.current) return; // 正在放置发帖/打卡锚点时不抢
       setExploreAnchor({ lat: e.lngLat.lat, lng: e.lngLat.lng });
     });
@@ -1990,7 +1972,7 @@ export function MapExplorer() {
 
   /**
    * Signature: `const handleReady: (map: maplibregl.Map) => Promise<void>`
-   * Purpose: Initializes map layers and consumes optional location, route, or activity check-in deep-link parameters.
+   * Purpose: Initializes map layers, consumes deep links, and releases the initial nearby-card suppression.
    */
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
@@ -2034,6 +2016,7 @@ export function MapExplorer() {
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
         );
       }
+      setSuppressNearbyCard(false);
     },
     [setupStations, setupLandmarks, setupFood, setupOsmFood, setupEventClusters, setupCheckinClusters],
   );
