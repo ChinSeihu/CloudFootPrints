@@ -182,7 +182,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - `brand-icon.svg` — CloudFootprints cloud-and-footprint browser and install icon.
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
-- `brand/mascots/` — full Kumoashi and Michiru standard/feminine character sheets plus asset usage guidance.
+- `brand/mascots/` — archived original character sheets, user-approved September 4 reference, V3 transparent four-character menu atlas, generation prompts, and asset usage guidance.
 
 - `stations.json`, `lines.json` — generated static rail topology used by the map and route planner.
 - `avatars/*.png`, `avatars/persona-v2/*.png` — user/demo avatar assets.

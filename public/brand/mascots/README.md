@@ -4,6 +4,11 @@
 
 ## 资产导航
 
+- `character-design-reference-2026-09-04.png` — 用户提供的新版完整角色设计原稿，原样保存，后续设计以此为参考。
+- `menu-design-v3-transparent.png` — 当前使用的四角色 × 四功能透明菜单图集；菜单、个人页角色选择及共用该组件的提示同步更新。
+- `menu-design-v3.png` — 生成中间稿（棋盘格为实色背景），仅归档，不用于界面。
+- `MENU-V3-PROMPTS.md` — 本轮内置 imagegen 提示词与角色映射说明。旧菜单素材保留供回退。
+
 - `menu-kumoashi.png` — 云足·晴空，同一个云足角色对应四种功能道具。
 - `menu-kumoashi-sakura.png` — 云足·樱梦，玫粉/紫色明暗层次的云足角色。
 - `menu-michiru.png` — 路灵·远行，同一个路灵角色对应四种功能道具。

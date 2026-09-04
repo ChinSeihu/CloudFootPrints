@@ -86,10 +86,10 @@ const NAV_ROLE_INDEX: Record<MascotNavRole, number> = {
 };
 
 const MENU_SHEETS: Record<MascotIdentity, { width: number; height: number; top: number; frameHeight: number; regions: number[][] }> = {
-  kumoashi: { width: 2095, height: 751, top: 0, frameHeight: 751, regions: [[0, 552], [563, 486], [1080, 487], [1590, 505]] },
-  "kumoashi-sakura": { width: 1983, height: 793, top: 80, frameHeight: 680, regions: [[0, 513], [513, 477], [990, 445], [1435, 548]] },
-  michiru: { width: 1997, height: 787, top: 70, frameHeight: 660, regions: [[0, 525], [525, 500], [1025, 500], [1525, 472]] },
-  "michiru-lilac": { width: 2078, height: 757, top: 0, frameHeight: 757, regions: [[0, 526], [526, 521], [1047, 505], [1552, 526]] },
+  kumoashi: { width: 1536, height: 1024, top: 0, frameHeight: 266, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
+  "kumoashi-sakura": { width: 1536, height: 1024, top: 270, frameHeight: 247, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
+  michiru: { width: 1536, height: 1024, top: 517, frameHeight: 208, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
+  "michiru-lilac": { width: 1536, height: 1024, top: 729, frameHeight: 241, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
 };
 
 type MascotNavIconProps = {
@@ -120,7 +120,7 @@ export function MascotPicker() {
 
 /**
  * Signature: `function MascotNavIcon({ role, identity, className, title }: MascotNavIconProps): React.JSX.Element`
- * Purpose: Frame a function-led raster IP portrait without stretching its source proportions.
+ * Purpose: Frames the approved-design raster atlas by character and function without distorting proportions.
  */
 export function MascotNavIcon({
   role,
@@ -143,7 +143,7 @@ export function MascotNavIcon({
       focusable="false"
     >
       <defs><clipPath id={clipId}><rect x={left} y={sheet.top} width={cellWidth} height={sheet.frameHeight} /></clipPath></defs>
-      <image href={`/brand/mascots/menu-${identity}.png`} width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
+      <image href="/brand/mascots/menu-design-v3-transparent.png" width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
     </svg>
   );
 }
