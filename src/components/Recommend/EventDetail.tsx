@@ -103,7 +103,7 @@ function TinyLoading({ label = "加载中" }: { label?: string }) {
 
 /**
  * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
- * Purpose: Renders official activities, user activities, and life updates with type-appropriate metadata and actions.
+ * Purpose: Renders activity details with account-backed want-to-go actions and type-appropriate life update interactions.
  */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
@@ -136,6 +136,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [authorFollowActive, setAuthorFollowActive] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [journeyNow] = useState(() => Date.now());
+  const [wantedId, setWantedId] = useState<string | null>(null);
+  const [wantLoadedKey, setWantLoadedKey] = useState<string | null>(null);
+  const [wantSaving, setWantSaving] = useState(false);
+  const [wantError, setWantError] = useState<string | null>(null);
+  const wantInFlight = useRef(false);
   const shareNoticeTimer = useRef<number | null>(null);
 
   const [reactions, setReactions] = useState<ReactionState>({
@@ -148,6 +153,48 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   });
 
   const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
+  useEffect(() => {
+    if (!user || event.postKind === "LIFE") return;
+    let cancelled = false;
+    fetch("/api/wants")
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { events: EventDTO[] }) => {
+        if (!cancelled) {
+          setWantedId(data.events.some((item) => item.id === event.id) ? event.id : null);
+          setWantLoadedKey(`${user.id}:${event.id}`);
+        }
+      })
+      .catch(() => { if (!cancelled) setWantError("想去状态加载失败，请重新打开详情"); });
+    return () => { cancelled = true; };
+  }, [event.id, event.postKind, user]);
+
+  /**
+   * Signature: `async function toggleWant(): Promise<void>`
+   * Purpose: Saves the dedicated WANT reaction and notifies mounted recommendation cards after success.
+   */
+  async function toggleWant() {
+    if (!user) { router.push("/me"); onClose(); return; }
+    if (wantInFlight.current) return;
+    wantInFlight.current = true;
+    setWantSaving(true);
+    setWantError(null);
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(event.id)}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "WANT" }),
+      });
+      const data = await response.json() as { active: boolean; error?: string };
+      if (!response.ok) throw new Error(data.error ?? "保存失败，请稍后再试");
+      setWantedId(data.active ? event.id : null);
+      window.dispatchEvent(new Event("wants-changed"));
+    } catch (error) {
+      setWantError(error instanceof Error ? error.message : "网络错误，请稍后再试");
+    } finally {
+      wantInFlight.current = false;
+      setWantSaving(false);
+    }
+  }
   const threads = useMemo(() => {
     const top = comments.filter((c) => !c.parentId);
     const descByRoot = new Map<string, CommentDTO[]>();
@@ -570,13 +617,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   /**
    * Signature: `function detailActionStrip(sourceLabel: string): React.JSX.Element`
-   * Purpose: Renders detail actions, including direct routing and post-arrival footprint creation for activities.
+   * Purpose: Renders want-to-go, routing and arrival actions with inline save feedback for activities.
    */
   function detailActionStrip(sourceLabel: string) {
     const journey = getJourneyStatus(event, journeyNow, false);
     const baseClass = "flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 text-center text-[11px] font-semibold text-neutral-700 transition hover:bg-white sm:gap-1.5 sm:py-2";
     const iconClass = "grid h-7 w-7 place-items-center rounded-full bg-white text-violet-500 shadow-sm ring-1 ring-neutral-100 sm:h-8 sm:w-8";
     return (
+      <div className="space-y-2">
+        {event.postKind !== "LIFE" && (
+          <button type="button" onClick={toggleWant} disabled={wantSaving || (!!user && wantLoadedKey !== `${user.id}:${event.id}`)} aria-pressed={!!user && wantedId === event.id}
+            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
+            <IconHeart filled={!!user && wantedId === event.id} className="h-4 w-4" />
+            {wantSaving ? "保存中…" : user && wantedId === event.id ? "已想去" : "想去"}
+          </button>
+        )}
+        {wantError && <p role="alert" className="text-xs text-red-600">{wantError}</p>}
       <div className={`grid ${journey.canCheckIn && event.postKind !== "LIFE" ? "grid-cols-5" : "grid-cols-4"} gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2`}>
         <button type="button" onClick={askGuide} className={baseClass}>
           <span className={iconClass}><IconSparkles className="h-3.5 w-3.5" /></span>
@@ -607,6 +663,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <span className="truncate">举报</span>
           </button>
         )}
+      </div>
       </div>
     );
   }

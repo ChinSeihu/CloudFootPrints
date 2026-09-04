@@ -37,7 +37,7 @@ type TodayPicksProps = {
 
 /**
  * Signature: `function TodayPicks({ events, onOpen }: TodayPicksProps): React.ReactElement | null`
- * Purpose: Presents three explainable daily recommendations, stores “want to go” as account favorites, and keeps dismissals device-local.
+ * Purpose: Presents daily recommendations, synchronizes account WANT reactions with details, and keeps dismissals device-local.
  */
 export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const router = useRouter();
@@ -48,6 +48,13 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [wantsRevision, setWantsRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setWantsRevision((value) => value + 1);
+    window.addEventListener("wants-changed", refresh);
+    return () => window.removeEventListener("wants-changed", refresh);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -75,7 +82,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         if (!cancelled) setWantedEvents([]);
       });
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, wantsRevision]);
 
   const wantedIds = useMemo(
     () => new Set(user ? wantedEvents.map((event) => event.id) : []),
