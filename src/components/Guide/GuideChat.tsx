@@ -120,7 +120,10 @@ function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: st
   );
 }
 
-// 全局 AI 导游聊天面板（受 GuideContext 控制）。可带活动话题聚焦对话。
+/**
+ * Signature: `function GuideChat(): React.JSX.Element | null`
+ * Purpose: Renders topic-aware guide chat and keeps its composer within the visible viewport when a mobile keyboard opens.
+ */
 export function GuideChat() {
   const { open, topic, closeGuide } = useGuide();
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -128,12 +131,40 @@ export function GuideChat() {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
   const endRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const topicRef = useRef<GuideTopic | null>(null);
   topicRef.current = topic;
 
   // 每次打开 / 切换活动话题都开新会话
   useEffect(() => { setMessages([]); setInput(""); }, [open, topic]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const viewport = window.visualViewport;
+    if (!panel || !viewport) return;
+    let frame = 0;
+    // Runtime geometry is needed because software keyboards can resize only the visual viewport.
+    const updateViewport = () => {
+      panel.style.setProperty("--guide-height", `${viewport.height}px`);
+      panel.style.setProperty("--guide-top", `${viewport.offsetTop}px`);
+    };
+    const scheduleUpdate = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updateViewport);
+    };
+    updateViewport();
+    viewport.addEventListener("resize", scheduleUpdate);
+    viewport.addEventListener("scroll", scheduleUpdate);
+    window.addEventListener("resize", scheduleUpdate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", scheduleUpdate);
+      viewport.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -222,7 +253,7 @@ export function GuideChat() {
   const lastSuggestions = last?.role === "assistant" ? last.suggestions ?? [] : [];
 
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col bg-white">
+    <div ref={panelRef} className="fixed inset-x-0 top-[var(--guide-top,0px)] z-[1000] flex h-[var(--guide-height,100dvh)] flex-col overflow-hidden bg-white">
       <div className="shrink-0 flex items-center justify-between px-4 h-14 border-b border-black/5">
         <div className="flex items-center gap-2 font-semibold">
           <IconSparkles className="w-5 h-5 text-violet-600" />
@@ -238,7 +269,7 @@ export function GuideChat() {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-sm text-neutral-500 leading-relaxed">
             {topic ? (
@@ -308,11 +339,8 @@ export function GuideChat() {
             ))}
           </div>
         )}
-        <div ref={endRef} />
-      </div>
-
       {messages.length === 0 && (
-        <div className="shrink-0 px-4 pb-2 flex flex-col gap-2">
+        <div className="pb-2 flex flex-col gap-2">
           {topic?.kind === "route" && topic.routeActions && topic.routeActions.map((action, index) => (
               <button
                 key={action.label}
@@ -346,6 +374,8 @@ export function GuideChat() {
           ))}
         </div>
       )}
+        <div ref={endRef} />
+      </div>
 
       <div
         className="shrink-0 p-3 border-t border-black/5 flex gap-2"
@@ -354,9 +384,10 @@ export function GuideChat() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) send(input); }}
+          aria-label="向 AI 导游提问"
           placeholder="问问东京的活动…"
-          className="flex-1 border border-neutral-300 rounded-full px-4 py-2 text-sm"
+          className="min-w-0 flex-1 border border-neutral-300 rounded-full px-4 py-2 text-base sm:text-sm"
         />
         <button
           type="button"
