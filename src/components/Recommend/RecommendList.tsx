@@ -235,6 +235,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [expandedCheckins, setExpandedCheckins] = useState<Set<string>>(() => new Set());
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
+  const [commentLoadState, setCommentLoadState] = useState<Record<string, "loading" | "error" | "ready">>({});
   const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
   const [checkinReplyTo, setCheckinReplyTo] = useState<Record<string, { id: string; username: string } | null>>({});
   const [checkinSending, setCheckinSending] = useState<Record<string, boolean>>({});
@@ -533,10 +534,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
    * Purpose: Load footprint roots with replies and current reaction metrics for the discover feed.
    */
   async function loadCheckinInteractions(id: string) {
+    if (commentLoadState[id] === "loading") return;
+    setCommentLoadState((current) => ({ ...current, [id]: "loading" }));
+    try {
     const [commentsRes, reactionsRes] = await Promise.all([
       fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=20&replyLimit=10`),
       fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`),
     ]);
+    if (!commentsRes.ok) throw new Error("comments failed");
     if (commentsRes.ok) {
       const data = await commentsRes.json() as { comments?: CommentDTO[]; totalCount?: number };
       setCheckinComments((current) => ({ ...current, [id]: data.comments ?? [] }));
@@ -554,16 +559,31 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         [id]: { ...current[id], likeCount: data.likeCount ?? current[id]?.likeCount, likedByMe: data.likedByMe ?? current[id]?.likedByMe },
       }));
     }
+    setCommentLoadState((current) => ({ ...current, [id]: "ready" }));
+    } catch {
+      setCommentLoadState((current) => ({ ...current, [id]: "error" }));
+    }
   }
 
+  /**
+   * Signature: `async function toggleCheckinComments(id: string): Promise<void>`
+   * Purpose: Toggles cached comments, skipping the first request only for an explicit zero count.
+   */
   async function toggleCheckinComments(id: string) {
+    const opening = !checkinCommentOpen.has(id);
     setCheckinCommentOpen((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-    if (!checkinComments[id]) {
+    const count = checkinMetricOverrides[id]?.commentCount ?? discoverCheckinRows.find((item) => item.id === id)?.metrics?.commentCount;
+    if (opening && !checkinComments[id] && count === 0) {
+      setCheckinComments((current) => ({ ...current, [id]: [] }));
+      setCommentLoadState((current) => ({ ...current, [id]: "ready" }));
+      return;
+    }
+    if (opening && !checkinComments[id]) {
       await loadCheckinInteractions(id).catch(() => {});
     }
   }
@@ -802,7 +822,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
         {interactionOpen && (
           <div className="mt-2 rounded-lg bg-neutral-50 p-2">
-            <CheckinCommentThreads comments={comments} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
+            <CheckinCommentThreads comments={comments} loading={commentLoadState[checkin.id] === "loading" || (!checkinComments[checkin.id] && !commentLoadState[checkin.id])} error={commentLoadState[checkin.id] === "error"} onRetry={() => void loadCheckinInteractions(checkin.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
             {checkinReplyTo[checkin.id] && (
               <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-violet-100 px-2 py-1.5 text-xs text-violet-800">
                 <span>回复 @{checkinReplyTo[checkin.id]?.username}</span>

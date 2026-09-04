@@ -5,6 +5,9 @@ import type { CommentDTO } from "@/lib/types";
 
 type CheckinCommentThreadsProps = {
   comments: CommentDTO[];
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
   onReply: (root: CommentDTO) => void;
 };
 
@@ -13,10 +16,10 @@ const commentDateFormat = new Intl.DateTimeFormat("zh-CN", {
 });
 
 /**
- * Signature: `function CheckinCommentThreads({ comments, onReply }: CheckinCommentThreadsProps): React.JSX.Element`
- * Purpose: Share avatar, timestamp, threaded replies and root-discussion reply actions across footprint feeds.
+ * Signature: `function CheckinCommentThreads({ comments, onReply, loading, error, onRetry }: CheckinCommentThreadsProps): React.JSX.Element`
+ * Purpose: Shares threaded comments with distinct loading, error and confirmed-empty states.
  */
-export function CheckinCommentThreads({ comments, onReply }: CheckinCommentThreadsProps) {
+export function CheckinCommentThreads({ comments, onReply, loading, error, onRetry }: CheckinCommentThreadsProps) {
   const repliesByRoot = new Map<string, CommentDTO[]>();
   for (const comment of comments) {
     if (!comment.parentId) continue;
@@ -25,10 +28,16 @@ export function CheckinCommentThreads({ comments, onReply }: CheckinCommentThrea
     repliesByRoot.set(comment.parentId, replies);
   }
   const roots = comments.filter((comment) => !comment.parentId);
-  if (!roots.length) return <p className="py-1 text-xs text-neutral-500">还没有评论。</p>;
+  const feedback = loading
+    ? <p role="status" className="py-2 text-xs text-neutral-500">正在加载评论与回复…</p>
+    : error
+      ? <p role="alert" className="py-2 text-xs text-rose-700">评论加载失败。<button type="button" onClick={onRetry} className="ml-2 underline">重试</button></p>
+      : null;
+  if (!roots.length) return feedback ?? <p className="py-1 text-xs text-neutral-500">还没有评论。</p>;
 
   return (
     <div className="space-y-3">
+      {feedback}
       {roots.map((root) => (
         <div key={root.id}>
           {[root, ...(repliesByRoot.get(root.id) ?? [])].map((comment) => {

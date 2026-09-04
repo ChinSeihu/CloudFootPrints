@@ -17,7 +17,7 @@ import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
 type CommentSort = "hot" | "new";
-type ReplyPageMeta = { total: number; loaded: number; hasMore: boolean; nextCursor: string | null; loading?: boolean };
+type ReplyPageMeta = { total: number; loaded: number; hasMore: boolean; nextCursor: string | null; loading?: boolean; error?: boolean };
 
 const COMMENT_PAGE_SIZE = 10;
 const REPLY_PREVIEW_SIZE = 3;
@@ -121,6 +121,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [posting, setPosting] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [commentLoadError, setCommentLoadError] = useState(false);
   const [commentMoreLoading, setCommentMoreLoading] = useState(false);
   const [commentTotal, setCommentTotal] = useState(0);
   const [commentCursor, setCommentCursor] = useState<string | null>(null);
@@ -166,7 +167,12 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return [...map.values()];
   }
 
+  /**
+   * Signature: `async function loadCommentPage(reset?: boolean): Promise<void>`
+   * Purpose: Loads comment pages while distinguishing request failures from confirmed empty results.
+   */
   async function loadCommentPage(reset = false) {
+    setCommentLoadError(false);
     if (reset) {
       setCommentLoading(true);
       setLoaded(false);
@@ -190,7 +196,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       setCommentHasMore(!!data.hasMore);
       setReplyMeta((prev) => (reset ? data.replyMeta ?? {} : { ...prev, ...(data.replyMeta ?? {}) }));
     } catch {
-      if (reset) setComments([]);
+      setCommentLoadError(true);
     } finally {
       setLoaded(true);
       setCommentLoading(false);
@@ -198,10 +204,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     }
   }
 
+  /**
+   * Signature: `async function loadMoreReplies(rootId: string): Promise<void>`
+   * Purpose: Loads additional replies with per-thread loading and retry feedback.
+   */
   async function loadMoreReplies(rootId: string) {
     const meta = replyMeta[rootId];
     if (!meta || meta.loading || !meta.hasMore) return;
-    setReplyMeta((prev) => ({ ...prev, [rootId]: { ...meta, loading: true } }));
+    setReplyMeta((prev) => ({ ...prev, [rootId]: { ...meta, loading: true, error: false } }));
     try {
       const params = new URLSearchParams({
         rootId,
@@ -224,7 +234,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         },
       }));
     } catch {
-      setReplyMeta((prev) => ({ ...prev, [rootId]: { ...prev[rootId], loading: false } }));
+      setReplyMeta((prev) => ({ ...prev, [rootId]: { ...prev[rootId], loading: false, error: true } }));
     }
   }
 
@@ -489,7 +499,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         {!loaded && (
           <div className="py-5 text-center"><TinyLoading /></div>
         )}
-        {loaded && !commentLoading && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
+        {!loaded && !commentLoading && !commentLoadError && <p role="status" className="pb-4 text-xs text-neutral-500">正在加载评论…</p>}
+        {commentLoadError && <p role="alert" className="pb-4 text-xs text-rose-700">评论加载失败。<button type="button" className="ml-2 underline" onClick={() => void loadCommentPage(comments.length === 0)}>重试</button></p>}
+        {loaded && !commentLoading && !commentLoadError && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
         <ul className="space-y-4">
           {threads.map(({ comment, replies }) => {
             const meta = replyMeta[comment.id];
@@ -505,7 +517,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   disabled={!!meta.loading}
                   className="ml-11 inline-flex items-center gap-1.5 rounded-full bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500 disabled:opacity-60"
                 >
-                  {meta.loading ? <TinyLoading label="加载回复" /> : `查看更多回复${remaining > 0 ? `（${remaining}）` : ""}`}
+                  {meta.loading ? <TinyLoading label="加载回复" /> : meta.error ? "回复加载失败，点击重试" : `查看更多回复${remaining > 0 ? `（${remaining}）` : ""}`}
                 </button>
               )}
             </li>

@@ -54,6 +54,7 @@ function MeContent() {
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [openCheckinInteraction, setOpenCheckinInteraction] = useState<string | null>(null);
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
+  const [commentLoadState, setCommentLoadState] = useState<Record<string, "loading" | "error" | "ready">>({});
   const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
   const [checkinReplyTo, setCheckinReplyTo] = useState<Record<string, { id: string; username: string } | null>>({});
   const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
@@ -181,10 +182,14 @@ function MeContent() {
    * Purpose: Loads recent comments and the current user's like state for one personal footprint.
    */
   async function loadCheckinInteractions(id: string) {
+    if (commentLoadState[id] === "loading") return;
+    setCommentLoadState((current) => ({ ...current, [id]: "loading" }));
+    try {
     const [commentsResponse, reactionsResponse] = await Promise.all([
       fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=20&replyLimit=10`),
       fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`),
     ]);
+    if (!commentsResponse.ok) throw new Error("comments failed");
     if (commentsResponse.ok) {
       const data = await commentsResponse.json() as { comments?: CommentDTO[]; totalCount?: number };
       setCheckinComments((current) => ({ ...current, [id]: data.comments ?? [] }));
@@ -193,6 +198,10 @@ function MeContent() {
     if (reactionsResponse.ok) {
       const data = await reactionsResponse.json() as { likeCount?: number; likedByMe?: boolean };
       setCheckinMetricOverrides((current) => ({ ...current, [id]: { ...current[id], likeCount: data.likeCount ?? 0, likedByMe: data.likedByMe ?? false } }));
+    }
+    setCommentLoadState((current) => ({ ...current, [id]: "ready" }));
+    } catch {
+      setCommentLoadState((current) => ({ ...current, [id]: "error" }));
     }
   }
 
@@ -225,6 +234,12 @@ function MeContent() {
   async function togglePersonalCheckinComments(id: string) {
     const opening = openCheckinInteraction !== id;
     setOpenCheckinInteraction(opening ? id : null);
+    const count = checkinMetricOverrides[id]?.commentCount ?? checkins.find((item) => item.id === id)?.metrics?.commentCount;
+    if (opening && !checkinComments[id] && count === 0) {
+      setCheckinComments((current) => ({ ...current, [id]: [] }));
+      setCommentLoadState((current) => ({ ...current, [id]: "ready" }));
+      return;
+    }
     if (opening && !checkinComments[id]) await loadCheckinInteractions(id);
   }
 
@@ -492,7 +507,7 @@ function MeContent() {
                   </div>
                   {interactionOpen && (
                     <div className="mt-2 rounded-xl bg-neutral-50 p-3">
-                      <CheckinCommentThreads comments={comments} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
+                      <CheckinCommentThreads comments={comments} loading={commentLoadState[c.id] === "loading" || (!checkinComments[c.id] && !commentLoadState[c.id])} error={commentLoadState[c.id] === "error"} onRetry={() => void loadCheckinInteractions(c.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
                       {checkinReplyTo[c.id] && (
                         <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-600">
                           <span>回复 @{checkinReplyTo[c.id]?.username}</span>
