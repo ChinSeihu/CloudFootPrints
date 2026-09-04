@@ -74,6 +74,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### AI guide
 
+- Shared character feedback: `src/components/Mascot/MascotFeedback.tsx` — full-body frame playback, empty/loading feedback and delayed route-loading UI; `src/app/loading.tsx` — route Suspense fallback.
+
 - Client state/chat/FAB: `src/components/Guide/GuideContext.tsx`, `GuideChat.tsx`, `GuideFab.tsx`.
 - Chat endpoint: `src/app/api/chat/route.ts`.
 - Activity grounding: `src/services/guideEvents.ts`.

@@ -11,6 +11,7 @@ import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
 import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
+import { MascotAnimation, MascotFeedback } from "@/components/Mascot/MascotFeedback";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
@@ -389,7 +390,7 @@ function MeContent() {
         ) : tab === "checkins" ? (
           <>{/* 足迹 */}
             {loaded && checkins.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</p>
+              <MascotFeedback>还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</MascotFeedback>
             )}
             {checkins.length > 0 && (
               <div className="grid grid-cols-3 gap-1.5 mb-4">
@@ -538,7 +539,7 @@ function MeContent() {
         ) : tab === "posts" ? (
           <>{/* 发帖 */}
             {loaded && posts.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有发帖。回到地图页，用右下角的 ＋ → 发帖 标记一个活动。</p>
+              <MascotFeedback>还没有发帖。回到地图页，用右下角的 ＋ → 发帖 标记一个活动。</MascotFeedback>
             )}
             <ul className="space-y-3">
               {posts.map((p) => {
@@ -698,14 +699,20 @@ function MeContent() {
                     );
                   })}
                 </div>
+                {favSub === "wants" && list.some((item) => ["soon", "active"].includes(getJourneyStatus(item, journeyNow, visitedEventIds.has(item.id)).stage)) && (
+                  <div className="mb-3 flex items-center gap-2 rounded-2xl bg-violet-50 px-3 py-2">
+                    <MascotAnimation className="h-16 w-16" />
+                    <p className="text-xs leading-5 text-violet-800">你想去的活动即将开始或正在进行。查看下方活动时间，点击“路线”安排出发吧。</p>
+                  </div>
+                )}
                 {loaded && list.length === 0 && (
-                  <p className="text-sm text-neutral-500">
+                  <MascotFeedback>
                     {favSub === "wants"
                       ? "还没有想去的活动。在推荐卡点“想去”，就会出现在这里。"
                       : favSub === "favorites"
                         ? "还没有收藏。在活动详情里点收藏，就会出现在这里。"
                         : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
-                  </p>
+                  </MascotFeedback>
                 )}
                 <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3">
                   {list.map((p) => {

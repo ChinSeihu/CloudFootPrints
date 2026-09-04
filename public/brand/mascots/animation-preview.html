@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>角色逐帧动画预览</title>
+<style>
+body{margin:0;padding:32px;background:#f5f3ff;color:#29233b;font-family:system-ui,sans-serif}
+h1{font-size:22px}p{font-size:14px;color:#645d73}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+article{background:white;border-radius:24px;padding:20px;text-align:center}
+svg{width:180px;height:180px}button{padding:10px 18px;border:0;border-radius:12px;background:#6d28d9;color:white;cursor:pointer;margin-bottom:20px}
+</style>
+<h1>四角色全身逐帧动画 · 初版</h1>
+<p>八帧挥手与眨眼，含静止停顿。请关注帽子、脚部、帧间跳动和边缘残留；本页是素材预览，不是整站验证。</p>
+<button id="toggle">暂停播放</button><main id="stage"></main>
+<script>
+const identities=[["kumoashi","云足·晴空"],["kumoashi-sakura","云足·樱梦"],["michiru","路灵·远行"],["michiru-lilac","路灵·花语"]];
+const sequence=[0,0,1,2,3,4,5,6,7,7,7,0];
+let playing=true,frame=0;
+document.querySelector("#stage").innerHTML=identities.map(([id,name])=>'<article><svg data-id="'+id+'" viewBox="0 0 443.5 460"><defs><clipPath id="clip-'+id+'"><rect width="443.5" height="460"/></clipPath></defs><image href="loading-'+id+'.png" width="1774" height="887" clip-path="url(#clip-'+id+')"/></svg><h2>'+name+'</h2></article>').join("");
+document.querySelector("#toggle").onclick=()=>{playing=!playing;document.querySelector("#toggle").textContent=playing?"暂停播放":"继续播放"};
+setInterval(()=>{
+if(!playing||document.hidden||matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+const index=sequence[frame++%sequence.length];
+document.querySelectorAll("svg").forEach(svg=>{
+const split=svg.dataset.id==="kumoashi"?455:460,x=index%4*443.5,y=index<4?0:split,h=index<4?split:887-split;
+svg.setAttribute("viewBox",x+" "+y+" 443.5 "+h);
+const rect=svg.querySelector("rect");rect.setAttribute("x",x);rect.setAttribute("y",y);rect.setAttribute("height",h);
+});
+},140);
+</script></html>

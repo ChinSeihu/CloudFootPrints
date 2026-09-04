@@ -10,6 +10,7 @@ import { isUserPost } from "@/components/common/EventSource";
 import { moodTagOf } from "@/lib/moods";
 import { Avatar } from "@/components/common/Avatar";
 import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
+import { MascotFeedback } from "@/components/Mascot/MascotFeedback";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { EditCheckInDialog } from "@/components/Me/EditDialogs";
@@ -1085,19 +1086,19 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               discoverPosts.length > 0 ? (
                 <MasonryGrid>{discoverPosts.map((post) => renderPostCard(post))}</MasonryGrid>
               ) : (
-                <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "posts")}</div>
+                <MascotFeedback>{discoverEmptyText(discoverFilter, "posts")}</MascotFeedback>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
-                  {checkinsLoadingMore ? "继续加载中..." : checkinsLoadError ? (
-                    <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button>
+                  {checkinsLoadingMore ? <MascotFeedback loading>继续加载中…</MascotFeedback> : checkinsLoadError ? (
+                    <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button></MascotFeedback>
                   ) : checkinsHasMore ? "继续向下加载更多足迹" : "已经加载完全部足迹"}
                 </div>
               </>
             ) : (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{discoverEmptyText(discoverFilter, "checkins")}</div>
+              <MascotFeedback>{discoverEmptyText(discoverFilter, "checkins")}</MascotFeedback>
             )}
             </div>
           </section>
