@@ -14,20 +14,32 @@ const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> 
 
 /**
  * Signature: `function BottomNav(): React.JSX.Element`
- * Purpose: Renders primary navigation with a shared raised active surface and reduced-motion-aware character feedback.
+ * Purpose: Renders character navigation or a compact text-only mode with accessible active and focus states.
  */
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const mascotIdentity = useMascotIdentity();
+  const textOnly = mascotIdentity === "none";
   const [pending, setPending] = useState<string | null>(null);
 
   const activeHref = pending && pending !== pathname ? pending : pathname;
 
   return (
-    <nav aria-label="主要导航" className="grid h-[4.5rem] shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur">
+    <nav aria-label="主要导航" className={`grid ${textOnly ? "h-14" : "h-[4.5rem]"} shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur`}>
       {TABS.map((tab) => {
         const active = activeHref === tab.href;
+        if (textOnly) return (
+          <Link key={tab.href} href={tab.href}
+            onClick={() => setPending(tab.href)}
+            onPointerEnter={() => router.prefetch(tab.href)}
+            onTouchStart={() => router.prefetch(tab.href)}
+            aria-current={active ? "page" : undefined}
+            className={`relative flex h-12 items-center justify-center rounded-lg text-[15px] tracking-wider motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${active ? "font-semibold text-violet-700" : "font-medium text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800"}`}>
+            {tab.label}
+            <span aria-hidden="true" className={`absolute bottom-1 h-0.5 w-4 rounded-full bg-violet-500 motion-safe:transition-[opacity,transform] motion-safe:duration-200 ${active ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"}`} />
+          </Link>
+        );
         return (
           <Link
             key={tab.href}

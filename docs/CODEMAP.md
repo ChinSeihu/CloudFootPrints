@@ -182,7 +182,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - `brand-icon.svg` — CloudFootprints cloud-and-footprint browser and install icon.
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
-- `brand/mascots/` — archived original character sheets, user-approved September 4 reference, V3 transparent four-character menu atlas, generation prompts, and asset usage guidance.
+- `brand/mascots/` — archived character sheets, September 4 design reference, current user-supplied V4 menu atlas, historical V3 atlas, prompts, and asset guidance.
 
 - `stations.json`, `lines.json` — generated static rail topology used by the map and route planner.
 - `avatars/*.png`, `avatars/persona-v2/*.png` — user/demo avatar assets.
@@ -265,7 +265,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/`
 
 - `BottomNav.tsx` — app-wide bottom navigation.
-- `Mascot/Mascot.tsx` — four named IP selections, unified function-menu raster framing/crop regions, picker, shared footprint mark, and legacy preference migration.
+- `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — shared page loading presentation.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.

@@ -5,9 +5,10 @@ import { useId, useSyncExternalStore } from "react";
 export type MascotVariant = "standard" | "feminine";
 export type MascotCharacter = "kumoashi" | "michiru" | "footprint";
 export type MascotNavRole = "map" | "calendar" | "discover" | "profile";
-export type MascotIdentity = "kumoashi" | "kumoashi-sakura" | "michiru" | "michiru-lilac";
+export type MascotIdentity = "kumoashi" | "kumoashi-sakura" | "michiru" | "michiru-lilac" | "none";
 
 export const MASCOT_OPTIONS: ReadonlyArray<{ id: MascotIdentity; name: string; variant: MascotVariant }> = [
+  { id: "none", name: "简洁模式 · 不使用 IP", variant: "standard" },
   { id: "kumoashi", name: "云足·晴空", variant: "standard" },
   { id: "kumoashi-sakura", name: "云足·樱梦", variant: "feminine" },
   { id: "michiru", name: "路灵·远行", variant: "standard" },
@@ -85,11 +86,11 @@ const NAV_ROLE_INDEX: Record<MascotNavRole, number> = {
   profile: 3,
 };
 
-const MENU_SHEETS: Record<MascotIdentity, { width: number; height: number; top: number; frameHeight: number; regions: number[][] }> = {
-  kumoashi: { width: 1536, height: 1024, top: 0, frameHeight: 266, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
-  "kumoashi-sakura": { width: 1536, height: 1024, top: 270, frameHeight: 247, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
-  michiru: { width: 1536, height: 1024, top: 517, frameHeight: 208, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
-  "michiru-lilac": { width: 1536, height: 1024, top: 729, frameHeight: 241, regions: [[225, 266], [510, 266], [795, 266], [1080, 266]] },
+const MENU_SHEETS: Record<Exclude<MascotIdentity, "none">, { width: number; height: number; top: number; frameHeight: number; regions: number[][] }> = {
+  kumoashi: { width: 1536, height: 1024, top: 510, frameHeight: 249, regions: [[100, 290], [440, 290], [795, 290], [1145, 290]] },
+  "kumoashi-sakura": { width: 1536, height: 1024, top: 759, frameHeight: 265, regions: [[100, 290], [440, 290], [795, 290], [1145, 290]] },
+  michiru: { width: 1536, height: 1024, top: 0, frameHeight: 259, regions: [[100, 290], [440, 290], [795, 290], [1145, 290]] },
+  "michiru-lilac": { width: 1536, height: 1024, top: 259, frameHeight: 251, regions: [[100, 290], [440, 290], [795, 290], [1145, 290]] },
 };
 
 type MascotNavIconProps = {
@@ -101,7 +102,7 @@ type MascotNavIconProps = {
 
 /**
  * Signature: `function MascotPicker(): React.JSX.Element`
- * Purpose: Offer four named IP companions and apply one identity to the entire navigation immediately.
+ * Purpose: Offers four named companions or a persisted no-IP mode, applied immediately.
  */
 export function MascotPicker() {
   const identity = useMascotIdentity();
@@ -109,7 +110,7 @@ export function MascotPicker() {
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="选择 IP 伙伴">
       {MASCOT_OPTIONS.map((option) => (
         <button key={option.id} type="button" onClick={() => setMascotIdentity(option.id)} aria-pressed={identity === option.id}
-          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${identity === option.id ? "border-violet-400 bg-violet-50 text-violet-800" : "border-neutral-200 bg-white text-neutral-600"}`}>
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${option.id === "none" ? "col-span-2" : ""} ${identity === option.id ? "border-violet-400 bg-violet-50 text-violet-800" : "border-neutral-200 bg-white text-neutral-600"}`}>
           <MascotNavIcon role="profile" identity={option.id} className="h-11 w-9" />
           {option.name}
         </button>
@@ -119,8 +120,8 @@ export function MascotPicker() {
 }
 
 /**
- * Signature: `function MascotNavIcon({ role, identity, className, title }: MascotNavIconProps): React.JSX.Element`
- * Purpose: Frames the approved-design raster atlas by character and function without distorting proportions.
+ * Signature: `function MascotNavIcon({ role, identity, className, title }: MascotNavIconProps): React.JSX.Element | null`
+ * Purpose: Frames the character atlas, or hides the character in no-IP mode.
  */
 export function MascotNavIcon({
   role,
@@ -129,6 +130,7 @@ export function MascotNavIcon({
   title,
 }: MascotNavIconProps) {
   const clipId = useId();
+  if (identity === "none") return null;
   const index = NAV_ROLE_INDEX[role];
   const sheet = MENU_SHEETS[identity];
   const [left, cellWidth] = sheet.regions[index];
@@ -143,7 +145,7 @@ export function MascotNavIcon({
       focusable="false"
     >
       <defs><clipPath id={clipId}><rect x={left} y={sheet.top} width={cellWidth} height={sheet.frameHeight} /></clipPath></defs>
-      <image href="/brand/mascots/menu-design-v3-transparent.png" width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
+      <image href="/brand/mascots/menu-user-v4.png" width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
     </svg>
   );
 }
