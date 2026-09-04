@@ -5,6 +5,7 @@ import { IconSparkles, IconPin } from "@/components/icons";
 import { useGuide, type GuideTopic } from "./GuideContext";
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { MASCOT_OPTIONS, MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
 import type { ChatMessage } from "@/lib/llm";
 import type { GuideRoutePlan } from "@/lib/guideRoute";
@@ -135,6 +136,7 @@ export function GuideChat() {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<"thinking" | "map">("thinking");
   const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
   const endRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -174,12 +176,17 @@ export function GuideChat() {
 
   if (!open) return null;
 
+  /**
+   * Signature: `async function send(text: string): Promise<void>`
+   * Purpose: Sends a guide question with note-taking feedback until the reply or error arrives.
+   */
   async function send(text: string) {
     const t = text.trim();
     if (!t || loading) return;
     const next: UIMessage[] = [...messages, { role: "user", content: t }];
     setMessages(next);
     setInput("");
+    setLoadingAction("thinking");
     setLoading(true);
     // 第一条带活动上下文（仅发给 API，UI 显示原话）；只发 role/content，不带 suggestions。
     const apiMessages = next.map((m, i) =>
@@ -214,11 +221,16 @@ export function GuideChat() {
     }
   }
 
+  /**
+   * Signature: `async function planNearbyRoute(intentPrompt?: string): Promise<void>`
+   * Purpose: Requests an itinerary with route-specific feedback and appends its result to the conversation.
+   */
   async function planNearbyRoute(intentPrompt?: string) {
     const candidates = topicRef.current?.routeCandidates ?? [];
     if (loading || candidates.length < 2) return;
     const next: UIMessage[] = [...messages, { role: "user", content: "AI 规划附近游玩路线" }];
     setMessages(next);
+    setLoadingAction("map");
     setLoading(true);
     try {
       const res = await fetch("/api/guide/route-plan", {
@@ -338,12 +350,7 @@ export function GuideChat() {
           </div>
         ))}
         {loading && (
-          <div role="status" className="flex items-center justify-start gap-2">
-            {hasMascot && <MascotAnimation animated className="h-14 w-14" />}
-            <div className="bg-neutral-100 rounded-2xl px-3.5 py-2.5 text-sm text-neutral-500">
-              {hasMascot ? `${guideName}正在${isMichiru ? "整理路线与建议" : "寻找适合你的灵感"}…` : "导游思考中…"}
-            </div>
-          </div>
+          <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : `${hasMascot ? guideName : "导游"}正在翻看笔记，寻找适合你的建议…`} />
         )}
         {/* 每次回答后，展示 AI 推测用户意图给出的后续问题，点击即追问 */}
         {!loading && lastSuggestions.length > 0 && (

@@ -32,6 +32,7 @@ import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 import { Mascot, useMascotVariant } from "@/components/Mascot/Mascot";
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
 
 // ── 颜色映射（与 categories.ts 保持同步） ──
@@ -2305,6 +2306,7 @@ export function MapExplorer() {
   return (
     <div className="absolute inset-0">
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
+      {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
       <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       <WeatherPanel />
 

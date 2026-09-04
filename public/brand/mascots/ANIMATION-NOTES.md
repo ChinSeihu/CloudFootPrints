@@ -1,5 +1,9 @@
 # Full-body character animation candidates
 
+## Stage 2: album, map and thinking
+
+Reuses the existing portrait atlas without new generated assets. CSS continuously moves photos into an album, points along a map route, and writes in a notebook. `LoadingFeedback` supplies an 88px compact layout, 250ms presentation delay and a 12-second long-wait notice. Integrated into personal route/auth/content loading, map initialization, transport planning, AI chat and AI itinerary planning. Existing reduced-motion and visibility pausing apply to every new action.
+
 ## September 4: continuous calendar and discovery scenes
 
 `loading-portraits.webp` is a 1024-square transparent 2×2 atlas: Kumoashi, Kumoashi Sakura, Michiru, Michiru Lilac in reading order. Generated using built-in imagegen from `menu-user-v4.png`, resized and encoded with Sharp. The source PNG remains in the Codex generated_images folder.

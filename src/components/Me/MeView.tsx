@@ -11,6 +11,8 @@ import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
 import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
+import { PageLoading } from "@/components/PageLoading";
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation, MascotFeedback } from "@/components/Mascot/MascotFeedback";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
@@ -382,11 +384,7 @@ function MeContent() {
 
       <div className="p-4">
         {!loaded ? (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-20 rounded-xl bg-neutral-100 animate-pulse" />
-            ))}
-          </div>
+          <LoadingFeedback scene="profile" text="整理相册，找回你的城市回忆…" />
         ) : tab === "checkins" ? (
           <>{/* 足迹 */}
             {loaded && checkins.length === 0 && (
@@ -904,9 +902,7 @@ export function MeView() {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="h-full grid place-items-center">
-        <div className="h-8 w-8 rounded-full border-2 border-neutral-200 border-t-blue-600 animate-spin" />
-      </div>
+      <PageLoading scene="profile" text="整理相册，找回你的城市回忆…" />
     );
   }
   if (!user) return <AuthForm />;

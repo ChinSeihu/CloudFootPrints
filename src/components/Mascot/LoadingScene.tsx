@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useMascotIdentity } from "./Mascot";
 import styles from "./LoadingScene.module.css";
 
-export type LoadingSceneKind = "calendar" | "discover";
+export type LoadingSceneKind = "calendar" | "discover" | "profile" | "map" | "thinking";
 
 const PORTRAITS = {
   kumoashi: "0 0 512 512",
@@ -49,7 +49,7 @@ export function LoadingScene({ scene }: { scene: LoadingSceneKind }) {
           <div className={`${styles.hand} ${styles.turnHand}`} />
           <span className={styles.calendarSpark}>✦</span>
         </>
-      ) : (
+      ) : scene === "discover" ? (
         <>
           <div className={styles.cards}><i /><i /><i /></div>
           <div className={styles.searchArm}>
@@ -58,6 +58,29 @@ export function LoadingScene({ scene }: { scene: LoadingSceneKind }) {
           </div>
           <span className={styles.discoverySpark}>✦</span>
           <span className={styles.smallSpark}>✧</span>
+        </>
+      ) : scene === "map" ? (
+        <>
+          <div className={styles.routeMap}>
+            <svg viewBox="0 0 100 65"><path d="M3 42 30 24 61 40 97 16M31 3v60M64 3v60" fill="none" stroke="#d5e4dc" strokeWidth="3" /><path className={styles.routeLine} d="M16 47 36 23 63 42 84 17" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" /><circle cx="16" cy="47" r="5" fill="#f29aab" /><circle cx="84" cy="17" r="5" fill="#f29aab" /></svg>
+          </div>
+          <div className={`${styles.hand} ${styles.holdHand}`} />
+          <div className={`${styles.hand} ${styles.pointHand}`} />
+        </>
+      ) : scene === "profile" ? (
+        <>
+          <div className={styles.album}><span /><i /></div>
+          <div className={styles.photo}><span /></div>
+          <div className={`${styles.hand} ${styles.holdHand}`} />
+          <div className={`${styles.hand} ${styles.photoHand}`} />
+          <span className={styles.calendarSpark}>✦</span>
+        </>
+      ) : (
+        <>
+          <div className={styles.notebook}><i /><i /><i /></div>
+          <div className={`${styles.hand} ${styles.holdHand}`} />
+          <div className={styles.writingArm}><span className={styles.pencil} /><div className={styles.hand} /></div>
+          <div className={styles.thought}><i /><i /><span>✦</span></div>
         </>
       )}
     </div>

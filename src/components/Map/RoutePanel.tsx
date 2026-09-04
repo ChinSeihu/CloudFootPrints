@@ -1,5 +1,6 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { useEffect, useMemo, useState } from "react";
 
 export type RouteLeg = {
@@ -86,7 +87,10 @@ function EndpointInput({ side, place, other, stationNames, onChange }: {
   );
 }
 
-// 换乘导航：端点可为车站或地点(POI)，给方案、可收起，画地图折线 + 每站预计时刻。
+/**
+ * Signature: `function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: { initial: { from?: RoutePlace; to?: RoutePlace }; stationNames: string[]; coordOf: (name: string) => [number, number] | undefined; onClose: () => void; onShowRoute: (plan: RoutePlan) => void; onClearRoute: () => void }): React.JSX.Element`
+ * Purpose: Shows transport plans and continuous route-loading feedback while resolving endpoints.
+ */
 export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: {
   initial: { from?: RoutePlace; to?: RoutePlace };
   stationNames: string[];
@@ -181,7 +185,7 @@ export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRout
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          {loading && <p className="text-sm text-neutral-400 py-6 text-center">规划中…</p>}
+          {loading && <LoadingFeedback compact scene="map" text="看看怎样换乘更顺路…" />}
           {err && !loading && <p className="text-sm text-neutral-400 py-6 text-center">{err}</p>}
           {!loading && !routes && !err && <p className="text-sm text-neutral-400 py-6 text-center">选好起点和终点，给你换乘方案。</p>}
 
