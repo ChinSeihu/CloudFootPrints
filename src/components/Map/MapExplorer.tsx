@@ -2513,6 +2513,8 @@ export function MapExplorer() {
           center={exploreAnchor ?? center}
           anchored={!!exploreAnchor}
           onClearAnchor={() => setExploreAnchor(null)}
+          onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
+          onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
           onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
           onViewAll={() => router.push("/recommend")}
           onPlanRoute={openNearbyRouteGuide}

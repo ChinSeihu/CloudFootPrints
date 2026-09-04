@@ -279,7 +279,18 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
           </div>
         </div>
         {shownEvents.length === 0 ? (
-          <p className="py-7 text-center text-sm text-neutral-400">当前筛选下这一天没有活动。</p>
+          <div className="py-7 text-center text-sm text-neutral-500">
+            <p>当前筛选下这一天没有活动。</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {(cat !== "ALL" || query) && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => { setCat("ALL"); setQuery(""); }}>清除筛选</button>}
+              {(dayTab === "starting" ? ongoingEvents : startingEvents).length > 0 && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => setDayTab(dayTab === "starting" ? "ongoing" : "starting")}>看看{dayTab === "starting" ? "展期中" : "当天开始"}的活动</button>}
+              {[...byDate.keys()].some(day => day > selected) && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => {
+                const next = [...byDate.keys()].filter(day => day > selected).sort()[0];
+                if (next) setMonthDate(Number(next.slice(0, 4)), Number(next.slice(5, 7)) - 1, Number(next.slice(8, 10)));
+              }}>下一个有活动的日期</button>}
+              <button className="rounded-full bg-neutral-100 px-3 py-2" onClick={() => shiftDay(1)}>看看后一天</button>
+            </div>
+          </div>
         ) : (
           <ol className="relative space-y-3 border-l border-blue-100 pl-4">
             {shownEvents.map((ev) => {

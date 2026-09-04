@@ -12,6 +12,8 @@ type Props = {
   center: { lat: number; lng: number } | null;
   anchored?: boolean;
   onClearAnchor?: () => void;
+  onResetFilters?: () => void;
+  onExpandArea?: () => void;
   onSelect: (ev: EventDTO) => void;
   onViewAll: () => void;
   onPlanRoute: (events: EventDTO[]) => void;
@@ -120,10 +122,10 @@ function EventImagePlaceholder({ title, color }: { title: string; color: string 
 }
 
 /**
- * Signature: `function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props)`
+ * Signature: `function PopularCard({ events, center, anchored = false, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props)`
  * Purpose: Shows nearby recommendations with the selected IP guide entry and preserves anchor controls when no events match.
  */
-export function PopularCard({ events, center, anchored = false, onClearAnchor, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
+export function PopularCard({ events, center, anchored = false, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
   const mascotIdentity = useMascotIdentity();
   const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
@@ -272,20 +274,20 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         <span className="mx-auto block h-1.5 w-14 rounded-full bg-neutral-300" />
       </button>
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-[18px] font-black leading-tight text-neutral-950">{activeIntent?.title ?? (anchored ? "锚点周边" : "附近活动")}</h2>
           <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] leading-none text-neutral-500">
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /></svg>
-            {activeIntent?.subtitle ?? (anchored ? "以锚点为中心 · 半径 2km" : "以当前位置为中心 · 半径 2km")}
+            {activeIntent?.subtitle ?? (anchored ? "以锚点为中心 · 按距离推荐" : "以当前位置为中心 · 按距离推荐")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {anchored && onClearAnchor && (
             <button
               type="button"
               onClick={onClearAnchor}
-              className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
+              className="min-h-11 shrink-0 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
             >
               重置
             </button>
@@ -293,7 +295,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
           <button
             type="button"
             onClick={() => onPlanRoute(shown.map(({ e }) => e))}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
+            className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
           >
             <MascotNavIcon identity={mascotIdentity} role="discover" className="h-7 w-7" />
             AI 帮我规划
@@ -340,9 +342,14 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.length === 0 && (
-          <p role="status" className="w-full rounded-2xl bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
-            当前范围和筛选条件下暂无活动，试试移动地图或调整筛选。
-          </p>
+          <div role="status" className="w-full rounded-2xl bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
+            当前范围和筛选条件下暂无活动。
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={() => { setActiveCategory("ALL"); setActiveIntent(null); onResetFilters?.(); }} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">清除筛选</button>
+              {onExpandArea && <button type="button" onClick={onExpandArea} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">扩大地图范围</button>}
+              <button type="button" onClick={onViewAll} className="shrink-0 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-2">看看全东京</button>
+            </div>
+          </div>
         )}
         {shown.slice(0, 6).map(({ e: ev, d }) => {
           const meta = CATEGORY_META[ev.category];

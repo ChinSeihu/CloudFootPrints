@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
 import { CategoryIcon, IconPin, IconMap, IconBookmark, IconHeart } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -32,14 +32,21 @@ function fmtDate(d: string | null): string {
 
 /**
  * Signature: `function MeContent(): React.ReactElement`
- * Purpose: Renders the signed-in profile with posts, check-ins, activity collections, and messages.
+ * Purpose: Renders the profile and opens a requested saved-activity collection when arriving from activity details.
  */
 function MeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("checkins");
   const [favSub, setFavSub] = useState<"wants" | "favorites" | "signups">("wants");
+  useEffect(() => {
+    const collection = searchParams.get("collection");
+    if (collection === "wants" || collection === "favorites" || collection === "signups") {
+      setTab("favorites"); setFavSub(collection);
+    }
+  }, [searchParams]);
   const [checkins, setCheckins] = useState<CheckInDTO[]>([]);
   const [posts, setPosts] = useState<EventDTO[]>([]);
   const [managedPosts, setManagedPosts] = useState<EventDTO[]>([]);
@@ -906,5 +913,5 @@ export function MeView() {
     );
   }
   if (!user) return <AuthForm />;
-  return <MeContent />;
+  return <Suspense fallback={<PageLoading scene="profile" text="打开你的活动列表…" />}><MeContent /></Suspense>;
 }

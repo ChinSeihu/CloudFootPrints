@@ -1016,6 +1016,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           )}
 
           {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
+          {!eventsNotice && activityList.length === 0 && <div className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">
+            <p>没有符合当前条件的活动。</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button type="button" className="rounded-full bg-violet-100 px-3 py-2 text-violet-700" onClick={() => { setCat("ALL"); setDateRange(ALL_DATES); setQuery(""); }}>查看所有活动</button>
+              {!isAllDates(dateRange) && <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setDateRange(ALL_DATES)}>不限日期</button>}
+              <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setTab("DISCOVER")}>看看大家的分享</button>
+            </div>
+          </div>}
           {activityList.length > 0 && (
             <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
@@ -1042,6 +1050,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
       ) : (
         <div className="space-y-5">
+          {discoverFilter !== "new" && ((discoverPosts.length === 0 && !eventsNotice) || (discoverCheckins.length === 0 && !checkinsNotice)) && <button type="button" className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700" onClick={() => setDiscoverFilter("new")}>换个范围，看看全东京最新分享</button>}
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               ["follow", "关注"],

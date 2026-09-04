@@ -60,6 +60,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Personal profile, follows, and messages
 
 - Personal page: `src/app/me/page.tsx`, `src/components/Me/MeView.tsx`.
+- Collection deep links: `/me?collection=wants|favorites|signups` opens the requested activity collection from details.
 - Profile/edit UI: `src/components/Me/ProfileHeader.tsx`, `EditDialogs.tsx`.
 - Direct-message UI/domain/API: `src/components/Me/DirectMessages.tsx`, `src/services/directMessages.ts`, `src/app/api/messages/**/route.ts`.
 - Follow domain/API: `src/services/follows.ts`, `src/app/api/users/follows/route.ts`.

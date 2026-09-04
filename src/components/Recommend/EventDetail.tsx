@@ -25,14 +25,22 @@ const REPLY_PAGE_SIZE = 10;
 
 const cx = (...items: Array<string | false | null | undefined>) => items.filter(Boolean).join(" ");
 
+/**
+ * Signature: `function fmtDateTime(value: string | null): string`
+ * Purpose: Formats activity times in Tokyo time for departure planning.
+ */
 function fmtDateTime(value: string | null): string {
   if (!value) return "时间未定";
-  return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * Signature: `function fmtCompact(value: string | null): string`
+ * Purpose: Formats activity times in Tokyo time for departure planning.
+ */
 function fmtCompact(value: string | null): string {
-  if (!value) return "";
-  return new Date(value).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  if (!value) return "时间待定";
+  return new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function fmtCommentTime(value: string): string {
@@ -617,7 +625,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   /**
    * Signature: `function detailActionStrip(sourceLabel: string): React.JSX.Element`
-   * Purpose: Renders want-to-go, routing and arrival actions with inline save feedback for activities.
+   * Purpose: Puts departure and saved activities within one tap, and explains where to confirm reservation requirements.
    */
   function detailActionStrip(sourceLabel: string) {
     const journey = getJourneyStatus(event, journeyNow, false);
@@ -626,12 +634,21 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <div className="space-y-2">
         {event.postKind !== "LIFE" && (
+          <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={toggleWant} disabled={wantSaving || (!!user && wantLoadedKey !== `${user.id}:${event.id}`)} aria-pressed={!!user && wantedId === event.id}
             className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
             <IconHeart filled={!!user && wantedId === event.id} className="h-4 w-4" />
             {wantSaving ? "保存中…" : user && wantedId === event.id ? "已想去" : "想去"}
           </button>
+          <button type="button" onClick={jumpToMap} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 text-sm font-bold text-white"><IconMap className="h-4 w-4" />规划出发路线</button>
+          </div>
         )}
+        {event.postKind !== "LIFE" && <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600">
+          <p>{event.signupEnabled ? "此活动开放站内报名；门票及入场要求请向发布者确认。" : "预约、票价及入场时段以活动来源的最新说明为准。"}</p>
+          {event.sourceUrl ? <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex py-1 font-semibold text-violet-700">查看来源与预约信息 ↗</a> : <span>请联系发布者确认，想去或收藏不代表完成预约。</span>}
+          {user && wantedId === event.id && <button type="button" className="ml-2 py-1 font-semibold text-rose-600" onClick={() => { onClose(); router.push("/me?collection=wants"); }}>查看我的想去 ›</button>}
+          {reactions.favoritedByMe && <button type="button" className="ml-2 py-1 font-semibold text-violet-700" onClick={() => { onClose(); router.push("/me?collection=favorites"); }}>查看我的收藏 ›</button>}
+        </div>}
         {wantError && <p role="alert" className="text-xs text-red-600">{wantError}</p>}
       <div className={`grid ${journey.canCheckIn && event.postKind !== "LIFE" ? "grid-cols-5" : "grid-cols-4"} gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2`}>
         <button type="button" onClick={askGuide} className={baseClass}>
@@ -867,7 +884,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
-                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">查看地图 〉</button>
+                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">查看路线 〉</button>
               </div>
             </div>
             <div className="border-t border-neutral-100 bg-neutral-50/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
