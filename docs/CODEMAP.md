@@ -265,7 +265,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/`
 
 - `BottomNav.tsx` — app-wide bottom navigation.
-- `Mascot/Mascot.tsx` — compact Kumoashi, Michiru, and shared-footprint SVG marks plus the device-local standard/feminine presentation preference.
+- `Mascot/Mascot.tsx` — four named IP selections, unified function-menu raster framing/crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — shared page loading presentation.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.
@@ -282,6 +282,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/common/`
 
 - `Avatar.tsx` — avatar image/fallback rendering.
+- `CheckinCommentThreads.tsx` — shared personal/discover footprint comment avatars, Tokyo timestamps, root/reply layout, and discussion reply actions.
 - `CalendarRangePicker.tsx` — calendar-based date-range input.
 - `ConfirmDialog.tsx` — reusable destructive-action confirmation.
 - `CountBadge.tsx` — compact numeric badge.
@@ -400,7 +401,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `memory.ts` — long-term memory compression.
 - `lifeEvents.ts` — occasional persona life-event generation.
 - `signature.ts` — persona status/signature refresh.
-- `image.ts` — outfit planning, prompt composition, providers, generation, and Cloudinary persistence.
+- `image.ts` — outfit planning, prompt composition, providers, generation, upload preflight, and Cloudinary persistence (server-signed credentials preferred; unsigned preset fallback).
 - `imageQA.ts` — generated-image quality judgment and prompt repair.
 - `regenerate.ts` — post/check-in image regeneration and database update.
 

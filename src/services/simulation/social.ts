@@ -555,9 +555,12 @@ async function writePost(
           where: { id: post.id },
           data: { imageUrl, imageUrls: [imageUrl] },
         });
+        console.info(`[image-db] saved target=post id=${post.id} count=1`);
         return { ...post, imageUrl, imageUrls: [imageUrl] };
       }
+      console.warn(`[image-db] skipped target=post id=${post.id} reason=no-persisted-image`);
     } catch {
+      console.error(`[image-db] failed target=post id=${post.id} stage=generation-or-save`);
       // Image generation should never block social text generation.
     }
   }

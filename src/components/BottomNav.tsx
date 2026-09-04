@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MascotNavIcon, useMascotVariant, type MascotNavRole } from "@/components/Mascot/Mascot";
+import { MascotNavIcon, useMascotIdentity, type MascotNavRole } from "@/components/Mascot/Mascot";
 
 const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> = [
   { href: "/", label: "地图", role: "map" },
@@ -19,7 +19,7 @@ const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> 
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const mascotVariant = useMascotVariant();
+  const mascotIdentity = useMascotIdentity();
   const [pending, setPending] = useState<string | null>(null);
 
   const activeHref = pending && pending !== pathname ? pending : pathname;
@@ -40,8 +40,8 @@ export function BottomNav() {
               active ? "font-semibold text-blue-600" : "text-neutral-500 hover:text-neutral-700"
             }`}
           >
-            <span className={`grid h-11 w-12 place-items-center rounded-2xl transition ${active ? "-translate-y-0.5 scale-105 bg-gradient-to-br from-violet-50 to-rose-50 shadow-sm ring-1 ring-violet-100" : "opacity-75 grayscale-[18%]"}`}>
-              <MascotNavIcon role={tab.role} variant={mascotVariant} className="h-10 w-[1.7rem]" title={`${tab.label} IP 角色`} />
+            <span className={`grid h-[52px] w-14 place-items-center rounded-2xl motion-safe:transition-transform ${active ? "-translate-y-0.5 scale-105 bg-violet-100/70 ring-1 ring-violet-200" : ""}`}>
+              <MascotNavIcon role={tab.role} identity={mascotIdentity} className="h-[52px] w-[52px]" />
             </span>
             {tab.label}
           </Link>

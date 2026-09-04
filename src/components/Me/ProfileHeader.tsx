@@ -9,7 +9,7 @@ import { fieldCls } from "@/components/Map/formStyles";
 import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 import type { PublicUser } from "@/lib/auth";
-import { MascotNavIcon, setMascotVariant, useMascotVariant, type MascotVariant } from "@/components/Mascot/Mascot";
+import { MascotPicker } from "@/components/Mascot/Mascot";
 
 type FollowMode = "following" | "followers";
 type FollowStats = { followingCount: number; followerCount: number };
@@ -63,7 +63,6 @@ export function ProfileHeader() {
   const [followLoading, setFollowLoading] = useState(false);
   const [followActionId, setFollowActionId] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState<FollowListItem | null>(null);
-  const mascotVariant = useMascotVariant();
 
   const canUpload = cloudinaryConfigured();
 
@@ -325,27 +324,10 @@ export function ProfileHeader() {
               <input value={hometown} onChange={(e) => setHometown(e.target.value)} placeholder="常住地（可选）" className={fieldCls} />
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-neutral-700">IP 形象</span>
-                  <span className="text-[10px] text-neutral-400">仅影响此设备的界面展示</span>
+                  <span className="text-xs font-semibold text-neutral-700">IP 伙伴</span>
+                  <span className="text-[10px] text-neutral-400">立即生效 · 仅此设备</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["standard", "feminine"] as MascotVariant[]).map((variant) => (
-                    <button
-                      key={variant}
-                      type="button"
-                      onClick={() => setMascotVariant(variant)}
-                      aria-pressed={mascotVariant === variant}
-                      className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-                        mascotVariant === variant
-                          ? "border-violet-300 bg-violet-50 text-violet-700"
-                          : "border-neutral-200 bg-white text-neutral-500"
-                      }`}
-                    >
-                      <MascotNavIcon role="profile" variant={variant} className="h-9 w-6" />
-                      {variant === "standard" ? "标准形象" : "女性形象"}
-                    </button>
-                  ))}
-                </div>
+                <MascotPicker />
               </div>
               <button
                 type="button"

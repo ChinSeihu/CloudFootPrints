@@ -1,21 +1,37 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 
 export type MascotVariant = "standard" | "feminine";
 export type MascotCharacter = "kumoashi" | "michiru" | "footprint";
 export type MascotNavRole = "map" | "calendar" | "discover" | "profile";
+export type MascotIdentity = "kumoashi" | "kumoashi-sakura" | "michiru" | "michiru-lilac";
 
-const STORAGE_KEY = "tem_mascot_variant";
+export const MASCOT_OPTIONS: ReadonlyArray<{ id: MascotIdentity; name: string; variant: MascotVariant }> = [
+  { id: "kumoashi", name: "云足·晴空", variant: "standard" },
+  { id: "kumoashi-sakura", name: "云足·樱梦", variant: "feminine" },
+  { id: "michiru", name: "路灵·远行", variant: "standard" },
+  { id: "michiru-lilac", name: "路灵·花语", variant: "feminine" },
+];
+
+const STORAGE_KEY = "tem_mascot_identity";
 const CHANGE_EVENT = "tem:mascot-variant";
+let memoryIdentity: MascotIdentity | undefined;
 
 /**
- * Signature: `function getMascotVariantSnapshot(): MascotVariant`
- * Purpose: Read the current mascot presentation preference from browser-local storage.
+ * Signature: `function getMascotIdentitySnapshot(): MascotIdentity`
+ * Purpose: Resolve a named IP selection, migrating legacy presentation preferences without requiring storage access.
  */
-function getMascotVariantSnapshot(): MascotVariant {
-  if (typeof window === "undefined") return "standard";
-  return window.localStorage.getItem(STORAGE_KEY) === "feminine" ? "feminine" : "standard";
+function getMascotIdentitySnapshot(): MascotIdentity {
+  if (typeof window === "undefined") return "kumoashi";
+  if (memoryIdentity) return memoryIdentity;
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const option = MASCOT_OPTIONS.find((item) => item.id === saved);
+    return option?.id ?? (window.localStorage.getItem("tem_mascot_variant") === "feminine" ? "kumoashi-sakura" : "kumoashi");
+  } catch {
+    return "kumoashi";
+  }
 }
 
 /**
@@ -32,19 +48,33 @@ function subscribeMascotVariant(onStoreChange: () => void): () => void {
 }
 
 /**
- * Signature: `function useMascotVariant(): MascotVariant`
- * Purpose: Expose the selected mascot presentation with hydration-safe reactive updates.
+ * Signature: `function useMascotIdentity(): MascotIdentity`
+ * Purpose: Expose the selected named IP consistently across navigation, feedback, and profile settings.
  */
-export function useMascotVariant(): MascotVariant {
-  return useSyncExternalStore(subscribeMascotVariant, getMascotVariantSnapshot, () => "standard");
+export function useMascotIdentity(): MascotIdentity {
+  return useSyncExternalStore(subscribeMascotVariant, getMascotIdentitySnapshot, () => "kumoashi");
 }
 
 /**
- * Signature: `function setMascotVariant(variant: MascotVariant): void`
- * Purpose: Persist and broadcast the user's standard or feminine mascot preference.
+ * Signature: `function useMascotVariant(): MascotVariant`
+ * Purpose: Derive the shared footprint symbol palette from the chosen named character.
  */
-export function setMascotVariant(variant: MascotVariant): void {
-  window.localStorage.setItem(STORAGE_KEY, variant);
+export function useMascotVariant(): MascotVariant {
+  const identity = useMascotIdentity();
+  return MASCOT_OPTIONS.find((item) => item.id === identity)?.variant ?? "standard";
+}
+
+/**
+ * Signature: `function setMascotIdentity(identity: MascotIdentity): void`
+ * Purpose: Persist a named IP and immediately update every menu, falling back to memory when storage is blocked.
+ */
+export function setMascotIdentity(identity: MascotIdentity): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, identity);
+    memoryIdentity = undefined;
+  } catch {
+    memoryIdentity = identity;
+  }
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
@@ -55,34 +85,66 @@ const NAV_ROLE_INDEX: Record<MascotNavRole, number> = {
   profile: 3,
 };
 
+const MENU_SHEETS: Record<MascotIdentity, { width: number; height: number; top: number; frameHeight: number; regions: number[][] }> = {
+  kumoashi: { width: 2095, height: 751, top: 0, frameHeight: 751, regions: [[0, 552], [563, 486], [1080, 487], [1590, 505]] },
+  "kumoashi-sakura": { width: 1983, height: 793, top: 80, frameHeight: 680, regions: [[0, 513], [513, 477], [990, 445], [1435, 548]] },
+  michiru: { width: 1997, height: 787, top: 70, frameHeight: 660, regions: [[0, 525], [525, 500], [1025, 500], [1525, 472]] },
+  "michiru-lilac": { width: 2078, height: 757, top: 0, frameHeight: 757, regions: [[0, 526], [526, 521], [1047, 505], [1552, 526]] },
+};
+
+type MascotNavIconProps = {
+  role: MascotNavRole;
+  identity: MascotIdentity;
+  className?: string;
+  title?: string;
+};
+
 /**
- * Signature: `function MascotNavIcon({ role, variant, className, title }: MascotNavIconProps): React.JSX.Element`
- * Purpose: Render one full-quality 3D IP pose from the standard or feminine navigation sprite strip.
+ * Signature: `function MascotPicker(): React.JSX.Element`
+ * Purpose: Offer four named IP companions and apply one identity to the entire navigation immediately.
+ */
+export function MascotPicker() {
+  const identity = useMascotIdentity();
+  return (
+    <div className="grid grid-cols-2 gap-2" role="group" aria-label="选择 IP 伙伴">
+      {MASCOT_OPTIONS.map((option) => (
+        <button key={option.id} type="button" onClick={() => setMascotIdentity(option.id)} aria-pressed={identity === option.id}
+          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${identity === option.id ? "border-violet-400 bg-violet-50 text-violet-800" : "border-neutral-200 bg-white text-neutral-600"}`}>
+          <MascotNavIcon role="profile" identity={option.id} className="h-11 w-9" />
+          {option.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Signature: `function MascotNavIcon({ role, identity, className, title }: MascotNavIconProps): React.JSX.Element`
+ * Purpose: Frame a function-led raster IP portrait without stretching its source proportions.
  */
 export function MascotNavIcon({
   role,
-  variant,
-  className = "h-11 w-8",
+  identity,
+  className = "h-12 w-12",
   title,
-}: {
-  role: MascotNavRole;
-  variant: MascotVariant;
-  className?: string;
-  title?: string;
-}) {
+}: MascotNavIconProps) {
+  const clipId = useId();
   const index = NAV_ROLE_INDEX[role];
+  const sheet = MENU_SHEETS[identity];
+  const [left, cellWidth] = sheet.regions[index];
   return (
-    <span
-      className={`block shrink-0 bg-no-repeat ${className}`}
+    <svg
+      className={`block shrink-0 overflow-hidden ${className}`}
+      viewBox={`${left} ${sheet.top} ${cellWidth} ${sheet.frameHeight}`}
+      preserveAspectRatio="xMidYMid meet"
       role={title ? "img" : undefined}
       aria-label={title}
       aria-hidden={title ? undefined : true}
-      style={{
-        backgroundImage: `url(/brand/mascots/nav-${variant}.png)`,
-        backgroundSize: "400% 100%",
-        backgroundPosition: `${(index / 3) * 100}% center`,
-      }}
-    />
+      focusable="false"
+    >
+      <defs><clipPath id={clipId}><rect x={left} y={sheet.top} width={cellWidth} height={sheet.frameHeight} /></clipPath></defs>
+      <image href={`/brand/mascots/menu-${identity}.png`} width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
+    </svg>
   );
 }
 

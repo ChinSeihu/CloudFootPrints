@@ -10,6 +10,7 @@ import { EventDetail } from "@/components/Recommend/EventDetail";
 import { CountBadge } from "@/components/common/CountBadge";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
+import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
@@ -24,14 +25,6 @@ type Tab = "checkins" | "posts" | "managed" | "favorites" | "messages";
 function fmtDate(d: string | null): string {
   if (!d) return "时间未定";
   return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-/**
- * Signature: `function fmtInteractionTime(value: string): string`
- * Purpose: Formats a footprint comment timestamp compactly while retaining both date and time.
- */
-function fmtInteractionTime(value: string): string {
-  return new Date(value).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -408,9 +401,6 @@ function MeContent() {
                 const likedByMe = interaction?.likedByMe === true;
                 const interactionOpen = openCheckinInteraction === c.id;
                 const comments = checkinComments[c.id] ?? [];
-                const commentThreads = comments
-                  .filter((comment) => !comment.parentId)
-                  .map((comment) => ({ comment, replies: comments.filter((reply) => reply.parentId === comment.id) }));
                 return (
                 <li id={`checkin-${c.id}`} key={c.id} className="grid scroll-mt-20 grid-cols-[54px_minmax(0,1fr)] gap-3">
                   <div className="relative text-right">
@@ -502,41 +492,7 @@ function MeContent() {
                   </div>
                   {interactionOpen && (
                     <div className="mt-2 rounded-xl bg-neutral-50 p-3">
-                      {comments.length > 0 ? (
-                        <div className="space-y-3">
-                          {commentThreads.map(({ comment, replies }) => (
-                            <div key={comment.id}>
-                              <div className="flex items-center gap-2 text-[11px]">
-                                <span className="font-semibold text-neutral-800">{comment.author?.username ?? "用户"}</span>
-                                <time className="text-neutral-400">{fmtInteractionTime(comment.createdAt)}</time>
-                              </div>
-                              <p className="mt-1 text-[12px] leading-5 text-neutral-700">{comment.text}</p>
-                              <button
-                                type="button"
-                                onClick={() => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: comment.parentId ?? comment.id, username: comment.author?.username ?? "用户" } }))}
-                                className="mt-1 text-[11px] font-semibold text-blue-500 hover:text-blue-700"
-                              >
-                                回复
-                              </button>
-                              {replies.length > 0 && (
-                                <div className="mt-2 space-y-2 border-l border-neutral-200 pl-3 ml-4">
-                                  {replies.map((reply) => (
-                                    <div key={reply.id}>
-                                      <div className="flex items-center gap-2 text-[11px]">
-                                        <span className="font-semibold text-neutral-800">{reply.author?.username ?? "用户"}</span>
-                                        <time className="text-neutral-400">{fmtInteractionTime(reply.createdAt)}</time>
-                                      </div>
-                                      <p className="mt-1 text-[12px] leading-5 text-neutral-700">{reply.text}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-neutral-400">还没有评论。</p>
-                      )}
+                      <CheckinCommentThreads comments={comments} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
                       {checkinReplyTo[c.id] && (
                         <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-600">
                           <span>回复 @{checkinReplyTo[c.id]?.username}</span>
@@ -547,7 +503,8 @@ function MeContent() {
                         <input
                           value={checkinDrafts[c.id] ?? ""}
                           onChange={(event) => setCheckinDrafts((current) => ({ ...current, [c.id]: event.target.value }))}
-                          onKeyDown={(event) => { if (event.key === "Enter") void submitPersonalCheckinComment(c.id); }}
+                          onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) void submitPersonalCheckinComment(c.id); }}
+                          aria-label="足迹评论内容"
                           placeholder={checkinReplyTo[c.id] ? `回复 @${checkinReplyTo[c.id]?.username}` : "写一条评论"}
                           className="min-w-0 flex-1 rounded-full bg-white px-3 py-2 text-xs outline-none ring-1 ring-neutral-200 focus:ring-blue-300"
                         />

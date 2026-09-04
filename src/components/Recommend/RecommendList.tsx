@@ -9,6 +9,7 @@ import { displayTags } from "@/lib/tags";
 import { isUserPost } from "@/components/common/EventSource";
 import { moodTagOf } from "@/lib/moods";
 import { Avatar } from "@/components/common/Avatar";
+import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { EditCheckInDialog } from "@/components/Me/EditDialogs";
@@ -235,6 +236,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
   const [checkinDrafts, setCheckinDrafts] = useState<Record<string, string>>({});
+  const [checkinReplyTo, setCheckinReplyTo] = useState<Record<string, { id: string; username: string } | null>>({});
+  const [checkinSending, setCheckinSending] = useState<Record<string, boolean>>({});
+  const checkinSendingRef = useRef(new Set<string>());
+  const [checkinCommentError, setCheckinCommentError] = useState<Record<string, string>>({});
   const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
   const [checkinMenuId, setCheckinMenuId] = useState<string | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
@@ -523,9 +528,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     });
   }
 
+  /**
+   * Signature: `async function loadCheckinInteractions(id: string): Promise<void>`
+   * Purpose: Load footprint roots with replies and current reaction metrics for the discover feed.
+   */
   async function loadCheckinInteractions(id: string) {
     const [commentsRes, reactionsRes] = await Promise.all([
-      fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=3&replyLimit=0`),
+      fetch(`/api/checkins/${encodeURIComponent(id)}/comments?paged=1&sort=new&limit=20&replyLimit=10`),
       fetch(`/api/checkins/${encodeURIComponent(id)}/reactions`),
     ]);
     if (commentsRes.ok) {
@@ -586,18 +595,32 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     }));
   }
 
+  /**
+   * Signature: `async function submitCheckinComment(id: string): Promise<void>`
+   * Purpose: Submit a root or reply without dropping its discussion, prevent duplicate sends, and retain drafts on failure.
+   */
   async function submitCheckinComment(id: string) {
     const text = (checkinDrafts[id] ?? "").trim();
-    if (!text) return;
+    if (!text || checkinSendingRef.current.has(id)) return;
+    checkinSendingRef.current.add(id);
+    setCheckinSending((current) => ({ ...current, [id]: true }));
+    setCheckinCommentError((current) => ({ ...current, [id]: "" }));
+    try {
     const res = await fetch(`/api/checkins/${encodeURIComponent(id)}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, parentId: checkinReplyTo[id]?.id ?? null }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(error.error ?? "发送失败，请重试");
+    }
     const data = await res.json() as { comment: CommentDTO };
     setCheckinDrafts((current) => ({ ...current, [id]: "" }));
-    setCheckinComments((current) => ({ ...current, [id]: [data.comment, ...(current[id] ?? [])].slice(0, 3) }));
+    setCheckinReplyTo((current) => ({ ...current, [id]: null }));
+    setCheckinComments((current) => ({ ...current, [id]: data.comment.parentId
+      ? [...(current[id] ?? []), data.comment]
+      : [data.comment, ...(current[id] ?? [])] }));
     setCheckinMetricOverrides((current) => {
       const currentCount = current[id]?.commentCount;
       return {
@@ -605,6 +628,12 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         [id]: { ...current[id], commentCount: (currentCount ?? 0) + 1 },
       };
     });
+    } catch (error) {
+      setCheckinCommentError((current) => ({ ...current, [id]: error instanceof Error ? error.message : "网络异常，请重试" }));
+    } finally {
+      checkinSendingRef.current.delete(id);
+      setCheckinSending((current) => ({ ...current, [id]: false }));
+    }
   }
 
   /**
@@ -773,33 +802,29 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
         {interactionOpen && (
           <div className="mt-2 rounded-lg bg-neutral-50 p-2">
-            {comments.length > 0 ? (
-              <div className="space-y-2">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-2">
-                    <Avatar user={comment.author} size={22} />
-                    <p className="min-w-0 flex-1 text-[12px] leading-5 text-neutral-700">
-                      <span className="font-semibold text-neutral-950">{comment.author?.username ?? "用户"}</span>
-                      <span className="ml-1">{comment.text}</span>
-                    </p>
-                  </div>
-                ))}
+            <CheckinCommentThreads comments={comments} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
+            {checkinReplyTo[checkin.id] && (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-violet-100 px-2 py-1.5 text-xs text-violet-800">
+                <span>回复 @{checkinReplyTo[checkin.id]?.username}</span>
+                <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: null }))}>取消回复</button>
               </div>
-            ) : (
-              <p className="py-1 text-[12px] text-neutral-400">还没有评论。</p>
             )}
+            {checkinCommentError[checkin.id] && <p role="alert" className="mt-2 text-xs text-rose-700">{checkinCommentError[checkin.id]}</p>}
             <div className="mt-2 flex items-center gap-2">
               <input
                 value={checkinDrafts[checkin.id] ?? ""}
                 onChange={(e) => setCheckinDrafts((current) => ({ ...current, [checkin.id]: e.target.value }))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") submitCheckinComment(checkin.id);
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) void submitCheckinComment(checkin.id);
                 }}
-                placeholder="写一句回应"
+                aria-label="足迹评论内容"
+                disabled={checkinSending[checkin.id]}
+                maxLength={1000}
+                placeholder={checkinReplyTo[checkin.id] ? `回复 @${checkinReplyTo[checkin.id]?.username}` : "写一句回应"}
                 className="min-w-0 flex-1 rounded-full bg-white px-3 py-1.5 text-[12px] outline-none ring-1 ring-black/5 focus:ring-violet-200"
               />
-              <button type="button" onClick={() => submitCheckinComment(checkin.id)} className="rounded-full bg-violet-600 px-3 py-1.5 text-[12px] font-bold text-white">
-                发送
+              <button type="button" disabled={checkinSending[checkin.id] || !(checkinDrafts[checkin.id] ?? "").trim()} onClick={() => submitCheckinComment(checkin.id)} className="rounded-full bg-violet-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50">
+                {checkinSending[checkin.id] ? "发送中" : "发送"}
               </button>
             </div>
           </div>

@@ -261,8 +261,12 @@ if (decision.post && coords.length) {
               photoUrls: images,
             },
           });
+          console.info(`[image-db] saved target=checkin id=${r.checkin.id} count=${images.length}`);
+        } else {
+          console.warn(`[image-db] skipped target=checkin id=${r.checkin.id} reason=no-persisted-image`);
         }
       } catch {
+        console.error(`[image-db] failed target=checkin id=${r.checkin.id} stage=generation-or-save`);
         // 出图失败不影响足迹
       }
     }

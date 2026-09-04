@@ -57,6 +57,9 @@ jobs:
       - name: 跑社区推演
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           IMAGE_PROVIDER: ${{ secrets.IMAGE_PROVIDER }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_IMAGE_API_URL: ${{ secrets.OPENAI_IMAGE_API_URL }}

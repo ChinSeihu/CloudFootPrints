@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, PERSONA_FASHION_STYLE, type FashionTrendTag, type PersonaFashionStyle, type FashionStyle } from "@/lib/personas";
 import type { World } from "./world";
@@ -938,22 +939,60 @@ function retryPrompt(
     "Keep any incidental background people distant, small and visually unimportant.",
   ].filter(Boolean).join("\n\n");
 }
-// 把生成图（远程 URL 或 data URI）上传 Cloudinary（服务端抓取），得到自带 CORS 的持久链接。
-// 未配置 Cloudinary 时：若是 http(s) URL 直接返回原链；data URI 无法直接展示则返回 null。
+/**
+ * Signature: `function simulationUploadConfigured(): boolean`
+ * Purpose: Checks signed or unsigned upload credentials before paid image generation.
+ */
+function simulationUploadConfigured(): boolean {
+  return Boolean(
+    (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) ||
+    (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET)
+  );
+}
+
+/**
+ * Signature: `async function persistToCloudinary(src: string): Promise<string | null>`
+ * Purpose: Persists generated images with server-side signing or the legacy unsigned preset; logs failures without exposing credentials or image data.
+ */
 export async function persistToCloudinary(src: string): Promise<string | null> {
-  const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  const signed = Boolean(process.env.CLOUDINARY_CLOUD_NAME && apiKey && apiSecret);
+  const cloud = signed ? process.env.CLOUDINARY_CLOUD_NAME : process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-  if (!cloud || !preset) return /^https?:\/\//.test(src) ? src : null;
+  if (!simulationUploadConfigured()) {
+    console.error("[image-upload] failed reason=missing-cloudinary-config");
+    return null;
+  }
   try {
     const form = new FormData();
     form.append("file", src); // 接受远程 URL 或 data URI
-    form.append("upload_preset", preset);
-    form.append("folder", "cloudfootprints/sim");
+    const folder = "cloudfootprints/sim";
+    form.append("folder", folder);
+    if (signed) {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = createHash("sha256").update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`).digest("hex");
+      form.append("timestamp", timestamp);
+      form.append("api_key", apiKey!);
+      form.append("signature", signature);
+    } else {
+      form.append("upload_preset", preset!);
+    }
     const res = await fetchT(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form }, 60000);
-    if (!res.ok) return /^https?:\/\//.test(src) ? src : null;
-    return ((await res.json()) as { secure_url: string }).secure_url;
+    if (!res.ok) {
+      console.error(`[image-upload] failed mode=${signed ? "signed" : "unsigned"} status=${res.status}`);
+      return null;
+    }
+    const data = await res.json() as { secure_url?: unknown };
+    if (typeof data.secure_url !== "string" || !data.secure_url.startsWith("https://")) {
+      console.error("[image-upload] failed reason=missing-secure-url");
+      return null;
+    }
+    console.info(`[image-upload] saved mode=${signed ? "signed" : "unsigned"}`);
+    return data.secure_url;
   } catch {
-    return /^https?:\/\//.test(src) ? src : null;
+    console.error("[image-upload] failed reason=network-timeout-or-invalid-response");
+    return null;
   }
 }
 
@@ -1156,6 +1195,11 @@ async function generateSingleCheckinImage(
 ): Promise<string | null> {
   const provider = getImageProvider();
   if (provider.name === "none") return null;
+
+  if (!simulationUploadConfigured()) {
+    console.error(`[image-generation] skipped persona=${req.persona.id} reason=missing-cloudinary-config`);
+    return null;
+  }
 
   if (!req.imageSpec) return null;
 
