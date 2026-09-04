@@ -14,14 +14,19 @@ export const revalidate = 0;
 // 东京全域大致范围，作为 v1 占位数据来源。
 const TOKYO_BBOX = { minLat: 35.5, maxLat: 35.85, minLng: 139.5, maxLng: 139.95 };
 
+/**
+ * Signature: `async function loadEventMetrics(ids: string[]): Promise<Map<string, NonNullable<EventDTO["metrics"]>>>`
+ * Purpose: Reads database-aggregated reaction counts without transferring individual user reactions.
+ */
 async function loadEventMetrics(ids: string[]) {
   if (ids.length === 0) return new Map<string, NonNullable<EventDTO["metrics"]>>();
   const [reactions, clicks] = await Promise.all([
-    prisma.reaction.findMany({
+    prisma.reaction.groupBy({
+      by: ["eventId", "postId", "type"],
       where: { OR: [{ eventId: { in: ids } }, { postId: { in: ids } }] },
-      select: { eventId: true, postId: true, type: true },
+      _count: { _all: true },
     }),
-    prisma.eventMetric.findMany({ where: { eventId: { in: ids } } }),
+    prisma.eventMetric.findMany({ where: { eventId: { in: ids } }, select: { eventId: true, clickCount: true } }),
   ]);
 
   const metrics = new Map<string, NonNullable<EventDTO["metrics"]>>();
@@ -37,9 +42,9 @@ async function loadEventMetrics(ids: string[]) {
     const id = r.eventId ?? r.postId;
     if (!id) continue;
     const m = ensure(id);
-    if (r.type === "LIKE") m.likeCount += 1;
-    if (r.type === "FAVORITE") m.favoriteCount += 1;
-    if (r.type === "SIGNUP") m.signupCount += 1;
+    if (r.type === "LIKE") m.likeCount += r._count._all;
+    if (r.type === "FAVORITE") m.favoriteCount += r._count._all;
+    if (r.type === "SIGNUP") m.signupCount += r._count._all;
   }
   for (const c of clicks) ensure(c.eventId).clickCount = c.clickCount;
   return metrics;
@@ -55,20 +60,19 @@ export default async function RecommendPage() {
   let checkinsHasMore = false;
   let dbError = false;
   try {
-    const [rows, checkinRows] = await Promise.all([
-      getEventsInBounds(TOKYO_BBOX),
+    const [eventData, checkinRows] = await Promise.all([
+      getEventsInBounds(TOKYO_BBOX).then(async (rows) => {
+        const now = Date.now();
+        const upcoming = rows.filter((e) => {
+          if (e.postKind === "LIFE" || !e.startTime) return true;
+          return (e.endTime ?? e.startTime).getTime() >= now;
+        });
+        const metrics = await loadEventMetrics(upcoming.map((e) => e.id));
+        return { upcoming, metrics };
+      }),
       listDiscoverCheckins({ limit: 24 }),
     ]);
-    const now = Date.now();
-    const upcoming = rows
-      // 过期活动默认不显示（结束时间早于现在；未定档活动保留）。
-      .filter((e) => {
-        if (e.postKind === "LIFE") return true;
-        if (!e.startTime) return true;
-        const end = (e.endTime ?? e.startTime).getTime();
-        return end >= now;
-      });
-    const metrics = await loadEventMetrics(upcoming.map((e) => e.id));
+    const { upcoming, metrics } = eventData;
     events = upcoming.map((e) => ({
         id: e.id,
         title: e.title,
