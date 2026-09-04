@@ -270,8 +270,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.
-- `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar, discovery, album, route and note-taking actions; four IP portraits, reduced-motion and hidden-tab handling.
-- `Mascot/LoadingFeedback.tsx` — delayed section/chat loading, compact scene sizing and long-wait text; consumed by profile, map initialization, transport planning and AI guide.
+- `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar, discovery, album, route, note-taking, upload, painting and letter actions; four IP portraits, reduced-motion and hidden-tab handling.
+- `Mascot/LoadingFeedback.tsx` — delayed section/chat loading, compact scenes and long-wait text; shared by profile, maps, transport, guide/detail, upload/regeneration, messages/follows and discovery pagination.
 - `icons.tsx` — shared SVG icon components and category/weather icon dispatch.
 
 ### `src/components/Auth/`

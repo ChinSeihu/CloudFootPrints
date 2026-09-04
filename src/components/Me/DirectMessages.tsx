@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/common/Avatar";
 import { IconChevronLeft } from "@/components/icons";
@@ -17,6 +19,10 @@ function uniqueMessages(messages: DirectMessageDTO[]) {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+/**
+ * Signature: `function DirectMessages(props: { currentUserId: string; initialConversations: DirectConversationDTO[]; initialTargetId: string | null; openNonce: number; onUnreadChange: (count: number) => void; onClose?: () => void }): React.JSX.Element`
+ * Purpose: Displays conversation loading with a letter animation while keeping background refresh quiet.
+ */
 export function DirectMessages({
   currentUserId,
   initialConversations,
@@ -153,7 +159,7 @@ export function DirectMessages({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-neutral-50/70 px-3 py-4">
-          {loading && <p className="py-10 text-center text-xs text-neutral-400">加载对话中...</p>}
+          {loading && <LoadingFeedback compact scene="message" text="打开信件，看看你们聊到了哪里…" />}
           {!loading && messages.length === 0 && <p className="m-auto text-center text-xs text-neutral-400">打个招呼，开始你们的对话。</p>}
           <div className="mt-auto space-y-3">
             {messages.map((message) => {

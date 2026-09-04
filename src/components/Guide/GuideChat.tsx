@@ -138,13 +138,26 @@ export function GuideChat() {
   const [loading, setLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"thinking" | "map">("thinking");
   const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
+  const [detailRequest, setDetailRequest] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const topicRef = useRef<GuideTopic | null>(null);
   topicRef.current = topic;
 
+  useEffect(() => {
+    if (!open || !detailRequest) return;
+    const controller = new AbortController();
+    fetch(`/api/events/${encodeURIComponent(detailRequest)}`, { signal: controller.signal })
+      .then((r) => { if (!r.ok) throw new Error("detail"); return r.json(); })
+      .then((data) => { if (!data?.event) throw new Error("detail"); if (!controller.signal.aborted) setDetail(data.event); })
+      .catch(() => { if (!controller.signal.aborted) setDetailError(true); })
+      .finally(() => { if (!controller.signal.aborted) setDetailRequest(null); });
+    return () => controller.abort();
+  }, [detailRequest, open]);
+
   // 每次打开 / 切换活动话题都开新会话
-  useEffect(() => { setMessages([]); setInput(""); }, [open, topic]);
+  useEffect(() => { setMessages([]); setInput(""); setDetailRequest(null); setDetailError(false); }, [open, topic]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   useEffect(() => {
@@ -257,12 +270,13 @@ export function GuideChat() {
     }
   }
 
-  // 点击导游提到的活动 → 拉取详情并打开 EventDetail（叠在聊天面板之上）。
-  async function openEventDetail(id: string) {
-    try {
-      const d = await fetch(`/api/events/${id}`).then((r) => (r.ok ? r.json() : null));
-      if (d?.event) setDetail(d.event);
-    } catch { /* 忽略 */ }
+  /**
+   * Signature: `function openEventDetail(id: string): void`
+   * Purpose: Starts a cancellable detail request with visible loading and failure feedback.
+   */
+  function openEventDetail(id: string) {
+    setDetailError(false);
+    setDetailRequest(id);
   }
 
   const quick = topic ? topicQuick(topic) : GENERAL_QUICK;
@@ -349,6 +363,8 @@ export function GuideChat() {
             )}
           </div>
         ))}
+        {detailRequest && <div><LoadingFeedback compact scene="calendar" text="打开活动卡片…" /><button type="button" onClick={() => setDetailRequest(null)} className="rounded-full px-3 py-2 text-xs text-neutral-500">取消打开</button></div>}
+        {detailError && <p role="alert" className="text-sm text-rose-600">暂时无法打开活动，请稍后再点一次。</p>}
         {loading && (
           <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : `${hasMascot ? guideName : "导游"}正在翻看笔记，寻找适合你的建议…`} />
         )}

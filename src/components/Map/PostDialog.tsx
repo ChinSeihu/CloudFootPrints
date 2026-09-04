@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useState } from "react";
 import { IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
@@ -307,6 +309,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
+      {submitting && <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} />}
       <div className="flex items-center gap-4 pt-1">
         <button
           type="button"

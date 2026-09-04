@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useState, type ReactNode } from "react";
 import { IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
@@ -140,6 +142,8 @@ export function EditPostDialog({
           result.imageUrls?.length ? result.imageUrls : [result.imageUrl],
         );
       }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "图片生成失败，请稍后重试");
     } finally {
       setRegenerating(false);
     }
@@ -167,6 +171,7 @@ export function EditPostDialog({
               </button>
             )}
           </div>
+          {regenerating && <LoadingFeedback compact scene="drawing" text="正在绘制新的画面…" />}
           {imageUrls.length > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-2">
               {imageUrls.map((src, index) => (
@@ -272,6 +277,7 @@ export function EditPostDialog({
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
+      {saving && <LoadingFeedback compact scene="profile" text="正在保存这份回忆…" />}
       <div className="flex gap-3">
         <button type="button" onClick={onClose} disabled={saving} className="px-5 py-3 text-sm rounded-xl text-neutral-500 hover:bg-neutral-100 transition">取消</button>
         <button type="button" onClick={save} disabled={saving || !title.trim() || !start} className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40">
@@ -380,6 +386,8 @@ export function EditCheckInDialog({
       const result = await onRegenerateImage(keptUrls);
       if (!result?.imageUrl) return;
       setKeptUrls(result.imageUrls?.length ? result.imageUrls : [result.imageUrl]);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "图片生成失败，请稍后重试");
     } finally {
       setRegenerating(false);
     }
@@ -411,6 +419,7 @@ export function EditCheckInDialog({
             </button>
           )}
         </div>
+        {regenerating && <LoadingFeedback compact scene="drawing" text="正在绘制新的画面…" />}
         {canUpload ? (
           <div className="grid grid-cols-3 gap-2">
             {keptUrls.map((src, i) => (
@@ -454,6 +463,7 @@ export function EditCheckInDialog({
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
+      {saving && <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片…" : "正在保存这份回忆…"} />}
       <div className="flex gap-3">
         <button type="button" onClick={onClose} disabled={saving} className="px-5 py-3 text-sm rounded-xl text-neutral-500 hover:bg-neutral-100 transition">取消</button>
         <button type="button" onClick={save} disabled={saving} className="flex-1 py-3 text-sm font-medium rounded-xl bg-blue-600 text-white shadow-sm transition active:scale-[0.99] disabled:opacity-40">

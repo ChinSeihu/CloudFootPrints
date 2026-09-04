@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconHeart, IconPin } from "@/components/icons";
@@ -214,6 +216,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailLoadError, setDetailLoadError] = useState(false);
   const [previewGallery, setPreviewGallery] = useState<{ urls: string[]; initialIndex: number } | null>(null);
   const targetId = useRef<string | null>(null);
   const resolvedRef = useRef(false);
@@ -311,9 +314,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const id = targetId.current;
     if (!id) { setLoadingDetail(false); return; }
     let cancelled = false;
-    fetch(`/api/events/${id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d?.event) void openEvent(d.event); })
+    setDetailLoadError(false);
+    fetch(`/api/events/${encodeURIComponent(id)}`)
+      .then((r) => { if (!r.ok) throw new Error("detail"); return r.json(); })
+      .then((d) => { if (!d?.event) throw new Error("detail"); if (!cancelled) void openEvent(d.event); })
+      .catch(() => { if (!cancelled) setDetailLoadError(true); })
       .finally(() => { if (!cancelled) setLoadingDetail(false); });
     return () => { cancelled = true; };
   }, [loadingDetail]);
@@ -1092,7 +1097,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <>
                 <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
-                  {checkinsLoadingMore ? <MascotFeedback loading>继续加载中…</MascotFeedback> : checkinsLoadError ? (
+                  {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text="再找一些新的足迹…" /> : checkinsLoadError ? (
                     <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button></MascotFeedback>
                   ) : checkinsHasMore ? "继续向下加载更多足迹" : "已经加载完全部足迹"}
                 </div>
@@ -1122,7 +1127,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       )}
 
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
-      {loadingDetail && !selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-white"><div className="text-sm text-neutral-400">加载详情中...</div></div>}
+      {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text="打开活动卡片，看看有哪些精彩…" /> : <div role="alert" className="text-center text-sm text-neutral-600">暂时无法打开活动。<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">重试</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">取消</button></div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
       {editingCheckin && (
         <EditCheckInDialog

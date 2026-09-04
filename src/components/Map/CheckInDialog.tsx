@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useEffect, useMemo, useState } from "react";
 import { IconPlus } from "@/components/icons";
 import { MoodSelector } from "@/components/common/MoodSelector";
@@ -243,6 +245,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
         </button>
       </div>
 
+      {submitting && <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} />}
       <div className="flex items-center gap-4 pt-1">
         <button
           type="button"

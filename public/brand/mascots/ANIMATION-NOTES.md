@@ -1,5 +1,9 @@
 # Full-body character animation candidates
 
+## Stage 3: upload, painting and letters
+
+Reuses the same portrait atlas; added continuous upload/photo, palette/painting and letter/envelope layers. Integrated into publishing/check-in submissions, avatar/cover uploads, edit saves and regeneration, direct messages, follows and discovery pagination. Detail waiting uses the page/card action; timetable and train waiting reuse the map. Existing animation pause and accessibility behavior remains shared. Mobile-size regeneration was verified with a local deferred callback, including completion and image replacement, without invoking image-generation APIs.
+
 ## Stage 2: album, map and thinking
 
 Reuses the existing portrait atlas without new generated assets. CSS continuously moves photos into an album, points along a map route, and writes in a notebook. `LoadingFeedback` supplies an 88px compact layout, 250ms presentation delay and a 12-second long-wait notice. Integrated into personal route/auth/content loading, map initialization, transport planning, AI chat and AI itinerary planning. Existing reduced-motion and visibility pausing apply to every new action.

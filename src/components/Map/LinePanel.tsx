@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 // 一条线路的「全程」数据（来自 public/lines.json）：有序站点 + 颜色 + 代码。
@@ -33,6 +35,10 @@ function matchGroup(groups: RailwayGroup[], lineName: string): RailwayGroup | un
 // 顶部 = 该线在本站的「发车时刻」可选（默认最近一班）；主体 = 选中那班车的逐站时刻
 // （即该线站点表，标出当前站；都営等有实时数据的线还会标出列车当前位置）。
 // 无 ODPT 时刻表的线（JR/大私铁）退回显示线路全程站点图（无时刻）。
+/**
+ * Signature: `function LinePanel(props: { station: { name: string; lat: number; lng: number }; line: PanelLine; onClose: () => void; onStation: (name: string) => void }): React.JSX.Element`
+ * Purpose: Displays departure and train data with compact route-loading feedback.
+ */
 export function LinePanel({
   station,
   line,
@@ -199,11 +205,11 @@ export function LinePanel({
 
         {/* 主体：选中班车的逐站时刻（= 该线站点表）；无时刻表则退回全程站点图 */}
         <div className="flex-1 overflow-y-auto px-4 py-2 border-t border-black/5" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          {loadingTt && !tt && <p className="text-sm text-neutral-400 py-6 text-center">加载中…</p>}
+          {loadingTt && !tt && <LoadingFeedback compact scene="map" text="看看接下来有哪些班次…" />}
 
           {/* 有时刻表：班车逐站 + 实时列车位置 */}
           {group && (loadingTrain && !trainData ? (
-            <p className="text-sm text-neutral-400 py-6 text-center">加载车次…</p>
+            <LoadingFeedback compact scene="map" text="正在查看这趟车的行程…" />
           ) : stops.length > 0 ? (
             <>
               {(trainData?.destination || trainData?.direction) && (

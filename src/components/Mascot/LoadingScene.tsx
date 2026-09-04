@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useMascotIdentity } from "./Mascot";
 import styles from "./LoadingScene.module.css";
 
-export type LoadingSceneKind = "calendar" | "discover" | "profile" | "map" | "thinking";
+export type LoadingSceneKind = "calendar" | "discover" | "profile" | "map" | "thinking" | "upload" | "drawing" | "message";
 
 const PORTRAITS = {
   kumoashi: "0 0 512 512",
@@ -67,13 +67,21 @@ export function LoadingScene({ scene }: { scene: LoadingSceneKind }) {
           <div className={`${styles.hand} ${styles.holdHand}`} />
           <div className={`${styles.hand} ${styles.pointHand}`} />
         </>
-      ) : scene === "profile" ? (
+      ) : scene === "profile" || scene === "upload" ? (
         <>
           <div className={styles.album}><span /><i /></div>
           <div className={styles.photo}><span /></div>
           <div className={`${styles.hand} ${styles.holdHand}`} />
           <div className={`${styles.hand} ${styles.photoHand}`} />
           <span className={styles.calendarSpark}>✦</span>
+          {scene === "upload" && <span className={styles.uploadArrow}>↑</span>}
+        </>
+      ) : scene === "message" ? (
+        <>
+          <div className={styles.letter}><i /><i /><i /></div>
+          <div className={styles.envelope} />
+          <div className={`${styles.hand} ${styles.holdHand}`} />
+          <div className={`${styles.hand} ${styles.letterHand}`} />
         </>
       ) : (
         <>
@@ -81,6 +89,7 @@ export function LoadingScene({ scene }: { scene: LoadingSceneKind }) {
           <div className={`${styles.hand} ${styles.holdHand}`} />
           <div className={styles.writingArm}><span className={styles.pencil} /><div className={styles.hand} /></div>
           <div className={styles.thought}><i /><i /><span>✦</span></div>
+          {scene === "drawing" && <div className={styles.paint}><i /><i /><i /></div>}
         </>
       )}
     </div>

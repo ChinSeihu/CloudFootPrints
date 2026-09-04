@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/Auth/AuthContext";
@@ -43,6 +45,10 @@ function KnotIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 /**
  * Signature: `function ProfileHeader(): React.JSX.Element | null`
  * Purpose: Render and edit the signed-in user's profile, social summary, and local IP presentation preference.
+ */
+/**
+ * Signature: `function ProfileHeader(): React.JSX.Element`
+ * Purpose: Displays profile editing and follower lists with image-upload and message-loading feedback.
  */
 export function ProfileHeader() {
   const router = useRouter();
@@ -286,6 +292,7 @@ export function ProfileHeader() {
 
           {editing && (
             <div className="mt-3 space-y-3 rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur">
+              {(uploading || coverUploading) && <LoadingFeedback compact scene="upload" text={uploading ? "正在上传新头像…" : "正在上传新封面…"} />}
               {canUpload && (
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="cursor-pointer text-xs font-medium text-blue-600">
@@ -356,7 +363,7 @@ export function ProfileHeader() {
               </button>
             </div>
             <div className="max-h-[56vh] overflow-y-auto px-3 py-2">
-              {followLoading && <div className="py-8 text-center text-xs text-neutral-400">加载中...</div>}
+              {followLoading && <LoadingFeedback compact scene="message" text="看看与你相遇的朋友…" />}
               {!followLoading && followUsers.length === 0 && (
                 <div className="py-10 text-center text-sm text-neutral-400">{followMode === "following" ? "还没有关注的人" : "还没有粉丝"}</div>
               )}
