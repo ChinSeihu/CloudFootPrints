@@ -301,6 +301,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - `GuideContext.tsx` — guide topic/open state provider and hook.
 - `GuideChat.tsx` — conversational guide panel and message flow.
+- `useGuideHistory.ts` — validated browser-local conversation persistence, capped at 100 messages and scoped by account.
 - `GuideFab.tsx` — floating guide entry button.
 
 ### `src/components/Map/`

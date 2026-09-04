@@ -40,6 +40,10 @@ export function useGuide(): GuideContextValue {
 }
 
 // 全局 Provider（在 layout 包裹），让任何页面/组件都能打开 AI 导游并带上活动话题。
+/**
+ * Signature: `function GuideProvider({ children }: { children: ReactNode }): React.JSX.Element`
+ * Purpose: Keeps guide visibility and the selected topic separate; reopening without a topic resumes the current context.
+ */
 export function GuideProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState<GuideTopic | null>(null);
@@ -48,8 +52,8 @@ export function GuideProvider({ children }: { children: ReactNode }) {
       value={{
         open,
         topic,
-        openGuide: (t = null) => {
-          setTopic(t ?? null);
+        openGuide: (t) => {
+          if (t !== undefined) setTopic(t);
           setOpen(true);
         },
         closeGuide: () => setOpen(false),

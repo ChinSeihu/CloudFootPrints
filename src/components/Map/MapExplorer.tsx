@@ -2159,9 +2159,13 @@ export function MapExplorer() {
     src?.setData({ type: "FeatureCollection", features: [] });
   }
 
+  /**
+   * Signature: `function openNearbyRouteGuide(candidates: EventDTO[]): void`
+   * Purpose: Always opens the guide, falling back to general advice when nearby candidates cannot form a route.
+   */
   function openNearbyRouteGuide(candidates: EventDTO[]) {
     if (candidates.length < 2) {
-      showToast("附近活动不足，暂时无法规划");
+      openGuideRef.current({ title: "附近游玩建议", kind: "route", description: "附近暂时没有足够的推荐活动。请先询问用户想逛的地区、出发位置和偏好，再提供建议，不要声称已有附近活动。" });
       return;
     }
     const list = candidates.slice(0, 8).map((event, index) => {
@@ -2195,9 +2199,13 @@ export function MapExplorer() {
     });
   }
 
+  /**
+   * Signature: `function openRecommendIntentGuide(intent: RecommendIntent, candidates: EventDTO[]): void`
+   * Purpose: Opens intent-aware advice even when no nearby recommendations are available.
+   */
   function openRecommendIntentGuide(intent: RecommendIntent, candidates: EventDTO[]) {
     if (candidates.length === 0) {
-      showToast("附近暂时没有可推荐的活动");
+      openGuideRef.current({ title: intent.title, kind: "route", description: `用户想要：${intent.title}，${intent.subtitle}。附近暂时没有推荐活动，请先询问地区和偏好，提供一般游玩建议，不要虚构附近活动。` });
       return;
     }
     const list = candidates.slice(0, 8).map((event, index) => {

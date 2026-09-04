@@ -7,14 +7,16 @@ import { EventDetail } from "@/components/Recommend/EventDetail";
 import { MASCOT_OPTIONS, MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
-import type { ChatMessage } from "@/lib/llm";
+import { useAuth } from "@/components/Auth/AuthContext";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { useGuideHistory, type GuideMessage as UIMessage } from "./useGuideHistory";
 import type { GuideRoutePlan } from "@/lib/guideRoute";
 import type { EventDTO } from "@/lib/types";
 
 // 导游回答里提到的活动（可点击进入详情）。
 type GuideEventLink = { id: string; title: string };
 // 聊天消息 + AI 推测的后续问题建议 + 提到的活动（仅 assistant 消息带）。
-type UIMessage = ChatMessage & { suggestions?: string[]; events?: GuideEventLink[]; routePlan?: GuideRoutePlan };
+
 
 const GENERAL_QUICK = [
   "今天东京有什么值得去的活动？",
@@ -128,12 +130,26 @@ function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: st
  * Purpose: Renders the selected IP as a topic-aware guide with welcome, reply and thinking feedback while keeping the composer above mobile keyboards.
  */
 export function GuideChat() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  const scope = user ? `user:${user.id}` : "guest";
+  return <GuideChatSession key={scope} storageKey={`tem_guide_history_v1:${scope}`} />;
+}
+
+/**
+ * Signature: `function GuideChatSession({ storageKey }: { storageKey: string }): React.JSX.Element | null`
+ * Purpose: Keeps one account-scoped conversation alive across panel closes and restores it after refresh.
+ */
+function GuideChatSession({ storageKey }: { storageKey: string }) {
   const { open, topic, closeGuide } = useGuide();
   const identity = useMascotIdentity();
   const hasMascot = identity !== "none";
   const guideName = MASCOT_OPTIONS.find((option) => option.id === identity)?.name ?? "AI 导游";
   const isMichiru = identity.startsWith("michiru");
-  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const { messages, setMessages, ready, storageError } = useGuideHistory(storageKey);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const requestRef = useRef<AbortController | null>(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"thinking" | "map">("thinking");
@@ -156,12 +172,12 @@ export function GuideChat() {
     return () => controller.abort();
   }, [detailRequest, open]);
 
-  // 每次打开 / 切换活动话题都开新会话
-  useEffect(() => { setMessages([]); setInput(""); setDetailRequest(null); setDetailError(false); }, [open, topic]);
+  // Panel visibility must not erase the conversation or a pending reply.
+  useEffect(() => { setDetailRequest(null); setDetailError(false); setConfirmClear(false); }, [open, topic]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !ready) return;
     const panel = panelRef.current;
     const viewport = window.visualViewport;
     if (!panel || !viewport) return;
@@ -185,9 +201,9 @@ export function GuideChat() {
       viewport.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
     };
-  }, [open]);
+  }, [open, ready]);
 
-  if (!open) return null;
+  if (!open || !ready) return null;
 
   /**
    * Signature: `async function send(text: string): Promise<void>`
@@ -196,22 +212,20 @@ export function GuideChat() {
   async function send(text: string) {
     const t = text.trim();
     if (!t || loading) return;
-    const next: UIMessage[] = [...messages, { role: "user", content: t }];
+    const next: UIMessage[] = [...messages, { role: "user", content: t, context: topicRef.current ? topicInfo(topicRef.current) : undefined }];
     setMessages(next);
     setInput("");
     setLoadingAction("thinking");
     setLoading(true);
-    // 第一条带活动上下文（仅发给 API，UI 显示原话）；只发 role/content，不带 suggestions。
-    const apiMessages = next.map((m, i) =>
-      i === 0 && topicRef.current && m.role === "user"
-        ? { role: m.role, content: `${topicInfo(topicRef.current)}\n\n${m.content}` }
-        : { role: m.role, content: m.content },
-    );
+    const apiMessages = next.slice(-12).map((m) => ({ role: m.role, content: m.context ? `${m.context}\n\n${m.content}` : m.content }));
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (res.ok) {
@@ -228,6 +242,7 @@ export function GuideChat() {
         setMessages((m) => [...m, { role: "assistant", content: data.error || "出错了" }]);
       }
     } catch {
+      if (controller.signal.aborted) return;
       setMessages((m) => [...m, { role: "assistant", content: "网络错误，请稍后再试。" }]);
     } finally {
       setLoading(false);
@@ -240,16 +255,23 @@ export function GuideChat() {
    */
   async function planNearbyRoute(intentPrompt?: string) {
     const candidates = topicRef.current?.routeCandidates ?? [];
-    if (loading || candidates.length < 2) return;
+    if (loading) return;
+    if (candidates.length < 2) {
+      await send(intentPrompt ?? "附近活动较少，请先问问我的出发地和偏好，帮我安排游玩建议。");
+      return;
+    }
     const next: UIMessage[] = [...messages, { role: "user", content: "AI 规划附近游玩路线" }];
     setMessages(next);
     setLoadingAction("map");
     setLoading(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
       const res = await fetch("/api/guide/route-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidates, intentPrompt }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok || !data.plan) throw new Error(data.error ?? "规划失败");
@@ -264,6 +286,7 @@ export function GuideChat() {
         },
       ]);
     } catch {
+      if (controller.signal.aborted) return;
       setMessages((m) => [...m, { role: "assistant", content: "刚才路线规划失败了，可以稍后再试一次。" }]);
     } finally {
       setLoading(false);
@@ -301,6 +324,7 @@ export function GuideChat() {
         </button>
       </div>
 
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-black/5 px-4 py-2 text-xs text-neutral-500"><span>{storageError ? "当前浏览器暂时无法保存聊天记录" : "聊天记录保存在此浏览器 · 最近 100 条"}</span><button type="button" disabled={loading || messages.length === 0} onClick={() => setConfirmClear(true)} className="shrink-0 rounded-full px-3 py-1 text-violet-600 disabled:opacity-40">清空对话</button></div>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-sm text-neutral-500 leading-relaxed">
@@ -316,7 +340,7 @@ export function GuideChat() {
             {topic ? (
               <>
                 <p className="font-medium text-neutral-700 mb-1">关于「{topic.title}」</p>
-                <p>{topic.kind === "route" ? "我已经看到你当前位置附近的活动，可以帮你按距离、节奏和兴趣串成一条游玩路线。" : "想了解它的看点、历史文化背景，或怎么去、周边推荐？选一个问题开始："}</p>
+                <p>{topic.kind === "route" ? (topic.routeCandidates && topic.routeCandidates.length >= 2 ? "我已经看到你当前位置附近的活动，可以帮你按距离、节奏和兴趣串成一条游玩路线。" : "附近暂时没有足够的推荐活动。告诉我想逛的地区和偏好，我帮你想想怎么安排。") : "想了解它的看点、历史文化背景，或怎么去、周边推荐？选一个问题开始："}</p>
               </>
             ) : (
               <>
@@ -444,6 +468,7 @@ export function GuideChat() {
         </button>
       </div>
 
+      <ConfirmDialog open={confirmClear} title="清空导游对话" message="删除此浏览器中当前账号的导游聊天记录？" confirmText="清空" onCancel={() => setConfirmClear(false)} onConfirm={() => { setMessages([]); setInput(""); setConfirmClear(false); }} />
       {detail && <EventDetail event={detail} onClose={() => setDetail(null)} />}
     </div>
   );
