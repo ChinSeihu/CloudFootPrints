@@ -58,7 +58,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-8 w-8 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur transition active:scale-95 sm:h-9 sm:w-9",
+    "grid h-7 w-7 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur transition active:scale-95 sm:h-9 sm:w-9",
     active && "text-rose-500",
   );
 }
@@ -689,28 +689,26 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
-          <div className="flex items-center">
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
+          <div className="flex min-w-0 items-center">
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
               <IconChevronLeft className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-2.5 ml-3">
-                <Avatar user={event.author} size={36} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
-                    {event.author?.id && user?.id !== event.author.id && (
-                      <button type="button" onClick={startDirectMessage} className="text-[11px] font-semibold text-violet-600">私信</button>
-                    )}
-                  </div>
-                </div>
+            <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
+              <Avatar user={event.author} size={36} />
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span title={event.author?.username ?? "用户"} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
+                {event.author?.id && user?.id !== event.author.id && (
+                  <button type="button" onClick={startDirectMessage} className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-violet-600 sm:text-[11px]">私信</button>
+                )}
               </div>
-            <div className="ml-auto flex gap-2 sm:gap-2.5">
+            </div>
+            <div className="ml-1 flex shrink-0 items-center gap-1 sm:ml-auto sm:gap-2.5">
               {event.author?.id && user?.id !== event.author.id && (
                 <button
                   type="button"
                   onClick={toggleAuthorFollow}
                   className={cx(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+                    "h-7 w-[3.25rem] shrink-0 whitespace-nowrap rounded-full border px-1 py-1.5 text-[10px] font-semibold transition sm:h-9 sm:w-16 sm:px-2 sm:text-[11px]",
                     authorFollowActive
                       ? "border-neutral-200 bg-white text-neutral-500"
                       : "border-violet-200 bg-white text-violet-600",
