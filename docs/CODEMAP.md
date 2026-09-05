@@ -270,7 +270,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `src/components/`
 
-- `BottomNav.tsx` — app-wide bottom navigation.
+- `BottomNav.tsx` — app-wide bottom navigation with mobile system safe-area spacing.
+- `ViewportHeightSync.tsx` — synchronizes the fixed app shell with the visible viewport after mobile PWA resume and system UI changes.
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.

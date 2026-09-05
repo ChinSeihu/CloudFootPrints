@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -8,6 +8,7 @@ import { AuthProvider } from "@/components/Auth/AuthContext";
 import { GuideProvider } from "@/components/Guide/GuideContext";
 import { GuideChat } from "@/components/Guide/GuideChat";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { ViewportHeightSync } from "@/components/ViewportHeightSync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#7c6ae6",
+};
+
 /**
  * Signature: `function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element`
  * Purpose: Provide the CloudFootprints Tokyo document shell, product metadata, shared providers, and primary navigation.
@@ -48,7 +56,8 @@ export default function RootLayout({
       lang="zh"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="h-[100dvh] flex flex-col overflow-hidden">
+      <body className="app-viewport flex flex-col overflow-hidden">
+        <ViewportHeightSync />
         <AuthProvider>
           <GuideProvider>
             <main className="flex-1 min-h-0 relative">{children}</main>

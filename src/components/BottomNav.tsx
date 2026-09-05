@@ -33,7 +33,11 @@ export function BottomNav() {
   const activeHref = pending && pending !== pathname ? pending : pathname;
 
   return (
-    <nav aria-label="主要导航" className={`grid ${textOnly ? "h-14" : "h-[4.5rem]"} shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur`}>
+    <nav
+      aria-label="主要导航"
+      className={`grid ${textOnly ? "min-h-14" : "min-h-[4.5rem]"} h-auto shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur`}
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
       {TABS.map((tab) => {
         const active = activeHref === tab.href;
         if (textOnly) return (
