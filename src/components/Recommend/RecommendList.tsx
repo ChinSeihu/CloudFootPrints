@@ -118,7 +118,7 @@ function SectionTitleIcon({ icon, tone }: { icon: SectionIcon; tone: SectionTone
 
 function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title: string; action?: React.ReactNode; icon?: SectionIcon; tone?: SectionTone }) {
   return (
-    <div className="mb-4 flex min-h-7 items-start justify-between gap-3 pt-0.5">
+    <div className="mb-2.5 flex min-h-7 items-start justify-between gap-3 pt-0.5">
       <h2 className="flex min-w-0 items-start gap-2.5 text-[15px] font-black leading-7 text-neutral-950">
         <SectionTitleIcon icon={icon} tone={tone} />
         <span className="min-w-0">{title}</span>
@@ -129,7 +129,7 @@ function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title:
 }
 
 function MasonryGrid({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`columns-2 gap-3 [&>*]:mb-3 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
+  return <div className={`columns-2 gap-2 [&>*]:mb-2 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
 function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initialIndex: number; onClose: () => void }) {
@@ -870,12 +870,12 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }
 
   return (
-    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-4 sm:pt-4">
+    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-3 sm:pt-3">
       <header className="relative z-20 mb-3 rounded-2xl border border-violet-100 bg-white px-3 py-2.5 shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
         <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <div aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-sky-400 text-white shadow-sm">
-            <IconPin className="h-4 w-4" />
+            <svg viewBox="0 0 36 36" className="h-8 w-8" fill="none"><circle cx="18" cy="18" r="12" fill="white" fillOpacity=".16" stroke="white" strokeOpacity=".55" /><circle cx="18" cy="18" r="9" fill="white" fillOpacity=".95" /><path d="m23 12-3 8-8 4 3-9Z" fill="#7c3aed" /><path d="m23 12-5 6-6 6 3-9Z" fill="#38bdf8" /><circle cx="18" cy="18" r="2" fill="white" /><path d="M18 4v3M29 18h3M4 18h3M18 29v3" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">探索</h1>
@@ -903,7 +903,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           {refreshControl}
         </div>
         </div>
-        {refreshNotice && <p aria-live="polite" className="mt-2 text-[11px] text-neutral-400">{refreshNotice}</p>}
+        {refreshNotice && <p aria-live="polite" className="sr-only">{refreshNotice}</p>}
       </header>
 
       {searchOpen && (
@@ -944,7 +944,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       </nav>
 
       {tab === "OFFICIAL" ? (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {!hasOfficialSearch && <TodayPicks events={recommended} onOpen={openEvent} />}
           {hero && !hasOfficialSearch && (
             <section className="relative overflow-hidden rounded-lg bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
@@ -993,10 +993,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           {!hasOfficialSearch && (
-          <SectionBand tone="blue" className="space-y-4">
+          <SectionBand tone="blue" className="space-y-3">
           <section>
             <SectionTitle title="热门活动" icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
-            <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
                 return (
@@ -1055,7 +1055,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           )}
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {discoverFilter !== "new" && ((discoverPosts.length === 0 && !eventsNotice) || (discoverCheckins.length === 0 && !checkinsNotice)) && <button type="button" className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700" onClick={() => setDiscoverFilter("new")}>换个范围，看看全东京最新分享</button>}
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
@@ -1069,7 +1069,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             })}
           </div>
 
-          <SectionBand tone="emerald" className="space-y-4">
+          <SectionBand tone="emerald" className="space-y-3">
           <section>
             <SectionTitle title="大家在东京（用户发帖）" icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
@@ -1086,7 +1086,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {discoverCheckins.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-2">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
               </div>
             )}
@@ -1121,7 +1121,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               )
             ) : discoverCheckins.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 gap-3">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
+                <div className="grid grid-cols-1 gap-2">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
                   {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text="再找一些新的足迹…" /> : checkinsLoadError ? (
                     <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button></MascotFeedback>

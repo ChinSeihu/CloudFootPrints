@@ -259,7 +259,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
   return (
     <section
       ref={sheetRef}
-      className="absolute inset-x-0 bottom-0 z-[40] pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-4 pb-4 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl will-change-transform"
+      className="absolute inset-x-0 bottom-0 z-[40] pointer-events-auto rounded-t-[28px] border-t border-white/80 bg-white/95 px-3 pb-3 pt-2.5 shadow-[0_-18px_42px_rgba(15,23,42,0.14)] backdrop-blur-xl will-change-transform"
     >
       <button
         type="button"
@@ -294,7 +294,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => { setActiveCategory("ALL"); setActiveIntent(null); }}

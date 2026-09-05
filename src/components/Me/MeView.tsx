@@ -389,7 +389,7 @@ function MeContent() {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3">
         {!loaded ? (
           <LoadingFeedback scene="profile" text="整理相册，找回你的城市回忆…" />
         ) : tab === "checkins" ? (
@@ -410,7 +410,7 @@ function MeContent() {
             {footGroups.map(([month, items]) => (
             <div key={month} className="mb-6">
               <div className="mb-3 border-b border-neutral-200 pb-1 text-[15px] font-semibold text-neutral-900">{month} · {items.length} 处</div>
-              <ol className="space-y-6">
+              <ol className="space-y-4">
               {items.map((c) => {
                 const d = new Date(c.createdAt);
                 const day = d.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
@@ -546,7 +546,7 @@ function MeContent() {
             {loaded && posts.length === 0 && (
               <MascotFeedback>还没有发帖。回到地图页，用右下角的 ＋ → 发帖 标记一个活动。</MascotFeedback>
             )}
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {posts.map((p) => {
                 const meta = CATEGORY_META[p.category];
                 return (
@@ -615,7 +615,7 @@ function MeContent() {
             {managedPosts.length === 0 && (
               <p className="text-sm text-neutral-500">当前没有虚拟用户发帖。</p>
             )}
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {managedPosts.map((p) => {
                 const meta = CATEGORY_META[p.category];
                 return (
@@ -719,7 +719,7 @@ function MeContent() {
                         : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
                   </MascotFeedback>
                 )}
-                <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3">
                   {list.map((p) => {
                     const meta = CATEGORY_META[p.category];
                     const journey = getJourneyStatus(p, journeyNow, visitedEventIds.has(p.id));

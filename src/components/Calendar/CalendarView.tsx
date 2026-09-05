@@ -171,12 +171,12 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
   const shownEvents = dayTab === "starting" ? startingEvents : ongoingEvents;
 
   return (
-    <div className="min-h-full bg-slate-50 px-4 pb-5 pt-3">
+    <div className="min-h-full bg-slate-50 px-3 pb-5 pt-3">
       <header className="relative z-20 mb-3 rounded-2xl border border-sky-100 bg-white px-3 py-2.5 shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
         <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <div aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-sm">
-            <span className="text-base">日</span>
+            <svg viewBox="0 0 36 36" className="h-8 w-8" fill="none"><rect x="7" y="9" width="23" height="23" rx="5" fill="#075985" fillOpacity=".25" /><rect x="6" y="6" width="23" height="24" rx="5" fill="white" /><path d="M6 11a5 5 0 0 1 5-5h13a5 5 0 0 1 5 5v3H6Z" fill="#dbeafe" /><path d="M12 4v5M23 4v5" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" /><path d="M11 18h3M18 18h3M11 23h3" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" /><path d="m20 24 2 2 4-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="m25 30 4-5v1a4 4 0 0 1-4 4" fill="#93c5fd" /></svg>
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">日历</h1>
@@ -216,7 +216,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
           {refreshControl}
         </div>
         </div>
-        {refreshNotice && <p aria-live="polite" className="mt-2 text-[11px] text-neutral-400">{refreshNotice}</p>}
+        {refreshNotice && <p aria-live="polite" className="sr-only">{refreshNotice}</p>}
       </header>
 
       {searchOpen && (
@@ -301,7 +301,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
             </div>
           </div>
         ) : (
-          <ol className="relative space-y-3 border-l border-blue-100 pl-4">
+          <ol className="relative space-y-2 border-l border-blue-100 pl-3">
             {shownEvents.map((ev) => {
               const meta = CATEGORY_META[ev.category];
               return (
