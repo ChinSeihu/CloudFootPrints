@@ -129,7 +129,7 @@ function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title:
 }
 
 function MasonryGrid({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`columns-2 gap-2 [&>*]:mb-2 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
+  return <div className={`columns-2 gap-1.5 [&>*]:mb-1.5 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
 function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initialIndex: number; onClose: () => void }) {
@@ -1031,7 +1031,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </div>
           </div>}
           {activityList.length > 0 && (
-            <SectionBand tone="neutral" className="scroll-mt-4" bandRef={allActivitiesRef}>
+            <SectionBand tone="neutral" className="scroll-mt-4 !p-2" bandRef={allActivitiesRef}>
               <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
               <MasonryGrid>
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
