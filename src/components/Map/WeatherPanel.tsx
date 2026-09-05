@@ -63,7 +63,7 @@ export function WeatherPanel() {
         onClick={() => setOpen((v) => !v)}
         aria-label="天气"
         aria-pressed={open}
-        className={`absolute top-28 right-3 z-[999] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
+        className={`absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-800"
         }`}
       >
@@ -80,7 +80,7 @@ export function WeatherPanel() {
       {/* 底部横向滑动的近 7 天天气卡片。外层 pointer-events-none，
           让卡片间隙仍可拖动地图；只有卡片本身接收交互。 */}
       {open && data && (
-        <div className="absolute bottom-4 left-0 right-0 z-[60] px-3 pointer-events-none">
+        <div className="absolute bottom-4 left-0 right-0 z-[35] px-3 pointer-events-none">
           {/* 提示：地图动画跟"当前实况"，下方卡片是未来 7 天，避免歧义 */}
           <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] text-neutral-700 bg-white/90 rounded-full px-2.5 py-1 shadow-sm pointer-events-auto">
             <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />

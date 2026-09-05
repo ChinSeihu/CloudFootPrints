@@ -282,16 +282,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
             {activeIntent?.subtitle ?? (anchored ? "以锚点为中心 · 按距离推荐" : "以当前位置为中心 · 按距离推荐")}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {anchored && onClearAnchor && (
-            <button
-              type="button"
-              onClick={onClearAnchor}
-              className="min-h-11 shrink-0 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600"
-            >
-              重置
-            </button>
-          )}
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => onPlanRoute(shown.map(({ e }) => e))}
@@ -331,6 +322,16 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
             </button>
           );
         })}
+        {anchored && onClearAnchor && (
+          <button
+            type="button"
+            onClick={onClearAnchor}
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-neutral-400 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-600 shadow-sm"
+          >
+            <span aria-hidden="true" className="text-sm leading-none">↺</span>
+            重置锚点
+          </button>
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-between">
