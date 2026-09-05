@@ -993,14 +993,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           {!hasOfficialSearch && (
-          <SectionBand tone="blue" className="space-y-3">
+          <SectionBand tone="blue" className="space-y-3 !p-2">
           <section>
             <SectionTitle title="热门活动" icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
-            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
                 return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[7.5rem] shrink-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[8.7rem]">
+                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8rem] shrink-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[9rem]">
                     {ev.imageUrl && (
                       <div className="relative aspect-square bg-neutral-100">
                         <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -1069,7 +1069,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             })}
           </div>
 
-          <SectionBand tone="emerald" className="space-y-3">
+          <SectionBand tone="emerald" className="space-y-3 !p-2">
           <section>
             <SectionTitle title="大家在东京（用户发帖）" icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
             {discoverPosts.length === 0 ? (
@@ -1086,14 +1086,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {discoverCheckins.length === 0 ? (
               <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</div>
             ) : (
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
               </div>
             )}
           </section>
           </SectionBand>
 
-          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75">
+          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-2 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75">
             <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
               {[
                 ["posts", "全部发帖"],
@@ -1121,7 +1121,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               )
             ) : discoverCheckins.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 gap-2">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
+                <div className="grid grid-cols-1 gap-1.5">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
                   {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text="再找一些新的足迹…" /> : checkinsLoadError ? (
                     <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button></MascotFeedback>
