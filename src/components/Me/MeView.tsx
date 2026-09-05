@@ -719,14 +719,14 @@ function MeContent() {
                         : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
                   </MascotFeedback>
                 )}
-                <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3">
+                <div className="columns-2 gap-2 sm:columns-3 [&>article]:w-full [&>article]:break-inside-avoid">
                   {list.map((p) => {
                     const meta = CATEGORY_META[p.category];
                     const journey = getJourneyStatus(p, journeyNow, visitedEventIds.has(p.id));
                     return (
                       <article
                         key={p.id}
-                        className="min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white text-left transition-shadow hover:shadow-md"
+                        className="mb-2 min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white text-left transition-shadow hover:shadow-md"
                       >
                         <button type="button" onClick={() => setSelected(p)} className="block w-full text-left">
                           {p.imageUrl && (
