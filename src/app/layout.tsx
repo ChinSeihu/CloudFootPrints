@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { AuthProvider } from "@/components/Auth/AuthContext";
 import { GuideProvider } from "@/components/Guide/GuideContext";
 import { GuideChat } from "@/components/Guide/GuideChat";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({
             <main className="flex-1 min-h-0 relative">{children}</main>
             <BottomNav />
             <GuideChat />
+            <InstallPrompt />
           </GuideProvider>
         </AuthProvider>
         <Analytics />
