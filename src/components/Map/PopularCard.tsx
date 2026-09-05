@@ -50,6 +50,23 @@ const SUGGESTION_CARDS: RecommendIntent[] = [
   { id: "night", title: "夜生活", subtitle: "傍晚后的安排", prompt: "我想体验夜生活，请推荐附近适合傍晚或晚上去的活动，并安排一条夜间游玩路线。", tone: "bg-indigo-50 text-indigo-700" },
 ];
 
+/**
+ * Signature: `function SuggestionIcon({ intent }: { intent: RecommendIntent }): React.ReactElement`
+ * Purpose: Renders a distinct visual cue for each nearby activity scenario card.
+ */
+function SuggestionIcon({ intent }: { intent: RecommendIntent }) {
+  if (intent.id === "relax") {
+    return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 20V10" /><path d="M12 13c-3.4 0-5.5-1.8-5.5-4.8C9.7 8.2 12 10.1 12 13Z" /><path d="M12 16c3.4 0 5.5-1.8 5.5-4.8C14.3 11.2 12 13.1 12 16Z" /></svg>;
+  }
+  if (intent.id === "solo") {
+    return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="8" r="3" /><path d="M5.5 20c.7-3.6 2.9-5.5 6.5-5.5s5.8 1.9 6.5 5.5" /><path d="M18.5 4.5 20 3m-1.5 3H21" /></svg>;
+  }
+  if (intent.id === "photo") {
+    return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 7.5h3l1.3-2h7.4l1.3 2h3v11.8H4Z" /><circle cx="12" cy="13.2" r="3.2" /><path d="m17.5 10 .1.1" /></svg>;
+  }
+  return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 8a6.5 6.5 0 1 1-1.9-4.6" /><path d="M18 3v5h-5" /><path d="M12 8v4l2.5 1.5" /></svg>;
+}
+
 function eventHour(ev: EventDTO): number | null {
   if (!ev.startTime) return null;
   return new Date(ev.startTime).getHours();
@@ -398,25 +415,36 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
         })}
       </div>
 
-      <div className="mt-3">
-        <h3 className="mb-2 text-sm font-black text-neutral-950">为你推荐</h3>
-        <div className="grid grid-cols-4 gap-2">
-          {SUGGESTION_CARDS.map((card) => (
-            <button
-              key={card.title}
-              type="button"
-              onClick={() => {
-                setActiveIntent(card);
-                setActiveCategory("ALL");
-                const ranked = rankForIntent(nearest, card);
-                onRecommendIntent(card, ranked.map(({ e }) => e));
-              }}
-              className={`rounded-2xl px-2 py-2.5 text-left ring-offset-1 transition ${card.tone} ${activeIntent?.id === card.id ? "ring-2 ring-blue-500" : ""}`}
-            >
-              <div className="truncate text-[11px] font-black">{card.title}</div>
-              <div className="mt-1 line-clamp-2 min-h-[2rem] text-[10.5px] leading-snug opacity-80">{card.subtitle}</div>
-            </button>
-          ))}
+      <div className="mt-2.5">
+        <div className="mb-2">
+          <h3 className="text-sm font-black leading-tight text-neutral-950">为你推荐</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SUGGESTION_CARDS.map((card) => {
+            const active = activeIntent?.id === card.id;
+            return (
+              <button
+                key={card.title}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setActiveIntent(card);
+                  setActiveCategory("ALL");
+                  const ranked = rankForIntent(nearest, card);
+                  onRecommendIntent(card, ranked.map(({ e }) => e));
+                }}
+                className={`rounded-xl px-2.5 py-2 text-left ring-1 ring-black/5 ring-offset-1 transition hover:ring-black/10 ${card.tone} ${active ? "ring-2 ring-violet-500" : ""}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-white/70 ring-1 ring-white/80">
+                    <SuggestionIcon intent={card} />
+                  </span>
+                  <div className="min-w-0 truncate text-[12px] font-black">{card.title}</div>
+                </div>
+                <div className="mt-0.5 line-clamp-1 pl-8 text-[10px] leading-tight opacity-75">{card.subtitle}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>
