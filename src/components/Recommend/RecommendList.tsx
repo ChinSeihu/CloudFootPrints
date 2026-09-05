@@ -245,9 +245,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [checkinReplyTo, setCheckinReplyTo] = useState<Record<string, { id: string; username: string } | null>>({});
   const [checkinSending, setCheckinSending] = useState<Record<string, boolean>>({});
   const checkinSendingRef = useRef(new Set<string>());
+  const postLongPressTimer = useRef<number | null>(null);
+  const postLongPressTriggered = useRef(false);
+  const postReportNoticeTimer = useRef<number | null>(null);
   const [checkinCommentError, setCheckinCommentError] = useState<Record<string, string>>({});
   const [checkinMetricOverrides, setCheckinMetricOverrides] = useState<Record<string, { likeCount?: number; commentCount?: number; likedByMe?: boolean }>>({});
   const [checkinMenuId, setCheckinMenuId] = useState<string | null>(null);
+  const [postMenuId, setPostMenuId] = useState<string | null>(null);
+  const [postReportNotice, setPostReportNotice] = useState<string | null>(null);
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [deletingCheckin, setDeletingCheckin] = useState<CheckInDTO | null>(null);
   const [activityVisibleCount, setActivityVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:activityVisibleCount`, 12);
@@ -266,6 +271,18 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       window.removeEventListener("pointerdown", closeMenu);
     };
   }, [checkinMenuId]);
+
+  useEffect(() => {
+    if (!postMenuId) return;
+    const closeMenu = () => setPostMenuId(null);
+    window.addEventListener("pointerdown", closeMenu);
+    return () => window.removeEventListener("pointerdown", closeMenu);
+  }, [postMenuId]);
+
+  useEffect(() => () => {
+    if (postLongPressTimer.current !== null) window.clearTimeout(postLongPressTimer.current);
+    if (postReportNoticeTimer.current !== null) window.clearTimeout(postReportNoticeTimer.current);
+  }, []);
 
   function canManageCheckin(checkin: CheckInDTO): boolean {
     if (checkin.isMine) return true;
@@ -297,6 +314,42 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
     fetch(`/api/events/${encodeURIComponent(ev.id)}/click`, { method: "POST" }).catch(() => {});
+  }
+
+  /**
+   * Signature: `function startPostLongPress(id: string): void`
+   * Purpose: Reveals a post's secondary report action after a short press-and-hold without opening the detail view.
+   */
+  function startPostLongPress(id: string) {
+    if (postLongPressTimer.current !== null) window.clearTimeout(postLongPressTimer.current);
+    postLongPressTriggered.current = false;
+    postLongPressTimer.current = window.setTimeout(() => {
+      postLongPressTriggered.current = true;
+      setPostMenuId(id);
+    }, 520);
+  }
+
+  /**
+   * Signature: `function clearPostLongPress(): void`
+   * Purpose: Cancels a pending post hold timer when the pointer leaves or is released.
+   */
+  function clearPostLongPress() {
+    if (postLongPressTimer.current !== null) window.clearTimeout(postLongPressTimer.current);
+    postLongPressTimer.current = null;
+  }
+
+  /**
+   * Signature: `function reportPost(): void`
+   * Purpose: Closes the post action affordance and gives immediate feedback until report submission is available.
+   */
+  function reportPost() {
+    setPostMenuId(null);
+    setPostReportNotice("举报功能稍后开放");
+    if (postReportNoticeTimer.current !== null) window.clearTimeout(postReportNoticeTimer.current);
+    postReportNoticeTimer.current = window.setTimeout(() => {
+      setPostReportNotice(null);
+      postReportNoticeTimer.current = null;
+    }, 1800);
   }
 
   useIsoLayoutEffect(() => {
@@ -714,25 +767,70 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     );
   }
 
+  /**
+   * Signature: `function renderPostCard(post: EventDTO): React.ReactNode`
+   * Purpose: Renders a community post card and exposes reporting only after a deliberate long press or context-menu action.
+   */
   function renderPostCard(post: EventDTO) {
     const imgs = post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
     const tags = displayTags(post);
     const likeCount = metricsOf(post).likeCount;
     return (
-      <button key={post.id} type="button" onClick={() => openEvent(post)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-        {imgs.length > 0 && (
-          <div className="relative aspect-[4/3] bg-neutral-100">
-            <img loading="lazy" decoding="async" src={imgs[0]} alt="" className="h-full w-full object-cover" />
-            {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
+      <div key={post.id} className="relative inline-block w-full overflow-visible align-top">
+        <button
+          type="button"
+          onClick={() => {
+            clearPostLongPress();
+            if (postLongPressTriggered.current) {
+              postLongPressTriggered.current = false;
+              return;
+            }
+            void openEvent(post);
+          }}
+          onPointerDown={(event) => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            startPostLongPress(post.id);
+          }}
+          onPointerUp={clearPostLongPress}
+          onPointerCancel={clearPostLongPress}
+          onPointerLeave={clearPostLongPress}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            clearPostLongPress();
+            postLongPressTriggered.current = true;
+            setPostMenuId(post.id);
+          }}
+          className="block w-full overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10"
+        >
+          {imgs.length > 0 && (
+            <div className="relative aspect-[4/3] bg-neutral-100">
+              <img loading="lazy" decoding="async" src={imgs[0]} alt="" className="h-full w-full object-cover" />
+              {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
+            </div>
+          )}
+          <div className="p-2.5">
+            <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
+            {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
+            {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
+            {likeCount > 0 && <div className="mt-2 flex justify-end text-[10px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
           </div>
+        </button>
+        {postMenuId === post.id && (
+          <button
+            type="button"
+            aria-label={`举报${post.title}`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              reportPost();
+            }}
+            className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-neutral-950/75 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-lg backdrop-blur"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
+            举报
+          </button>
         )}
-        <div className="p-2.5">
-          <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
-          {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
-          {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
-          {likeCount > 0 && <div className="mt-2 flex justify-end text-[10px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
-        </div>
-      </button>
+      </div>
     );
   }
 
@@ -1155,6 +1253,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
       {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text="打开活动卡片，看看有哪些精彩…" /> : <div role="alert" className="text-center text-sm text-neutral-600">暂时无法打开活动。<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">重试</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">取消</button></div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
+      {postReportNotice && <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur">{postReportNotice}</div>}
       {editingCheckin && (
         <EditCheckInDialog
           checkin={editingCheckin}
