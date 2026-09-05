@@ -172,24 +172,27 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
 
   return (
     <div className="min-h-full bg-slate-50 px-4 pb-5 pt-3">
-      <header className="relative mb-3 overflow-visible rounded-[22px] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 px-4 py-3.5 text-white shadow-[0_14px_32px_rgba(37,99,235,0.2)]">
-        <div aria-hidden="true" className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-full bg-white/15" />
-        <div className="relative flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100">Tokyo Calendar</p>
-          <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">活动日历</h1>
-          <p className="mt-0.5 truncate text-xs text-blue-100">按日期收藏东京正在发生的精彩</p>
+      <header className="relative z-20 mb-3 rounded-2xl border border-sky-100 bg-white px-3 py-2.5 shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
+        <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-sm">
+            <span className="text-base">日</span>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">日历</h1>
+            <p className="truncate text-[11px] text-neutral-400">按日期查看东京活动</p>
+          </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${query ? "text-blue-700" : "text-slate-700"}`}>
+        <div className="flex shrink-0 gap-1.5">
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-blue-700" : "text-slate-600"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div ref={filterRef} className="relative">
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${cat !== "ALL" ? "text-blue-700" : "text-slate-700"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${cat !== "ALL" ? "text-blue-700" : "text-slate-600"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
+              <div className="fixed inset-x-3 top-[4.75rem] z-[70] max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-2xl bg-white p-3 shadow-xl ring-1 ring-black/10 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-neutral-500">分类筛选</span>
                   {cat !== "ALL" && <button type="button" onClick={() => setCat("ALL")} className="text-xs font-semibold text-blue-600">重置</button>}
@@ -213,7 +216,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
           {refreshControl}
         </div>
         </div>
-        {refreshNotice && <p aria-live="polite" className="relative mt-2 text-[11px] text-blue-100">{refreshNotice}</p>}
+        {refreshNotice && <p aria-live="polite" className="mt-2 text-[11px] text-neutral-400">{refreshNotice}</p>}
       </header>
 
       {searchOpen && (

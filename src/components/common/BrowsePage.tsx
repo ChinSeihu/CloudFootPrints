@@ -16,11 +16,11 @@ const EMPTY_CHECKINS: CheckInDTO[] = [];
 
 /**
  * Signature: `function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }: { busy: boolean; hasUpdate: boolean; hasError: boolean; onRefresh: () => void; onApply: () => void }): React.JSX.Element`
- * Purpose: Places refresh progress and staged updates in the page header without adding a separate top toolbar.
+ * Purpose: Places compact refresh progress and staged updates beside the page search and filter actions.
  */
 function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }: { busy: boolean; hasUpdate: boolean; hasError: boolean; onRefresh: () => void; onApply: () => void }) {
-  if (hasUpdate && !busy) return <button type="button" onClick={onApply} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-3 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-white/60"><span aria-hidden="true">↻</span>有更新</button>;
-  return <button type="button" onClick={onRefresh} disabled={busy} aria-label={busy ? "正在刷新" : "刷新内容"} className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-slate-700 shadow-sm ring-1 ring-white/60 disabled:opacity-80">
+  if (hasUpdate && !busy) return <button type="button" onClick={onApply} className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-full bg-violet-50 px-2.5 text-[11px] font-bold text-violet-700 ring-1 ring-violet-100"><span aria-hidden="true">↻</span>更新</button>;
+  return <button type="button" onClick={onRefresh} disabled={busy} aria-label={busy ? "正在刷新" : "刷新内容"} className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-50 text-slate-600 ring-1 ring-black/5 disabled:opacity-80">
     <svg viewBox="0 0 24 24" className={`h-4 w-4 ${busy ? "motion-safe:animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2M17.9 15A7 7 0 0 1 6 18l-2-2"/></svg>
     {hasError && !busy && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />}
   </button>;
