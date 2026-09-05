@@ -650,14 +650,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           {reactions.favoritedByMe && <button type="button" className="ml-2 py-1 font-semibold text-violet-700" onClick={() => { onClose(); router.push("/me?collection=favorites"); }}>查看我的收藏 ›</button>}
         </div>}
         {wantError && <p role="alert" className="text-xs text-red-600">{wantError}</p>}
-      <div className={`grid ${journey.canCheckIn && event.postKind !== "LIFE" ? "grid-cols-5" : "grid-cols-4"} gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2`}>
+      <div className={`grid ${journey.canCheckIn && event.postKind !== "LIFE" ? "grid-cols-4" : "grid-cols-3"} gap-1.5 rounded-2xl bg-neutral-50 p-1.5 sm:p-2`}>
         <button type="button" onClick={askGuide} className={baseClass}>
           <span className={iconClass}><IconSparkles className="h-3.5 w-3.5" /></span>
           <span className="truncate">问导游</span>
-        </button>
-        <button type="button" onClick={jumpToMap} className={baseClass}>
-          <span className={iconClass}><IconMap className="h-3.5 w-3.5" /></span>
-          <span className="truncate">路线</span>
         </button>
         {journey.canCheckIn && event.postKind !== "LIFE" && (
           <button type="button" onClick={recordVisit} className={baseClass}>
@@ -717,9 +713,6 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   {authorFollowActive ? "已关注" : "关注"}
                 </button>
               )}
-              <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}>
-                <ShareIcon className="h-4 w-4" />
-              </button>
               <button type="button" onClick={() => toggleReaction("LIKE")} aria-label="点赞" className={iconButtonClass(reactions.likedByMe)}>
                 <IconHeart filled={reactions.likedByMe} className="h-4 w-4" />
               </button>
@@ -774,6 +767,9 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               </div>
             )}
 
+            {event.postKind === "LIFE" && (
+              <p className="mt-2 text-[11px] leading-4 text-neutral-400">发布时间：{event.createdAt ? fmtCompact(event.createdAt) : "时间未定"}</p>
+            )}
 
             <section className="mt-2 bg-neutral-50 px-3 py-3 sm:mt-3">
               {(event.venueName || event.address) && (
@@ -783,9 +779,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                       <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
                       <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
                     </span>
-                    {event.postKind === "LIFE" ? (
-                      <span>发布时间：{event.createdAt ? fmtCompact(event.createdAt) : ""}</span>
-                    ) : (
+                    {event.postKind !== "LIFE" && (
                       <span>活动时间：{fmtCompact(event.startTime)}{event.endTime ? ` - ${fmtCompact(event.endTime)}` : ""}</span>
                     )}
                   </section>
