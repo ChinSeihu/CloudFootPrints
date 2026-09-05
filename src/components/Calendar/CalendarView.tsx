@@ -1,7 +1,7 @@
 "use client";
 
 import { useBrowseState } from "@/components/common/useBrowseState";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconChevronLeft, IconChevronRight, IconPin } from "@/components/icons";
 import { EventDetail } from "@/components/Recommend/EventDetail";
@@ -51,10 +51,10 @@ function heatColor(count: number, max: number): { backgroundColor: string; color
 }
 
 /**
- * Signature: `function CalendarView({ events }: { events: EventDTO[] }): React.JSX.Element`
- * Purpose: Renders activities while retaining the selected calendar month, date and filters across navigation.
+ * Signature: `function CalendarView({ events, refreshControl, refreshNotice }: { events: EventDTO[]; refreshControl?: ReactNode; refreshNotice?: string | null }): React.JSX.Element`
+ * Purpose: Renders activities with a branded header while retaining the selected month, date and filters across navigation.
  */
-export function CalendarView({ events }: { events: EventDTO[] }) {
+export function CalendarView({ events, refreshControl, refreshNotice }: { events: EventDTO[]; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const todayKey = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }), []);
   const [year, setYear] = useBrowseState("calendar:year", () => Number(todayKey.slice(0, 4)));
   const [month, setMonth] = useBrowseState("calendar:month", () => Number(todayKey.slice(5, 7)) - 1);
@@ -172,17 +172,20 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
 
   return (
     <div className="min-h-full bg-slate-50 px-4 pb-5 pt-3">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-black text-neutral-950">云迹东京</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">本月活动一览</p>
+      <header className="relative mb-3 overflow-visible rounded-[22px] bg-gradient-to-br from-sky-600 via-blue-600 to-cyan-500 px-4 py-3.5 text-white shadow-[0_14px_32px_rgba(37,99,235,0.2)]">
+        <div aria-hidden="true" className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-full bg-white/15" />
+        <div className="relative flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100">Tokyo Calendar</p>
+          <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">活动日历</h1>
+          <p className="mt-0.5 truncate text-xs text-blue-100">按日期收藏东京正在发生的精彩</p>
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${query ? "text-blue-600" : "text-neutral-900"}`}>
+        <div className="flex shrink-0 gap-2">
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${query ? "text-blue-700" : "text-slate-700"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div ref={filterRef} className="relative">
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 ${cat !== "ALL" ? "text-blue-600" : "text-neutral-900"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${cat !== "ALL" ? "text-blue-700" : "text-slate-700"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
@@ -207,7 +210,10 @@ export function CalendarView({ events }: { events: EventDTO[] }) {
               </div>
             )}
           </div>
+          {refreshControl}
         </div>
+        </div>
+        {refreshNotice && <p aria-live="polite" className="relative mt-2 text-[11px] text-blue-100">{refreshNotice}</p>}
       </header>
 
       {searchOpen && (

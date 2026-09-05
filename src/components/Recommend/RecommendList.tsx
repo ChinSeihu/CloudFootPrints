@@ -3,7 +3,7 @@
 import { useBrowseState } from "@/components/common/useBrowseState";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconHeart, IconPin } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
@@ -210,10 +210,10 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
 }
 
 /**
- * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string }): React.ReactElement`
- * Purpose: Renders the activity discovery and community feeds, including explainable daily recommendations.
+ * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
+ * Purpose: Renders discovery and community feeds with a compact branded header and contextual refresh control.
  */
-export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string }) {
+export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -871,20 +871,23 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   return (
     <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-4 sm:pt-4">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-black tracking-tight text-neutral-950 sm:text-xl">云迹东京</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">{tab === "OFFICIAL" ? "发现东京的精彩活动" : "看看大家在东京的生活"}</p>
+      <header className="relative mb-3 overflow-visible rounded-[22px] bg-gradient-to-br from-violet-700 via-indigo-600 to-sky-500 px-4 py-3.5 text-white shadow-[0_14px_32px_rgba(79,70,229,0.22)] sm:px-5 sm:py-4">
+        <div aria-hidden="true" className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-full bg-white/15 blur-sm" />
+        <div className="relative flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100">Tokyo Discovery</p>
+          <h1 className="mt-0.5 text-xl font-black tracking-tight sm:text-2xl">探索东京</h1>
+          <p className="mt-0.5 truncate text-xs text-indigo-100">{tab === "OFFICIAL" ? "把今天值得出发的活动装进口袋" : "跟着大家的足迹发现城市另一面"}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-sm ring-1 ring-black/5 sm:inline-flex">
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white ring-1 ring-white/20 sm:inline-flex">
             <IconPin className="h-3.5 w-3.5" />东京
           </span>
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-8 w-8 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 sm:h-9 sm:w-9 ${query ? "text-blue-600" : "text-neutral-900"}`}>
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${query ? "text-violet-700" : "text-slate-700"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div className="relative" ref={filterBoxRef}>
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-8 w-8 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/5 sm:h-9 sm:w-9 ${!isAllDates(dateRange) ? "text-blue-600" : "text-neutral-900"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-9 w-9 place-items-center rounded-full bg-white/90 shadow-sm ring-1 ring-white/60 ${!isAllDates(dateRange) ? "text-violet-700" : "text-slate-700"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
@@ -897,7 +900,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               </div>
             )}
           </div>
+          {refreshControl}
         </div>
+        </div>
+        {refreshNotice && <p aria-live="polite" className="relative mt-2 text-[11px] text-indigo-100">{refreshNotice}</p>}
       </header>
 
       {searchOpen && (

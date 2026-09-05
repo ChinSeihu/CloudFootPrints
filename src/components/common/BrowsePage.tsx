@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
@@ -13,6 +13,18 @@ const EVENTS_URL = "/api/events?minLat=35.5&maxLat=35.85&minLng=139.5&maxLng=139
 type Mode = "calendar" | "recommend";
 type Footprints = { checkins: CheckInDTO[]; hasMore: boolean };
 const EMPTY_CHECKINS: CheckInDTO[] = [];
+
+/**
+ * Signature: `function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }: { busy: boolean; hasUpdate: boolean; hasError: boolean; onRefresh: () => void; onApply: () => void }): React.JSX.Element`
+ * Purpose: Places refresh progress and staged updates in the page header without adding a separate top toolbar.
+ */
+function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }: { busy: boolean; hasUpdate: boolean; hasError: boolean; onRefresh: () => void; onApply: () => void }) {
+  if (hasUpdate && !busy) return <button type="button" onClick={onApply} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-3 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-white/60"><span aria-hidden="true">↻</span>有更新</button>;
+  return <button type="button" onClick={onRefresh} disabled={busy} aria-label={busy ? "正在刷新" : "刷新内容"} className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/90 text-slate-700 shadow-sm ring-1 ring-white/60 disabled:opacity-80">
+    <svg viewBox="0 0 24 24" className={`h-4 w-4 ${busy ? "motion-safe:animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2M17.9 15A7 7 0 0 1 6 18l-2-2"/></svg>
+    {hasError && !busy && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />}
+  </button>;
+}
 
 /**
  * Signature: `function BrowsePage({ mode }: { mode: Mode }): React.JSX.Element`
@@ -79,21 +91,20 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
   }, [mode, scope, attempt]);
   const displayEvents = useMemo(() => (events ?? []).map(e => metrics[e.id] ? { ...e, metrics: metrics[e.id] } : e), [events, metrics]);
   const hasContent = events !== null || (mode === "recommend" && footprints !== null);
+  const hasUpdate = !!(pendingEvents || pendingFootprints);
+  const applyPending = () => {
+    if (pendingEvents) setEvents(pendingEvents);
+    if (pendingFootprints) setFootprints(pendingFootprints);
+    if (pendingMetrics) setMetrics(pendingMetrics);
+    setPendingEvents(null); setPendingFootprints(null); setPendingMetrics(null);
+  };
+  const refresh = () => { setErrors([]); setBusy(true); setAttempt(n => n + 1); };
+  const refreshControl: ReactNode = <BrowseRefreshControl busy={busy} hasUpdate={hasUpdate} hasError={errors.length > 0} onApply={applyPending} onRefresh={refresh} />;
+  const refreshNotice = errors.length > 0 ? `${errors.join("、")}加载失败，${hasContent ? "已保留现有内容" : "请点击刷新重试"}` : busy && hasContent ? "正在后台更新内容" : null;
   return <BrowseScroll storageKey={key}>
     <div className={mode === "recommend" ? "px-3 pb-3" : ""}>
-      <div className="flex min-h-9 items-center gap-3 px-3 text-xs text-neutral-500" aria-live="polite">
-        {busy && hasContent && <span>正在更新内容…</span>}
-        {!busy && (pendingEvents || pendingFootprints) && <button className="rounded-lg px-2 py-2 font-medium text-blue-700" onClick={() => {
-          if (pendingEvents) setEvents(pendingEvents);
-          if (pendingFootprints) setFootprints(pendingFootprints);
-          if (pendingMetrics) setMetrics(pendingMetrics);
-          setPendingEvents(null); setPendingFootprints(null); setPendingMetrics(null);
-        }}>更新内容</button>}
-        {!busy && <button className="rounded-lg px-2 py-2 text-blue-700" onClick={() => { setErrors([]); setBusy(true); setAttempt(n => n + 1); }}>刷新</button>}
-        {errors.length > 0 && <span>{errors.join("、")}加载失败，{hasContent ? "已保留现有内容，可重试刷新" : "请重试刷新"}</span>}
-      </div>
       {!hasContent && busy && <LoadingFeedback scene={mode === "calendar" ? "calendar" : "discover"} text="正在寻找活动…" />}
-      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} /> : <RecommendList events={displayEvents} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} eventsNotice={events === null ? errors.includes("活动") ? "活动暂时加载失败，请点击刷新重试" : "正在加载活动…" : undefined} checkinsNotice={footprints === null ? errors.includes("足迹") ? "足迹暂时加载失败，请点击刷新重试" : "正在加载足迹…" : undefined} />)}
+      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} refreshControl={refreshControl} refreshNotice={refreshNotice} /> : <RecommendList events={displayEvents} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} refreshControl={refreshControl} refreshNotice={refreshNotice} eventsNotice={events === null ? errors.includes("活动") ? "活动暂时加载失败，请点击刷新重试" : "正在加载活动…" : undefined} checkinsNotice={footprints === null ? errors.includes("足迹") ? "足迹暂时加载失败，请点击刷新重试" : "正在加载足迹…" : undefined} />)}
     </div>
   </BrowseScroll>;
 }
