@@ -559,7 +559,7 @@ export function MapExplorer() {
   const [nearbyCardOpen, setNearbyCardOpen] = useState(
     () => typeof window === "undefined" || sessionStorage.getItem(NEARBY_CARD_SEEN_KEY) !== "1",
   );
-  const [showSearchArea, setShowSearchArea] = useState(false);
+  const [mapPopupOpen, setMapPopupOpen] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -567,6 +567,44 @@ export function MapExplorer() {
   const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
   const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
+  const activeMapPopupRef = useRef<maplibregl.Popup | null>(null);
+
+  /** Keeps every MapLibre feature type on one shared popup surface. */
+  const activateMapPopup = useCallback((popup: maplibregl.Popup, map: maplibregl.Map) => {
+    const previous = activeMapPopupRef.current;
+    activeMapPopupRef.current = popup;
+    if (previous && previous !== popup) previous.remove();
+    popup.once("close", () => {
+      if (activeMapPopupRef.current !== popup) return;
+      activeMapPopupRef.current = null;
+      setMapPopupOpen(false);
+    });
+    popup.addTo(map);
+    setFoodMenuOpen(false);
+    setMapMenuOpen(false);
+    setPublishMenuOpen(false);
+    setMapPopupOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const controls = mapRef.current?.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
+    if (!controls) return;
+    controls.style.transition = "opacity 280ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1)";
+    controls.style.pointerEvents = mapPopupOpen ? "none" : "";
+    controls.style.opacity = mapPopupOpen ? "0" : "1";
+    controls.style.transform = mapPopupOpen ? "translateX(3rem)" : "translateX(0)";
+    controls.inert = mapPopupOpen;
+    if (mapPopupOpen) controls.setAttribute("aria-hidden", "true");
+    else controls.removeAttribute("aria-hidden");
+    return () => {
+      controls.style.removeProperty("transition");
+      controls.style.removeProperty("pointer-events");
+      controls.style.removeProperty("opacity");
+      controls.style.removeProperty("transform");
+      controls.inert = false;
+      controls.removeAttribute("aria-hidden");
+    };
+  }, [mapPopupOpen]);
 
   // 首屏等地图消费深链后再显示推荐；后续由路线/发布面板自身的显隐控制。
 
@@ -684,7 +722,6 @@ export function MapExplorer() {
       el.setAttribute("aria-label", "展开锚点周边活动");
       el.innerHTML = `<span class="tem-explore-dot"></span>`;
       const openAnchorRecommendations = () => {
-        setShowSearchArea(false);
         setNearbyCardOpen(true);
       };
       el.addEventListener("click", openAnchorRecommendations);
@@ -708,15 +745,6 @@ export function MapExplorer() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
-  }
-
-  function searchCurrentArea() {
-    const map = mapRef.current;
-    if (!map) return;
-    const current = map.getCenter();
-    setExploreAnchor({ lat: current.lat, lng: current.lng });
-    setShowSearchArea(false);
-    setNearbyCardOpen(true);
   }
 
   function rememberUserLocation(pos: { lat: number; lng: number }) {
@@ -1156,8 +1184,8 @@ export function MapExplorer() {
       const html = `<div class="tem-pop">${head}${evs.map(cardHtml).join("")}</div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "340px" })
         .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
 
       const root = popup.getElement();
       root?.querySelectorAll<HTMLElement>(".tem-card").forEach((card) => {
@@ -1387,7 +1415,7 @@ export function MapExplorer() {
       pulseRafRef.current = requestAnimationFrame(pulse);
     };
     pulseRafRef.current = requestAnimationFrame(pulse);
-  }, []);
+  }, [activateMapPopup]);
 
   // ── 打卡聚合图层 ──
   const setupCheckinClusters = useCallback((map: maplibregl.Map, mlg: typeof maplibregl) => {
@@ -1565,8 +1593,8 @@ export function MapExplorer() {
 
       const popup = new mlg.Popup({ offset: 12, closeButton: true, maxWidth: "240px", className: "tem-checkin-popup" })
         .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
 
       const root = popup.getElement();
       // 多图：滑动更新「N/总数」，点图开大图
@@ -1585,7 +1613,7 @@ export function MapExplorer() {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
     }
-  }, []);
+  }, [activateMapPopup]);
 
   // ── 地标（名胜/公园）图层：自定义图标 symbol + 名称标注，放在活动层之下 ──
   // 电车 / 地铁站层（静态 public/stations.json，一次性加载；放在最底，让活动/景点/美食覆盖其上）
@@ -1667,8 +1695,8 @@ export function MapExplorer() {
       </div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
         .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
       popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
         popup.remove();
         openRouteRef.current({ from: { name: p.name!, lat: coords[1], lng: coords[0], station: true } });
@@ -1695,7 +1723,7 @@ export function MapExplorer() {
         });
       });
     });
-  }, []);
+  }, [activateMapPopup]);
 
   const setupLandmarks = useCallback(async (map: maplibregl.Map) => {
     if (map.getSource("landmarks")) return;
@@ -1778,8 +1806,8 @@ export function MapExplorer() {
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-lm-popup" })
         .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
       popup.getElement()?.querySelectorAll<HTMLElement>("[data-tab]").forEach((tabEl) => {
         tabEl.addEventListener("click", (ev) => {
           ev.stopPropagation();
@@ -1817,7 +1845,7 @@ export function MapExplorer() {
         });
       }
     });
-  }, []);
+  }, [activateMapPopup]);
 
   // ── 精选美食 POI 图层：点击弹「美食卡」（评分 + 招牌菜单）──
   const setupFood = useCallback(async (map: maplibregl.Map) => {
@@ -1900,8 +1928,8 @@ export function MapExplorer() {
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
         .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
       popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
         popup.remove();
         openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
@@ -1917,7 +1945,7 @@ export function MapExplorer() {
         });
       });
     });
-  }, []);
+  }, [activateMapPopup]);
 
   // ── OSM 全量美食 POI 图层：按视野懒加载，点击弹简卡（菜系/营业/电话/官网）──
   const setupOsmFood = useCallback(async (map: maplibregl.Map) => {
@@ -1987,8 +2015,8 @@ export function MapExplorer() {
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
         .setLngLat(coords)
-        .setHTML(html)
-        .addTo(map);
+        .setHTML(html);
+      activateMapPopup(popup, map);
       popup.getElement()?.querySelector('[data-action="route"]')?.addEventListener("click", () => {
         popup.remove();
         openRouteRef.current({ to: { name: p.name!, lat: coords[1], lng: coords[0], station: false } });
@@ -2004,7 +2032,7 @@ export function MapExplorer() {
         });
       });
     });
-  }, []);
+  }, [activateMapPopup]);
 
   /**
    * Signature: `const handleReady: (map: maplibregl.Map) => Promise<void>`
@@ -2347,23 +2375,29 @@ export function MapExplorer() {
   }
 
   return (
-    <div className="absolute inset-0">
-      <MapView onReady={handleReady} onBoundsChange={fetchEvents} onViewportChange={() => setShowSearchArea(true)} />
+    <div className={`absolute inset-0 ${mapPopupOpen ? "tem-map-popup-open" : ""}`}>
+      <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
       {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
-      <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
-      <WeatherPanel />
+      <div
+        aria-hidden={mapPopupOpen}
+        inert={mapPopupOpen}
+        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
+      >
+        <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
+      </div>
+      <div
+        aria-hidden={mapPopupOpen}
+        inert={mapPopupOpen}
+        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
+      >
+        <WeatherPanel />
+      </div>
 
-      {showSearchArea && mapReady && !routePanel && !dialogAt && !linePanel && !publishMenuOpen && (
-        <button
-          type="button"
-          onClick={searchCurrentArea}
-          className="absolute left-1/2 top-4 z-[35] -translate-x-1/2 rounded-full border border-blue-100 bg-white/95 px-4 py-2.5 text-xs font-bold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.16)] backdrop-blur transition active:scale-[0.98]"
-        >
-          搜索此区域
-        </button>
-      )}
-
-      <div className={`absolute bottom-7 left-3 right-3 pointer-events-none ${mapMenuOpen ? "z-[70]" : "z-[30]"}`}>
+      <div
+        aria-hidden={mapPopupOpen}
+        inert={mapPopupOpen}
+        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapPopupOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
+      >
         <div className="pointer-events-auto mx-auto grid max-w-[27rem] grid-cols-7 items-center gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-3 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative min-w-0">
             <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
@@ -2550,22 +2584,28 @@ export function MapExplorer() {
         </div>
       )}
 
-      {!suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
-        <PopularCard
-          events={filtered}
-          center={exploreAnchor ?? center}
-          open={nearbyCardOpen}
-          anchored={!!exploreAnchor}
-          onOpenChange={setNearbyCardOpen}
-          onClearAnchor={() => setExploreAnchor(null)}
-          onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
-          onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
-          onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}&from=map`)}
-          onViewAll={() => router.push("/recommend")}
-          onPlanRoute={openNearbyRouteGuide}
-          onRecommendIntent={openRecommendIntentGuide}
-        />
-      )}
+      <div
+        aria-hidden={mapPopupOpen}
+        inert={mapPopupOpen}
+        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+      >
+        {!suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
+          <PopularCard
+            events={filtered}
+            center={exploreAnchor ?? center}
+            open={nearbyCardOpen}
+            anchored={!!exploreAnchor}
+            onOpenChange={setNearbyCardOpen}
+            onClearAnchor={() => setExploreAnchor(null)}
+            onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
+            onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
+            onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}&from=map`)}
+            onViewAll={() => router.push("/recommend")}
+            onPlanRoute={openNearbyRouteGuide}
+            onRecommendIntent={openRecommendIntentGuide}
+          />
+        )}
+      </div>
       {/* 表单为全屏可吸附 sheet：默认 peek（露出地图拖锚点），上拉展开填写，下拉收起 */}
       {dialogAt && mode === "checkin" && (
         <CheckInDialog

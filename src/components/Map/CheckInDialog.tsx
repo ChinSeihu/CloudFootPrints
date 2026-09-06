@@ -142,7 +142,13 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
   }
 
   return (
-    <BottomSheet title="留下足迹" hint={selectedEvent ? `关联到「${selectedEvent.title}」` : "记录这次到访的感受"} onClose={onCancel} onSnapChange={onSnapChange}>
+    <BottomSheet
+      title="留下足迹"
+      hint={selectedEvent ? `关联到「${selectedEvent.title}」` : "记录这次到访的感受"}
+      onClose={onCancel}
+      onSnapChange={onSnapChange}
+      busy={submitting ? <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} /> : undefined}
+    >
       <div className="mb-6">
         <label className={labelCls}>关联活动（可选）</label>
         <div className="space-y-2 rounded-2xl border border-neutral-200 bg-white p-3 shadow-[0_6px_18px_rgba(15,23,42,0.04)]">
@@ -245,7 +251,6 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
         </button>
       </div>
 
-      {submitting && <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} />}
       <div className="flex items-center gap-4 pt-1">
         <button
           type="button"
