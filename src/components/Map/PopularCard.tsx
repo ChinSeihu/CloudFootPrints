@@ -10,7 +10,9 @@ import type { EventDTO } from "@/lib/types";
 type Props = {
   events: EventDTO[];
   center: { lat: number; lng: number } | null;
+  open: boolean;
   anchored?: boolean;
+  onOpenChange: (open: boolean) => void;
   onClearAnchor?: () => void;
   onResetFilters?: () => void;
   onExpandArea?: () => void;
@@ -139,12 +141,11 @@ function EventImagePlaceholder({ title, color }: { title: string; color: string 
 }
 
 /**
- * Signature: `function PopularCard({ events, center, anchored = false, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props)`
+ * Signature: `function PopularCard({ events, center, open, anchored = false, onOpenChange, ...actions }: Props)`
  * Purpose: Shows nearby recommendations with the selected IP guide entry and preserves anchor controls when no events match.
  */
-export function PopularCard({ events, center, anchored = false, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
+export function PopularCard({ events, center, open, anchored = false, onOpenChange, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
   const mascotIdentity = useMascotIdentity();
-  const [open, setOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
   const [activeIntent, setActiveIntent] = useState<RecommendIntent | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -222,7 +223,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
       const sheetHeight = sheetRef.current?.offsetHeight ?? 360;
       setSheetOffset(sheetHeight + 24, true);
       closeTimer.current = window.setTimeout(() => {
-        setOpen(false);
+        onOpenChange(false);
         setSheetOffset(0, false);
       }, 180);
     } else {
@@ -235,7 +236,7 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
 
   function handleGripClick() {
     if (suppressClick.current) return;
-    setOpen(false);
+    onOpenChange(false);
   }
 
   async function toggleFavorite(ev: EventDTO) {
@@ -264,11 +265,11 @@ export function PopularCard({ events, center, anchored = false, onClearAnchor, o
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="absolute bottom-28 left-1/2 z-[40] -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2.5 text-xs font-semibold text-neutral-700 shadow-[0_10px_30px_rgba(15,23,42,0.16)] backdrop-blur"
       >
         <span className="h-2 w-2 rounded-full bg-blue-600" />
-        {anchored ? "锚点周边" : "附近活动"}
+        {anchored ? "锚点周边" : "附近活动"} · {nearest.length}个
       </button>
     );
   }

@@ -460,6 +460,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
 }
 
 type Mode = "checkin" | "life" | "activity";
+const NEARBY_CARD_SEEN_KEY = "tem_nearby_card_seen";
 type PlacementTarget = { id: string; title: string; lat?: number; lng?: number } | null;
 type JourneyTarget = { id: string; title: string; lat: number; lng: number };
 
@@ -555,6 +556,10 @@ export function MapExplorer() {
   const publishDragStartRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [suppressNearbyCard, setSuppressNearbyCard] = useState(true);
+  const [nearbyCardOpen, setNearbyCardOpen] = useState(
+    () => typeof window === "undefined" || sessionStorage.getItem(NEARBY_CARD_SEEN_KEY) !== "1",
+  );
+  const [showSearchArea, setShowSearchArea] = useState(false);
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -564,6 +569,11 @@ export function MapExplorer() {
   const pulseRafRef = useRef<number | null>(null);
 
   // 首屏等地图消费深链后再显示推荐；后续由路线/发布面板自身的显隐控制。
+
+  // 当前标签页首次进入时展开一次；之后返回地图默认保持收起，减少重复打扰。
+  useEffect(() => {
+    sessionStorage.setItem(NEARBY_CARD_SEEN_KEY, "1");
+  }, []);
 
   // 仅在用户主动为某个活动打开路线后监听位置；距离计算只在浏览器内完成。
   useEffect(() => {
@@ -669,7 +679,21 @@ export function MapExplorer() {
     if (!exploreMarkerRef.current) {
       const el = document.createElement("div");
       el.className = "tem-explore-anchor";
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-label", "展开锚点周边活动");
       el.innerHTML = `<span class="tem-explore-dot"></span>`;
+      const openAnchorRecommendations = () => {
+        setShowSearchArea(false);
+        setNearbyCardOpen(true);
+      };
+      el.addEventListener("click", openAnchorRecommendations);
+      el.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openAnchorRecommendations();
+        }
+      });
       exploreMarkerRef.current = new mlg.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
     } else {
       exploreMarkerRef.current.setLngLat(lngLat);
@@ -684,6 +708,15 @@ export function MapExplorer() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  function searchCurrentArea() {
+    const map = mapRef.current;
+    if (!map) return;
+    const current = map.getCenter();
+    setExploreAnchor({ lat: current.lat, lng: current.lng });
+    setShowSearchArea(false);
+    setNearbyCardOpen(true);
   }
 
   function rememberUserLocation(pos: { lat: number; lng: number }) {
@@ -2315,10 +2348,20 @@ export function MapExplorer() {
 
   return (
     <div className="absolute inset-0">
-      <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
+      <MapView onReady={handleReady} onBoundsChange={fetchEvents} onViewportChange={() => setShowSearchArea(true)} />
       {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
       <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       <WeatherPanel />
+
+      {showSearchArea && mapReady && !routePanel && !dialogAt && !linePanel && !publishMenuOpen && (
+        <button
+          type="button"
+          onClick={searchCurrentArea}
+          className="absolute left-1/2 top-4 z-[35] -translate-x-1/2 rounded-full border border-blue-100 bg-white/95 px-4 py-2.5 text-xs font-bold text-blue-700 shadow-[0_10px_28px_rgba(15,23,42,0.16)] backdrop-blur transition active:scale-[0.98]"
+        >
+          搜索此区域
+        </button>
+      )}
 
       <div className={`absolute bottom-7 left-3 right-3 pointer-events-none ${mapMenuOpen ? "z-[70]" : "z-[30]"}`}>
         <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-2 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
@@ -2511,7 +2554,9 @@ export function MapExplorer() {
         <PopularCard
           events={filtered}
           center={exploreAnchor ?? center}
+          open={nearbyCardOpen}
           anchored={!!exploreAnchor}
+          onOpenChange={setNearbyCardOpen}
           onClearAnchor={() => setExploreAnchor(null)}
           onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
           onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
