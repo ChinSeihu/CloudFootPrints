@@ -2311,7 +2311,7 @@ export function MapExplorer() {
     const meta = CATEGORY_META[category];
     const active = isQuickCategoryActive(category);
     return (
-      <button key={category} type="button" onClick={() => setQuickCategory(category)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+      <button key={category} type="button" onClick={() => setQuickCategory(category)} className="flex min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
         <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)]" : "bg-blue-50"}`} style={active ? { backgroundColor: meta.color } : { color: meta.color }}>
           <CategoryIcon category={category} className="h-5 w-5" />
         </span>
@@ -2364,9 +2364,9 @@ export function MapExplorer() {
       )}
 
       <div className={`absolute bottom-7 left-3 right-3 pointer-events-none ${mapMenuOpen ? "z-[70]" : "z-[30]"}`}>
-        <div className="pointer-events-auto mx-auto flex max-w-[27rem] items-center justify-between gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-2 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
-          <div className="relative">
-            <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+        <div className="pointer-events-auto mx-auto grid max-w-[27rem] grid-cols-7 items-center gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-3 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+          <div className="relative min-w-0">
+            <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 3v6a2 2 0 0 0 4 0V3" /><path d="M6 9v12" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9" /></svg>
               </span>
@@ -2391,7 +2391,7 @@ export function MapExplorer() {
             )}
           </div>
 
-          <button type="button" onClick={() => setShowStations((v) => !v)} className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+          <button type="button" onClick={() => setShowStations((v) => !v)} className="flex min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
             <span className={`grid h-9 w-9 place-items-center rounded-full ${showStations ? "bg-blue-50 text-blue-600" : "bg-neutral-100 text-neutral-400"}`}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
             </span>
@@ -2400,7 +2400,7 @@ export function MapExplorer() {
 
           {renderQuickCategory("FESTIVAL")}
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <button
               type="button"
               onClick={() => {
@@ -2409,7 +2409,7 @@ export function MapExplorer() {
                 setFoodMenuOpen(false);
               }}
               aria-label="发帖"
-              className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
+              className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
             >
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-100 to-rose-50 shadow-[0_10px_22px_rgba(124,58,237,0.2)] ring-1 ring-violet-200">
                 <Mascot character="footprint" variant={mascotVariant} className="h-7 w-7" title="发布内容" />
@@ -2421,14 +2421,14 @@ export function MapExplorer() {
           {renderQuickCategory("EXHIBITION")}
           {renderQuickCategory("LIVE")}
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <button
               type="button"
               onClick={() => {
                 setMapMenuOpen((v) => !v);
                 setPublishMenuOpen(false);
               }}
-              className="flex min-w-11 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700"
+              className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700"
             >
               <span className={`grid h-9 w-9 place-items-center rounded-full ${mapMenuOpen || showLandmarks ? "bg-slate-100 text-slate-600" : "bg-neutral-100 text-neutral-400"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
