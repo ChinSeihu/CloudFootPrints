@@ -26,6 +26,7 @@ export type GuideTopic = {
 
 type GuideContextValue = {
   open: boolean;
+  openNonce: number;
   topic: GuideTopic | null;
   openGuide: (topic?: GuideTopic | null) => void;
   closeGuide: () => void;
@@ -46,14 +47,17 @@ export function useGuide(): GuideContextValue {
  */
 export function GuideProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [openNonce, setOpenNonce] = useState(0);
   const [topic, setTopic] = useState<GuideTopic | null>(null);
   return (
     <GuideContext.Provider
       value={{
         open,
+        openNonce,
         topic,
         openGuide: (t) => {
           if (t !== undefined) setTopic(t);
+          setOpenNonce((current) => current + 1);
           setOpen(true);
         },
         closeGuide: () => setOpen(false),
