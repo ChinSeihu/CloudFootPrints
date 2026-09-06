@@ -13,12 +13,14 @@ export function BottomSheet({
   hint,
   onClose,
   onSnapChange,
+  busy,
   children,
 }: {
   title: string;
   hint?: string;
   onClose: () => void;
   onSnapChange?: (snap: "peek" | "full") => void;
+  busy?: ReactNode;
   children: ReactNode;
 }) {
   const [snap, setSnap] = useState<"peek" | "full">("peek");
@@ -65,6 +67,7 @@ export function BottomSheet({
     <div className="fixed inset-x-0 bottom-0 z-[999] flex justify-center pointer-events-none">
       <div
         ref={sheetRef}
+        aria-busy={!!busy}
         className="relative flex w-full flex-col rounded-t-[2rem] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] pointer-events-auto sm:max-w-md"
         style={{
           height: sheetHeight,
@@ -102,6 +105,14 @@ export function BottomSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {children}
         </div>
+
+        {busy && (
+          <div className="absolute inset-0 z-20 grid place-items-center rounded-t-[2rem] bg-white/80 px-6 backdrop-blur-sm">
+            <div className="w-full max-w-xs rounded-3xl border border-white bg-white px-5 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
+              {busy}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -7,8 +7,8 @@ import { IconPlus, CategoryIcon } from "@/components/icons";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
+import { DateTimeField } from "@/components/common/DateTimeField";
 import { BottomSheet } from "./BottomSheet";
-import { DateRangeDropdown } from "./DateRangeDropdown";
 import { fieldCls, labelCls } from "./formStyles";
 
 export type PostDraft = {
@@ -149,6 +149,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
       hint={targetTitle ? `关联到「${targetTitle}」` : kind === "ACTIVITY" ? "把附近正在发生或即将开始的活动分享给大家" : "分享此刻与这个地点有关的见闻"}
       onClose={onCancel}
       onSnapChange={onSnapChange}
+      busy={submitting ? <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} /> : undefined}
     >
       <div className="mb-5">
         <label className={labelCls}>{kind === "ACTIVITY" ? "活动名称" : "动态标题"} <span className="text-red-400">*</span></label>
@@ -196,9 +197,11 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
 
       {kind === "ACTIVITY" && (
         <div className="mb-5">
-          <label className={labelCls}>活动时间 <span className="text-red-400">*</span></label>
-          <DateRangeDropdown start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
-          <p className="mt-1.5 text-[11px] text-neutral-500">未填写结束时间时，开始时间同时作为地图上的截止时间。</p>
+          <label className={labelCls}>时间范围 <span className="text-red-400">*</span></label>
+          <div className="space-y-2">
+            <DateTimeField value={start} onChange={setStart} placeholder="开始时间（必选）" />
+            <DateTimeField value={end} onChange={setEnd} placeholder="结束时间（可选）" />
+          </div>
         </div>
       )}
 
@@ -309,7 +312,6 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
 
       {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
-      {submitting && <LoadingFeedback compact scene="upload" text={phase === "uploading" ? "正在上传照片，保留这份城市记忆…" : "正在保存你的分享…"} />}
       <div className="flex items-center gap-4 pt-1">
         <button
           type="button"

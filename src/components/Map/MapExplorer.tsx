@@ -2590,7 +2590,7 @@ export function MapExplorer() {
         />
       )}
       {toast && (
-        <div role="status" className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-black/80 text-white text-sm px-4 py-2 rounded-2xl">
+        <div role="status" className="fixed left-1/2 top-[42%] z-[1200] flex max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-2xl bg-black/80 px-4 py-2 text-center text-sm text-white shadow-xl backdrop-blur">
           {toast === "已发布" && <MascotAnimation animated kind="success" className="h-16 w-16" />}
           {toast}
         </div>
