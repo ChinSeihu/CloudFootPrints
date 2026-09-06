@@ -1218,7 +1218,7 @@ export function MapExplorer() {
             const relatedId = actionEl?.getAttribute("data-event-id") ?? "";
             if (relatedId) {
               popup.remove();
-              routerRef.current.push(`/recommend?event=${encodeURIComponent(relatedId)}`);
+              routerRef.current.push(`/recommend?event=${encodeURIComponent(relatedId)}&from=map`);
             }
             return;
           }
@@ -1290,7 +1290,7 @@ export function MapExplorer() {
             return;
           }
           popup.remove();
-          routerRef.current.push(`/recommend?event=${encodeURIComponent(id)}`);
+          routerRef.current.push(`/recommend?event=${encodeURIComponent(id)}&from=map`);
         });
       });
     };
@@ -2560,7 +2560,7 @@ export function MapExplorer() {
           onClearAnchor={() => setExploreAnchor(null)}
           onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
           onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
-          onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}`)}
+          onSelect={(ev) => router.push(`/recommend?event=${encodeURIComponent(ev.id)}&from=map`)}
           onViewAll={() => router.push("/recommend")}
           onPlanRoute={openNearbyRouteGuide}
           onRecommendIntent={openRecommendIntentGuide}

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconCalendar, IconMap, IconHeart, IconBookmark, IconChevronLeft } from "@/components/icons";
+import { CategoryIcon, IconPin, IconCalendar, IconMap, IconHeart, IconBookmark, IconChevronLeft, IconSparkles } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
+import { useGuide } from "@/components/Guide/GuideContext";
 import { displayTags } from "@/lib/tags";
 import { Lightbox } from "@/components/common/Lightbox";
 import { Avatar } from "@/components/common/Avatar";
@@ -128,6 +129,7 @@ function TinyLoading({ label = "加载中" }: { label?: string }) {
  */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
+  const { openGuide } = useGuide();
   const { user } = useAuth();
   const meta = CATEGORY_META[event.category];
   const isUserPost = event.sourceType === "USER";
@@ -157,10 +159,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [wantedId, setWantedId] = useState<string | null>(null);
   const [wantLoadedKey, setWantLoadedKey] = useState<string | null>(null);
-  const [wantSaving, setWantSaving] = useState(false);
+  const [wantPulse, setWantPulse] = useState(false);
   const [wantError, setWantError] = useState<string | null>(null);
   const [postActionsExpanded, setPostActionsExpanded] = useState(true);
   const wantInFlight = useRef(false);
+  const wantPulseTimer = useRef<number | null>(null);
   const shareNoticeTimer = useRef<number | null>(null);
   const postScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -216,9 +219,17 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   async function toggleWant() {
     if (!user) { router.push("/me"); onClose(); return; }
     if (wantInFlight.current) return;
+    const wasWanted = wantedId === event.id;
+    const optimisticActive = !wasWanted;
     wantInFlight.current = true;
-    setWantSaving(true);
     setWantError(null);
+    setWantedId(optimisticActive ? event.id : null);
+    if (wantPulseTimer.current !== null) window.clearTimeout(wantPulseTimer.current);
+    setWantPulse(optimisticActive);
+    wantPulseTimer.current = window.setTimeout(() => {
+      setWantPulse(false);
+      wantPulseTimer.current = null;
+    }, 420);
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(event.id)}/reactions`, {
         method: "POST",
@@ -228,12 +239,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       const data = await response.json() as { active: boolean; error?: string };
       if (!response.ok) throw new Error(data.error ?? "保存失败，请稍后再试");
       setWantedId(data.active ? event.id : null);
+      if (!data.active && wantPulseTimer.current !== null) {
+        window.clearTimeout(wantPulseTimer.current);
+        wantPulseTimer.current = null;
+        setWantPulse(false);
+      }
       window.dispatchEvent(new Event("wants-changed"));
     } catch (error) {
+      if (wantPulseTimer.current !== null) {
+        window.clearTimeout(wantPulseTimer.current);
+        wantPulseTimer.current = null;
+      }
+      setWantedId(wasWanted ? event.id : null);
+      setWantPulse(false);
       setWantError(error instanceof Error ? error.message : "网络错误，请稍后再试");
     } finally {
       wantInFlight.current = false;
-      setWantSaving(false);
     }
   }
   const threads = useMemo(() => {
@@ -492,6 +513,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   useEffect(() => () => {
     if (shareNoticeTimer.current !== null) window.clearTimeout(shareNoticeTimer.current);
+    if (wantPulseTimer.current !== null) window.clearTimeout(wantPulseTimer.current);
   }, []);
 
   async function shareEvent() {
@@ -523,6 +545,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     router.push(buildJourneyMapUrl(event, "route"));
   }
 
+  function askGuide() {
+    openGuide({
+      title: event.title,
+      category: meta.label,
+      venueName: event.venueName,
+      startTime: event.startTime,
+      description: event.description,
+    });
+  }
+
   /**
    * Signature: `function eventActionPanel(): React.JSX.Element | null`
    * Purpose: Keeps activity-specific planning and reservation guidance available without restoring the secondary social action strip.
@@ -531,13 +563,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     if (event.postKind === "LIFE") return null;
     return (
       <div className="space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={toggleWant} disabled={wantSaving || (!!user && wantLoadedKey !== `${user.id}:${event.id}`)} aria-pressed={!!user && wantedId === event.id}
+        <div className={`grid gap-2 ${isUserPost ? "grid-cols-2" : "grid-cols-3"}`}>
+          <button type="button" onClick={toggleWant} disabled={!!user && wantLoadedKey !== `${user.id}:${event.id}`} aria-pressed={!!user && wantedId === event.id}
             className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
-            <IconHeart filled={!!user && wantedId === event.id} className="h-4 w-4" />
-            {wantSaving ? "保存中…" : user && wantedId === event.id ? "已想去" : "想去"}
+            <span className={`transition-transform duration-300 ${wantPulse ? "scale-125" : "scale-100"}`}><IconHeart filled={!!user && wantedId === event.id} className="h-4 w-4" /></span>
+            <span aria-live="polite">{user && wantedId === event.id ? "已想去" : "想去"}</span>
           </button>
-          <button type="button" onClick={jumpToMap} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 text-sm font-bold text-white"><IconMap className="h-4 w-4" />规划出发路线</button>
+          <button type="button" onClick={jumpToMap} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-2 text-sm font-bold text-white"><IconMap className="h-4 w-4" />{isUserPost ? "规划出发路线" : "路线"}</button>
+          {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-indigo-50 px-2 text-sm font-bold text-indigo-700"><IconSparkles className="h-4 w-4" />AI 导游</button>}
         </div>
         <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600">
           <p>{event.signupEnabled ? "此活动开放站内报名；门票及入场要求请向发布者确认。" : "预约、票价及入场时段以活动来源的最新说明为准。"}</p>

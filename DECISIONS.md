@@ -77,7 +77,7 @@
 - **同位置/极近活动 → 堆叠卡片弹窗**：
   - 点击单点时 `queryRenderedFeatures` 取点击像素 ±14px 内的所有点；点击聚合时取 `getClusterLeaves`，若叶子坐标包围盒 < 0.0006°（约 60m）判定为"挤在一起"，直接弹堆叠卡片，否则 `easeTo` 放大展开
   - 弹窗卡片信息更详细（分类色条 + 时间 + 标题 + 场馆 + 地址 + 来源/删除），整卡可点
-  - 卡片点击 → `router.push('/recommend?event=<id>')`，推荐页 `RecommendList` 读 `?event=` 自动打开对应详情抽屉。**列表是子集**（过滤过期 + 固定 bbox + ISR 缓存），命中不了时**按 id 直接 `GET /api/events/[id]` 拉取再打开**，不耦合列表是否含该活动——否则地图点过期/超范围活动只能停在推荐页。
+  - 卡片点击 → `router.push('/recommend?event=<id>&from=map')`，推荐页 `RecommendList` 读 `?event=` 自动打开对应详情抽屉，并在关闭时按 `from=map` 返回地图。**列表是子集**（过滤过期 + 固定 bbox + ISR 缓存），命中不了时**按 id 直接 `GET /api/events/[id]` 拉取再打开**，不耦合列表是否含该活动——否则地图点过期/超范围活动只能停在推荐页。
   - 弹窗卡片样式集中在 `globals.css` 的 `.tem-*` 类；`.maplibregl-popup-content` 已 `padding:0`，所以打卡弹窗内联补了自己的 padding
 
 ## 主题

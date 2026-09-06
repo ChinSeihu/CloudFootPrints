@@ -2,6 +2,7 @@
 
 import { useBrowseState } from "@/components/common/useBrowseState";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
@@ -214,6 +215,7 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
  * Purpose: Renders discovery and community feeds with a compact branded header and contextual refresh control.
  */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
+  const router = useRouter();
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -314,6 +316,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   async function openEvent(ev: EventDTO) {
     setSelected(ev);
     fetch(`/api/events/${encodeURIComponent(ev.id)}/click`, { method: "POST" }).catch(() => {});
+  }
+
+  function closeEventDetail() {
+    setSelected(null);
+    if (new URLSearchParams(window.location.search).get("from") === "map") {
+      router.replace("/");
+    }
   }
 
   /**
@@ -1250,7 +1259,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
       )}
 
-      {selected && <EventDetail event={selected} onClose={() => setSelected(null)} />}
+      {selected && <EventDetail event={selected} onClose={closeEventDetail} />}
       {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text="打开活动卡片，看看有哪些精彩…" /> : <div role="alert" className="text-center text-sm text-neutral-600">暂时无法打开活动。<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">重试</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">取消</button></div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
       {postReportNotice && <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur">{postReportNotice}</div>}
