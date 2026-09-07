@@ -320,7 +320,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `Filters.tsx` — map filtering panel.
 - `formStyles.ts` — shared standard and compact publishing-form class strings.
 - `LinePanel.tsx` — station line departures, stops, and live train details.
-- `MapExplorer.tsx` — main map feature orchestrator and MapLibre layer/event owner.
+- `MapExplorer.tsx` — main map feature orchestrator and MapLibre layer/event owner, including the selected-IP publishing toolbar entry.
 - `MapView.tsx` — MapLibre creation and bounds observer.
 - `markers.ts` — DOM marker factories.
 - `PopularCard.tsx` — anchor/center-based nearby event card and recommendation intents.
