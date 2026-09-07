@@ -19,9 +19,12 @@ type PointerSession = {
   startX: number;
   startY: number;
   dragging: boolean;
+  lastReorderX: number | null;
+  lastReorderY: number | null;
 };
 
 const DRAG_THRESHOLD = 6;
+const REORDER_HYSTERESIS = 18;
 
 /**
  * Signature: `function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number): T[]`
@@ -92,7 +95,15 @@ export function SortableImageList({ images, onMove, onRemove, layout = "grid", c
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>, index: number) {
     if ((event.target as HTMLElement).closest("button")) return;
-    pointerSessionRef.current = { pointerId: event.pointerId, index, startX: event.clientX, startY: event.clientY, dragging: false };
+    pointerSessionRef.current = {
+      pointerId: event.pointerId,
+      index,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragging: false,
+      lastReorderX: null,
+      lastReorderY: null,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -108,7 +119,14 @@ export function SortableImageList({ images, onMove, onRemove, layout = "grid", c
     event.preventDefault();
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-sort-index]");
     const toIndex = Number(target?.dataset.sortIndex);
-    if (Number.isInteger(toIndex)) moveTo(toIndex);
+    if (!Number.isInteger(toIndex) || toIndex === activeIndexRef.current) return;
+    if (session.lastReorderX !== null && session.lastReorderY !== null) {
+      const distanceSinceReorder = Math.hypot(event.clientX - session.lastReorderX, event.clientY - session.lastReorderY);
+      if (distanceSinceReorder < REORDER_HYSTERESIS) return;
+    }
+    moveTo(toIndex);
+    session.lastReorderX = event.clientX;
+    session.lastReorderY = event.clientY;
   }
 
   function handlePointerUp(event: PointerEvent<HTMLDivElement>, index: number) {
