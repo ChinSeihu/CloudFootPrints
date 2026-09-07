@@ -172,8 +172,8 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
   const shownEvents = dayTab === "starting" ? startingEvents : ongoingEvents;
 
   return (
-    <div className="min-h-full bg-slate-50 px-3 pb-5 pt-3">
-      <header className="relative z-20 mb-3 rounded-2xl border border-sky-100 bg-white px-3 py-2.5 shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
+    <div className="min-h-full bg-slate-50 px-3 pb-4 pt-3">
+      <header className="relative z-20 mb-2 rounded-lg border border-sky-100 bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(15,23,42,0.05)]">
         <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <div aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-sm">
@@ -227,17 +227,17 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         </div>
       )}
 
-      <section className="rounded-[24px] bg-white px-4 pb-3 pt-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <section className="rounded-lg bg-white px-3 pb-2.5 pt-3 shadow-[0_6px_20px_rgba(15,23,42,0.05)] ring-1 ring-black/5">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-11 w-11 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
-            <h2 className="px-1 text-xl font-black tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-11 w-11 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
+            <h2 className="px-1 text-base font-extrabold tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
           </div>
-          <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-11 rounded-full bg-neutral-50 px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
+          <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-9 rounded-lg bg-neutral-50 px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {monthDays.map((key) => {
             const info = dayInfo(key);
             const count = byDate.get(key)?.length ?? 0;
@@ -252,7 +252,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 type="button"
                 onClick={() => setSelectedDate(key)}
                 title={info.holiday ?? undefined}
-                className={`relative flex h-16 w-11 shrink-0 flex-col items-center justify-center rounded-2xl transition ${
+                className={`relative flex h-14 w-10 shrink-0 flex-col items-center justify-center rounded-lg transition ${
                   active
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                     : info.holiday
@@ -261,10 +261,10 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 }`}
               >
                 {info.holiday && <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-rose-500"}`} />}
-                <span className={`text-[10px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[info.weekday]}</span>
-                <span className="mt-0.5 text-base font-black">{Number(key.slice(8, 10))}</span>
+                <span className={`text-[9px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[info.weekday]}</span>
+                <span className="mt-0.5 text-sm font-extrabold">{Number(key.slice(8, 10))}</span>
                 <span
-                  className={`mt-1 h-1 rounded-full ${count === 0 ? "bg-transparent" : active ? "bg-white/80" : "bg-blue-500/70"}`}
+                  className={`mt-0.5 h-0.5 rounded-full ${count === 0 ? "bg-transparent" : active ? "bg-white/80" : "bg-blue-500/70"}`}
                   style={count > 0 ? { width: `${6 + Math.round((count / heatMax) * 10)}px` } : undefined}
                 />
               </button>
@@ -273,18 +273,18 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         </div>
       </section>
 
-      <section className="mt-4 px-1">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+      <section className="mt-3 px-0.5">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <div>
-            <h2 className="text-lg font-black text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日</h2>
+            <h2 className="text-base font-extrabold text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日</h2>
             <p className="mt-0.5 text-xs text-neutral-400">周{WEEKDAYS[dayInfo(selected).weekday]}{selected === todayKey && " · 今天"}</p>
             {holidayName(selected) && <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{holidayName(selected)}</p>}
           </div>
-          <div className="flex rounded-full bg-neutral-100 p-1">
+          <div className="flex rounded-lg bg-neutral-100 p-0.5">
             {(["starting", "ongoing"] as const).map((k) => {
               const active = dayTab === k;
               const count = k === "starting" ? startingEvents.length : ongoingEvents.length;
-              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-full px-3 py-2 text-xs font-semibold transition ${active ? "bg-blue-600 text-white shadow-sm" : "text-neutral-500"}`}>{k === "starting" ? "新开始" : "进行中"} {count}</button>;
+              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${active ? "bg-blue-600 text-white shadow-sm" : "text-neutral-500"}`}>{k === "starting" ? "新开始" : "进行中"} {count}</button>;
             })}
           </div>
         </div>
@@ -302,7 +302,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
             </div>
           </div>
         ) : (
-          <ol className="space-y-2.5">
+          <ol className="space-y-1.5">
             {shownEvents.map((ev) => {
               const meta = CATEGORY_META[ev.category];
               const endKey = ev.endTime ? tokyoDateKey(ev.endTime) : null;
@@ -318,22 +318,22 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
               const endLabel = endKey ? `至 ${Number(endKey.slice(5, 7))}/${Number(endKey.slice(8, 10))}` : null;
               return (
                 <li key={ev.id} className="relative">
-                  <button type="button" onClick={() => setDetail(ev)} className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-[20px] border border-black/5 bg-white p-2 pr-8 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.09)] ${endingSoon ? "border-l-4 border-l-amber-400" : ""}`}>
+                  <button type="button" onClick={() => setDetail(ev)} className={`group relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg border border-black/5 bg-white p-1.5 pr-8 text-left shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${endingSoon ? "border-l-4 border-l-amber-400" : ""}`}>
                     {ev.imageUrl ? (
-                      <img src={ev.imageUrl} alt="" loading="lazy" className="h-[82px] w-24 shrink-0 rounded-[14px] object-cover" />
+                      <img src={ev.imageUrl} alt="" loading="lazy" className="h-[76px] w-24 shrink-0 rounded-md object-cover" />
                     ) : (
-                      <div className="grid h-[82px] w-24 shrink-0 place-items-center rounded-[14px]" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>
+                      <div className="grid h-[76px] w-24 shrink-0 place-items-center rounded-md" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>
                         <CategoryIcon category={ev.category} className="h-7 w-7" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1 py-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{meta.label}</span>
-                        {statusLabel && <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${endingSoon ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{statusLabel}</span>}
+                        <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{meta.label}</span>
+                        {statusLabel && <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${endingSoon ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{statusLabel}</span>}
                         {dayTab === "starting" && <span className="ml-auto text-[11px] font-semibold text-neutral-400">{fmtTime(ev.startTime)}</span>}
                       </div>
-                      <h3 className="mt-1.5 line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
-                      <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs text-neutral-500">
+                      <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
+                      <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-neutral-500">
                         {ev.venueName && <span className="flex min-w-0 flex-1 items-center gap-1 truncate"><IconPin className="h-3 w-3 shrink-0" />{ev.venueName}</span>}
                         {endLabel && <span className="shrink-0 text-[11px] text-neutral-400">{endLabel}</span>}
                       </div>
@@ -347,7 +347,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         )}
       </section>
 
-      <section className="mt-3 rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
+      <section className="mt-2 rounded-lg bg-white p-3 shadow-[0_6px_20px_rgba(15,23,42,0.05)] ring-1 ring-black/5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-black text-neutral-950">本月活动热力图</h2>
           <div className="flex items-center gap-1 text-[10px] text-neutral-400">
