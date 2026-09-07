@@ -18,6 +18,7 @@
     "crop:identity-refs": "tsx scripts/crop-identity-refs.ts",
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",
+    "test:recommendations": "tsx scripts/check-recommendation-rank.ts",
     "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
     "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts",
     "images:foodspots": "tsx scripts/fetch-foodspot-images.mts",

@@ -5,6 +5,7 @@ import { CATEGORY_META, type EventCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/icons";
 import { isUserPost } from "@/components/common/EventSource";
 import { MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
+import { rankRecommendations } from "@/lib/recommendationRank";
 import type { EventDTO } from "@/lib/types";
 
 type Props = {
@@ -21,16 +22,6 @@ type Props = {
   onPlanRoute: (events: EventDTO[]) => void;
   onRecommendIntent: (intent: RecommendIntent, events: EventDTO[]) => void;
 };
-
-function distKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const la1 = (a.lat * Math.PI) / 180;
-  const la2 = (b.lat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
 
 function formatDistance(d: number | null): string {
   if (d == null) return "东京周边";
@@ -67,33 +58,6 @@ function SuggestionIcon({ intent }: { intent: RecommendIntent }) {
     return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 7.5h3l1.3-2h7.4l1.3 2h3v11.8H4Z" /><circle cx="12" cy="13.2" r="3.2" /><path d="m17.5 10 .1.1" /></svg>;
   }
   return <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 8a6.5 6.5 0 1 1-1.9-4.6" /><path d="M18 3v5h-5" /><path d="M12 8v4l2.5 1.5" /></svg>;
-}
-
-function eventHour(ev: EventDTO): number | null {
-  if (!ev.startTime) return null;
-  return new Date(ev.startTime).getHours();
-}
-
-function intentScore(ev: EventDTO, intent: RecommendIntent): number {
-  const hour = eventHour(ev);
-  const hasImage = ev.imageUrl ? 2 : 0;
-  if (intent.id === "relax") {
-    return (ev.category === "EXHIBITION" ? 5 : 0) + (ev.category === "MARKET" ? 4 : 0) + (ev.category === "OTHER" ? 2 : 0) + hasImage;
-  }
-  if (intent.id === "solo") {
-    return (ev.category === "EXHIBITION" ? 5 : 0) + (ev.category === "TALK" ? 4 : 0) + (ev.category === "OTHER" ? 2 : 0) + (hour !== null && hour < 18 ? 1 : 0);
-  }
-  if (intent.id === "photo") {
-    return hasImage * 2 + (ev.category === "EXHIBITION" ? 5 : 0) + (ev.category === "FESTIVAL" ? 4 : 0) + (ev.category === "MARKET" ? 3 : 0);
-  }
-  return (ev.category === "LIVE" ? 6 : 0) + (ev.category === "FESTIVAL" ? 4 : 0) + (hour !== null && hour >= 17 ? 5 : 0) + hasImage;
-}
-
-function rankForIntent(items: { e: EventDTO; d: number | null }[], intent: RecommendIntent | null) {
-  if (!intent) return items;
-  const ranked = [...items].sort((a, b) => intentScore(b.e, intent) - intentScore(a.e, intent) || (a.d ?? 999) - (b.d ?? 999));
-  const matched = ranked.filter(({ e }) => intentScore(e, intent) > 0);
-  return matched.length >= 3 ? matched : ranked;
 }
 
 function SourceIconBadge({ sourceType }: { sourceType: string }) {
@@ -156,23 +120,19 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
   const didDrag = useRef(false);
   const suppressClick = useRef(false);
 
-  const nearest = useMemo<{ e: EventDTO; d: number | null }[]>(() => {
-    const source = center
-      ? [...events].map((e) => ({ e, d: distKm(center, e) })).sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
-      : events.map((e) => ({ e, d: null }));
-    return source.slice(0, 8);
-  }, [events, center]);
-
-  const intentNearest = useMemo(() => rankForIntent(nearest, activeIntent), [nearest, activeIntent]);
+  const nearest = useMemo(
+    () => rankRecommendations(events, center, activeIntent?.id ?? null).slice(0, 8),
+    [activeIntent?.id, center, events],
+  );
 
   const categories = useMemo(() => {
-    const ordered = intentNearest.map(({ e }) => e.category);
+    const ordered = nearest.map(({ e }) => e.category);
     return Array.from(new Set(ordered)).slice(0, 5);
-  }, [intentNearest]);
+  }, [nearest]);
 
   const shown = useMemo(
-    () => activeCategory === "ALL" ? intentNearest : intentNearest.filter(({ e }) => e.category === activeCategory),
-    [activeCategory, intentNearest],
+    () => activeCategory === "ALL" ? nearest : nearest.filter(({ e }) => e.category === activeCategory),
+    [activeCategory, nearest],
   );
 
   useEffect(() => {
@@ -370,7 +330,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
             </div>
           </div>
         )}
-        {shown.slice(0, 6).map(({ e: ev, d }) => {
+        {shown.slice(0, 6).map(({ e: ev, d, reasons }) => {
           const meta = CATEGORY_META[ev.category];
           const favorited = favoriteIds.has(ev.id);
           return (
@@ -407,9 +367,12 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
               </div>
               <div className="p-2.5">
                 <h3 className="line-clamp-2 min-h-[2.45rem] text-[13px] font-bold leading-snug text-neutral-900">{ev.title}</h3>
-                <p className="mt-1 truncate text-[11px] text-neutral-500">
-                  {formatDistance(d)} · {ev.venueName ?? "会场待定"}
-                </p>
+                <div className="mt-1 flex min-w-0 items-center gap-1 overflow-hidden">
+                  {reasons.map((reason) => (
+                    <span key={reason} className="shrink-0 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700">{reason}</span>
+                  ))}
+                </div>
+                <p className="mt-1 truncate text-[10px] text-neutral-400">{formatDistance(d)} · {ev.venueName ?? "会场待定"}</p>
               </div>
             </div>
           );
@@ -431,7 +394,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
                 onClick={() => {
                   setActiveIntent(card);
                   setActiveCategory("ALL");
-                  const ranked = rankForIntent(nearest, card);
+                  const ranked = rankRecommendations(events, center, card.id).slice(0, 8);
                   onRecommendIntent(card, ranked.map(({ e }) => e));
                 }}
                 className={`rounded-xl px-2.5 py-2 text-left ring-1 ring-black/5 ring-offset-1 transition hover:ring-black/10 ${card.tone} ${active ? "ring-2 ring-violet-500" : ""}`}

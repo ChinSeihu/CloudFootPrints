@@ -323,12 +323,14 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `MapExplorer.tsx` — main map feature orchestrator and MapLibre layer/event owner, including the selected-IP publishing toolbar entry.
 - `MapView.tsx` — MapLibre creation and bounds observer.
 - `markers.ts` — DOM marker factories.
-- `PopularCard.tsx` — anchor/center-based nearby event card and recommendation intents.
+- `PopularCard.tsx` — anchor/center-based nearby event card, recommendation intents, and user-facing recommendation reasons.
 - `PostDialog.tsx` — compact LIFE / ACTIVITY publishing form with separate time semantics and collapsible secondary fields.
 - `RoutePanel.tsx` — rail/walking route selection and presentation.
 - `StyleSwitcher.tsx` — map theme switcher.
 - `WeatherAnimation.tsx` — visual weather overlay.
 - `WeatherPanel.tsx` — current/forecast weather UI.
+
+- Recommendation ranking: `src/lib/recommendationRank.ts` — deterministic time, distance, explicit-intent, engagement, and content-quality scoring with concise explanation labels.
 
 ### `src/components/Me/`
 
