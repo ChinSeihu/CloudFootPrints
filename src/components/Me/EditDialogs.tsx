@@ -8,6 +8,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { DateTimeField } from "@/components/common/DateTimeField";
+import { moveImageItem, SortableImageList } from "@/components/common/SortableImageList";
 import { fieldCls, labelCls } from "@/components/Map/formStyles";
 import { MoodSelector } from "@/components/common/MoodSelector";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
@@ -173,30 +174,12 @@ export function EditPostDialog({
           </div>
           {regenerating && <LoadingFeedback compact scene="drawing" text="正在绘制新的画面…" />}
           {imageUrls.length > 0 && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {imageUrls.map((src, index) => (
-                <div key={`${src}-${index}`} className="relative aspect-square">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={src}
-                    alt=""
-                    className="h-full w-full rounded-xl object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setImageUrls((current) =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-base leading-none text-white backdrop-blur transition hover:bg-black/75"
-                    aria-label={`删除第 ${index + 1} 张图片`}
-                    title="删除图片"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+            <div className="mt-3">
+              <SortableImageList
+                images={imageUrls}
+                onMove={(fromIndex, toIndex) => setImageUrls((current) => moveImageItem(current, fromIndex, toIndex))}
+                onRemove={(index) => setImageUrls((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+              />
             </div>
           )}
         </div>
@@ -309,9 +292,9 @@ export function EditCheckInDialog({
   const [note, setNote] = useState(checkin.note ?? "");
   const [moodTags, setMoodTags] = useState<number[]>(checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : []);
   const [isPublic, setIsPublic] = useState(checkin.isPublic);
-  const [keptUrls, setKeptUrls] = useState<string[]>(checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : []);
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<Array<{ source: "saved"; url: string } | { source: "new"; file: File; preview: string }>>(() =>
+    (checkin.photoUrls?.length ? checkin.photoUrls : checkin.photoUrl ? [checkin.photoUrl] : []).map((url) => ({ source: "saved", url })),
+  );
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [phase, setPhase] = useState<"" | "uploading">("");
@@ -319,41 +302,54 @@ export function EditCheckInDialog({
 
   const canUpload = cloudinaryConfigured();
   const MAX_IMAGES = 6;
-  const total = keptUrls.length + files.length;
+  const total = photos.length;
 
+  /**
+   * Signature: `function pickFiles(e: React.ChangeEvent<HTMLInputElement>): void`
+   * Purpose: Adds local images to the ordered footprint photo collection.
+   */
   function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
     if (picked.length === 0) return;
     const add = picked.slice(0, Math.max(0, MAX_IMAGES - total));
-    setFiles((prev) => [...prev, ...add]);
-    setPreviews((prev) => [...prev, ...add.map((f) => URL.createObjectURL(f))]);
+    setPhotos((current) => [...current, ...add.map((file) => ({ source: "new" as const, file, preview: URL.createObjectURL(file) }))]);
     e.target.value = "";
   }
-  function removeKept(i: number) { setKeptUrls((prev) => prev.filter((_, idx) => idx !== i)); }
-  function removeNew(i: number) {
-    URL.revokeObjectURL(previews[i]);
-    setFiles((prev) => prev.filter((_, idx) => idx !== i));
-    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+  /**
+   * Signature: `function removePhoto(index: number): void`
+   * Purpose: Removes one saved or local footprint photo and releases local preview resources.
+   */
+  function removePhoto(index: number) {
+    setPhotos((current) => {
+      const removed = current[index];
+      if (removed?.source === "new") URL.revokeObjectURL(removed.preview);
+      return current.filter((_, itemIndex) => itemIndex !== index);
+    });
   }
 
+  /**
+   * Signature: `async function save(): Promise<void>`
+   * Purpose: Uploads new photos in their chosen order and persists the edited footprint.
+   */
   async function save() {
     if (saving) return;
     setError(null);
     setSaving(true);
     try {
-      let newUrls: string[] = [];
-      if (files.length > 0) {
+      let photoUrls: string[] = [];
+      if (photos.some((photo) => photo.source === "new")) {
         setPhase("uploading");
         try {
-          newUrls = await Promise.all(files.map(async (f) => uploadToCloudinary(await compressImage(f))));
+          photoUrls = await Promise.all(photos.map(async (photo) => photo.source === "saved" ? photo.url : uploadToCloudinary(await compressImage(photo.file))));
         } catch (err) {
           setError((err as Error).message || "图片上传失败");
           return;
         } finally {
           setPhase("");
         }
+      } else {
+        photoUrls = photos.map((photo) => photo.source === "saved" ? photo.url : photo.preview);
       }
-      const photoUrls = [...keptUrls, ...newUrls];
       const patch = { note: note.trim() || null, rating: moodTags[0] ?? null, moodTags, photoUrls, isPublic };
       const res = await fetch(`/api/checkins/${checkin.id}`, {
         method: "PATCH",
@@ -374,6 +370,10 @@ export function EditCheckInDialog({
     }
   }
 
+  /**
+   * Signature: `async function regenerateImage(): Promise<void>`
+   * Purpose: Replaces the ordered footprint photos with regenerated persisted images.
+   */
   async function regenerateImage() {
     if (!onRegenerateImage || regenerating) return;
     if (total >= MAX_IMAGES) {
@@ -383,9 +383,12 @@ export function EditCheckInDialog({
     setError(null);
     setRegenerating(true);
     try {
-      const result = await onRegenerateImage(keptUrls);
+      const result = await onRegenerateImage(photos.flatMap((photo) => photo.source === "saved" ? [photo.url] : []));
       if (!result?.imageUrl) return;
-      setKeptUrls(result.imageUrls?.length ? result.imageUrls : [result.imageUrl]);
+      setPhotos((current) => {
+        current.forEach((photo) => { if (photo.source === "new") URL.revokeObjectURL(photo.preview); });
+        return (result.imageUrls?.length ? result.imageUrls : [result.imageUrl]).map((url) => ({ source: "saved" as const, url }));
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : "图片生成失败，请稍后重试");
     } finally {
@@ -421,29 +424,18 @@ export function EditCheckInDialog({
         </div>
         {regenerating && <LoadingFeedback compact scene="drawing" text="正在绘制新的画面…" />}
         {canUpload ? (
-          <div className="grid grid-cols-3 gap-2">
-            {keptUrls.map((src, i) => (
-              <div key={`k${i}`} className="relative aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
-                <button type="button" onClick={() => removeKept(i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur" aria-label="移除图片">×</button>
-              </div>
-            ))}
-            {previews.map((src, i) => (
-              <div key={`n${i}`} className="relative aspect-square">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="w-full h-full object-cover rounded-xl" />
-                <button type="button" onClick={() => removeNew(i)} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-sm leading-none flex items-center justify-center backdrop-blur" aria-label="移除图片">×</button>
-              </div>
-            ))}
-            {total < MAX_IMAGES && (
+          <SortableImageList
+            images={photos.map((photo) => photo.source === "saved" ? photo.url : photo.preview)}
+            onMove={(fromIndex, toIndex) => setPhotos((current) => moveImageItem(current, fromIndex, toIndex))}
+            onRemove={removePhoto}
+            addControl={total < MAX_IMAGES ? (
               <label className="aspect-square flex flex-col items-center justify-center gap-1 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 cursor-pointer transition hover:border-blue-400 hover:text-blue-500">
                 <IconPlus className="w-6 h-6" />
                 <span className="text-[11px]">添加</span>
                 <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
               </label>
-            )}
-          </div>
+            ) : undefined}
+          />
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">未配置图床，暂不能上传图片。</p>
         )}

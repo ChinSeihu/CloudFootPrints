@@ -302,6 +302,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `Lightbox.tsx` — fullscreen image viewer.
 - `MoodSelector.tsx` — mood-tag selector.
 - `ShareButton.tsx` — Web Share/clipboard fallback action.
+- `SortableImageList.tsx` — shared mouse, touch-handle, and keyboard reordering for uploaded image previews.
 
 ### `src/components/Guide/`
 

@@ -8,6 +8,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { compressImage } from "@/lib/image";
 import { uploadToCloudinary, cloudinaryConfigured } from "@/lib/cloudinary";
 import { DateTimeField } from "@/components/common/DateTimeField";
+import { moveImageItem, SortableImageList } from "@/components/common/SortableImageList";
 import { BottomSheet } from "./BottomSheet";
 import { fieldCls, labelCls } from "./formStyles";
 
@@ -209,8 +210,16 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
       <div className="mb-6">
         <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
         {canUpload ? (
-          <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {files.length < MAX_IMAGES && (
+          <SortableImageList
+            layout="row"
+            images={previews}
+            onMove={(fromIndex, toIndex) => {
+              setFiles((current) => moveImageItem(current, fromIndex, toIndex));
+              setPreviews((current) => moveImageItem(current, fromIndex, toIndex));
+            }}
+            onRemove={removeImage}
+            addPosition="start"
+            addControl={files.length < MAX_IMAGES ? (
               <label className="grid h-24 w-24 shrink-0 cursor-pointer place-items-center rounded-2xl border border-dashed border-neutral-300 bg-white text-neutral-400 shadow-[0_6px_18px_rgba(15,23,42,0.04)] transition hover:border-blue-400 hover:text-blue-500">
                 <span className="flex flex-col items-center gap-1 text-[11px]">
                   <IconPlus className="h-6 w-6" />
@@ -218,22 +227,8 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
               </label>
-            )}
-            {previews.map((src, i) => (
-              <div key={i} className="relative h-24 w-24 shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="h-full w-full rounded-2xl object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur"
-                  aria-label="移除图片"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
+            ) : undefined}
+          />
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
             未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。
