@@ -272,7 +272,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - `BottomNav.tsx` — app-wide bottom navigation with mobile system safe-area spacing.
 - `ViewportHeightSync.tsx` — synchronizes the fixed app shell with the visible viewport after mobile PWA resume and system UI changes.
-- `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, shared footprint mark, and legacy preference migration.
+- `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, per-character publishing marks, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
 - `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.
 - `InstallPrompt.tsx` — browser-only desktop-install education, native install prompt handling, manual Safari guidance and dismissal memory; `public/sw.js` provides the installable app service-worker boundary.

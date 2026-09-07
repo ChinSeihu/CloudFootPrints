@@ -100,6 +100,12 @@ type MascotNavIconProps = {
   title?: string;
 };
 
+type MascotPublishIconProps = {
+  identity: MascotIdentity;
+  className?: string;
+  title?: string;
+};
+
 /**
  * Signature: `function MascotPicker(): React.JSX.Element`
  * Purpose: Offers four named companions or a persisted no-IP mode, applied immediately.
@@ -146,6 +152,79 @@ export function MascotNavIcon({
     >
       <defs><clipPath id={clipId}><rect x={left} y={sheet.top} width={cellWidth} height={sheet.frameHeight} /></clipPath></defs>
       <image href="/brand/mascots/menu-user-v4.png" width={sheet.width} height={sheet.height} clipPath={`url(#${clipId})`} />
+    </svg>
+  );
+}
+
+/**
+ * Signature: `function MascotPublishIcon({ identity, className, title }: MascotPublishIconProps): React.JSX.Element`
+ * Purpose: Renders one compact outlined publishing mark per IP identity, with a neutral create mark for no-IP mode.
+ */
+export function MascotPublishIcon({ identity, className = "h-8 w-8", title }: MascotPublishIconProps) {
+  const accessibleProps = {
+    role: title ? "img" : undefined,
+    "aria-hidden": title ? undefined : true,
+  } as const;
+
+  if (identity === "none") {
+    return (
+      <svg viewBox="0 0 32 32" className={className} {...accessibleProps}>
+        {title && <title>{title}</title>}
+        <rect x="5" y="5" width="22" height="22" rx="8" fill="#F5F3FF" stroke="#5B4B8A" strokeWidth="1.8" />
+        <path d="M16 10v12M10 16h12" fill="none" stroke="#7C3AED" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (identity === "kumoashi") {
+    return (
+      <svg viewBox="0 0 32 32" className={className} {...accessibleProps}>
+        {title && <title>{title}</title>}
+        <ellipse cx="16" cy="20" rx="6.2" ry="8" fill="#6478D8" stroke="#334A78" strokeWidth="1.8" transform="rotate(-18 16 20)" />
+        <circle cx="9" cy="10" r="2.6" fill="#72CFC4" stroke="#334A78" strokeWidth="1.4" />
+        <circle cx="14.5" cy="7.4" r="2.7" fill="#6478D8" stroke="#334A78" strokeWidth="1.4" />
+        <circle cx="20.5" cy="8" r="2.5" fill="#FF806D" stroke="#334A78" strokeWidth="1.4" />
+        <circle cx="25" cy="11.5" r="2.2" fill="#72CFC4" stroke="#334A78" strokeWidth="1.4" />
+        <path d="M13.5 20.2c1.3-2 3.7-2 5 0 1.1 1.8-.5 3.8-2.5 5.1-2-1.3-3.6-3.3-2.5-5.1Z" fill="#F7FBFF" />
+      </svg>
+    );
+  }
+
+  if (identity === "kumoashi-sakura") {
+    return (
+      <svg viewBox="0 0 32 32" className={className} {...accessibleProps}>
+        {title && <title>{title}</title>}
+        <path d="M16 11.8c2.7-4.6 7.8-1.7 6.2 2.6 5.3-.4 5.7 5.4 1.3 6.5 2.1 4.9-3.2 7.1-6 3.4-3.9 3.6-8.1-.4-5.4-4.5-4.3-2.3-1.4-7.5 3.9-6.7Z" fill="#F272A7" stroke="#76509A" strokeWidth="1.7" strokeLinejoin="round" />
+        <path d="M16 9.8c-1.9-1.2-2.2-3.7-.4-5.1 2-1.5 4.5.2 4.1 2.6 2.2-.8 4.2 1.1 3.5 3.2-.7 2.2-3.6 2.6-4.8.8-.4 2.4-3.3 3-4.7 1.2-1.4-1.8.1-4.3 2.3-2.7Z" fill="#D9A4F4" stroke="#76509A" strokeWidth="1.3" strokeLinejoin="round" />
+        <circle cx="18" cy="9.1" r="1.45" fill="#FFF5FA" stroke="#E94D86" strokeWidth="1" />
+        <path d="M14.2 18.4c1.1-1.8 3.6-1.7 4.5.2.9 1.8-.7 3.6-2.5 4.7-1.8-1.2-3.2-3.1-2-4.9Z" fill="#FFF5FA" />
+      </svg>
+    );
+  }
+
+  if (identity === "michiru") {
+    return (
+      <svg viewBox="0 0 32 32" className={className} {...accessibleProps}>
+        {title && <title>{title}</title>}
+        <path d="M16 3.5c6.2 0 10.7 4.6 10.7 10.4 0 6.7-6.5 12-10.7 15-4.2-3-10.7-8.3-10.7-15C5.3 8.1 9.8 3.5 16 3.5Z" fill="#6478D8" stroke="#334A78" strokeWidth="1.8" strokeLinejoin="round" />
+        <circle cx="16" cy="13.8" r="6.5" fill="#F7FBFF" stroke="#334A78" strokeWidth="1.4" />
+        <path d="m18.7 10.2-1.4 4.9-4 2.4 1.4-4.9 4-2.4Z" fill="#72CFC4" stroke="#334A78" strokeWidth="1.1" strokeLinejoin="round" />
+        <path d="m18.7 10.2-1.4 4.9-2.6-2.5 4-2.4Z" fill="#FF806D" />
+        <circle cx="16" cy="13.8" r="1.1" fill="#334A78" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 32 32" className={className} {...accessibleProps}>
+      {title && <title>{title}</title>}
+      <ellipse cx="16" cy="8.5" rx="4.5" ry="6" fill="#F272A7" stroke="#76509A" strokeWidth="1.5" />
+      <ellipse cx="23.5" cy="16" rx="6" ry="4.5" fill="#D9A4F4" stroke="#76509A" strokeWidth="1.5" />
+      <ellipse cx="16" cy="23.5" rx="4.5" ry="6" fill="#F272A7" stroke="#76509A" strokeWidth="1.5" />
+      <ellipse cx="8.5" cy="16" rx="6" ry="4.5" fill="#D9A4F4" stroke="#76509A" strokeWidth="1.5" />
+      <circle cx="16" cy="16" r="5.4" fill="#FFF5FA" stroke="#76509A" strokeWidth="1.4" />
+      <path d="m18.6 12.3-1.4 4.9-3.8 2.4 1.4-4.9 3.8-2.4Z" fill="#E94D86" stroke="#76509A" strokeWidth="1" strokeLinejoin="round" />
+      <circle cx="16" cy="16" r="1" fill="#76509A" />
     </svg>
   );
 }

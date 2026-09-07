@@ -28,12 +28,12 @@ import { anchorMarkerEl } from "./markers";
 import { copyToClipboard } from "@/lib/clipboard";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
 import { CATEGORY_GLYPH } from "@/lib/categoryIcons";
-import { CategoryIcon, IconPlus } from "@/components/icons";
+import { CategoryIcon } from "@/components/icons";
 import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter";
 import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
-import { MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
+import { MascotPublishIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
 
@@ -2446,9 +2446,7 @@ export function MapExplorer() {
               className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
             >
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-100 to-rose-50 shadow-[0_10px_22px_rgba(124,58,237,0.2)] ring-1 ring-violet-200">
-                {mascotIdentity === "none"
-                  ? <IconPlus className="h-5 w-5" aria-hidden="true" />
-                  : <MascotNavIcon role="profile" identity={mascotIdentity} className="h-9 w-9" title="发布内容" />}
+                <MascotPublishIcon identity={mascotIdentity} className="h-8 w-8" title="发布内容" />
               </span>
               发帖
             </button>
