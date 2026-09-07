@@ -234,9 +234,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [discoverFullType, setDiscoverFullType] = useBrowseState<DiscoverFullType>(`recommend:${user?.id ?? "guest"}:discoverFullType`, "posts");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [discoverCheckinRows, setDiscoverCheckinRows] = useBrowseState<CheckInDTO[]>(`recommend:${user?.id ?? "guest"}:discoverCheckinRows`, checkins);
-  const [checkinsOffset, setCheckinsOffset] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsOffset`, checkins.length);
-  const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore);
+  const [discoverCheckinRows, setDiscoverCheckinRows] = useBrowseState<CheckInDTO[]>(`recommend:${user?.id ?? "guest"}:discoverCheckinRows`, checkins, { persist: false });
+  const [checkinsOffset, setCheckinsOffset] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsOffset`, checkins.length, { persist: false });
+  const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore, { persist: false });
   const [checkinsLoadingMore, setCheckinsLoadingMore] = useState(false);
   const [checkinsLoadError, setCheckinsLoadError] = useState(false);
   const [expandedCheckins, setExpandedCheckins] = useBrowseState<Set<string>>(`recommend:${user?.id ?? "guest"}:expandedCheckins`, () => new Set());

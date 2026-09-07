@@ -19,6 +19,7 @@
     "extract": "tsx scripts/run-extraction.ts",
     "eval": "tsx scripts/eval-extraction.ts",
     "test:recommendations": "tsx scripts/check-recommendation-rank.ts",
+    "test:regression": "npm run test:recommendations && tsx scripts/check-browse-session.ts",
     "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
     "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts",
     "images:foodspots": "tsx scripts/fetch-foodspot-images.mts",

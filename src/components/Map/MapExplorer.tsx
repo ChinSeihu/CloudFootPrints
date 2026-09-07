@@ -561,7 +561,7 @@ export function MapExplorer() {
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [exploreAnchor, setExploreAnchor] = useState<{ lat: number; lng: number } | null>(null);
+  const [exploreAnchor, setExploreAnchor] = useBrowseState<{ lat: number; lng: number } | null>("map:exploreAnchor", null);
   const exploreMarkerRef = useRef<maplibregl.Marker | null>(null);
   const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
@@ -1470,7 +1470,7 @@ export function MapExplorer() {
       pulseRafRef.current = requestAnimationFrame(pulse);
     };
     pulseRafRef.current = requestAnimationFrame(pulse);
-  }, [activateMapPopup]);
+  }, [activateMapPopup, setExploreAnchor]);
 
   // ── 打卡聚合图层 ──
   const setupCheckinClusters = useCallback((map: maplibregl.Map, mlg: typeof maplibregl) => {

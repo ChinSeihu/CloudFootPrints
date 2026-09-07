@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { readBrowseSession, writeBrowseSession } from "@/lib/browseSession";
 import type { BBox } from "@/services/events";
 
 const DEFAULT_STYLE =
@@ -10,7 +11,20 @@ const DEFAULT_STYLE =
 // 东京站附近
 const TOKYO_CENTER: [number, number] = [139.7671, 35.6812];
 
-let savedCamera: { center: [number, number]; zoom: number; bearing: number; pitch: number } | null = null;
+type MapCamera = { center: [number, number]; zoom: number; bearing: number; pitch: number };
+let savedCamera: MapCamera | null = null;
+const MAP_CAMERA_KEY = "map:camera";
+
+/**
+ * Signature: `isMapCamera(value: unknown): value is MapCamera`
+ * Purpose: Prevents malformed session data from reaching MapLibre camera initialization.
+ */
+function isMapCamera(value: unknown): value is MapCamera {
+  if (!value || typeof value !== "object") return false;
+  const camera = value as Partial<MapCamera>;
+  return Array.isArray(camera.center) && camera.center.length === 2 && camera.center.every(Number.isFinite)
+    && Number.isFinite(camera.zoom) && Number.isFinite(camera.bearing) && Number.isFinite(camera.pitch);
+}
 
 type Props = {
   /** 地图实例就绪后回调，父组件用它来增删 marker。 */
@@ -42,13 +56,15 @@ export function MapView({ onReady, onBoundsChange, onViewportChange }: Props) {
 
     const styleUrl =
       process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_STYLE;
+    const sessionCamera = readBrowseSession<unknown>(window.sessionStorage, MAP_CAMERA_KEY);
+    const restoredCamera = savedCamera ?? (isMapCamera(sessionCamera) ? sessionCamera : null);
 
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: styleUrl,
       center: TOKYO_CENTER,
       zoom: 12,
-      ...savedCamera,
+      ...restoredCamera,
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -82,12 +98,15 @@ export function MapView({ onReady, onBoundsChange, onViewportChange }: Props) {
     });
     map.on("moveend", () => {
       emitBounds();
+      savedCamera = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+      writeBrowseSession(window.sessionStorage, MAP_CAMERA_KEY, savedCamera);
       if (userViewportChange) onViewportChangeRef.current?.();
       userViewportChange = false;
     });
 
     return () => {
       savedCamera = { center: map.getCenter().toArray() as [number, number], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+      writeBrowseSession(window.sessionStorage, MAP_CAMERA_KEY, savedCamera);
       map.remove();
     };
   }, []);

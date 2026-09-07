@@ -43,9 +43,9 @@ export function BrowsePage({ mode }: { mode: Mode }) {
  */
 function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
   const key = `${mode}:${scope}`;
-  const [events, setEvents] = useBrowseState<EventDTO[] | null>(`${key}:events`, null);
-  const [footprints, setFootprints] = useBrowseState<Footprints | null>(`${key}:footprints`, null);
-  const [metrics, setMetrics] = useBrowseState<Record<string, EventMetrics>>(`${key}:metrics`, {});
+  const [events, setEvents] = useBrowseState<EventDTO[] | null>(`${key}:events`, null, { persist: false });
+  const [footprints, setFootprints] = useBrowseState<Footprints | null>(`${key}:footprints`, null, { persist: false });
+  const [metrics, setMetrics] = useBrowseState<Record<string, EventMetrics>>(`${key}:metrics`, {}, { persist: false });
   const [pendingEvents, setPendingEvents] = useState<EventDTO[] | null>(null);
   const [pendingFootprints, setPendingFootprints] = useState<Footprints | null>(null);
   const [pendingMetrics, setPendingMetrics] = useState<Record<string, EventMetrics> | null>(null);

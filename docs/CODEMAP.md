@@ -35,7 +35,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Activities, discovery, and detail
 
 - Recommendation/discovery page: `src/app/recommend/page.tsx`.
-- Cached browsing shell: `src/components/common/BrowsePage.tsx` — independent activity/check-in/metric reads, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains tab-local view state.
+- Cached browsing shell: `src/components/common/BrowsePage.tsx` — independent activity/check-in/metric reads, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains versioned tab-local UI state across navigation and reloads through `src/lib/browseSession.ts` while large content snapshots remain memory-only.
 - Deferred public activity metrics: `src/app/api/events/metrics/route.ts` — bounded IDs and database-aggregated reaction/click counts.
 - Feed and filters: `src/components/Recommend/RecommendList.tsx`.
 - Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx`.
@@ -331,6 +331,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `WeatherPanel.tsx` — current/forecast weather UI.
 
 - Recommendation ranking: `src/lib/recommendationRank.ts` — deterministic time, distance, explicit-intent, engagement, and content-quality scoring with concise explanation labels.
+- Mobile regression baseline: `docs/MOBILE_REGRESSION.md`; executable state and recommendation checks: `npm run test:regression`.
 
 ### `src/components/Me/`
 
