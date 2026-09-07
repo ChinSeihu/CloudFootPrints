@@ -92,8 +92,12 @@ function safeParse(text: string): unknown {
   }
 }
 
+/**
+ * Signature: `function clampText(text: string | undefined, max: number): string`
+ * Purpose: Truncates text by Unicode code points so prompt construction never splits an emoji surrogate pair.
+ */
 function clampText(text: string | undefined, max: number): string {
-  return (text ?? "").trim().slice(0, max);
+  return Array.from((text ?? "").trim()).slice(0, max).join("");
 }
 
 function seeded(key: string): () => number {
@@ -175,11 +179,11 @@ function buildPrompt(input: {
 }) {
   const candidates = input.candidates.map((c) => {
     const by = c.authorUsername ? ` by ${c.authorUsername}` : "";
-    return `- ${c.kind}:${c.id}${by} | ${c.title}${c.description ? ` | ${c.description.slice(0, 80)}` : ""}`;
+    return `- ${c.kind}:${c.id}${by} | ${c.title}${c.description ? ` | ${clampText(c.description, 80)}` : ""}`;
   }).join("\n") || "(none)";
   const replies = input.replies.map((c) => {
     const by = c.commentAuthorUsername ? ` by ${c.commentAuthorUsername}` : "";
-    return `- ${c.kind}:${c.id} comment:${c.commentId}${by} | ${c.title} | ${c.commentText.slice(0, 80)}`;
+    return `- ${c.kind}:${c.id} comment:${c.commentId}${by} | ${c.title} | ${clampText(c.commentText, 80)}`;
   }).join("\n") || "(none)";
   const memories = input.recentMemories.map((m) => `- ${m}`).join("\n") || "(none)";
   const own = input.recentOwnPosts.map((m) => `- ${m}`).join("\n") || "(none)";
@@ -683,16 +687,24 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
       continue;
     }
 
-    let decision = await callSocialLLM({
-      persona,
-      dateKey,
-      world,
-      recentMemories: recentMemories.map((m) => m.text),
-      recentOwnPosts: recentOwnPosts.map((p) => `${p.title}: ${p.description ?? ""}`),
-      candidates: candidates.filter((c) => c.authorUsername !== username).slice(0, 28),
-      replies: replies.filter((r) => r.commentAuthorUsername !== username).slice(0, 18),
-      preferPost: needPost,
-    });
+    let decision: SocialDecision;
+    try {
+      decision = await callSocialLLM({
+        persona,
+        dateKey,
+        world,
+        recentMemories: recentMemories.map((m) => m.text),
+        recentOwnPosts: recentOwnPosts.map((p) => `${p.title}: ${p.description ?? ""}`),
+        candidates: candidates.filter((c) => c.authorUsername !== username).slice(0, 28),
+        replies: replies.filter((r) => r.commentAuthorUsername !== username).slice(0, 18),
+        preferPost: needPost,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`social persona ${username} @ ${dateKey} failed: ${message}`);
+      result.notes.push(`${username}: social generation failed`);
+      continue;
+    }
 
     if (needPost && decision.action !== "post") decision = fallbackPost(persona);
 
