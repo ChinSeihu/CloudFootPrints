@@ -563,14 +563,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     if (event.postKind === "LIFE") return null;
     return (
       <div className="space-y-2">
-        <div className={`grid gap-2 ${isUserPost ? "grid-cols-2" : "grid-cols-3"}`}>
+        <div className={`grid gap-1.5 ${isUserPost ? "grid-cols-2" : "grid-cols-3"}`}>
           <button type="button" onClick={toggleWant} disabled={!!user && wantLoadedKey !== `${user.id}:${event.id}`} aria-pressed={!!user && wantedId === event.id}
-            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
-            <span className={`transition-transform duration-300 ${wantPulse ? "scale-125" : "scale-100"}`}><IconHeart filled={!!user && wantedId === event.id} className="h-4 w-4" /></span>
+            className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
+            <span className={`transition-transform duration-300 ${wantPulse ? "scale-125" : "scale-100"}`}><IconHeart filled={!!user && wantedId === event.id} className="h-3.5 w-3.5" /></span>
             <span aria-live="polite">{user && wantedId === event.id ? "已想去" : "想去"}</span>
           </button>
-          <button type="button" onClick={jumpToMap} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-2 text-sm font-bold text-white"><IconMap className="h-4 w-4" />{isUserPost ? "规划出发路线" : "路线"}</button>
-          {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-indigo-50 px-2 text-sm font-bold text-indigo-700"><IconSparkles className="h-4 w-4" />AI 导游</button>}
+          <button type="button" onClick={jumpToMap} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-violet-600 px-1.5 text-xs font-bold text-white"><IconMap className="h-3.5 w-3.5" />{isUserPost ? "规划出发路线" : "路线"}</button>
+          {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-indigo-50 px-1.5 text-xs font-bold text-indigo-700"><IconSparkles className="h-3.5 w-3.5" />AI 导游</button>}
         </div>
         <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600">
           <p>{event.signupEnabled ? "此活动开放站内报名；门票及入场要求请向发布者确认。" : "预约、票价及入场时段以活动来源的最新说明为准。"}</p>
