@@ -492,7 +492,6 @@ export function MapExplorer() {
   type LinePanelState = { station: { name: string; lat: number; lng: number }; line: PanelLine };
   const [linePanel, setLinePanel] = useState<LinePanelState | null>(null);
   const openLinePanelRef = useRef<(p: LinePanelState) => void>(() => {});
-  useEffect(() => { openLinePanelRef.current = (p) => setLinePanel(p); });
   const linesRef = useRef<Map<string, LineDetail>>(new Map()); // 线路名 → 详情（来自 lines.json）
   const stationCoordRef = useRef<Map<string, [number, number]>>(new Map()); // 站名 → [lng,lat]
   const stationNamesRef = useRef<string[]>([]); // 全部站名（换乘导航搜目的站用）
@@ -501,7 +500,6 @@ export function MapExplorer() {
   type RouteInit = { from?: RoutePlace; to?: RoutePlace };
   const [routePanel, setRoutePanel] = useState<RouteInit | null>(null);
   const openRouteRef = useRef<(init: RouteInit) => void>(() => {});
-  useEffect(() => { openRouteRef.current = (init) => setRoutePanel(init); });
 
   // 导航时隐藏活动图层（聚合/单点/标注），避免画面太乱；关闭后恢复。
   useEffect(() => {
@@ -568,9 +566,28 @@ export function MapExplorer() {
   const openTargetCheckinRef = useRef<(target: NonNullable<PlacementTarget>) => void>(() => {});
   const pulseRafRef = useRef<number | null>(null);
   const activeMapPopupRef = useRef<maplibregl.Popup | null>(null);
+  const modalMapSurfaceRef = useRef(false);
 
-  /** Keeps every MapLibre feature type on one shared popup surface. */
+  /**
+   * Signature: `closeActiveMapPopup(): void`
+   * Purpose: Removes the current native map popup and synchronizes its React visibility state.
+   */
+  const closeActiveMapPopup = useCallback(() => {
+    const popup = activeMapPopupRef.current;
+    activeMapPopupRef.current = null;
+    popup?.remove();
+    setMapPopupOpen(false);
+  }, []);
+
+  /**
+   * Signature: `activateMapPopup(popup: maplibregl.Popup, map: maplibregl.Map): void`
+   * Purpose: Keeps every MapLibre feature type on one exclusive popup surface while modal map interfaces are inactive.
+   */
   const activateMapPopup = useCallback((popup: maplibregl.Popup, map: maplibregl.Map) => {
+    if (modalMapSurfaceRef.current) {
+      popup.remove();
+      return;
+    }
     const previous = activeMapPopupRef.current;
     activeMapPopupRef.current = popup;
     if (previous && previous !== popup) previous.remove();
@@ -583,18 +600,56 @@ export function MapExplorer() {
     setFoodMenuOpen(false);
     setMapMenuOpen(false);
     setPublishMenuOpen(false);
+    setNearbyCardOpen(false);
     setMapPopupOpen(true);
   }, []);
+
+  /**
+   * Signature: `setNearbyRecommendationsOpen(open: boolean): void`
+   * Purpose: Opens nearby recommendations as the sole active map surface and dismisses transient map chrome.
+   */
+  const setNearbyRecommendationsOpen = useCallback((open: boolean) => {
+    if (open && modalMapSurfaceRef.current) return;
+    if (open) {
+      closeActiveMapPopup();
+      setFoodMenuOpen(false);
+      setMapMenuOpen(false);
+      setPublishMenuOpen(false);
+    }
+    setNearbyCardOpen(open);
+  }, [closeActiveMapPopup]);
+
+  useEffect(() => {
+    modalMapSurfaceRef.current = publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null;
+  }, [dialogAt, linePanel, publishMenuOpen, routePanel]);
+
+  useEffect(() => {
+    openLinePanelRef.current = (panel) => {
+      closeActiveMapPopup();
+      setNearbyCardOpen(false);
+      setRoutePanel(null);
+      setLinePanel(panel);
+    };
+    openRouteRef.current = (initial) => {
+      closeActiveMapPopup();
+      setNearbyCardOpen(false);
+      setLinePanel(null);
+      setRoutePanel(initial);
+    };
+  }, [closeActiveMapPopup]);
+
+  const nearbySurfaceOpen = !suppressNearbyCard && nearbyCardOpen && !routePanel && !dialogAt && !linePanel;
+  const mapSurfaceOpen = mapPopupOpen || nearbySurfaceOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null;
 
   useEffect(() => {
     const controls = mapRef.current?.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
     if (!controls) return;
     controls.style.transition = "opacity 280ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1)";
-    controls.style.pointerEvents = mapPopupOpen ? "none" : "";
-    controls.style.opacity = mapPopupOpen ? "0" : "1";
-    controls.style.transform = mapPopupOpen ? "translateX(3rem)" : "translateX(0)";
-    controls.inert = mapPopupOpen;
-    if (mapPopupOpen) controls.setAttribute("aria-hidden", "true");
+    controls.style.pointerEvents = mapSurfaceOpen ? "none" : "";
+    controls.style.opacity = mapSurfaceOpen ? "0" : "1";
+    controls.style.transform = mapSurfaceOpen ? "translateX(3rem)" : "translateX(0)";
+    controls.inert = mapSurfaceOpen;
+    if (mapSurfaceOpen) controls.setAttribute("aria-hidden", "true");
     else controls.removeAttribute("aria-hidden");
     return () => {
       controls.style.removeProperty("transition");
@@ -604,7 +659,7 @@ export function MapExplorer() {
       controls.inert = false;
       controls.removeAttribute("aria-hidden");
     };
-  }, [mapPopupOpen]);
+  }, [mapSurfaceOpen]);
 
   // 首屏等地图消费深链后再显示推荐；后续由路线/发布面板自身的显隐控制。
 
@@ -722,7 +777,7 @@ export function MapExplorer() {
       el.setAttribute("aria-label", "展开锚点周边活动");
       el.innerHTML = `<span class="tem-explore-dot"></span>`;
       const openAnchorRecommendations = () => {
-        setNearbyCardOpen(true);
+        setNearbyRecommendationsOpen(true);
       };
       el.addEventListener("click", openAnchorRecommendations);
       el.addEventListener("keydown", (event) => {
@@ -735,7 +790,7 @@ export function MapExplorer() {
     } else {
       exploreMarkerRef.current.setLngLat(lngLat);
     }
-  }, [exploreAnchor, mapReady]);
+  }, [exploreAnchor, mapReady, setNearbyRecommendationsOpen]);
 
   // 卸载时停止呼吸动效
   useEffect(() => () => {
@@ -2093,6 +2148,11 @@ export function MapExplorer() {
     const map = mapRef.current;
     const mlg = maplibreRef.current;
     if (!map || !mlg || placingRef.current) return;
+    closeActiveMapPopup();
+    setNearbyCardOpen(false);
+    setFoodMenuOpen(false);
+    setMapMenuOpen(false);
+    setPublishMenuOpen(false);
     const container = map.getContainer();
     const current = userLocationRef.current ?? userLocation;
     const anchorScreenY = container.clientHeight * 0.22;
@@ -2379,28 +2439,28 @@ export function MapExplorer() {
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
       {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
       <div
-        aria-hidden={mapPopupOpen}
-        inert={mapPopupOpen}
-        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
+        aria-hidden={mapSurfaceOpen}
+        inert={mapSurfaceOpen}
+        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapSurfaceOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
       >
         <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
       </div>
       <div
-        aria-hidden={mapPopupOpen}
-        inert={mapPopupOpen}
-        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
+        aria-hidden={mapSurfaceOpen}
+        inert={mapSurfaceOpen}
+        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapSurfaceOpen ? "translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
       >
         <WeatherPanel />
       </div>
 
       <div
-        aria-hidden={mapPopupOpen}
-        inert={mapPopupOpen}
-        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapPopupOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={mapSurfaceOpen}
+        inert={mapSurfaceOpen}
+        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapSurfaceOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
       >
         <div className="pointer-events-auto mx-auto grid max-w-[27rem] grid-cols-7 items-center gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-3 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative min-w-0">
-            <button type="button" onClick={() => setFoodMenuOpen((v) => !v)} className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
+            <button type="button" onClick={() => { setFoodMenuOpen((v) => !v); setMapMenuOpen(false); setPublishMenuOpen(false); }} className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-neutral-700">
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 3v6a2 2 0 0 0 4 0V3" /><path d="M6 9v12" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9" /></svg>
               </span>
@@ -2438,6 +2498,8 @@ export function MapExplorer() {
             <button
               type="button"
               onClick={() => {
+                closeActiveMapPopup();
+                setNearbyCardOpen(false);
                 setPublishMenuOpen((v) => !v);
                 setMapMenuOpen(false);
                 setFoodMenuOpen(false);
@@ -2585,9 +2647,9 @@ export function MapExplorer() {
       )}
 
       <div
-        aria-hidden={mapPopupOpen}
-        inert={mapPopupOpen}
-        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={mapPopupOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null}
+        inert={mapPopupOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null}
+        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen || publishMenuOpen || dialogAt || linePanel || routePanel ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
       >
         {!suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
           <PopularCard
@@ -2595,7 +2657,7 @@ export function MapExplorer() {
             center={exploreAnchor ?? center}
             open={nearbyCardOpen}
             anchored={!!exploreAnchor}
-            onOpenChange={setNearbyCardOpen}
+            onOpenChange={setNearbyRecommendationsOpen}
             onClearAnchor={() => setExploreAnchor(null)}
             onResetFilters={() => setFilters({ categories: new Set(), dateRange: ALL_DATES, mineOnly: false, showExpired: false })}
             onExpandArea={() => { setExploreAnchor(null); mapRef.current?.zoomOut(); }}
