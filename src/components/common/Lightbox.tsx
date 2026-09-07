@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
-// 图片放大查看：全屏黑底，点背景/×关闭；多图时左右切换。
+/**
+ * Signature: `function Lightbox({ images, index, onClose }: { images: string[]; index?: number; onClose: () => void }): React.JSX.Element | null`
+ * Purpose: Renders a viewport-level image gallery with backdrop close, buttons, and keyboard navigation.
+ */
 export function Lightbox({
   images,
   index = 0,
@@ -25,18 +29,21 @@ export function Lightbox({
     return () => document.removeEventListener("keydown", onKey);
   }, [n, onClose]);
 
-  if (n === 0) return null;
+  if (n === 0 || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[1100] bg-black/90 flex items-center justify-center"
+      className="fixed inset-0 z-[2200] flex items-center justify-center bg-black/90 px-4 py-16 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="图片预览"
       onClick={onClose}
     >
       <button
         type="button"
         onClick={onClose}
-        aria-label="关闭"
-        className="absolute top-4 right-4 w-10 h-10 grid place-items-center rounded-full bg-white/10 text-white text-2xl leading-none"
+        aria-label="关闭图片预览"
+        className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-white/15 text-2xl leading-none text-white backdrop-blur transition hover:bg-white/25"
       >
         ×
       </button>
@@ -44,8 +51,9 @@ export function Lightbox({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={images[i]}
-        alt=""
-        className="max-w-[94vw] max-h-[88vh] object-contain select-none"
+        alt={`预览图片 ${i + 1}`}
+        draggable={false}
+        className="max-h-full max-w-full select-none object-contain"
         onClick={(e) => e.stopPropagation()}
       />
 
@@ -54,24 +62,25 @@ export function Lightbox({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setI((v) => (v - 1 + n) % n); }}
-            aria-label="上一张"
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/10 text-white text-2xl"
+            aria-label="上一张图片"
+            className="absolute left-3 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 text-3xl text-white backdrop-blur transition hover:bg-white/25"
           >
             ‹
           </button>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setI((v) => (v + 1) % n); }}
-            aria-label="下一张"
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center rounded-full bg-white/10 text-white text-2xl"
+            aria-label="下一张图片"
+            className="absolute right-3 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/15 text-3xl text-white backdrop-blur transition hover:bg-white/25"
           >
             ›
           </button>
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/80 text-xs bg-white/10 rounded-full px-3 py-1">
+          <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-white/90">
             {i + 1} / {n}
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { Lightbox } from "./Lightbox";
 
 type SortableImageListProps = {
   images: string[];
@@ -12,9 +13,19 @@ type SortableImageListProps = {
   addPosition?: "start" | "end";
 };
 
+type PointerSession = {
+  pointerId: number;
+  index: number;
+  startX: number;
+  startY: number;
+  dragging: boolean;
+};
+
+const DRAG_THRESHOLD = 6;
+
 /**
  * Signature: `function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number): T[]`
- * Purpose: Returns a copy with one image moved while preserving the order of every other item.
+ * Purpose: Returns a copy with one image inserted at a new position while preserving every other item's order.
  */
 export function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) return items;
@@ -26,86 +37,94 @@ export function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number)
 
 /**
  * Signature: `function SortableImageList({ images, onMove, onRemove, layout, columns, addControl, addPosition }: SortableImageListProps): React.JSX.Element`
- * Purpose: Renders uploaded images that can be reordered by mouse drag, touch drag handle, or keyboard arrows.
+ * Purpose: Renders images with whole-tile pointer insertion, animated reflow, keyboard reordering, removal, and fullscreen preview.
  */
-export function SortableImageList({
-  images,
-  onMove,
-  onRemove,
-  layout = "grid",
-  columns = 3,
-  addControl,
-  addPosition = "end",
-}: SortableImageListProps) {
+export function SortableImageList({ images, onMove, onRemove, layout = "grid", columns = 3, addControl, addPosition = "end" }: SortableImageListProps) {
   const activeIndexRef = useRef<number | null>(null);
+  const pointerSessionRef = useRef<PointerSession | null>(null);
+  const tileRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousRectsRef = useRef(new Map<string, DOMRect>());
+  const animateNextLayoutRef = useRef(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  /**
-   * Signature: `function begin(index: number): void`
-   * Purpose: Starts a reorder gesture from the selected image index.
-   */
+  useLayoutEffect(() => {
+    if (!animateNextLayoutRef.current) return;
+    animateNextLayoutRef.current = false;
+    for (const [src, tile] of tileRefs.current) {
+      const previous = previousRectsRef.current.get(src);
+      if (!previous) continue;
+      const current = tile.getBoundingClientRect();
+      const deltaX = previous.left - current.left;
+      const deltaY = previous.top - current.top;
+      if (deltaX === 0 && deltaY === 0) continue;
+      tile.animate(
+        [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: "translate(0, 0)" }],
+        { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+    }
+  }, [images]);
+
+  function captureRects() {
+    previousRectsRef.current = new Map([...tileRefs.current].map(([src, tile]) => [src, tile.getBoundingClientRect()]));
+    animateNextLayoutRef.current = true;
+  }
+
   function begin(index: number) {
     activeIndexRef.current = index;
     setDraggingIndex(index);
   }
 
-  /**
-   * Signature: `function moveTo(toIndex: number): void`
-   * Purpose: Moves the active image to a newly crossed list position.
-   */
   function moveTo(toIndex: number) {
     const fromIndex = activeIndexRef.current;
     if (fromIndex === null || fromIndex === toIndex) return;
+    captureRects();
     onMove(fromIndex, toIndex);
     activeIndexRef.current = toIndex;
     setDraggingIndex(toIndex);
   }
 
-  /**
-   * Signature: `function finish(): void`
-   * Purpose: Clears transient reorder state when a drag gesture ends.
-   */
   function finish() {
     activeIndexRef.current = null;
+    pointerSessionRef.current = null;
     setDraggingIndex(null);
   }
 
-  /**
-   * Signature: `function handleDragStart(event: DragEvent<HTMLDivElement>, index: number): void`
-   * Purpose: Initializes native mouse drag metadata for an image tile.
-   */
-  function handleDragStart(event: DragEvent<HTMLDivElement>, index: number) {
-    begin(index);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-  }
-
-  /**
-   * Signature: `function handlePointerDown(event: PointerEvent<HTMLButtonElement>, index: number): void`
-   * Purpose: Captures a touch or pen gesture from the visible reorder handle.
-   */
-  function handlePointerDown(event: PointerEvent<HTMLButtonElement>, index: number) {
-    event.preventDefault();
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>, index: number) {
+    if ((event.target as HTMLElement).closest("button")) return;
+    pointerSessionRef.current = { pointerId: event.pointerId, index, startX: event.clientX, startY: event.clientY, dragging: false };
     event.currentTarget.setPointerCapture(event.pointerId);
-    begin(index);
   }
 
-  /**
-   * Signature: `function handlePointerMove(event: PointerEvent<HTMLButtonElement>): void`
-   * Purpose: Reorders an image when a captured touch or pen crosses another tile.
-   */
-  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
-    if (activeIndexRef.current === null) return;
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const session = pointerSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
+    if (!session.dragging && distance >= DRAG_THRESHOLD && images.length > 1) {
+      session.dragging = true;
+      begin(session.index);
+    }
+    if (!session.dragging) return;
+    event.preventDefault();
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-sort-index]");
     const toIndex = Number(target?.dataset.sortIndex);
     if (Number.isInteger(toIndex)) moveTo(toIndex);
   }
 
-  /**
-   * Signature: `function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void`
-   * Purpose: Supports accessible image reordering through arrows, Home, and End.
-   */
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>, index: number) {
+    const session = pointerSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    const wasDragging = session.dragging;
+    finish();
+    if (!wasDragging) setPreviewIndex(index);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, index: number) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setPreviewIndex(index);
+      return;
+    }
     const target = event.key === "ArrowLeft" || event.key === "ArrowUp"
       ? index - 1
       : event.key === "ArrowRight" || event.key === "ArrowDown"
@@ -117,57 +136,45 @@ export function SortableImageList({
             : index;
     if (target === index || target < 0 || target >= images.length) return;
     event.preventDefault();
+    captureRects();
     onMove(index, target);
   }
 
   const imageNodes = images.map((src, index) => (
     <div
       key={src}
+      ref={(node) => { if (node) tileRefs.current.set(src, node); else tileRefs.current.delete(src); }}
       data-sort-index={index}
-      draggable={images.length > 1}
-      onDragStart={(event) => handleDragStart(event, index)}
-      onDragEnter={(event) => { event.preventDefault(); moveTo(index); }}
-      onDragOver={(event) => event.preventDefault()}
-      onDragEnd={finish}
-      className={`relative ${layout === "row" ? "h-24 w-24 shrink-0" : "aspect-square min-w-0"} transition ${draggingIndex === index ? "scale-[0.96] opacity-70 ring-2 ring-blue-400" : ""}`}
+      className={`relative select-none rounded-xl ${layout === "row" ? "h-24 w-24 shrink-0" : "aspect-square min-w-0"} transition-[box-shadow,opacity] ${draggingIndex === index ? "z-10 opacity-75 ring-2 ring-blue-500 shadow-lg" : ""}`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" className="h-full w-full rounded-xl object-cover" />
-      {index === 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">封面</span>}
-      <button
-        type="button"
-        onClick={() => onRemove(index)}
-        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur"
-        aria-label={`移除第 ${index + 1} 张图片`}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`预览第 ${index + 1} 张图片${images.length > 1 ? "，可拖动调整顺序" : ""}`}
+        onPointerDown={(event) => handlePointerDown(event, index)}
+        onPointerMove={handlePointerMove}
+        onPointerUp={(event) => handlePointerUp(event, index)}
+        onPointerCancel={finish}
+        onKeyDown={(event) => handleKeyDown(event, index)}
+        className={`h-full w-full overflow-hidden rounded-xl outline-none ${images.length > 1 ? "touch-none cursor-grab active:cursor-grabbing" : "cursor-zoom-in"} focus-visible:ring-2 focus-visible:ring-blue-500`}
       >
-        ×
-      </button>
-      {images.length > 1 && (
-        <button
-          type="button"
-          onPointerDown={(event) => handlePointerDown(event, index)}
-          onPointerMove={handlePointerMove}
-          onPointerUp={finish}
-          onPointerCancel={finish}
-          onKeyDown={(event) => handleKeyDown(event, index)}
-          className="absolute bottom-1.5 left-1.5 grid h-7 w-7 touch-none cursor-grab place-items-center rounded-lg bg-black/60 text-sm font-bold text-white shadow-sm backdrop-blur active:cursor-grabbing"
-          aria-label={`拖动第 ${index + 1} 张图片调整顺序`}
-          title="拖动调整顺序"
-        >
-          ⠿
-        </button>
-      )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover" />
+        {index === 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">封面</span>}
+      </div>
+      <button type="button" onClick={() => onRemove(index)} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur" aria-label={`移除第 ${index + 1} 张图片`}>×</button>
     </div>
   ));
 
   return (
     <div>
-      {images.length > 1 && <p className="mb-1.5 text-[11px] text-neutral-400">按住图片左下角拖动排序，第一张为封面</p>}
+      {images.length > 0 && <p className="mb-1.5 text-[11px] text-neutral-400">{images.length > 1 ? "直接拖动图片排序，轻点放大预览，第一张为封面" : "轻点图片放大预览"}</p>}
       <div className={layout === "row" ? "flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : `grid gap-2 ${columns === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         {addPosition === "start" && addControl}
         {imageNodes}
         {addPosition === "end" && addControl}
       </div>
+      {previewIndex !== null && <Lightbox images={images} index={previewIndex} onClose={() => setPreviewIndex(null)} />}
     </div>
   );
 }

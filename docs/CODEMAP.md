@@ -299,10 +299,10 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `CountBadge.tsx` — compact numeric badge.
 - `DateTimeField.tsx` — date/time form input.
 - `EventSource.tsx` — official/user source badges, filtering, and predicates.
-- `Lightbox.tsx` — fullscreen image viewer.
+- `Lightbox.tsx` — portal-based fullscreen image gallery with button and keyboard navigation.
 - `MoodSelector.tsx` — mood-tag selector.
 - `ShareButton.tsx` — Web Share/clipboard fallback action.
-- `SortableImageList.tsx` — shared mouse, touch-handle, and keyboard reordering for uploaded image previews.
+- `SortableImageList.tsx` — shared whole-image pointer and keyboard insertion reordering with animated reflow, removal, and fullscreen gallery preview for publishing and editing forms.
 
 ### `src/components/Guide/`
 
