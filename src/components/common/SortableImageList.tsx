@@ -7,6 +7,7 @@ type SortableImageListProps = {
   onMove: (fromIndex: number, toIndex: number) => void;
   onRemove: (index: number) => void;
   layout?: "row" | "grid";
+  columns?: 3 | 4;
   addControl?: ReactNode;
   addPosition?: "start" | "end";
 };
@@ -24,7 +25,7 @@ export function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number)
 }
 
 /**
- * Signature: `function SortableImageList({ images, onMove, onRemove, layout, addControl, addPosition }: SortableImageListProps): React.JSX.Element`
+ * Signature: `function SortableImageList({ images, onMove, onRemove, layout, columns, addControl, addPosition }: SortableImageListProps): React.JSX.Element`
  * Purpose: Renders uploaded images that can be reordered by mouse drag, touch drag handle, or keyboard arrows.
  */
 export function SortableImageList({
@@ -32,6 +33,7 @@ export function SortableImageList({
   onMove,
   onRemove,
   layout = "grid",
+  columns = 3,
   addControl,
   addPosition = "end",
 }: SortableImageListProps) {
@@ -161,7 +163,7 @@ export function SortableImageList({
   return (
     <div>
       {images.length > 1 && <p className="mb-1.5 text-[11px] text-neutral-400">按住图片左下角拖动排序，第一张为封面</p>}
-      <div className={layout === "row" ? "flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "grid grid-cols-3 gap-2"}>
+      <div className={layout === "row" ? "flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : `grid gap-2 ${columns === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         {addPosition === "start" && addControl}
         {imageNodes}
         {addPosition === "end" && addControl}

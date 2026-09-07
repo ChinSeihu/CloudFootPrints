@@ -8,12 +8,17 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "
 const UP_THRESHOLD = 56; // 上拉超过则展开
 const DOWN_THRESHOLD = 110; // 下拉超过则收起/关闭
 
+/**
+ * Signature: `function BottomSheet(props: { title: string; hint?: string; onClose: () => void; onSnapChange?: (snap: "peek" | "full") => void; busy?: ReactNode; footer?: ReactNode; children: ReactNode }): React.JSX.Element`
+ * Purpose: Hosts map publishing forms in a draggable sheet with an optional fixed action footer.
+ */
 export function BottomSheet({
   title,
   hint,
   onClose,
   onSnapChange,
   busy,
+  footer,
   children,
 }: {
   title: string;
@@ -21,6 +26,7 @@ export function BottomSheet({
   onClose: () => void;
   onSnapChange?: (snap: "peek" | "full") => void;
   busy?: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const [snap, setSnap] = useState<"peek" | "full">("peek");
@@ -61,14 +67,14 @@ export function BottomSheet({
     }
   }
 
-  const sheetHeight = snap === "peek" ? "56dvh" : "100dvh";
+  const sheetHeight = snap === "peek" ? "56dvh" : "calc(100dvh - 4.5rem - env(safe-area-inset-bottom))";
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[999] flex justify-center pointer-events-none">
+    <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[999] flex justify-center pointer-events-none">
       <div
         ref={sheetRef}
         aria-busy={!!busy}
-        className="relative flex w-full flex-col rounded-t-[2rem] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)] pointer-events-auto sm:max-w-md"
+        className="relative flex w-full flex-col rounded-t-3xl bg-white shadow-[0_-14px_45px_rgba(15,23,42,0.16)] pointer-events-auto sm:max-w-md"
         style={{
           height: sheetHeight,
           transform: dragY > 0 || snap === "peek" ? `translateY(${Math.max(0, dragY)}px)` : `translateY(${dragY}px)`,
@@ -81,7 +87,7 @@ export function BottomSheet({
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="关闭"
-          className="absolute right-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full bg-neutral-100 text-2xl leading-none text-neutral-500 shadow-sm hover:bg-neutral-200"
+          className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full bg-neutral-100 text-xl leading-none text-neutral-500 hover:bg-neutral-200"
         >
           ×
         </button>
@@ -91,23 +97,25 @@ export function BottomSheet({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          className="shrink-0 cursor-grab select-none px-6 pb-3 pt-4 touch-none active:cursor-grabbing"
+          className="shrink-0 cursor-grab select-none px-4 pb-2.5 pt-3 touch-none active:cursor-grabbing"
         >
-          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-300" />
+          <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-neutral-300" />
           <div className="flex items-start justify-between gap-3 pr-9">
             <div>
-              <h2 className="text-xl font-bold tracking-normal text-neutral-950">{title}</h2>
-              {hint && <p className="mt-1 text-xs leading-relaxed text-neutral-500">{hint}</p>}
+              <h2 className="text-lg font-bold tracking-normal text-neutral-950">{title}</h2>
+              {hint && <p className="mt-0.5 text-[11px] leading-relaxed text-neutral-500">{hint}</p>}
             </div>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-7 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {children}
         </div>
 
+        {footer && <div className="shrink-0 border-t border-neutral-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5">{footer}</div>}
+
         {busy && (
-          <div className="absolute inset-0 z-20 grid place-items-center rounded-t-[2rem] bg-white/80 px-6 backdrop-blur-sm">
+          <div className="absolute inset-0 z-20 grid place-items-center rounded-t-3xl bg-white/80 px-6 backdrop-blur-sm">
             <div className="w-full max-w-xs rounded-3xl border border-white bg-white px-5 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
               {busy}
             </div>

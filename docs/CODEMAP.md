@@ -314,17 +314,17 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/Map/`
 
 - `ActionFab.tsx` — legacy/standalone publish action FAB.
-- `BottomSheet.tsx` — draggable publishing sheet shell.
-- `CheckInDialog.tsx` — check-in draft form.
+- `BottomSheet.tsx` — draggable publishing sheet shell with a navigation-safe fixed action footer.
+- `CheckInDialog.tsx` — compact check-in draft form with collapsible activity association.
 - `DateRangeDropdown.tsx` — compact map date range control.
 - `Filters.tsx` — map filtering panel.
-- `formStyles.ts` — shared publishing-form class strings.
+- `formStyles.ts` — shared standard and compact publishing-form class strings.
 - `LinePanel.tsx` — station line departures, stops, and live train details.
 - `MapExplorer.tsx` — main map feature orchestrator and MapLibre layer/event owner.
 - `MapView.tsx` — MapLibre creation and bounds observer.
 - `markers.ts` — DOM marker factories.
 - `PopularCard.tsx` — anchor/center-based nearby event card and recommendation intents.
-- `PostDialog.tsx` — LIFE update / ACTIVITY post form with separate time semantics.
+- `PostDialog.tsx` — compact LIFE / ACTIVITY publishing form with separate time semantics and collapsible secondary fields.
 - `RoutePanel.tsx` — rail/walking route selection and presentation.
 - `StyleSwitcher.tsx` — map theme switcher.
 - `WeatherAnimation.tsx` — visual weather overlay.

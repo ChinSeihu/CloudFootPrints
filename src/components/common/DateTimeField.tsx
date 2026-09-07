@@ -9,6 +9,7 @@ type Props = {
   value: string; // "YYYY-MM-DDTHH:mm" 或 ""
   onChange: (v: string) => void;
   placeholder?: string;
+  align?: "left" | "right";
 };
 
 function parseYmd(s: string): Date {
@@ -32,9 +33,11 @@ function fmtDisplay(v: string): string {
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = ["00", "10", "20", "30", "40", "50"];
 
-// 风格统一的「日期+时间」选择器：触发按钮 + 弹出月历单选 + 时分下拉。
-// 输出 datetime-local 同款字符串 "YYYY-MM-DDTHH:mm"，兼容现有 toISO()。
-export function DateTimeField({ value, onChange, placeholder = "选择时间" }: Props) {
+/**
+ * Signature: `function DateTimeField({ value, onChange, placeholder, align }: Props): React.JSX.Element`
+ * Purpose: Selects a local date and time while allowing its calendar popup to align within narrow layouts.
+ */
+export function DateTimeField({ value, onChange, placeholder = "选择时间", align = "left" }: Props) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const { date, time } = splitValue(value);
@@ -122,7 +125,7 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间" }:
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1.5 w-[17rem] max-w-[82vw] rounded-xl border border-neutral-200 bg-white shadow-lg p-3">
+        <div className={`absolute z-30 mt-1.5 w-[17rem] max-w-[82vw] rounded-xl border border-neutral-200 bg-white p-3 shadow-lg ${align === "right" ? "right-0" : "left-0"}`}>
           {/* 月份导航 */}
           <div className="flex items-center justify-between mb-1.5">
             <button type="button" onClick={() => shiftMonth(-1)} className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100" aria-label="上个月">‹</button>
