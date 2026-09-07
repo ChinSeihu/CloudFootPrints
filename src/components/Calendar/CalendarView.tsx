@@ -229,12 +229,12 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
 
       <section className="rounded-[24px] bg-white px-4 pb-3 pt-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-black tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-10 w-10 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-10 rounded-full bg-neutral-50 px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-10 w-10 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-11 w-11 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
+            <h2 className="px-1 text-xl font-black tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-11 w-11 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
           </div>
+          <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-11 rounded-full bg-neutral-50 px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
         </div>
 
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
