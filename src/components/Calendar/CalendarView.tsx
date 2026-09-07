@@ -52,7 +52,7 @@ function heatColor(count: number, max: number): { backgroundColor: string; color
 
 /**
  * Signature: `function CalendarView({ events, refreshControl, refreshNotice }: { events: EventDTO[]; refreshControl?: ReactNode; refreshNotice?: string | null }): React.JSX.Element`
- * Purpose: Renders activities with a branded header while retaining the selected month, date and filters across navigation.
+ * Purpose: Renders a compact date navigator and layered horizontal activity cards while retaining calendar filters and navigation state.
  */
 export function CalendarView({ events, refreshControl, refreshNotice }: { events: EventDTO[]; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const todayKey = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }), []);
@@ -125,8 +125,8 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
     [byDate, monthDays],
   );
 
-  const selectedEvents = byDate.get(selected) ?? [];
   const { startingEvents, ongoingEvents } = useMemo(() => {
+    const selectedEvents = byDate.get(selected) ?? [];
     const starting: EventDTO[] = [];
     const ongoing: EventDTO[] = [];
     for (const ev of selectedEvents) {
@@ -134,8 +134,9 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
       else ongoing.push(ev);
     }
     const byTime = (a: EventDTO, b: EventDTO) => (a.startTime ?? "").localeCompare(b.startTime ?? "");
-    return { startingEvents: starting.sort(byTime), ongoingEvents: ongoing.sort(byTime) };
-  }, [selectedEvents, selected]);
+    const byEndTime = (a: EventDTO, b: EventDTO) => (a.endTime ?? "9999").localeCompare(b.endTime ?? "9999") || byTime(a, b);
+    return { startingEvents: starting.sort(byTime), ongoingEvents: ongoing.sort(byEndTime) };
+  }, [byDate, selected]);
 
   const previousDay = useRef({ selected, starting: startingEvents.length, ongoing: ongoingEvents.length });
   useEffect(() => {
@@ -226,17 +227,13 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         </div>
       )}
 
-      <section className="rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="inline-flex items-center gap-1.5">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-7 w-7 place-items-center rounded-full bg-neutral-50 text-neutral-500"><IconChevronLeft className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1)} className="rounded-full px-2 text-lg font-black text-neutral-950">{year}年 {month + 1}月</button>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-7 w-7 place-items-center rounded-full bg-neutral-50 text-neutral-500"><IconChevronRight className="h-3.5 w-3.5" /></button>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => shiftDay(-1)} aria-label="前一天" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronLeft className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-8 rounded-full bg-neutral-50 px-3 text-xs font-semibold text-neutral-600">今天</button>
-            <button type="button" onClick={() => shiftDay(1)} aria-label="后一天" className="grid h-8 w-8 place-items-center rounded-full bg-neutral-50 text-neutral-600"><IconChevronRight className="h-4 w-4" /></button>
+      <section className="rounded-[24px] bg-white px-4 pb-3 pt-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-black tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-10 w-10 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-10 rounded-full bg-neutral-50 px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-10 w-10 place-items-center rounded-full bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
           </div>
         </div>
 
@@ -255,7 +252,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 type="button"
                 onClick={() => setSelectedDate(key)}
                 title={info.holiday ?? undefined}
-                className={`relative flex h-14 w-11 shrink-0 flex-col items-center justify-center rounded-xl transition ${
+                className={`relative flex h-16 w-11 shrink-0 flex-col items-center justify-center rounded-2xl transition ${
                   active
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                     : info.holiday
@@ -266,24 +263,28 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 {info.holiday && <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-rose-500"}`} />}
                 <span className={`text-[10px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[info.weekday]}</span>
                 <span className="mt-0.5 text-base font-black">{Number(key.slice(8, 10))}</span>
-                <span className="mt-0.5 flex h-1.5 gap-0.5">{Array.from({ length: Math.min(3, count) }).map((_, i) => <span key={i} className={`h-1 w-1 rounded-full ${active ? "bg-white" : "bg-blue-500"}`} />)}</span>
+                <span
+                  className={`mt-1 h-1 rounded-full ${count === 0 ? "bg-transparent" : active ? "bg-white/80" : "bg-blue-500/70"}`}
+                  style={count > 0 ? { width: `${6 + Math.round((count / heatMax) * 10)}px` } : undefined}
+                />
               </button>
             );
           })}
         </div>
       </section>
 
-      <section className="mt-3 rounded-[22px] bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-black/5">
-        <div className="mb-3 flex items-center justify-between gap-2">
+      <section className="mt-4 px-1">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <div>
-            <h2 className="text-base font-black text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日{selected === todayKey && <span className="ml-1 text-xs text-blue-600">今天</span>}</h2>
+            <h2 className="text-lg font-black text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日</h2>
+            <p className="mt-0.5 text-xs text-neutral-400">周{WEEKDAYS[dayInfo(selected).weekday]}{selected === todayKey && " · 今天"}</p>
             {holidayName(selected) && <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{holidayName(selected)}</p>}
           </div>
           <div className="flex rounded-full bg-neutral-100 p-1">
             {(["starting", "ongoing"] as const).map((k) => {
               const active = dayTab === k;
               const count = k === "starting" ? startingEvents.length : ongoingEvents.length;
-              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${active ? "bg-blue-600 text-white" : "text-neutral-500"}`}>{k === "starting" ? "当天开始" : "展期中"} {count}</button>;
+              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-full px-3 py-2 text-xs font-semibold transition ${active ? "bg-blue-600 text-white shadow-sm" : "text-neutral-500"}`}>{k === "starting" ? "新开始" : "进行中"} {count}</button>;
             })}
           </div>
         </div>
@@ -301,20 +302,43 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
             </div>
           </div>
         ) : (
-          <ol className="relative space-y-2 border-l border-blue-100 pl-3">
+          <ol className="space-y-2.5">
             {shownEvents.map((ev) => {
               const meta = CATEGORY_META[ev.category];
+              const endKey = ev.endTime ? tokyoDateKey(ev.endTime) : null;
+              const selectedMs = Date.parse(`${selected}T00:00:00Z`);
+              const endMs = endKey ? Date.parse(`${endKey}T00:00:00Z`) : Number.NaN;
+              const daysUntilEnd = Number.isNaN(endMs) ? null : Math.round((endMs - selectedMs) / 86_400_000);
+              const endingSoon = dayTab === "ongoing" && daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 3;
+              const statusLabel = dayTab === "starting"
+                ? "今日开始"
+                : endingSoon
+                  ? daysUntilEnd === 0 ? "今天结束" : `${daysUntilEnd}天后结束`
+                  : null;
+              const endLabel = endKey ? `至 ${Number(endKey.slice(5, 7))}/${Number(endKey.slice(8, 10))}` : null;
               return (
                 <li key={ev.id} className="relative">
-                  <span className="absolute -left-[1.34rem] top-1.5 h-3 w-3 rounded-full border-2 border-white" style={{ backgroundColor: meta.color }} />
-                  <button type="button" onClick={() => setDetail(ev)} className="flex w-full gap-3 rounded-2xl text-left">
-                    <div className="w-11 shrink-0 text-xs font-black text-neutral-700">{dayTab === "ongoing" ? "展期" : fmtTime(ev.startTime)}</div>
-                    {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-16 w-20 shrink-0 rounded-xl object-cover" />}
-                    <div className="min-w-0 flex-1">
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}18` }}>{meta.label}</span>
-                      <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
-                      {ev.venueName && <p className="mt-1 flex items-center gap-1 truncate text-xs text-neutral-500"><IconPin className="h-3 w-3 shrink-0" />{ev.venueName}</p>}
+                  <button type="button" onClick={() => setDetail(ev)} className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-[20px] border border-black/5 bg-white p-2 pr-8 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.09)] ${endingSoon ? "border-l-4 border-l-amber-400" : ""}`}>
+                    {ev.imageUrl ? (
+                      <img src={ev.imageUrl} alt="" loading="lazy" className="h-[82px] w-24 shrink-0 rounded-[14px] object-cover" />
+                    ) : (
+                      <div className="grid h-[82px] w-24 shrink-0 place-items-center rounded-[14px]" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>
+                        <CategoryIcon category={ev.category} className="h-7 w-7" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 py-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{meta.label}</span>
+                        {statusLabel && <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${endingSoon ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{statusLabel}</span>}
+                        {dayTab === "starting" && <span className="ml-auto text-[11px] font-semibold text-neutral-400">{fmtTime(ev.startTime)}</span>}
+                      </div>
+                      <h3 className="mt-1.5 line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
+                      <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs text-neutral-500">
+                        {ev.venueName && <span className="flex min-w-0 flex-1 items-center gap-1 truncate"><IconPin className="h-3 w-3 shrink-0" />{ev.venueName}</span>}
+                        {endLabel && <span className="shrink-0 text-[11px] text-neutral-400">{endLabel}</span>}
+                      </div>
                     </div>
+                    <IconChevronRight className="absolute right-3 h-4 w-4 text-neutral-300 transition group-hover:translate-x-0.5 group-hover:text-neutral-500" />
                   </button>
                 </li>
               );
@@ -336,7 +360,6 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
             if (!key) return <span key={`blank-${i}`} />;
             const count = byDate.get(key)?.length ?? 0;
             const info = dayInfo(key);
-            const ratio = count / heatMax;
             const color = heatColor(count, heatMax);
             return (
               <button
