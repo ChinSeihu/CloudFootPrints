@@ -529,6 +529,7 @@ export function MapExplorer() {
     mineOnly: false,
     showExpired: false,
   });
+  const mineOnlyRef = useRef(filters.mineOnly);
   const [dialogAt, setDialogAt] = useState<{ lat: number; lng: number } | null>(null);
   const [mode, setMode] = useState<Mode>("checkin");
   const [checkinTarget, setCheckinTarget] = useState<PlacementTarget>(null);
@@ -814,12 +815,12 @@ export function MapExplorer() {
     const ignoreExpired = filters.showExpired || rangeIncludesPast(filters.dateRange);
     return events.filter(
       (ev) =>
-        (!filters.mineOnly || ev.sourceType === "USER") &&
+        (!filters.mineOnly || (ev.sourceType === "USER" && ev.author?.id === user?.id)) &&
         (filters.categories.size === 0 || filters.categories.has(ev.category)) &&
         (ignoreExpired || !isExpired(ev, now)) &&
         eventInDayRange(ev, filters.dateRange),
     );
-  }, [events, filters]);
+  }, [events, filters, user?.id]);
 
   const mapEvents = useMemo(
     () => filtered.filter((event) => {
@@ -910,7 +911,9 @@ export function MapExplorer() {
 
   const updateCheckinSource = useCallback(() => {
     const src = mapRef.current?.getSource("checkins") as maplibregl.GeoJSONSource | undefined;
-    const visibleCheckins = showUserCheckinsRef.current ? checkinsRef.current : [];
+    const visibleCheckins = showUserCheckinsRef.current
+      ? checkinsRef.current.filter((checkin) => !mineOnlyRef.current || checkin.isMine)
+      : [];
     src?.setData(checkinsToFC(visibleCheckins));
     const trail = mapRef.current?.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
     trail?.setData(checkinTrailToFC(visibleCheckins));
@@ -922,6 +925,11 @@ export function MapExplorer() {
     localStorage.setItem("tem_show_user_checkins", showUserCheckins ? "1" : "0");
     updateCheckinSource();
   }, [showUserCheckins, updateCheckinSource]);
+
+  useEffect(() => {
+    mineOnlyRef.current = filters.mineOnly;
+    updateCheckinSource();
+  }, [filters.mineOnly, updateCheckinSource]);
 
   const fetchCheckins = useCallback(async () => {
     try {
@@ -1472,19 +1480,25 @@ export function MapExplorer() {
     pulseRafRef.current = requestAnimationFrame(pulse);
   }, [activateMapPopup, setExploreAnchor]);
 
-  // ── 打卡聚合图层 ──
+  /**
+   * Signature: `setupCheckinClusters(map: maplibregl.Map, mlg: typeof maplibregl): void`
+   * Purpose: Creates the check-in cluster layers using the current visibility and account-only filters.
+   */
   const setupCheckinClusters = useCallback((map: maplibregl.Map, mlg: typeof maplibregl) => {
     if (map.getSource("checkins")) return;
+    const visibleCheckins = showUserCheckinsRef.current
+      ? checkinsRef.current.filter((checkin) => !mineOnlyRef.current || checkin.isMine)
+      : [];
     map.addSource("checkins", {
       type: "geojson",
-      data: checkinsToFC(checkinsRef.current),
+      data: checkinsToFC(visibleCheckins),
       cluster: true,
       clusterRadius: 36,
       clusterMaxZoom: 15,
     });
 
     // 足迹轨迹线（按时间连点），垫在所有足迹点之下；默认隐藏，由「足迹路线」开关控制。
-    map.addSource("checkin-trail", { type: "geojson", data: checkinTrailToFC(checkinsRef.current) });
+    map.addSource("checkin-trail", { type: "geojson", data: checkinTrailToFC(visibleCheckins) });
     map.addLayer({
       id: "checkin-trail",
       type: "line",
@@ -1515,7 +1529,7 @@ export function MapExplorer() {
         map.addImage("checkin-heart", cx.getImageData(0, 0, s, s), { pixelRatio: 2 });
       }
     }
-    loadCheckinPhotos(map, checkinsRef.current); // 注册有照片足迹的缩略图标
+    loadCheckinPhotos(map, visibleCheckins); // 注册有照片足迹的缩略图标
 
     map.addLayer({
       id: "checkin-cluster-halo",
