@@ -151,7 +151,7 @@ function EventHeroImage({ src }: { src: string }) {
 
 /**
  * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
- * Purpose: Renders activity details with account-backed want-to-go actions and type-appropriate life update interactions.
+ * Purpose: Renders activity details with zoomable hero images, account-backed want-to-go actions, and type-appropriate interactions.
  */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
@@ -901,22 +901,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         </div>
         <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
-            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
+            <button type="button" aria-label="放大查看活动图片" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
               <EventHeroImage key={hero} src={hero} />
             </button>
           ) : (
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
-          <div className="absolute bottom-9 left-4 right-4 text-white sm:bottom-16 sm:left-8 sm:right-8">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
+          <div className="pointer-events-none absolute bottom-9 left-4 right-4 text-white sm:bottom-16 sm:left-8 sm:right-8">
             <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
             <h1 className="max-w-[760px] text-[19px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>
             {event.summary || event.description ? <p className="mt-1.5 max-w-[740px] text-xs font-medium leading-5 drop-shadow-sm sm:mt-3 sm:text-base sm:leading-relaxed">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
           </div>
           {images.length > 0 && (
-            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-8 right-4 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-2.5 py-1 text-xs text-white backdrop-blur sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-base">
+            <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-8 right-4 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/70 sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
               <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              1/{images.length}
+              查看大图 · 1/{images.length}
             </button>
           )}
         </section>
