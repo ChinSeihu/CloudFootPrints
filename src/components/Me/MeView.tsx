@@ -787,7 +787,7 @@ function MeContent() {
                             <button
                               type="button"
                               onClick={() => router.push(buildJourneyMapUrl(p, "route"))}
-                              className="inline-flex items-center justify-center gap-1 rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                              className="inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
                             >
                               <IconMap className="h-3.5 w-3.5" />路线
                             </button>
@@ -795,9 +795,9 @@ function MeContent() {
                               type="button"
                               disabled={!journey.canCheckIn}
                               onClick={() => router.push(buildJourneyMapUrl(p, "checkin"))}
-                              className="rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
+                              className="min-w-0 whitespace-nowrap rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
                             >
-                              {journey.stage === "visited" ? "已留足迹" : journey.stage === "ended" ? "去过，留足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
+                              {journey.stage === "visited" ? "已留足迹" : journey.stage === "ended" ? "记足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
                             </button>
                           </div>
                         )}
