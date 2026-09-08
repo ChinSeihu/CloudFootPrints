@@ -546,6 +546,7 @@ export function MapExplorer() {
   const [showUserCheckins, setShowUserCheckins] = useState(() => typeof window === "undefined" || localStorage.getItem("tem_show_user_checkins") !== "0");
   const showUserCheckinsRef = useRef(showUserCheckins);
   const [showTrail, setShowTrail] = useState(false); // 足迹轨迹线
+  const [weatherOpen, setWeatherOpen] = useState(false);
   // 美食筛选：OFF=不显示，ALL=全部菜系，或某个菜系
   const [foodFilter, setFoodFilter] = useState<"OFF" | "ALL" | FoodKind>("ALL");
   const [foodMenuOpen, setFoodMenuOpen] = useState(false);
@@ -2457,20 +2458,29 @@ export function MapExplorer() {
         inert={mapSurfaceOpen}
         className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapSurfaceOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
       >
-        <Filters value={filters} onChange={setFilters} count={filtered.length} showTrail={showTrail} onShowTrailChange={setShowTrail} />
+        <Filters
+          value={filters}
+          onChange={setFilters}
+          count={filtered.length}
+          showTrail={showTrail}
+          onShowTrailChange={(next) => {
+            setShowTrail(next);
+            if (next) setFilters((current) => ({ ...current, mineOnly: true }));
+          }}
+        />
       </div>
       <div
         aria-hidden={mapSurfaceOpen}
         inert={mapSurfaceOpen}
         className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapSurfaceOpen ? "translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
       >
-        <WeatherPanel />
+        <WeatherPanel onOpenChange={setWeatherOpen} />
       </div>
 
       <div
-        aria-hidden={mapSurfaceOpen}
-        inert={mapSurfaceOpen}
-        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapSurfaceOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={mapSurfaceOpen || weatherOpen}
+        inert={mapSurfaceOpen || weatherOpen}
+        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapSurfaceOpen || weatherOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
       >
         <div className="pointer-events-auto mx-auto grid max-w-[27rem] grid-cols-7 items-center gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-3 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative min-w-0">

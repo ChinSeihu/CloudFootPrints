@@ -17,11 +17,15 @@ function dayShort(dateStr: string): string {
   return `${Number(dateStr.slice(5, 7))}/${Number(dateStr.slice(8, 10))}`;
 }
 
+type Props = {
+  onOpenChange?: (open: boolean) => void;
+};
+
 /**
- * Signature: `function WeatherPanel(): React.JSX.Element | null`
- * Purpose: Provides an independently clickable map-weather control and forecast panel without blocking map gestures in transparent areas.
+ * Signature: `function WeatherPanel(props: Props): React.JSX.Element | null`
+ * Purpose: Provides an independently clickable map-weather control and forecast panel while reporting its expanded state to the map shell.
  */
-export function WeatherPanel() {
+export function WeatherPanel({ onOpenChange }: Props) {
   const [data, setData] = useState<WeatherForecast | null>(null);
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -62,7 +66,11 @@ export function WeatherPanel() {
       {/* 天气按钮：缩放控件下方 */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((v) => {
+          const next = !v;
+          onOpenChange?.(next);
+          return next;
+        })}
         aria-label="天气"
         aria-pressed={open}
         className={`pointer-events-auto absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
