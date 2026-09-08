@@ -149,22 +149,37 @@ function MeContent() {
     return [...m.entries()];
   }, [checkins]);
 
-  // 消息未读：以「最后已读时间」之后产生的消息计未读（localStorage 按用户存）
-  const readKey = user ? `tem_replies_read_${user.id}` : null;
-  const [lastRead, setLastRead] = useState(0);
+  // 互动消息逐条记录已读；只打开分类或消息页不改变提醒状态。
+  const readKey = user ? `tem_interaction_read_v2_${user.id}` : null;
+  const [readInteractionIds, setReadInteractionIds] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     if (!readKey) return;
-    const v = localStorage.getItem(readKey);
-    queueMicrotask(() => setLastRead(v ? Number(v) : 0));
+    try {
+      const stored = JSON.parse(localStorage.getItem(readKey) ?? "[]") as unknown;
+      const ids = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string").slice(-300) : [];
+      queueMicrotask(() => setReadInteractionIds(new Set(ids)));
+    } catch {
+      queueMicrotask(() => setReadInteractionIds(new Set()));
+    }
   }, [readKey]);
   const unreadCount = useMemo(
-    () => notices.filter((n) => new Date(n.createdAt).getTime() > lastRead).length,
-    [notices, lastRead],
+    () => notices.filter((notice) => !readInteractionIds.has(notice.id)).length,
+    [notices, readInteractionIds],
   );
-  function markMessagesRead() {
-    const now = Date.now();
-    setLastRead(now);
-    if (readKey) localStorage.setItem(readKey, String(now));
+
+  /**
+   * Signature: `function markInteractionRead(id: string): void`
+   * Purpose: Marks only the interaction the user deliberately opened as read and retains a bounded account-scoped history.
+   */
+  function markInteractionRead(id: string) {
+    if (readInteractionIds.has(id)) return;
+    const nextIds = [...readInteractionIds, id].slice(-300);
+    setReadInteractionIds(new Set(nextIds));
+    try {
+      if (readKey) localStorage.setItem(readKey, JSON.stringify(nextIds));
+    } catch {
+      // 浏览器禁用本地存储时，本次页面内的已读状态仍然有效。
+    }
   }
 
   /**
@@ -176,12 +191,16 @@ function MeContent() {
       setTab("checkins");
       setOpenCheckinInteraction(notice.eventId);
       await loadCheckinInteractions(notice.eventId);
+      markInteractionRead(notice.id);
       window.setTimeout(() => document.getElementById(`checkin-${notice.eventId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
       return;
     }
     try {
       const d = await fetch(`/api/events/${notice.eventId}`).then((r) => (r.ok ? r.json() : null));
-      if (d?.event) setSelected(d.event);
+      if (d?.event) {
+        setSelected(d.event);
+        markInteractionRead(notice.id);
+      }
     } catch {
       /* 忽略 */
     }
@@ -372,10 +391,7 @@ function MeContent() {
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  setTab(key);
-                  if (isMsg) markMessagesRead();
-                }}
+                onClick={() => setTab(key)}
                 className={`relative inline-flex items-center justify-center gap-1.5 pb-2 text-[14px] transition ${
                   active ? "text-neutral-950 font-semibold" : "text-neutral-500"
                 }`}
@@ -794,9 +810,17 @@ function MeContent() {
           })()
         ) : (
           <>{/* 消息：私信 / 被回复 */}
-            <div className="mb-4 grid grid-cols-2 rounded-lg bg-neutral-100 p-1">
-              <button type="button" onClick={() => setMessageSub("direct")} className={`rounded-md py-2 text-xs font-bold ${messageSub === "direct" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-500"}`}>私信{directUnread > 0 ? ` ${directUnread}` : ""}</button>
-              <button type="button" onClick={() => { setMessageSub("activity"); markMessagesRead(); }} className={`rounded-md py-2 text-xs font-bold ${messageSub === "activity" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-500"}`}>互动{unreadCount > 0 ? ` ${unreadCount}` : ""}</button>
+            <div role="tablist" aria-label="消息分类" className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-neutral-100 p-1.5">
+              <button type="button" role="tab" aria-selected={messageSub === "direct"} onClick={() => setMessageSub("direct")} className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left transition ${messageSub === "direct" ? "bg-white text-neutral-950 shadow-sm ring-1 ring-black/5" : "text-neutral-500"}`}>
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 5h16v12H8l-4 3Z" /><path d="M8 9h8M8 13h5" /></svg></span>
+                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">私信</span><span className="block truncate text-[10px] text-neutral-400">一对一聊天</span></span>
+                {directUnread > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{Math.min(99, directUnread)}</span>}
+              </button>
+              <button type="button" role="tab" aria-selected={messageSub === "activity"} onClick={() => setMessageSub("activity")} className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left transition ${messageSub === "activity" ? "bg-white text-neutral-950 shadow-sm ring-1 ring-black/5" : "text-neutral-500"}`}>
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 21a9 9 0 1 0-9-9" /><path d="M3 16v5h5" /><path d="m8 12 2.5 2.5L16 9" /></svg></span>
+                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">互动</span><span className="block truncate text-[10px] text-neutral-400">评论 · 回复 · 点赞</span></span>
+                {unreadCount > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{Math.min(99, unreadCount)}</span>}
+              </button>
             </div>
             {messageSub === "direct" ? (
               <DirectMessages currentUserId={user!.id} initialConversations={conversations} initialTargetId={initialChatTarget} openNonce={chatOpenNonce} onUnreadChange={setDirectUnread} />
@@ -806,39 +830,43 @@ function MeContent() {
               <p className="text-sm text-neutral-500">还没有新消息。帖子和足迹收到评论、回复或点赞后，会出现在这里。</p>
             )}
             <ul className="space-y-2.5">
-              {notices.map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => openNotice(n)}
-                    className="w-full text-left rounded-xl border border-black/10 bg-white p-3 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Avatar user={n.author} size={28} />
-                      <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
-                      <span className="text-[11px] text-neutral-400 shrink-0">
-                        {n.type === "reply"
-                          ? "回复了你的评论"
-                          : n.type === "checkin_comment"
-                            ? "评论了你的足迹"
-                            : n.type === "checkin_like"
-                              ? "赞了你的足迹"
-                              : "评论了你的帖子"}
-                      </span>
-                      <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
-                        {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
-                      </span>
-                    </div>
-                    {n.type !== "checkin_like" && <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>}
-                    {n.type === "reply" && n.parentText && (
-                      <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
-                        你：{n.parentText}
-                      </p>
-                    )}
-                    <div className="text-[11px] text-blue-500 mt-1.5 truncate">{n.targetType === "checkin" ? "足迹" : "在"}《{n.eventTitle}》· 查看 ›</div>
-                  </button>
-                </li>
-              ))}
+              {notices.map((n) => {
+                const unread = !readInteractionIds.has(n.id);
+                return (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      onClick={() => openNotice(n)}
+                      className={`relative w-full rounded-xl border bg-white p-3 text-left transition-shadow hover:shadow-md ${unread ? "border-blue-200 shadow-[0_5px_16px_rgba(37,99,235,0.08)]" : "border-black/10"}`}
+                    >
+                      {unread && <span className="absolute right-2 top-2 size-2 rounded-full bg-blue-600" aria-label="未读" />}
+                      <div className="flex items-center gap-2 mb-1">
+                        <Avatar user={n.author} size={28} />
+                        <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
+                        <span className="text-[11px] text-neutral-400 shrink-0">
+                          {n.type === "reply"
+                            ? "回复了你的评论"
+                            : n.type === "checkin_comment"
+                              ? "评论了你的足迹"
+                              : n.type === "checkin_like"
+                                ? "赞了你的足迹"
+                                : "评论了你的帖子"}
+                        </span>
+                        <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
+                          {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
+                        </span>
+                      </div>
+                      {n.type !== "checkin_like" && <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>}
+                      {n.type === "reply" && n.parentText && (
+                        <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
+                          你：{n.parentText}
+                        </p>
+                      )}
+                      <div className="text-[11px] text-blue-500 mt-1.5 truncate">{n.targetType === "checkin" ? "足迹" : "在"}《{n.eventTitle}》· 查看 ›</div>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             </>
             )}
