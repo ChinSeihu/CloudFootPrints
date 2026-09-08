@@ -21,7 +21,7 @@ const ACTIVE_COLORS: Record<Exclude<MascotIdentity, "none">, string> = {
 
 /**
  * Signature: `function BottomNav(): React.JSX.Element`
- * Purpose: Renders character-led selection feedback or compact text navigation, retaining accessible active and focus states.
+ * Purpose: Renders character-led navigation and emits an active-tab reselect signal so page-owned overlays can return to their root view.
  */
 export function BottomNav() {
   const pathname = usePathname();
@@ -31,6 +31,17 @@ export function BottomNav() {
   const [pending, setPending] = useState<string | null>(null);
 
   const activeHref = pending && pending !== pathname ? pending : pathname;
+
+  /**
+   * Signature: `function handleTabClick(href: string): void`
+   * Purpose: Tracks pending navigation and announces a deliberate repeat click without coupling the global nav to page-local state.
+   */
+  function handleTabClick(href: string): void {
+    setPending(href);
+    if (href === pathname) {
+      window.dispatchEvent(new CustomEvent("tem:active-nav-reselect", { detail: { href } }));
+    }
+  }
 
   return (
     <nav
@@ -42,7 +53,7 @@ export function BottomNav() {
         const active = activeHref === tab.href;
         if (textOnly) return (
           <Link key={tab.href} href={tab.href}
-            onClick={() => setPending(tab.href)}
+            onClick={() => handleTabClick(tab.href)}
             onPointerEnter={() => router.prefetch(tab.href)}
             onTouchStart={() => router.prefetch(tab.href)}
             aria-current={active ? "page" : undefined}
@@ -55,7 +66,7 @@ export function BottomNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            onClick={() => setPending(tab.href)}
+            onClick={() => handleTabClick(tab.href)}
             onPointerEnter={() => router.prefetch(tab.href)}
             onTouchStart={() => router.prefetch(tab.href)}
             aria-current={active ? "page" : undefined}

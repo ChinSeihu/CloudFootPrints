@@ -212,7 +212,7 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
 
 /**
  * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
- * Purpose: Renders discovery and community feeds with a compact branded header and contextual refresh control.
+ * Purpose: Renders discovery and community feeds, including detail dismissal when the active Explore navigation tab is selected again.
  */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const router = useRouter();
@@ -264,6 +264,25 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
   const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
   const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
+
+  useEffect(() => {
+    /**
+     * Signature: `function handleActiveNavReselect(event: Event): void`
+     * Purpose: Returns the Explore page to its preserved feed when the user deliberately taps the already-active navigation tab.
+     */
+    function handleActiveNavReselect(event: Event): void {
+      const href = (event as CustomEvent<{ href?: string }>).detail?.href;
+      if (href !== "/recommend") return;
+      targetId.current = null;
+      setSelected(null);
+      setLoadingDetail(false);
+      setDetailLoadError(false);
+      setPreviewGallery(null);
+    }
+
+    window.addEventListener("tem:active-nav-reselect", handleActiveNavReselect);
+    return () => window.removeEventListener("tem:active-nav-reselect", handleActiveNavReselect);
+  }, []);
 
   useEffect(() => {
     if (!checkinMenuId) return;
