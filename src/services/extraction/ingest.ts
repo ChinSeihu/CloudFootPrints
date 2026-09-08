@@ -3,6 +3,7 @@ import { geocode } from "./geocode";
 import { normalizeAddressForGeocode } from "@/lib/llm";
 import { isSameEvent } from "@/lib/eventDedup";
 import type { ExtractedEvent, RawDocument } from "./types";
+import { findHighResolutionOfficialImage, isWalkerplusPage, isWalkerplusThumbnail } from "./officialImage";
 
 // 开关：用 LLM 把含建筑名/设施名的地址规范成标准住所，再交 GSI 地理编码（需 LLM key）。
 function geocodeLLMEnabled(): boolean {
@@ -232,10 +233,10 @@ export async function prefilterEventsForIngest(
   return { events: kept, stats };
 }
 
-// 把一批已抽取的活动（含来源元数据）落库：
-//  1) 必填校验  2) 地理编码（无地址或失败则跳过该条）  3) 简单去重  4) 写入。
-// 去重：用 (title + sourceUrl) 判同一条。**不含 startTime**——日期来源无时区，
-// 不同环境解析出的 UTC 时间会漂移，曾导致同一活动重复入库。多源融合去重留待后续。
+/**
+ * Signature: `async function ingestEvents(events: ExtractedEvent[], source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">, rawText?: string | null, options?: { countConsidered?: boolean }): Promise<IngestStats>`
+ * Purpose: Geocodes, deduplicates, enriches undersized official imagery, and persists one extracted event batch.
+ */
 export async function ingestEvents(
   events: ExtractedEvent[],
   source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">,
@@ -318,6 +319,12 @@ export async function ingestEvents(
       }
     }
 
+    let imageUrl = ev.imageUrl;
+    if (isWalkerplusThumbnail(imageUrl) && eventSourceUrl && !isWalkerplusPage(eventSourceUrl)) {
+      const officialImage = await findHighResolutionOfficialImage(eventSourceUrl);
+      if (officialImage) imageUrl = officialImage.url;
+    }
+
     await prisma.event.create({
       data: {
         title: ev.title,
@@ -327,7 +334,7 @@ export async function ingestEvents(
         venueName: ev.venueName,
         address: ev.address,
         tags: normalizeEventTags(ev.tags),
-        imageUrl: ev.imageUrl,
+        imageUrl,
         lat: coords.lat,
         lng: coords.lng,
         startTime,

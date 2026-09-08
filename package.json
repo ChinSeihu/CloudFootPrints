@@ -23,6 +23,7 @@
     "fetch:hotpepper": "tsx scripts/fetch-hotpepper.ts",
     "import:hotpepper": "tsx scripts/import-hotpepper-poi.ts",
     "images:foodspots": "tsx scripts/fetch-foodspot-images.mts",
+    "images:official-events": "tsx scripts/refresh-official-event-images.ts",
     "images:regenerate-date": "tsx scripts/regenerate-sim-images.ts",
     "cleanup:cloudinary": "tsx scripts/cleanup-cloudinary.ts"
   },

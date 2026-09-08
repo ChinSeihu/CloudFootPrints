@@ -221,6 +221,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `sim-reset.ts` — resets and reseeds simulation content.
 - `sim-run.ts` — CLI daily simulation entry.
 - `regenerate-sim-images.ts` — previews or replaces simulated post/check-in images created on one Tokyo date.
+- `refresh-official-event-images.ts` — previews or replaces stored WalkerPlus thumbnails with verified official-page images.
 - `split-posts.ts` — one-time Event-to-Post migration helper.
 - `sync-demo-users.ts` — synchronizes PersonaV2 definitions, state snapshots, and relationships into database users.
 - `eval/dataset.json` — extraction evaluation cases.
@@ -398,6 +399,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `geocode.ts` — GSI address normalization/geocoding and bounds checks.
 - `featured.ts` — daily featured-event selection.
 - `ingest.ts` — prefilter, deduplicate, enrich, and persist extracted events.
+- `officialImage.ts` — extracts and dimension-checks high-resolution images from official activity pages.
 - `sources/index.ts` — enabled source registry.
 - `sources/jsonLd.ts` — shared JSON-LD parser/classifier/mapper.
 - `sources/walkerplus.ts` — Walkerplus list/detail adapters, including sports/live variants.

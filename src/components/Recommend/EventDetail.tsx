@@ -124,6 +124,32 @@ function TinyLoading({ label = "加载中" }: { label?: string }) {
 }
 
 /**
+ * Signature: `function EventHeroImage({ src }: { src: string }): React.JSX.Element`
+ * Purpose: Keeps sufficiently large activity art edge-to-edge while presenting undersized source images without visibly pixelating them.
+ */
+function EventHeroImage({ src }: { src: string }) {
+  const [undersized, setUndersized] = useState(false);
+  return (
+    <span className="relative block h-full w-full overflow-hidden bg-neutral-900">
+      {undersized ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl" />
+        </>
+      ) : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        decoding="async"
+        onLoad={(event) => setUndersized(event.currentTarget.naturalWidth < event.currentTarget.clientWidth * 0.8)}
+        className={undersized ? "relative h-full w-full object-contain" : "h-full w-full object-cover"}
+      />
+    </span>
+  );
+}
+
+/**
  * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
  * Purpose: Renders activity details with account-backed want-to-go actions and type-appropriate life update interactions.
  */
@@ -876,8 +902,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={hero} alt="" className="h-full w-full object-cover" />
+              <EventHeroImage key={hero} src={hero} />
             </button>
           ) : (
             <div className="h-full w-full bg-gradient-to-br from-blue-500 via-emerald-300 to-violet-400" />
