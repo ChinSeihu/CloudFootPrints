@@ -17,8 +17,10 @@ function dayShort(dateStr: string): string {
   return `${Number(dateStr.slice(5, 7))}/${Number(dateStr.slice(8, 10))}`;
 }
 
-// 地图上的天气入口：按钮显示当前天气；点开后地图上层播放天气动画，
-// 底部出现可横向滑动的近 7 天天气卡片。
+/**
+ * Signature: `function WeatherPanel(): React.JSX.Element | null`
+ * Purpose: Provides an independently clickable map-weather control and forecast panel without blocking map gestures in transparent areas.
+ */
 export function WeatherPanel() {
   const [data, setData] = useState<WeatherForecast | null>(null);
   const [open, setOpen] = useState(false);
@@ -63,7 +65,7 @@ export function WeatherPanel() {
         onClick={() => setOpen((v) => !v)}
         aria-label="天气"
         aria-pressed={open}
-        className={`absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
+        className={`pointer-events-auto absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-800"
         }`}
       >
