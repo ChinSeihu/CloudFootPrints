@@ -642,16 +642,17 @@ export function MapExplorer() {
 
   const nearbySurfaceOpen = !suppressNearbyCard && nearbyCardOpen && !routePanel && !dialogAt && !linePanel;
   const mapSurfaceOpen = mapPopupOpen || nearbySurfaceOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null;
+  const mapChromeOpen = mapSurfaceOpen || weatherOpen;
 
   useEffect(() => {
     const controls = mapRef.current?.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
     if (!controls) return;
     controls.style.transition = "opacity 280ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1)";
-    controls.style.pointerEvents = mapSurfaceOpen ? "none" : "";
-    controls.style.opacity = mapSurfaceOpen ? "0" : "1";
-    controls.style.transform = mapSurfaceOpen ? "translateX(3rem)" : "translateX(0)";
-    controls.inert = mapSurfaceOpen;
-    if (mapSurfaceOpen) controls.setAttribute("aria-hidden", "true");
+    controls.style.pointerEvents = mapChromeOpen ? "none" : "";
+    controls.style.opacity = mapChromeOpen ? "0" : "1";
+    controls.style.transform = mapChromeOpen ? "translateX(3rem)" : "translateX(0)";
+    controls.inert = mapChromeOpen;
+    if (mapChromeOpen) controls.setAttribute("aria-hidden", "true");
     else controls.removeAttribute("aria-hidden");
     return () => {
       controls.style.removeProperty("transition");
@@ -661,7 +662,7 @@ export function MapExplorer() {
       controls.inert = false;
       controls.removeAttribute("aria-hidden");
     };
-  }, [mapSurfaceOpen]);
+  }, [mapChromeOpen]);
 
   // 首屏等地图消费深链后再显示推荐；后续由路线/发布面板自身的显隐控制。
 
@@ -2454,9 +2455,9 @@ export function MapExplorer() {
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
       {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
       <div
-        aria-hidden={mapSurfaceOpen}
-        inert={mapSurfaceOpen}
-        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapSurfaceOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
+        aria-hidden={mapChromeOpen}
+        inert={mapChromeOpen}
+        className={`pointer-events-none absolute inset-0 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapChromeOpen ? "-translate-x-12 opacity-0" : "translate-x-0 opacity-100"}`}
       >
         <Filters
           value={filters}
@@ -2478,9 +2479,9 @@ export function MapExplorer() {
       </div>
 
       <div
-        aria-hidden={mapSurfaceOpen || weatherOpen}
-        inert={mapSurfaceOpen || weatherOpen}
-        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapSurfaceOpen || weatherOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={mapChromeOpen}
+        inert={mapChromeOpen}
+        className={`absolute bottom-7 left-3 right-3 pointer-events-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapMenuOpen ? "z-[70]" : "z-[30]"} ${mapChromeOpen ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100"}`}
       >
         <div className="pointer-events-auto mx-auto grid max-w-[27rem] grid-cols-7 items-center gap-1 overflow-visible rounded-[24px] border border-white/80 bg-white/90 px-3 py-2 shadow-[0_12px_36px_rgba(15,23,42,0.14)] backdrop-blur-xl">
           <div className="relative min-w-0">
@@ -2671,11 +2672,11 @@ export function MapExplorer() {
       )}
 
       <div
-        aria-hidden={mapPopupOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null}
-        inert={mapPopupOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null}
-        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapPopupOpen || publishMenuOpen || dialogAt || linePanel || routePanel ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={mapChromeOpen}
+        inert={mapChromeOpen}
+        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapChromeOpen ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
       >
-        {!suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
+        {!weatherOpen && !suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
           <PopularCard
             events={filtered}
             center={exploreAnchor ?? center}
