@@ -643,6 +643,7 @@ export function MapExplorer() {
   const nearbySurfaceOpen = !suppressNearbyCard && nearbyCardOpen && !routePanel && !dialogAt && !linePanel;
   const mapSurfaceOpen = mapPopupOpen || nearbySurfaceOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null;
   const mapChromeOpen = mapSurfaceOpen || weatherOpen;
+  const nearbyCardHidden = mapPopupOpen || publishMenuOpen || dialogAt !== null || linePanel !== null || routePanel !== null || weatherOpen;
 
   useEffect(() => {
     const controls = mapRef.current?.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
@@ -2672,9 +2673,9 @@ export function MapExplorer() {
       )}
 
       <div
-        aria-hidden={mapChromeOpen}
-        inert={mapChromeOpen}
-        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${mapChromeOpen ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+        aria-hidden={nearbyCardHidden}
+        inert={nearbyCardHidden}
+        className={`pointer-events-none absolute inset-0 z-[40] transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${nearbyCardHidden ? "translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
       >
         {!weatherOpen && !suppressNearbyCard && !routePanel && !dialogAt && !linePanel && (
           <PopularCard
