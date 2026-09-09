@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { getMoonPhase } from "@/lib/moonPhase";
 import { LoadingScene, type LoadingSceneKind } from "./Mascot/LoadingScene";
 
 const DOTS = ["#2563eb", "#16a34a", "#db2777", "#ea580c", "#7c3aed"]; // 展览/市集/Live/祭典/讲座
@@ -17,11 +18,11 @@ export function PageLoading({ text = "正在加载…", scene, variant = "defaul
     return () => window.clearTimeout(timer);
   }, []);
   if (variant === "splash") {
+    const moonPhase = getMoonPhase();
     return (
-      <div className="fixed inset-0 z-[2000] grid place-items-center overflow-hidden bg-[#fbfaff] text-[#282447]" role="status" aria-busy="true">
-        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,rgba(232,228,255,.72),transparent_28%)]" />
-        <div className={`relative flex flex-col items-center transition-all duration-700 ease-out ${visible ? "scale-100 opacity-100" : "scale-[.96] opacity-0"}`}>
-          <Image src="/brand-mark.svg" alt="" width={128} height={128} priority className="h-28 w-28 drop-shadow-[0_18px_32px_rgba(86,70,180,.22)] md:h-32 md:w-32" />
+      <div className="fixed inset-0 z-[2000] grid place-items-center overflow-hidden bg-white text-[#282447]" role="status" aria-busy="true" data-moon-phase={moonPhase.key}>
+        <div className={`flex flex-col items-center transition-all duration-700 ease-out ${visible ? "scale-100 opacity-100" : "scale-[.96] opacity-0"}`}>
+          <Image src={moonPhase.asset} alt="" width={224} height={224} priority className="h-40 w-40 md:h-52 md:w-52" />
           <h1 className="mt-7 text-[2rem] font-semibold tracking-[.16em] text-[#302c49] md:text-[2.25rem]">云迹东京</h1>
           <p className="mt-2 text-xs tracking-[.28em] text-[#9690aa] md:text-sm">发现 · 出发 · 留下足迹</p>
           <div aria-label={text} className="mt-9 flex items-center gap-2">

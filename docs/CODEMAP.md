@@ -186,7 +186,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `public/`
 
-- `brand-mark.svg`, `brand-mark-512.png`, `brand-mark-192.png`, `brand-mark-180.png` — shared minimal Cloud Footprints logo source plus PWA and Apple launch icons.
+- `brand/moon-logos/*.png` — six user-supplied, white-backed moon-phase splash logos; `moon-logo-{180,192,512}.png` provide the static full-moon PWA/Apple launcher fallback.
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
 - `brand/mascots/` — archived character sheets, September 4 design reference, current user-supplied V4 menu atlas, historical V3 atlas, prompts, and asset guidance.
 
@@ -275,7 +275,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `ViewportHeightSync.tsx` — synchronizes the fixed app shell with the visible viewport after mobile PWA resume and system UI changes.
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, per-character publishing marks, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
-- `PageLoading.tsx` — delayed route-loading feedback plus the minimal logo-like initial brand splash; calendar/discovery use continuous IP scenes.
+- `PageLoading.tsx` — delayed route-loading feedback plus the date-selected moon-phase initial brand splash; calendar/discovery use continuous IP scenes.
 - `InstallPrompt.tsx` — browser-only desktop-install education, native install prompt handling, manual Safari guidance and dismissal memory; `public/sw.js` provides the installable app service-worker boundary.
 - `Mascot/MascotMotion.tsx`, `Mascot/MascotMotion.module.css` — scalable SVG portrait composition, continuous welcome motion, one-shot success and static idle feedback; replaces eight-frame playback.
 - `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar, discovery, album, route, note-taking, upload, painting and letter actions; four IP portraits, reduced-motion and hidden-tab handling.
