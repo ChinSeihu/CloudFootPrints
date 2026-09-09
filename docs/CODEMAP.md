@@ -275,7 +275,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `ViewportHeightSync.tsx` — synchronizes the fixed app shell with the visible viewport after mobile PWA resume and system UI changes.
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, per-character publishing marks, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.
-- `PageLoading.tsx` — delayed route-loading feedback; calendar/discovery use continuous IP scenes.
+- `PageLoading.tsx` — delayed route-loading feedback plus the minimal logo-like initial brand splash; calendar/discovery use continuous IP scenes.
 - `InstallPrompt.tsx` — browser-only desktop-install education, native install prompt handling, manual Safari guidance and dismissal memory; `public/sw.js` provides the installable app service-worker boundary.
 - `Mascot/MascotMotion.tsx`, `Mascot/MascotMotion.module.css` — scalable SVG portrait composition, continuous welcome motion, one-shot success and static idle feedback; replaces eight-frame playback.
 - `Mascot/LoadingScene.tsx`, `Mascot/LoadingScene.module.css` — layered calendar, discovery, album, route, note-taking, upload, painting and letter actions; four IP portraits, reduced-motion and hidden-tab handling.

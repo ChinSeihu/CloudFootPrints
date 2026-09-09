@@ -766,3 +766,5 @@
 - 修复依赖安装与 Turbopack 启动问题，建立早期本地开发路径。
 
 **主要文件：** `src/app/*`, `src/components/Map/*`, `src/components/Calendar/*`, `prisma/schema.prisma`, `package.json`
+### 极简品牌开屏
+- 首次打开网页时不再放大展示云足头像，改为“云朵与足迹”融合的极简品牌符号，配合云迹东京字标、短标语与轻量加载动效。
