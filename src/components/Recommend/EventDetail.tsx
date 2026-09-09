@@ -58,7 +58,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur transition active:scale-95 sm:h-9 sm:w-9",
+    "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-transparent text-neutral-900 transition active:scale-95 sm:h-9 sm:w-9",
     active && "text-rose-500",
   );
 }
