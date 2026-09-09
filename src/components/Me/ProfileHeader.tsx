@@ -48,7 +48,7 @@ function KnotIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
  */
 /**
  * Signature: `function ProfileHeader(): React.JSX.Element`
- * Purpose: Displays profile editing and follower lists with image-upload and message-loading feedback.
+ * Purpose: Displays profile editing and follower lists above global navigation with image-upload and message-loading feedback.
  */
 export function ProfileHeader() {
   const router = useRouter();
@@ -349,7 +349,7 @@ export function ProfileHeader() {
         </div>
       </div>
       {followMode && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-4 pb-4 backdrop-blur-sm" onClick={() => setFollowMode(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/35 px-4 pb-4 backdrop-blur-sm" onClick={() => setFollowMode(null)}>
           <div className="max-h-[72vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
               <div>
