@@ -151,7 +151,7 @@ function EventHeroImage({ src }: { src: string }) {
 
 /**
  * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
- * Purpose: Renders activity details with zoomable hero images, account-backed want-to-go actions, and type-appropriate interactions.
+ * Purpose: Renders full-screen activity details above global navigation with zoomable images, saved actions, and type-appropriate interactions.
  */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
   const router = useRouter();
@@ -726,7 +726,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   if (isUserPost) {
     return (
-      <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-50 overflow-y-auto bg-white">
+      <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
           <div className="sticky top-0 z-40 -mx-4 flex min-w-0 items-center bg-white/95 px-4 py-2 shadow-[0_6px_18px_rgba(15,23,42,0.06)] backdrop-blur sm:-mx-7 sm:px-7 sm:py-2.5">
             <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
