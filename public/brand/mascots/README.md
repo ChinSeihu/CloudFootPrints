@@ -34,7 +34,11 @@
 - 标准版与女性版需要保持相同角色职责和基础轮廓；调整动作、服装或发型时，不应改变角色身份。
 - 新增导出图时使用可读文件名，不要用生成任务 ID 覆盖这些最终稿。
 
-## 网站图标（2026-09-04）
+## 网站图标（2026-09-09）
+
+PWA 开屏、安装图标与网页标签统一使用 `public/brand-mark.svg` 中的“云朵与足迹”极简符号；PWA 位图为 `brand-mark-192.png`、`brand-mark-512.png`，Apple 图标为 `brand-mark-180.png`。旧云足头像图标保留为归档素材，不再由 manifest 引用。
+
+### 旧版云足头像图标（2026-09-04）
 
 使用内置 imagegen，以 `menu-user-v4.png` 第三行云足·晴空为参考生成头像；导出至 `public/brand-icon.png`（512）、`public/brand-icon-192.png`（192）、`public/apple-touch-icon.png`（180）和 `src/app/icon.png`（48）。
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="云迹东京">
+  <defs>
+    <linearGradient id="mark" x1="18" y1="14" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B7BE8"/>
+      <stop offset="1" stop-color="#6254C7"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="104" height="104" rx="32" fill="url(#mark)"/>
+  <circle cx="43" cy="43" r="7" fill="#fff"/>
+  <circle cx="60" cy="36" r="7" fill="#fff"/>
+  <circle cx="77" cy="43" r="7" fill="#fff"/>
+  <path d="M33 73c0-14 12-24 27-24s27 10 27 24c0 9-7 14-15 11-8-3-16-3-24 0-8 3-15-2-15-11Z" fill="#fff"/>
+  <path d="M42 75c11-5 25-5 36 0" fill="none" stroke="#D9D4FF" stroke-width="3" stroke-linecap="round"/>
+</svg>

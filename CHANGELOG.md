@@ -768,3 +768,4 @@
 **主要文件：** `src/app/*`, `src/components/Map/*`, `src/components/Calendar/*`, `prisma/schema.prisma`, `package.json`
 ### 极简品牌开屏
 - 首次打开网页时不再放大展示云足头像，改为“云朵与足迹”融合的极简品牌符号，配合云迹东京字标、短标语与轻量加载动效。
+- PWA manifest、标签页与 Apple 启动图标同步改用新的品牌符号，并通过新的资源路径避开旧云足图标缓存。

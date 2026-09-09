@@ -186,7 +186,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `public/`
 
-- `brand-icon.png`, `brand-icon-192.png`, `apple-touch-icon.png` — Kumoashi mascot install icons (512/192px) and Apple touch icon (180px).
+- `brand-mark.svg`, `brand-mark-512.png`, `brand-mark-192.png`, `brand-mark-180.png` — shared minimal Cloud Footprints logo source plus PWA and Apple launch icons.
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
 - `brand/mascots/` — archived character sheets, September 4 design reference, current user-supplied V4 menu atlas, historical V3 atlas, prompts, and asset guidance.
 
