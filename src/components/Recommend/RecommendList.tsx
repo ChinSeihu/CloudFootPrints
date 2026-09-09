@@ -496,7 +496,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const recommended = useMemo(() => {
     const flagged = rankedOfficial.filter((e) => e.featuredToday);
     const rest = rankedOfficial.filter((e) => !e.featuredToday);
-    return [...flagged, ...rest].slice(0, 18);
+    return [...flagged, ...rest].slice(0, 36);
   }, [rankedOfficial]);
 
   const activityList = useMemo(() => {

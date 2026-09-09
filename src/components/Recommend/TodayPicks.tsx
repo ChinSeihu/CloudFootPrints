@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { CATEGORY_META } from "@/lib/categories";
+import { getTokyoDayKey, selectDailyRecommendations } from "@/lib/dailyPicks";
 import type { EventDTO } from "@/lib/types";
 
 type PickFeedback = "pass";
@@ -38,7 +39,7 @@ type TodayPicksProps = {
 
 /**
  * Signature: `function TodayPicks({ events, onOpen }: TodayPicksProps): React.ReactElement | null`
- * Purpose: Presents daily recommendations, synchronizes account WANT reactions with details, and keeps dismissals device-local, and retains loaded picks to prevent return-navigation layout shifts.
+ * Purpose: Presents date-rotated recommendations, replaces wanted or dismissed cards immediately, and synchronizes account WANT reactions with details.
  */
 export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const router = useRouter();
@@ -50,6 +51,12 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [ready, setReady] = useBrowseState(`picks:${user?.id ?? "guest"}:ready`, false);
   const [wantsRevision, setWantsRevision] = useState(0);
+  const [dayKey, setDayKey] = useState(getTokyoDayKey);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDayKey(getTokyoDayKey()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const refresh = () => setWantsRevision((value) => value + 1);
@@ -91,38 +98,13 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   );
 
   const picks = useMemo(() => {
-    const likedCategories = new Map<EventDTO["category"], number>();
-    const likedTags = new Map<string, number>();
-    for (const event of user ? wantedEvents : []) {
-      likedCategories.set(event.category, (likedCategories.get(event.category) ?? 0) + 1);
-      for (const tag of event.tags) likedTags.set(tag, (likedTags.get(tag) ?? 0) + 1);
-    }
-
-    const ranked = events
-      .filter((event) => feedback[event.id] !== "pass")
-      .map((event, index) => ({
-        event,
-        score:
-          (events.length - index) * 2 +
-          (wantedIds.has(event.id) ? 40 : 0) +
-          (likedCategories.get(event.category) ?? 0) * 8 +
-          event.tags.reduce((sum, tag) => sum + (likedTags.get(tag) ?? 0) * 3, 0),
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    const selected: EventDTO[] = [];
-    for (const row of ranked) {
-      if (selected.length >= 3) break;
-      if (!selected.some((event) => event.category === row.event.category)) selected.push(row.event);
-    }
-    if (selected.length < 3) {
-      for (const row of ranked) {
-        if (selected.length >= 3) break;
-        if (!selected.some((event) => event.id === row.event.id)) selected.push(row.event);
-      }
-    }
-    return selected;
-  }, [events, wantedEvents, wantedIds, feedback, user]);
+    const excludedIds = new Set([...wantedIds, ...Object.keys(feedback)]);
+    return selectDailyRecommendations(events, {
+      dayKey,
+      excludedIds,
+      likedEvents: user ? wantedEvents : [],
+    });
+  }, [events, wantedEvents, wantedIds, feedback, user, dayKey]);
 
   if (!ready || picks.length === 0) return null;
 
