@@ -79,6 +79,7 @@ export type DecideInput = {
   goals: string[];
   goalStates: GoalState[];
   dailyState: DailyRealityState;
+  activityContext: string;
   lifeStage: string;
   memoryContext: DecisionMemoryContext; // 近期连续性 + 不应被琐事覆盖的长期锚点
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
@@ -354,6 +355,10 @@ function buildUserPrompt(inp: DecideInput): string {
 ${goalStatePrompt(inp.goalStates)}
 目标连续性：今天可以推进、受阻、搁置或完全不触及目标；若触及，必须能从既有目标或记忆找到原因，不能突然完成重大目标。
 【短期现实状态】精力${inp.dailyState.energy}/100，工作负担${inp.dailyState.workload}/100，社交电量${inp.dailyState.socialBattery}/100，预算压力${inp.dailyState.budgetPressure}/100。行为必须受这些现实条件约束。
+
+【上次处理后新增的真实活动行为】
+${inp.activityContext}
+这些行为是已经发生的数据事实。实际参加可以合理推进相关目标；报名和想去只能形成计划或下一步，不能当作已经参加。只有与既有目标明确相关时才更新目标。
 
 【今天】${inp.dateLabel}，东京${inp.world.season}，天气${inp.world.weather}，城市氛围：${inp.world.cityMood}。近期热点：${inp.world.viralTopics.join("、")}。
 【东京当日气候与物候】${inp.world.climateContext}

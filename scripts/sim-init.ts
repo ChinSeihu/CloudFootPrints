@@ -71,10 +71,11 @@ async function main() {
     const lifeStage = personaLifeStageText(p);
     const goalState = resolveGoalStates([], goals, "initial");
     const dailyState = resolveDailyRealityState({}, p.emotionBaseline);
+    const activityCursorAt = new Date();
     await prisma.characterState.upsert({
       where: { userId },
-      create: { userId, emotion: p.emotionBaseline, goals, goalState, dailyState, lifeStage, lastActiveAt },
-      update: { emotion: p.emotionBaseline, goals, goalState, dailyState, lifeStage, lastActiveAt },
+      create: { userId, emotion: p.emotionBaseline, goals, goalState, dailyState, activityCursorAt, lifeStage, lastActiveAt },
+      update: { emotion: p.emotionBaseline, goals, goalState, dailyState, activityCursorAt, lifeStage, lastActiveAt },
     });
     console.log(`${p.username}: ${checkins.filter((c) => (c.note ?? "").trim()).length} 记忆, 状态已写`);
   }

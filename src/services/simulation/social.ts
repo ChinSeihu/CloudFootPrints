@@ -48,7 +48,7 @@ type SocialDecision = {
   text?: string;
   category?: EventCategory;
   signupEnabled?: boolean;
-  reaction?: "LIKE" | "FAVORITE" | "SIGNUP";
+  reaction?: "LIKE" | "WANT" | "FAVORITE" | "SIGNUP";
   memoryText?: string;
 };
 
@@ -145,7 +145,7 @@ function normalizeDecision(raw: unknown): SocialDecision {
   const o = raw as Record<string, unknown>;
   const action = typeof o.action === "string" ? o.action : "none";
   if (!["post", "comment", "reply", "react", "none"].includes(action)) return { action: "none" };
-  const reaction = typeof o.reaction === "string" && ["LIKE", "FAVORITE", "SIGNUP"].includes(o.reaction)
+  const reaction = typeof o.reaction === "string" && ["LIKE", "WANT", "FAVORITE", "SIGNUP"].includes(o.reaction)
     ? (o.reaction as SocialDecision["reaction"])
     : undefined;
   return {
@@ -248,6 +248,7 @@ Rules:
 - If a new post mentions a concrete place or neighborhood, use a name from Location candidates so stored venue/coordinates match the text.
 - Do not write about one area while implying the post happened in another area.
 - Use only a targetId/commentId shown above.
+- For event targets, use WANT for a tentative desire, FAVORITE for saving information, and SIGNUP only for a concrete commitment.
 - Output JSON only.
 
 Schema:
@@ -259,7 +260,7 @@ Schema:
   "text": "post body/comment/reply text",
   "category": "EXHIBITION|MARKET|LIVE|FESTIVAL|TALK|SPORTS|OTHER",
   "signupEnabled": false,
-  "reaction": "LIKE|FAVORITE|SIGNUP",
+  "reaction": "LIKE|WANT|FAVORITE|SIGNUP",
   "memoryText": "optional first-person memory of this social action"
 }
 `;
