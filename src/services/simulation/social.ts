@@ -23,6 +23,7 @@ import {
   type DailyRealityState,
   type GoalState,
 } from "./characterState";
+import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -266,8 +267,12 @@ Schema:
 `;
 }
 
-async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<SocialDecision> {
-  const prompt = buildPrompt(input);
+/**
+ * Signature: `async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], correction?: string): Promise<SocialDecision>`
+ * Purpose: Requests one normalized social action and optionally includes focused QA feedback for a rewrite.
+ */
+async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], correction = ""): Promise<SocialDecision> {
+  const prompt = `${buildPrompt(input)}${correction}`;
   const system = "You generate terse JSON for a Japanese/Chinese Tokyo social simulation. Respect persona voice.";
 
   if (getProvider() === "anthropic") {
@@ -304,6 +309,33 @@ async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<
   if (!res.ok) throw new Error(`social LLM ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   return normalizeDecision(safeParse(data.choices?.[0]?.message?.content ?? ""));
+}
+
+/**
+ * Signature: `async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<SocialDecision>`
+ * Purpose: Generates a social action, checks persona voice and repetition, and retries once before discarding a persistently weak action.
+ */
+async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<SocialDecision> {
+  let decision = await requestSocialDecision(input);
+  const assess = (candidate: SocialDecision) => assessPersonaContent({
+    persona: input.persona,
+    publicText: [candidate.title, candidate.text].filter(Boolean).join("："),
+    memoryText: candidate.memoryText,
+    recentTexts: input.recentOwnPosts,
+    dailyState: input.dailyState,
+    requireMemory: false,
+  });
+  let quality = assess(decision);
+  if (!quality.ok) {
+    console.warn(`[content-qa] social retry persona=${input.persona.username} issues=${JSON.stringify(quality.issues)}`);
+    decision = await requestSocialDecision(input, qualityRewriteInstruction(quality, decision));
+    quality = assess(decision);
+  }
+  if (!quality.ok) {
+    console.warn(`[content-qa] social rejected persona=${input.persona.username} issues=${JSON.stringify(quality.issues)}`);
+    return { action: "none" };
+  }
+  return decision;
 }
 
 async function loadDemoUsers() {

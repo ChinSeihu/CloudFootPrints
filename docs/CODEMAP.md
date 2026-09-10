@@ -114,7 +114,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Community simulation and image generation
 
 - Orchestrator: `src/services/simulation/engine.ts`.
-- Daily decision/location: `decide.ts`; social pass: `social.ts`; world state: `world.ts`.
+- Daily decision/location: `decide.ts`; social pass: `social.ts`; deterministic persona-content review and rewrite feedback: `contentQuality.ts`; world state: `world.ts`.
 - Personas, canonical voice/behavior constraints, and relationships: `src/lib/personas.ts`, `relationships.ts`, `community.ts`.
 - State/memory/life: `characterState.ts` owns structured goals and practical daily constraints; `activityImpact.ts` consumes new activity-linked behavior once and translates it into decision context/state effects; `memoryContext.ts` assembles recent and durable decision context; `memory.ts`, `lifeEvents.ts`, and `signature.ts` maintain summaries and long-term state.
 - Image pipeline: `image.ts`, `imageQA.ts`, `regenerate.ts`, `src/lib/cloudinary.ts`.
@@ -422,6 +422,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `memoryContext.ts` — shared recent-plus-durable memory retrieval for daily and social decisions.
 - `characterState.ts` — compatible parsing and bounded updates for goal progress and practical daily state.
 - `activityImpact.ts` — loads unprocessed event-linked footprints/reactions and derives bounded practical effects plus model context.
+- `contentQuality.ts` — deterministic voice, repetition, activity-fact, and practical-state checks shared by daily and social generation.
 - `lifeEvents.ts` — occasional persona life-event generation.
 - `signature.ts` — persona status/signature refresh.
 - `image.ts` — outfit planning, prompt composition, providers, generation, upload preflight, and Cloudinary persistence (server-signed credentials preferred; unsigned preset fallback).

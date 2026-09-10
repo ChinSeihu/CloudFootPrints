@@ -12,6 +12,8 @@ import {
 import type { World } from "./world";
 import type { DecisionMemoryContext } from "./memoryContext";
 import { goalStatePrompt, type DailyRealityState, type GoalState, type GoalUpdate, type GoalStatus } from "./characterState";
+import type { ActivitySignal } from "./activityImpact";
+import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
@@ -80,6 +82,7 @@ export type DecideInput = {
   goalStates: GoalState[];
   dailyState: DailyRealityState;
   activityContext: string;
+  activitySignals: ActivitySignal[];
   lifeStage: string;
   memoryContext: DecisionMemoryContext; // 近期连续性 + 不应被琐事覆盖的长期锚点
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
@@ -820,8 +823,12 @@ function normalize(raw: unknown): DecideOutput | null {
   };
 }
 
-export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> {
-  const user = buildUserPrompt(inp);
+/**
+ * Signature: `async function requestDecision(inp: DecideInput, correction?: string): Promise<DecideOutput | null>`
+ * Purpose: Requests and normalizes one complete daily decision, optionally carrying deterministic QA feedback for a rewrite.
+ */
+async function requestDecision(inp: DecideInput, correction = ""): Promise<DecideOutput | null> {
+  const user = `${buildUserPrompt(inp)}${correction}`;
 
   let result: DecideOutput | null = null;
 
@@ -882,9 +889,45 @@ export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> 
     result = normalize(safeParse(data.choices?.[0]?.message?.content ?? ""));
   }
 
-  if (result?.post) {
-    result.post.spotIndex = resolveSpotIndex(result.post, inp.spots);
-  }
+  return result;
+}
 
+/**
+ * Signature: `async function decideDay(inp: DecideInput): Promise<DecideOutput | null>`
+ * Purpose: Produces a daily decision, runs deterministic persona-content QA, and retries once with focused correction feedback when needed.
+ */
+export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> {
+  let result = await requestDecision(inp);
+  if (!result) return null;
+
+  let quality = assessPersonaContent({
+    persona: inp.persona,
+    publicText: result.post?.note,
+    memoryText: result.memoryText,
+    recentTexts: inp.recentNotes,
+    dailyState: inp.dailyState,
+    activitySignals: inp.activitySignals,
+    minimumPublicLength: 24,
+  });
+  if (!quality.ok) {
+    console.warn(`[content-qa] retry persona=${inp.persona.username} issues=${JSON.stringify(quality.issues)}`);
+    const rewritten = await requestDecision(inp, qualityRewriteInstruction(quality, result));
+    if (rewritten) result = rewritten;
+    quality = assessPersonaContent({
+      persona: inp.persona,
+      publicText: result.post?.note,
+      memoryText: result.memoryText,
+      recentTexts: inp.recentNotes,
+      dailyState: inp.dailyState,
+      activitySignals: inp.activitySignals,
+      minimumPublicLength: 24,
+    });
+  }
+  if (!quality.ok) {
+    console.warn(`[content-qa] rejected persona=${inp.persona.username} issues=${JSON.stringify(quality.issues)}`);
+    if (quality.memoryUnsafe) return null;
+    result.post = null;
+  }
+  if (result.post) result.post.spotIndex = resolveSpotIndex(result.post, inp.spots);
   return result;
 }

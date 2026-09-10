@@ -196,7 +196,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const world = await getOrCreateWorldState(dateKey);
   const decision = await decideDay({
     persona, world, dateLabel: dateLabel(dateKey),
-    emotion, goals, goalStates, dailyState, activityContext: activityImpactPrompt(activityImpact.signals), lifeStage, memoryContext, recentNotes, spots: options, cast,
+    emotion, goals, goalStates, dailyState, activityContext: activityImpactPrompt(activityImpact.signals), activitySignals: activityImpact.signals, lifeStage, memoryContext, recentNotes, spots: options, cast,
     behavior: personaBehaviorText(persona, isWeekendDate(dateKey)),
   });
   if (!decision) return { username, status: "no-decision" };
