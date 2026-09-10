@@ -3,6 +3,8 @@ import { CATEGORY_META } from "@/lib/categories";
 import type { GuideRouteCandidate, GuideRoutePlan, GuideRouteStop } from "@/lib/guideRoute";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
+export const maxDuration = 240;
+
 function apiKey() {
   return process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY || "";
 }
@@ -98,13 +100,15 @@ async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string)
   if (!key) return null;
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
   const model = process.env.LLM_MODEL || "deepseek-flash";
+  const config = llmTaskConfig("guide.route");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(config.timeoutMs ?? 180_000),
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model,
       ...deepSeekTaskOptions("guide.route"),
-      max_tokens: llmTaskConfig("guide.route").maxTokens,
+      max_tokens: config.maxTokens,
       response_format: { type: "json_object" },
       messages: [
         {

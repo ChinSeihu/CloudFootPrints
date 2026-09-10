@@ -19,6 +19,7 @@ export type LlmTaskConfig = {
   thinking: "disabled" | "enabled";
   effort?: "low" | "high" | "max";
   maxTokens: number;
+  timeoutMs?: number;
 };
 
 export const LLM_TASK_CONFIG: Record<LlmTaskKey, LlmTaskConfig> = {
@@ -27,9 +28,9 @@ export const LLM_TASK_CONFIG: Record<LlmTaskKey, LlmTaskConfig> = {
   "extract.summarize": { thinking: "disabled", maxTokens: 1024 },
   "extract.geocode": { thinking: "disabled", maxTokens: 128 },
   "recommend.featured": { thinking: "enabled", effort: "low", maxTokens: 500 },
-  "guide.chat": { thinking: "enabled", effort: "low", maxTokens: 6000 },
+  "guide.chat": { thinking: "enabled", effort: "low", maxTokens: 10000, timeoutMs: 180_000 },
   "guide.suggestions": { thinking: "disabled", maxTokens: 400 },
-  "guide.route": { thinking: "enabled", effort: "high", maxTokens: 5000 },
+  "guide.route": { thinking: "enabled", effort: "high", maxTokens: 8000, timeoutMs: 180_000 },
   "persona.chat": { thinking: "enabled", effort: "low", maxTokens: 1200 },
   "persona.daily": { thinking: "enabled", effort: "high", maxTokens: 4000 },
   "persona.social": { thinking: "enabled", effort: "low", maxTokens: 1800 },

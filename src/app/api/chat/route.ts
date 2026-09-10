@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { streamGuideReply, type ChatMessage } from "@/lib/llm";
 import { buildGuideEventsContext } from "@/services/guideEvents";
+
+export const maxDuration = 240;
+
 /**
  * Signature: `async function POST(req: Request): Promise<Response>`
  * Purpose: Streams guide text and final activity cards, propagating client cancellation to the model.

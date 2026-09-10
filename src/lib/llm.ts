@@ -737,7 +737,8 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
  */
 export async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply> {
   const system = `${guideSystem()}\n\n${context}\n先输出 reply，再输出 suggestions 和 referenced。`;
-  const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(90_000)]);
+  const config = llmTaskConfig("guide.chat");
+  const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(config.timeoutMs ?? 180_000)]);
   let raw = "";
   let previous = "";
   const append = (delta: string) => {
@@ -748,7 +749,7 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
   if (getProvider() === "anthropic") {
     const stream = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: llmTaskConfig("guide.chat").maxTokens, system, tools: [GUIDE_TOOL],
+      max_tokens: config.maxTokens, system, tools: [GUIDE_TOOL],
       tool_choice: { type: "tool", name: "emit_guide_reply" }, messages, stream: true,
     }, { signal: requestSignal });
     for await (const event of stream) {
@@ -762,7 +763,7 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
       body: JSON.stringify({ model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL, stream: true,
         ...deepSeekTaskOptions("guide.chat"),
         messages: [{ role: "system", content: `${system}\n只输出 JSON：{"reply":"纯文本正文","suggestions":["相关追问"],"referenced":["E1"]}。提供3个相关追问。正文不出现活动编号。` }, ...messages],
-        response_format: { type: "json_object" }, max_tokens: llmTaskConfig("guide.chat").maxTokens }),
+        response_format: { type: "json_object" }, max_tokens: config.maxTokens }),
     });
     if (!response.ok || !response.body) {
       const providerError = await response.text().catch(() => "");
@@ -775,7 +776,14 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
       append(data.choices?.[0]?.delta?.content ?? "");
     }
   }
-  const result = JSON.parse(raw) as Partial<GuideReply>;
+  let result: Partial<GuideReply>;
+  try {
+    result = JSON.parse(raw) as Partial<GuideReply>;
+  } catch (error) {
+    // The visible reply is emitted first. Keep it when only trailing metadata was truncated.
+    if (previous.trim()) return { reply: previous.trim(), suggestions: [], referenced: [] };
+    throw error;
+  }
   if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("empty guide reply");
   return { reply: result.reply, suggestions: cleanSuggestions(result.suggestions), referenced: cleanTokens(result.referenced) };
 }
