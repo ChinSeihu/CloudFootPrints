@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 import { prisma } from "@/lib/db";
 import { personaOf, personaVoiceText } from "@/lib/personas";
 
@@ -36,7 +37,7 @@ async function summarizeLife(username: string, texts: string[]): Promise<string 
     const client = new Anthropic({ apiKey: getApiKey() });
     const res = await client.messages.create({
       model: process.env.LLM_MODEL || "claude-haiku-4-5",
-      max_tokens: 300,
+      max_tokens: llmTaskConfig("persona.memory").maxTokens,
       system: SYSTEM,
       messages: [{ role: "user", content: user }],
     });
@@ -49,9 +50,9 @@ async function summarizeLife(username: string, texts: string[]): Promise<string 
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || "deepseek-flash",
+      ...deepSeekTaskOptions("persona.memory"),
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
-      temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: llmTaskConfig("persona.memory").maxTokens,
     }),
   });
   if (!res.ok) return null;

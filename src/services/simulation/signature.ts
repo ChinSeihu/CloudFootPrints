@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { personaOf, personaVoiceText } from "@/lib/personas";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 // 动态签名/状态（V7 Phase 3b）：随人生状态/情绪/最近经历刷新（见 docs/demo-personas.md）。
 //  - status（近况）：变化较快，每周刷新活跃角色。
@@ -39,9 +40,10 @@ async function oneLine(system: string, user: string, maxTokens: number): Promise
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || "deepseek-flash",
+      ...deepSeekTaskOptions("persona.signature"),
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      temperature: 0.85,
-      max_tokens: maxTokens,
+      // Thinking tokens share the completion budget, so short visible copy still needs headroom.
+      max_tokens: llmTaskConfig("persona.signature").maxTokens,
     }),
   });
   if (!res.ok) return null;

@@ -5,6 +5,7 @@ import { personaRefIndex, type PersonaV2, FASHION_STYLE_PROMPTS, PERSONA_FASHION
 import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 import { imageSpecToText, type ImageSpec } from "./decide";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 // 身份参考只用于人物身份与稳定脸部特征，发型、服装、道具和背景均可随新场景变化。
 async function loadRefImage(refIndex: number): Promise<string | null> {
@@ -545,7 +546,7 @@ ${world.season} / ${world.weather}
 
       const res = await client.messages.create({
         model: process.env.LLM_MODEL || "claude-haiku-4-5",
-        max_tokens: 500,
+        max_tokens: llmTaskConfig("persona.image-prompt").maxTokens,
         system,
         messages: [{ role: "user", content: userWithWardrobe }],
       });
@@ -571,12 +572,12 @@ ${world.season} / ${world.weather}
         },
         body: JSON.stringify({
           model: process.env.LLM_MODEL || "deepseek-flash",
+          ...deepSeekTaskOptions("persona.image-prompt"),
           messages: [
             { role: "system", content: system },
             { role: "user", content: userWithWardrobe },
           ],
-          temperature: 0.75,
-          max_tokens: 500,
+          max_tokens: llmTaskConfig("persona.image-prompt").maxTokens,
         }),
       },
       45000

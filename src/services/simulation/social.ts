@@ -24,6 +24,7 @@ import {
   type GoalState,
 } from "./characterState";
 import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -279,7 +280,7 @@ async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], c
     const client = new Anthropic({ apiKey: getApiKey() });
     const res = await client.messages.create({
       model: process.env.LLM_MODEL || "claude-haiku-4-5",
-      max_tokens: 500,
+      max_tokens: llmTaskConfig("persona.social").maxTokens,
       temperature: 0.9,
       system,
       messages: [{ role: "user", content: prompt }],
@@ -297,13 +298,13 @@ async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], c
     },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || "deepseek-flash",
+      ...deepSeekTaskOptions("persona.social"),
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.9,
-      max_tokens: 500,
+      max_tokens: llmTaskConfig("persona.social").maxTokens,
     }),
   });
   if (!res.ok) throw new Error(`social LLM ${res.status}: ${await res.text()}`);

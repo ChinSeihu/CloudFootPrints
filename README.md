@@ -82,6 +82,8 @@ TOKYO_OPENDATA_RESOURCE_ID=""
 CONNPASS_API_KEY=""
 ```
 
+各类 LLM 调用的思考开关、思考强度与输出额度集中定义在 `src/lib/llmTaskConfig.ts`，调用处通过任务 key 读取。
+
 ## 数据提取 & 评测
 
 ```bash

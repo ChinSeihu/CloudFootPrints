@@ -1,6 +1,7 @@
 import { readSSE, partialGuideReply } from "@/lib/guideStream";
 import Anthropic from "@anthropic-ai/sdk";
 import { EVENT_CATEGORIES, isEventCategory, type EventCategory } from "@/lib/categories";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 // LLM 调用封装。支持可切换 provider：
 //   - LLM_PROVIDER=deepseek（或任意 OpenAI 兼容端点）→ 用 chat/completions + JSON 模式
@@ -164,13 +165,14 @@ async function extractViaOpenAICompatible(pageText: string): Promise<RawExtracte
     },
     body: JSON.stringify({
       model,
+      ...deepSeekTaskOptions("extract.events"),
       messages: [
         { role: "system", content: `${SYSTEM_PROMPT}\n\n${TIME_EXTRACTION_RULES}\n\n${JSON_INSTRUCTION}` },
         { role: "user", content: `网页文本：\n"""\n${pageText}\n"""` },
       ],
       response_format: { type: "json_object" },
       temperature: 0,
-      max_tokens: 4096,
+      max_tokens: llmTaskConfig("extract.events").maxTokens,
     }),
   });
   if (!res.ok) {
@@ -268,13 +270,13 @@ async function classifyViaOpenAICompatible(items: ClassifyItem[]): Promise<strin
     },
     body: JSON.stringify({
       model,
+      ...deepSeekTaskOptions("extract.classify"),
       messages: [
         { role: "system", content: `${CLASSIFY_SYSTEM}\n\n${instruction}` },
         { role: "user", content: `共 ${items.length} 条：\n${buildClassifyList(items)}` },
       ],
       response_format: { type: "json_object" },
-      temperature: 0,
-      max_tokens: 1024,
+      max_tokens: llmTaskConfig("extract.classify").maxTokens,
     }),
   });
   if (!res.ok) {
@@ -320,12 +322,13 @@ export async function normalizeAddressForGeocode(raw: string): Promise<string | 
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
       body: JSON.stringify({
         model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+        ...deepSeekTaskOptions("extract.geocode"),
         messages: [
           { role: "system", content: GEOCODE_NORMALIZE_SYSTEM },
           { role: "user", content: addr },
         ],
         temperature: 0,
-        max_tokens: 128,
+        max_tokens: llmTaskConfig("extract.geocode").maxTokens,
       }),
     });
     if (!res.ok) return null;
@@ -427,13 +430,14 @@ async function summarizeViaOpenAICompatible(items: SummarizeItem[]): Promise<str
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model,
+      ...deepSeekTaskOptions("extract.summarize"),
       messages: [
         { role: "system", content: `${SUMMARIZE_SYSTEM}\n\n${instruction}` },
         { role: "user", content: `共 ${items.length} 条：\n${buildSummarizeList(items)}` },
       ],
       response_format: { type: "json_object" },
       temperature: 0.3,
-      max_tokens: 1024,
+      max_tokens: llmTaskConfig("extract.summarize").maxTokens,
     }),
   });
   if (!res.ok) {
@@ -478,7 +482,10 @@ const GUIDE_SYSTEM_BASE = `你是「云迹东京 CloudFootprints」内置的 AI 
 你的专长：东京的展览、市集、live、祭典等各类活动，以及它们背后的历史、文化与渊源。
 
 回答时请：
-- 语气专业又亲切，像带朋友逛东京的当地向导。
+- 语气自然、温暖、有陪伴感，像熟悉东京的朋友在认真帮忙，不像客服、说明书或宣传文案。
+- 先用一句话回应用户真正关心的点，再给具体建议；不要一上来堆背景知识。
+- 多用「你可以」「如果你更想……」「我会更推荐……」这类自然表达，少用「建议如下」「综上所述」「您可以考虑」。
+- 回答结尾顺势引导一个最有帮助的下一步，例如询问出发地、时间、预算或是否需要规划路线；不要机械重复“还有什么可以帮你”。
 - 讲解活动时，除了基本信息，适当补充其历史由来、文化背景、看点与小贴士，让用户「知其所以然」。
 - 根据用户兴趣给出具体、可执行的推荐（活动 + 时间段 + 理由）。
 - 需要时提供路线 / 交通 / 游览顺序建议，结合东京的地理与电车线路（如山手线、地铁），给出顺路、省时的安排。
@@ -506,8 +513,6 @@ function guideSystem(): string {
 - 凡涉及「今天/明天/本周/最近/现在还能不能去」等时间判断，一律以此时间为准。
 - 你的训练知识可能滞后，**不要凭记忆臆断当前正在举办的活动或其档期**；不确定的具体日程，提示用户以官方信息为准。`;
 }
-
-const GUIDE_CHAT_MAX_TOKENS = 3000; // 提高上限，避免回答+建议被截断导致空白（尤其多轮追问）
 
 export type GuideReply = { reply: string; suggestions: string[]; referenced: string[] };
 
@@ -562,7 +567,7 @@ export async function chatWithGuide(messages: ChatMessage[], eventsContext?: str
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      max_tokens: llmTaskConfig("guide.chat").maxTokens,
       system,
       tools: [GUIDE_TOOL],
       tool_choice: { type: "tool", name: "emit_guide_reply" },
@@ -591,10 +596,10 @@ referenced 是你回答中提到的、来自上方参考活动清单的活动编
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      ...deepSeekTaskOptions("guide.chat"),
       messages: [{ role: "system", content: `${system}\n\n${instruction}` }, ...messages],
       response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      max_tokens: llmTaskConfig("guide.chat").maxTokens,
     }),
   });
   if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
@@ -631,7 +636,7 @@ async function generateSuggestions(messages: ChatMessage[], reply: string): Prom
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: 400,
+      max_tokens: llmTaskConfig("guide.suggestions").maxTokens,
       system: "你是东京活动导游助手，只产出后续问题建议。",
       messages: convo.map((m) => ({ role: m.role, content: m.content })),
     });
@@ -645,10 +650,11 @@ async function generateSuggestions(messages: ChatMessage[], reply: string): Prom
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      ...deepSeekTaskOptions("guide.suggestions"),
       messages: convo,
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 400,
+      max_tokens: llmTaskConfig("guide.suggestions").maxTokens,
     }),
   });
   if (!res.ok) return [];
@@ -662,7 +668,7 @@ async function plainAnthropicReply(system: string, messages: ChatMessage[]): Pro
   try {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: GUIDE_CHAT_MAX_TOKENS,
+      max_tokens: llmTaskConfig("guide.chat").maxTokens,
       system,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     });
@@ -680,9 +686,9 @@ async function plainOpenAIReply(baseUrl: string, system: string, messages: ChatM
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
       body: JSON.stringify({
         model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+        ...deepSeekTaskOptions("guide.chat"),
         messages: [{ role: "system", content: system }, ...messages],
-        temperature: 0.7,
-        max_tokens: GUIDE_CHAT_MAX_TOKENS,
+        max_tokens: llmTaskConfig("guide.chat").maxTokens,
       }),
     });
     if (!res.ok) return "抱歉，刚才没答上来，请再问一次或换个问法。";
@@ -697,7 +703,7 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
   if (getProvider() === "anthropic") {
     const res = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: 260,
+      max_tokens: llmTaskConfig("persona.chat").maxTokens,
       temperature: 0.9,
       system,
       messages: messages.map((message) => ({ role: message.role, content: message.content })),
@@ -715,9 +721,9 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
       model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      ...deepSeekTaskOptions("persona.chat"),
       messages: [{ role: "system", content: system }, ...messages],
-      temperature: 0.9,
-      max_tokens: 260,
+      max_tokens: llmTaskConfig("persona.chat").maxTokens,
     }),
   });
   if (!res.ok) throw new Error(`persona chat failed: ${res.status}`);
@@ -731,6 +737,7 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
  */
 export async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply> {
   const system = `${guideSystem()}\n\n${context}\n先输出 reply，再输出 suggestions 和 referenced。`;
+  const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(90_000)]);
   let raw = "";
   let previous = "";
   const append = (delta: string) => {
@@ -741,26 +748,30 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
   if (getProvider() === "anthropic") {
     const stream = await getAnthropic().messages.create({
       model: process.env.LLM_MODEL || ANTHROPIC_DEFAULT_MODEL,
-      max_tokens: GUIDE_CHAT_MAX_TOKENS, system, tools: [GUIDE_TOOL],
+      max_tokens: llmTaskConfig("guide.chat").maxTokens, system, tools: [GUIDE_TOOL],
       tool_choice: { type: "tool", name: "emit_guide_reply" }, messages, stream: true,
-    }, { signal });
+    }, { signal: requestSignal });
     for await (const event of stream) {
       if (event.type === "content_block_delta" && event.delta.type === "input_json_delta") append(event.delta.partial_json);
     }
   } else {
     const base = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
     const response = await fetch(`${base}/chat/completions`, {
-      method: "POST", signal,
+      method: "POST", signal: requestSignal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
       body: JSON.stringify({ model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL, stream: true,
+        ...deepSeekTaskOptions("guide.chat"),
         messages: [{ role: "system", content: `${system}\n只输出 JSON：{"reply":"纯文本正文","suggestions":["相关追问"],"referenced":["E1"]}。提供3个相关追问。正文不出现活动编号。` }, ...messages],
-        response_format: { type: "json_object" }, temperature: 0.7, max_tokens: GUIDE_CHAT_MAX_TOKENS }),
+        response_format: { type: "json_object" }, max_tokens: llmTaskConfig("guide.chat").maxTokens }),
     });
-    if (!response.ok || !response.body) throw new Error("guide provider unavailable");
+    if (!response.ok || !response.body) {
+      const providerError = await response.text().catch(() => "");
+      throw new Error(`guide provider ${response.status}: ${providerError.slice(0, 300)}`);
+    }
     for await (const frame of readSSE(response.body)) {
       if (frame === "[DONE]") break;
       const data = JSON.parse(frame) as { error?: unknown; choices?: { delta?: { content?: string } }[] };
-      if (data.error) throw new Error("guide provider error");
+      if (data.error) throw new Error(`guide provider stream error: ${JSON.stringify(data.error).slice(0, 300)}`);
       append(data.choices?.[0]?.delta?.content ?? "");
     }
   }

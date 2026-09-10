@@ -156,6 +156,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"thinking" | "map">("thinking");
+  const [thinkingStatus, setThinkingStatus] = useState("正在理解你的问题…");
   const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
   const [detailRequest, setDetailRequest] = useState<string | null>(null);
   const [detailError, setDetailError] = useState(false);
@@ -220,6 +221,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
     setMessages(next);
     setInput("");
     setLoadingAction("thinking");
+    setThinkingStatus("正在理解你的问题…");
     setLoading(true);
     const apiMessages = next.slice(-12).map((m) => ({ role: m.role, content: m.context ? `${m.context}\n\n${m.content}` : m.content }));
     const controller = new AbortController();
@@ -245,10 +247,12 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
       };
       try {
         for await (const frame of readSSE(res.body)) {
-          const data = JSON.parse(frame) as { type: string; reply?: string; suggestions?: string[]; events?: { id: string; title: string }[] };
+          const data = JSON.parse(frame) as { type: string; status?: string; reply?: string; suggestions?: string[]; events?: { id: string; title: string }[] };
           if (data.type === "reply" && typeof data.reply === "string") {
             latest = data.reply;
             if (Date.now() - lastPaint >= 80) paint(latest);
+          } else if (data.type === "status" && typeof data.status === "string") {
+            setThinkingStatus(data.status);
           } else if (data.type === "done" && typeof data.reply === "string") {
             latest = data.reply;
             paint(latest, { suggestions: data.suggestions ?? [], events: data.events ?? [] });
@@ -385,7 +389,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
         {detailRequest && <div><LoadingFeedback compact scene="calendar" text="打开活动卡片…" /><button type="button" onClick={() => setDetailRequest(null)} className="rounded-full px-3 py-2 text-xs text-neutral-500">取消打开</button></div>}
         {detailError && <p role="alert" className="text-sm text-rose-600">暂时无法打开活动，请稍后再点一次。</p>}
         {loading && messages[messages.length - 1]?.role !== "assistant" && (
-          <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : `${hasMascot ? guideName : "导游"}正在翻看笔记，寻找适合你的建议…`} />
+          <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : thinkingStatus} />
         )}
         {showEntryGuide && !loading && (
           <div className="text-sm text-neutral-500 leading-relaxed">

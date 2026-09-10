@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 type FeaturedCandidate = {
   id: string;
@@ -59,7 +60,8 @@ async function selectWithLlm(dateKey: string, candidates: FeaturedCandidate[]): 
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      ...deepSeekTaskOptions("recommend.featured"),
+      max_tokens: llmTaskConfig("recommend.featured").maxTokens,
       response_format: { type: "json_object" },
       messages: [
         {

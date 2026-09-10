@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { personaLifeStageText, personaOf, personaVoiceText } from "@/lib/personas";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 // 重大人生事件（V7 Phase 3c）：每月对每人低概率触发一次「罕见、有意义、有后果」的事件，
 // 写一条 MILESTONE 记忆 + 刷新当前状态（status）+（可选）新增一个目标。
@@ -72,13 +73,13 @@ export async function maybeLifeEvent(username: string, when: Date): Promise<Life
   try {
     if (shouldUseAnthropic()) {
       const client = new Anthropic({ apiKey: getApiKey() });
-      const res = await client.messages.create({ model: process.env.LLM_MODEL || "claude-haiku-4-5", max_tokens: 400, system, messages: [{ role: "user", content: u }] });
+      const res = await client.messages.create({ model: process.env.LLM_MODEL || "claude-haiku-4-5", max_tokens: llmTaskConfig("persona.life-event").maxTokens, system, messages: [{ role: "user", content: u }] });
       raw = res.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? null;
     } else {
       const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-        body: JSON.stringify({ model: process.env.LLM_MODEL || "deepseek-flash", messages: [{ role: "system", content: system }, { role: "user", content: u }], response_format: { type: "json_object" }, temperature: 0.9, max_tokens: 400 }),
+        body: JSON.stringify({ model: process.env.LLM_MODEL || "deepseek-flash", ...deepSeekTaskOptions("persona.life-event"), messages: [{ role: "system", content: system }, { role: "user", content: u }], response_format: { type: "json_object" }, max_tokens: llmTaskConfig("persona.life-event").maxTokens }),
       });
       if (res.ok) raw = ((await res.json()) as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content ?? null;
     }

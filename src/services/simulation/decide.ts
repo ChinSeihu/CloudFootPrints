@@ -14,6 +14,7 @@ import type { DecisionMemoryContext } from "./memoryContext";
 import { goalStatePrompt, type DailyRealityState, type GoalState, type GoalUpdate, type GoalStatus } from "./characterState";
 import type { ActivitySignal } from "./activityImpact";
 import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
@@ -837,7 +838,7 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
 
     const res = await client.messages.create({
       model: process.env.LLM_MODEL || "claude-haiku-4-5",
-      max_tokens: 800,
+      max_tokens: llmTaskConfig("persona.daily").maxTokens,
       system: SYSTEM,
       tools: [TOOL],
       tool_choice: { type: "tool", name: "emit_day" },
@@ -862,6 +863,7 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
       },
       body: JSON.stringify({
         model: process.env.LLM_MODEL || "deepseek-flash",
+        ...deepSeekTaskOptions("persona.daily"),
         messages: [
           {
             role: "system",
@@ -873,8 +875,7 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.95,
-        max_tokens: 800,
+        max_tokens: llmTaskConfig("persona.daily").maxTokens,
       }),
     });
 

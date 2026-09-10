@@ -84,7 +84,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Streaming protocol: `src/lib/guideStream.ts` — UTF-8 SSE framing and partial JSON reply decoding; `streamGuideReply` in `src/lib/llm.ts` handles both providers and cancellation.
 - Activity grounding: `src/services/guideEvents.ts`.
 - Route-plan endpoint/types: `src/app/api/guide/route-plan/route.ts`, `src/lib/guideRoute.ts`.
-- LLM calls: `src/lib/llm.ts`.
+- LLM calls: `src/lib/llm.ts`; keyed thinking levels and token budgets: `src/lib/llmTaskConfig.ts`.
 
 ### Rail, stations, and route planning
 
@@ -108,7 +108,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Source registry/adapters: `src/services/extraction/sources/index.ts` and sibling source files.
 - Transform stages: `extract.ts`, `classify.ts`, `summarize.ts`, `geocode.ts`, `featured.ts`.
 - Database ingest/dedup: `ingest.ts`, `src/lib/eventDedup.ts`.
-- LLM implementation: `src/lib/llm.ts`.
+- LLM implementation: `src/lib/llm.ts`; shared task policies: `src/lib/llmTaskConfig.ts`.
 - Runtime entry points: `scripts/run-extraction.ts`, `src/app/api/extract/route.ts`.
 
 ### Community simulation and image generation

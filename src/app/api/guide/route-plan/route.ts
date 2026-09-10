@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CATEGORY_META } from "@/lib/categories";
 import type { GuideRouteCandidate, GuideRoutePlan, GuideRouteStop } from "@/lib/guideRoute";
+import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 function apiKey() {
   return process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY || "";
@@ -102,7 +103,8 @@ async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string)
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model,
-      temperature: 0.45,
+      ...deepSeekTaskOptions("guide.route"),
+      max_tokens: llmTaskConfig("guide.route").maxTokens,
       response_format: { type: "json_object" },
       messages: [
         {
