@@ -15,6 +15,7 @@ import {
 import { getOrCreateWorldState } from "./world";
 import { generateCheckinImage } from "./image";
 import type { ImageSpec } from "./decide";
+import { loadDecisionMemoryContext } from "./memoryContext";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -674,8 +675,8 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
     const needPost = postCount < Math.max(1, Math.ceil(names.length / 5));
     if (!shouldAct && !needPost) continue;
 
-    const [recentMemories, recentOwnPosts] = await Promise.all([
-      prisma.memory.findMany({ where: { userId: user.id }, orderBy: { happenedAt: "desc" }, take: 6, select: { text: true } }),
+    const [memoryContext, recentOwnPosts] = await Promise.all([
+      loadDecisionMemoryContext(user.id),
       prisma.post.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 4, select: { title: true, description: true } }),
     ]);
     const when = dateAt(dateKey, 11 + Math.floor(rnd() * 11), Math.floor(rnd() * 60));
@@ -693,7 +694,7 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
         persona,
         dateKey,
         world,
-        recentMemories: recentMemories.map((m) => m.text),
+        recentMemories: [...memoryContext.anchors, ...memoryContext.recent],
         recentOwnPosts: recentOwnPosts.map((p) => `${p.title}: ${p.description ?? ""}`),
         candidates: candidates.filter((c) => c.authorUsername !== username).slice(0, 28),
         replies: replies.filter((r) => r.commentAuthorUsername !== username).slice(0, 18),

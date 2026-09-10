@@ -10,6 +10,7 @@ import {
   type SpotLike,
 } from "@/lib/personas";
 import type { World } from "./world";
+import type { DecisionMemoryContext } from "./memoryContext";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
@@ -74,7 +75,7 @@ export type DecideInput = {
   emotion: Record<string, number>;
   goals: string[];
   lifeStage: string;
-  recentMemories: string[]; // 最近若干条记忆文本（旧→新）
+  memoryContext: DecisionMemoryContext; // 近期连续性 + 不应被琐事覆盖的长期锚点
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
   spots: SpotOption[]; // 可选打卡地点（home + roam），index 对应
   cast: { name: string; relation: string }[]; // 系统外常出现的熟人（让"又见到某人"有连续性）
@@ -329,7 +330,8 @@ export function resolveSpotIndex(
  */
 function buildUserPrompt(inp: DecideInput): string {
   const spotList = inp.spots.map((s) => `${s.index}. ${s.name}`).join("\n");
-  const mem = inp.recentMemories.length ? inp.recentMemories.map((m) => `- ${m}`).join("\n") : "（暂无）";
+  const mem = inp.memoryContext.recent.length ? inp.memoryContext.recent.map((m) => `- ${m}`).join("\n") : "（暂无）";
+  const anchors = inp.memoryContext.anchors.length ? inp.memoryContext.anchors.map((m) => `- ${m}`).join("\n") : "（暂无）";
   const notes = inp.recentNotes.length ? inp.recentNotes.map((m) => `- ${m}`).join("\n") : "（暂无）";
   const emo = Object.entries(inp.emotion).map(([k, v]) => `${k}:${v}`).join(" ");
   const longTermMem = longTermMemoryText(inp.persona.id);
@@ -343,12 +345,16 @@ function buildUserPrompt(inp: DecideInput): string {
 行为约束（作为概率倾向，不要机械逐项复述）：${inp.behavior}
 当前情绪(0-100)：${emo}
 当前目标：${inp.goals.join("；") || "（无）"}
+目标连续性：今天可以推进、受阻、搁置或完全不触及目标；若触及，必须能从既有目标或记忆找到原因，不能突然完成重大目标。
 
 【今天】${inp.dateLabel}，东京${inp.world.season}，天气${inp.world.weather}，城市氛围：${inp.world.cityMood}。近期热点：${inp.world.viralTopics.join("、")}。
 【东京当日气候与物候】${inp.world.climateContext}
 
 【人物长期记忆】（长期稳定存在，会影响行为、人际关系和兴趣；不需要每天提起，但场景合适时应自然延续）
 ${longTermMem}
+
+【长期记忆锚点】（重要经历、关系、目标与阶段摘要；它们是过去背景，不能当成今天再次发生）
+${anchors}
 
 【最近的记忆】（旧→新，用于保持连续与成长）
 ${mem}
@@ -374,7 +380,10 @@ spotIndex 可以不填，系统会根据 activity、areaHint、note、imageSpec 
 如果 note 或 imageSpec 写了具体地点名，必须和上面的地点候选一致；不要让正文写 A 区/店/街景，坐标却落到 B 区。
 输出的内容要符合当前所在季节
 
-请决定这个人「今天/最近」过得怎样：必产出一条今天的记忆(memoryText, 第一人称, 简短一句)，给出情绪微调(moodDelta, 可空), 决定是否发一条足迹(post)，并把内容里出现的系统外的人填到 people。`;
+请分两步判断，但只输出最终 JSON：
+1. 私下生活：先决定今天实际发生什么，以及目标、情绪、关系是否有合理的小变化；memoryText 记录真实经历。
+2. 公开表达：再决定这个人是否愿意公开。post 可以为 null；如果发布，只写愿意让别人看到的一个瞬间，不要把内部分析、完整人生状态或所有经历都说出来。
+把内容里出现的系统外人物填到 people。`;
 }
 
 const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围栏,下面是返回示例，不要被下面数据影响了输出结果：

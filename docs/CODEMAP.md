@@ -116,7 +116,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Orchestrator: `src/services/simulation/engine.ts`.
 - Daily decision/location: `decide.ts`; social pass: `social.ts`; world state: `world.ts`.
 - Personas, canonical voice/behavior constraints, and relationships: `src/lib/personas.ts`, `relationships.ts`, `community.ts`.
-- Memory/life/status: `memory.ts`, `lifeEvents.ts`, `signature.ts`.
+- Memory/life/status: `memoryContext.ts` assembles recent and durable decision context; `memory.ts`, `lifeEvents.ts`, and `signature.ts` maintain summaries and long-term state.
 - Image pipeline: `image.ts`, `imageQA.ts`, `regenerate.ts`, `src/lib/cloudinary.ts`.
 - Script/API entry points: `scripts/sim-*.ts`, `src/app/api/simulate/route.ts`.
 - Persona documentation: `docs/demo-personas.md`, `docs/Agent_Architecture.md`.
@@ -417,6 +417,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `community.ts` — emotion relaxation and weekly community balancing.
 - `relationships.ts` — relationship growth/decay after activity.
 - `memory.ts` — long-term memory compression.
+- `memoryContext.ts` — shared recent-plus-durable memory retrieval for daily and social decisions.
 - `lifeEvents.ts` — occasional persona life-event generation.
 - `signature.ts` — persona status/signature refresh.
 - `image.ts` — outfit planning, prompt composition, providers, generation, upload preflight, and Cloudinary persistence (server-signed credentials preferred; unsigned preset fallback).

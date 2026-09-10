@@ -82,6 +82,7 @@ npx tsx scripts/sim-run.ts --date=2026-06-20 --dry
 scripts/sim-run.ts
   -> src/services/simulation/engine.ts
     -> personaOf / personaGoals / personaLifeStageText / personaSpots
+    -> loadDecisionMemoryContext()（近期经历 + 长期记忆锚点）
     -> decideDay()
     -> createCheckin()
     -> generateCheckinImage()
@@ -99,7 +100,10 @@ scripts/sim-run.ts
 - `personaBehaviorText()`
 - `goals`
 - `lifeStage`
+- 近期记忆，以及去重后的重大经历、关系/目标记忆和生活摘要
 - `personaSpots()` 提供的地点列表
+
+每日决策先判断私下实际发生的生活，再决定角色是否愿意把其中一个瞬间公开；长期记忆只作为背景，不能被写成当天再次发生。
 
 `sim-init.ts` 初始化 `CharacterState` 时会把 V2 的结构化目标和人生阶段写成当前数据库字段需要的形状。
 

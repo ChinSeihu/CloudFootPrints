@@ -20,6 +20,7 @@ import { refreshStatus, refreshSignature } from "./signature";
 import { generateCheckinImages } from "./image";
 import { maybeLifeEvent } from "./lifeEvents";
 import { simulateSocialDay, type SocialResult } from "./social";
+import { loadDecisionMemoryContext } from "./memoryContext";
 import type { Prisma } from "@prisma/client";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
@@ -168,20 +169,19 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
 
   if (dry) return { username, status: "memory", note: "(dry-run，未调用 LLM)" };
 
-  // 取最近记忆（旧→新）与最近足迹正文（防重复）。
-  const mems = await prisma.memory.findMany({
-    where: { userId }, orderBy: { happenedAt: "desc" }, take: 8, select: { text: true },
-  });
-  const recentMemories = mems.map((m) => m.text).reverse();
-  const notes = await prisma.checkIn.findMany({
-    where: { userId, note: { not: null } }, orderBy: { createdAt: "desc" }, take: 5, select: { note: true },
-  });
+  // 近期经历维持时间连续，重要记忆与摘要维持长期人生主线。
+  const [memoryContext, notes] = await Promise.all([
+    loadDecisionMemoryContext(userId),
+    prisma.checkIn.findMany({
+      where: { userId, note: { not: null } }, orderBy: { createdAt: "desc" }, take: 5, select: { note: true },
+    }),
+  ]);
   const recentNotes = notes.map((n) => n.note!).filter(Boolean);
 
   const world = await getOrCreateWorldState(dateKey);
   const decision = await decideDay({
     persona, world, dateLabel: dateLabel(dateKey),
-    emotion, goals, lifeStage, recentMemories, recentNotes, spots: options, cast,
+    emotion, goals, lifeStage, memoryContext, recentNotes, spots: options, cast,
     behavior: personaBehaviorText(persona, isWeekendDate(dateKey)),
   });
   if (!decision) return { username, status: "no-decision" };
