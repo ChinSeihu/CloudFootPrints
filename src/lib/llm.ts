@@ -622,14 +622,14 @@ referenced 是你回答中提到的、来自上方参考活动清单的活动编
 // （DeepSeek 多轮时常漏掉 suggestions，这里兜底，确保每条回答都带「猜你接下来想问」）。
 async function ensureSuggestions(messages: ChatMessage[], reply: string, current: string[]): Promise<string[]> {
   if (current.length >= 3) return current;
+  const merged = [...current];
   try {
     const got = await generateSuggestions(messages, reply);
-    const merged = [...current];
     for (const s of got) if (!merged.includes(s)) merged.push(s);
-    return merged.slice(0, 4);
-  } catch {
-    return current;
-  }
+  } catch { /* Local defaults below keep the UI contract when the provider also fails. */ }
+  const defaults = ["怎么安排最顺路？", "需要提前预约吗？", "还有类似活动吗？"];
+  for (const suggestion of defaults) if (!merged.includes(suggestion)) merged.push(suggestion);
+  return merged.slice(0, 4);
 }
 
 async function generateSuggestions(messages: ChatMessage[], reply: string): Promise<string[]> {
@@ -721,7 +721,7 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
 
 /**
  * Signature: `async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply>`
- * Purpose: Streams the structured reply from either provider and avoids extra model calls for missing suggestions.
+ * Purpose: Streams a structured reply and guarantees at least three follow-up suggestions across provider fallbacks.
  */
 export async function streamGuideReply(messages: ChatMessage[], context: string, signal: AbortSignal, onReply: (reply: string) => void): Promise<GuideReply> {
   const system = `${guideSystem()}\n\n${context}\n先输出 reply，再输出 suggestions 和 referenced。`;
@@ -796,9 +796,10 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
     result = JSON.parse(raw) as Partial<GuideReply>;
   } catch (error) {
     // The visible reply is emitted first. Keep it when only trailing metadata was truncated.
-    if (previous.trim()) return { reply: previous.trim(), suggestions: [], referenced: [] };
+    if (previous.trim()) return { reply: previous.trim(), suggestions: await ensureSuggestions(messages, previous.trim(), []), referenced: [] };
     throw error;
   }
   if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("empty guide reply");
-  return { reply: result.reply, suggestions: cleanSuggestions(result.suggestions), referenced: cleanTokens(result.referenced) };
+  const suggestions = await ensureSuggestions(messages, result.reply, cleanSuggestions(result.suggestions));
+  return { reply: result.reply, suggestions, referenced: cleanTokens(result.referenced) };
 }
