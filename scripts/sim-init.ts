@@ -7,6 +7,7 @@ import {
   personaLifeStageText,
   personaOf,
 } from "../src/lib/personas";
+import { resolveDailyRealityState, resolveGoalStates } from "../src/services/simulation/characterState";
 
 /**
  * Phase 1 模拟地基初始化（无 AI，纯工程，可重复执行）：
@@ -24,6 +25,10 @@ function importanceOf(rating: number | null, hasPhoto: boolean): number {
   return v;
 }
 
+/**
+ * Signature: `async function main(): Promise<void>`
+ * Purpose: Rebuilds simulation memories and initializes legacy plus structured character state without invoking an LLM.
+ */
 async function main() {
   let users = 0, mem = 0, rels = 0;
 
@@ -64,10 +69,12 @@ async function main() {
     const lastActiveAt = checkins.length ? checkins[checkins.length - 1].createdAt : null;
     const goals = personaGoals(p);
     const lifeStage = personaLifeStageText(p);
+    const goalState = resolveGoalStates([], goals, "initial");
+    const dailyState = resolveDailyRealityState({}, p.emotionBaseline);
     await prisma.characterState.upsert({
       where: { userId },
-      create: { userId, emotion: p.emotionBaseline, goals, lifeStage, lastActiveAt },
-      update: { emotion: p.emotionBaseline, goals, lifeStage, lastActiveAt },
+      create: { userId, emotion: p.emotionBaseline, goals, goalState, dailyState, lifeStage, lastActiveAt },
+      update: { emotion: p.emotionBaseline, goals, goalState, dailyState, lifeStage, lastActiveAt },
     });
     console.log(`${p.username}: ${checkins.filter((c) => (c.note ?? "").trim()).length} 记忆, 状态已写`);
   }

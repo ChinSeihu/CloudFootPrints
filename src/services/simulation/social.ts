@@ -16,6 +16,13 @@ import { getOrCreateWorldState } from "./world";
 import { generateCheckinImage } from "./image";
 import type { ImageSpec } from "./decide";
 import { loadDecisionMemoryContext } from "./memoryContext";
+import {
+  goalStatePrompt,
+  resolveDailyRealityState,
+  resolveGoalStates,
+  type DailyRealityState,
+  type GoalState,
+} from "./characterState";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -160,18 +167,19 @@ function personLine(persona: PersonaV2): string {
     `archetype: ${persona.archetype}`,
     `voice: ${personaVoiceText(persona)}`,
     `interests: ${personaInterestList(persona).join(", ")}`,
-    `goals: ${personaGoals(persona).join(", ")}`,
   ].join("\n");
 }
 
 /**
- * Signature: `function buildPrompt(input: { persona: PersonaV2; dateKey: string; world: Awaited<ReturnType<typeof getOrCreateWorldState>>; recentMemories: string[]; recentOwnPosts: string[]; candidates: SocialCandidate[]; replies: ReplyCandidate[]; preferPost: boolean }): string`
+ * Signature: `function buildPrompt(input: { persona: PersonaV2; dateKey: string; world: Awaited<ReturnType<typeof getOrCreateWorldState>>; goalStates: GoalState[]; dailyState: DailyRealityState; recentMemories: string[]; recentOwnPosts: string[]; candidates: SocialCandidate[]; replies: ReplyCandidate[]; preferPost: boolean }): string`
  * Purpose: Builds one social-action prompt using the canonical voice, behavior constraints, recent writing, and available interaction targets.
  */
 function buildPrompt(input: {
   persona: PersonaV2;
   dateKey: string;
   world: Awaited<ReturnType<typeof getOrCreateWorldState>>;
+  goalStates: GoalState[];
+  dailyState: DailyRealityState;
   recentMemories: string[];
   recentOwnPosts: string[];
   candidates: SocialCandidate[];
@@ -201,6 +209,15 @@ Date: ${input.dateKey}
 World: ${input.world.season}, ${input.world.weather}, ${input.world.cityMood}
 Viral topics: ${(input.world.viralTopics as string[]).join(", ")}
 
+Current goals:
+${goalStatePrompt(input.goalStates)}
+
+Today's practical state:
+- energy: ${input.dailyState.energy}/100
+- workload: ${input.dailyState.workload}/100
+- social battery: ${input.dailyState.socialBattery}/100
+- budget pressure: ${input.dailyState.budgetPressure}/100
+
 Recent memories:
 ${memories}
 
@@ -219,6 +236,7 @@ ${spotList}
 Rules:
 - Match the person's voice model. Do not use a generic friendly assistant tone.
 - Respect mobility, spending priorities, avoided interests, and social influence without reciting their values.
+- Let current goals and today's practical state affect whether the action is brief, ambitious, social, or budget-conscious. Do not quote the scores.
 - Vary triggers across work aftermath, errands, body/weather, relationships, home life, transit, neighborhood observations, and occasional core interests. Do not default to cafes, travel, photography, or exhibitions.
 - If action is "post", create a normal community post, not a footprint/check-in.
 - Posts can be casual plans, invitations, small thoughts, questions, or recommendations.
@@ -660,6 +678,11 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
 
   const world = await getOrCreateWorldState(dateKey);
   const { candidates, replies } = await loadCandidates(dateKey, demoUserIds);
+  const characterStates = await prisma.characterState.findMany({
+    where: { userId: { in: demoUserIds } },
+    select: { userId: true, goals: true, goalState: true, dailyState: true, emotion: true },
+  });
+  const stateByUserId = new Map(characterStates.map((state) => [state.userId, state]));
   const names = (opts.only?.length ? PERSONAS.filter((p) => opts.only!.includes(p.username)) : PERSONAS)
     .map((p) => p.username);
   const result: SocialResult = { posts: 0, comments: 0, replies: 0, reactions: 0, skipped: false, notes: [] };
@@ -670,8 +693,17 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
     const user = userByName.get(username);
     if (!persona || !user) continue;
 
+    const state = stateByUserId.get(user.id);
+    const goals = state?.goals.length ? state.goals : personaGoals(persona);
+    const goalStates = resolveGoalStates(state?.goalState, goals, dateKey);
+    const emotion = (state?.emotion as Record<string, number> | undefined) ?? persona.emotionBaseline;
+    const dailyState = resolveDailyRealityState(state?.dailyState, emotion);
     const rnd = seeded(`social|${dateKey}|${username}`);
-    const shouldAct = rnd() < Math.max(0.25, Math.min(0.85, 0.35 + persona.socialProfile.socialNeed / 180));
+    const actionChance = 0.35
+      + persona.socialProfile.socialNeed / 180
+      + (dailyState.socialBattery - 50) / 250
+      - Math.max(0, dailyState.workload - 60) / 200;
+    const shouldAct = rnd() < Math.max(0.15, Math.min(0.85, actionChance));
     const needPost = postCount < Math.max(1, Math.ceil(names.length / 5));
     if (!shouldAct && !needPost) continue;
 
@@ -694,6 +726,8 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
         persona,
         dateKey,
         world,
+        goalStates,
+        dailyState,
         recentMemories: [...memoryContext.anchors, ...memoryContext.recent],
         recentOwnPosts: recentOwnPosts.map((p) => `${p.title}: ${p.description ?? ""}`),
         candidates: candidates.filter((c) => c.authorUsername !== username).slice(0, 28),

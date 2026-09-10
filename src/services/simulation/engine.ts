@@ -21,6 +21,7 @@ import { generateCheckinImages } from "./image";
 import { maybeLifeEvent } from "./lifeEvents";
 import { simulateSocialDay, type SocialResult } from "./social";
 import { loadDecisionMemoryContext } from "./memoryContext";
+import { applyDailyRealityDelta, applyGoalUpdate, resolveDailyRealityState, resolveGoalStates } from "./characterState";
 import type { Prisma } from "@prisma/client";
 
 // 模拟引擎（V7 Phase 2）：跑「某一天」全员（或子集）。
@@ -157,6 +158,8 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const state = await prisma.characterState.findUnique({ where: { userId } });
   const emotion: Record<string, number> = (state?.emotion as Record<string, number>) ?? { ...persona.emotionBaseline };
   const goals = state?.goals?.length ? state.goals : personaGoals(persona);
+  const goalStates = resolveGoalStates(state?.goalState, goals, dateKey);
+  const dailyState = resolveDailyRealityState(state?.dailyState, emotion);
   const lifeStage = state?.lifeStage ?? personaLifeStageText(persona);
   const savedCast: CastEntry[] = Array.isArray(state?.cast) ? (state!.cast as CastEntry[]) : [];
   const cast = mergeCast(savedCast, personaSocialCircle(persona));
@@ -181,7 +184,7 @@ async function simulateCharacterDay(username: string, dateKey: string, dry: bool
   const world = await getOrCreateWorldState(dateKey);
   const decision = await decideDay({
     persona, world, dateLabel: dateLabel(dateKey),
-    emotion, goals, lifeStage, memoryContext, recentNotes, spots: options, cast,
+    emotion, goals, goalStates, dailyState, lifeStage, memoryContext, recentNotes, spots: options, cast,
     behavior: personaBehaviorText(persona, isWeekendDate(dateKey)),
   });
   if (!decision) return { username, status: "no-decision" };
@@ -280,10 +283,12 @@ if (decision.post && coords.length) {
   });
 
   const nextCast = mergeCast(cast, decision.people);
+  const nextGoalStates = applyGoalUpdate(goalStates, decision.goalUpdate, dateKey);
+  const nextDailyState = applyDailyRealityDelta(dailyState, decision.dailyStateDelta);
   await prisma.characterState.upsert({
     where: { userId },
-    create: { userId, emotion: nextEmotion, goals, lifeStage, cast: nextCast, lastActiveAt: when },
-    update: { emotion: nextEmotion, cast: nextCast, lastActiveAt: when },
+    create: { userId, emotion: nextEmotion, goals, goalState: asJsonValue(nextGoalStates), dailyState: asJsonValue(nextDailyState), lifeStage, cast: nextCast, lastActiveAt: when },
+    update: { emotion: nextEmotion, goalState: asJsonValue(nextGoalStates), dailyState: asJsonValue(nextDailyState), cast: nextCast, lastActiveAt: when },
   });
 
   return { username, status: posted ? "posted" : "memory", note: posted ? decision.post!.note : decision.memoryText };

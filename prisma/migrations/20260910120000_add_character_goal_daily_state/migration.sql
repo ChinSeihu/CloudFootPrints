@@ -1,0 +1,3 @@
+ALTER TABLE "CharacterState"
+ADD COLUMN "goalState" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN "dailyState" JSONB NOT NULL DEFAULT '{}';

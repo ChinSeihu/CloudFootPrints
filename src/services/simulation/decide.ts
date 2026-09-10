@@ -11,6 +11,7 @@ import {
 } from "@/lib/personas";
 import type { World } from "./world";
 import type { DecisionMemoryContext } from "./memoryContext";
+import { goalStatePrompt, type DailyRealityState, type GoalState, type GoalUpdate, type GoalStatus } from "./characterState";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
@@ -66,6 +67,8 @@ export type DecideOutput = {
   moodDelta: Record<string, number>;
   post: DecidePost | null;
   people: { name: string; relation: string }[];
+  goalUpdate: GoalUpdate | null;
+  dailyStateDelta: Partial<DailyRealityState>;
 };
 
 export type DecideInput = {
@@ -74,6 +77,8 @@ export type DecideInput = {
   dateLabel: string; // 人类可读日期（含星期）
   emotion: Record<string, number>;
   goals: string[];
+  goalStates: GoalState[];
+  dailyState: DailyRealityState;
   lifeStage: string;
   memoryContext: DecisionMemoryContext; // 近期连续性 + 不应被琐事覆盖的长期锚点
   recentNotes: string[]; // 最近几条足迹正文（防重复/连续同题材）
@@ -345,7 +350,10 @@ function buildUserPrompt(inp: DecideInput): string {
 行为约束（作为概率倾向，不要机械逐项复述）：${inp.behavior}
 当前情绪(0-100)：${emo}
 当前目标：${inp.goals.join("；") || "（无）"}
+【目标状态】
+${goalStatePrompt(inp.goalStates)}
 目标连续性：今天可以推进、受阻、搁置或完全不触及目标；若触及，必须能从既有目标或记忆找到原因，不能突然完成重大目标。
+【短期现实状态】精力${inp.dailyState.energy}/100，工作负担${inp.dailyState.workload}/100，社交电量${inp.dailyState.socialBattery}/100，预算压力${inp.dailyState.budgetPressure}/100。行为必须受这些现实条件约束。
 
 【今天】${inp.dateLabel}，东京${inp.world.season}，天气${inp.world.weather}，城市氛围：${inp.world.cityMood}。近期热点：${inp.world.viralTopics.join("、")}。
 【东京当日气候与物候】${inp.world.climateContext}
@@ -391,6 +399,8 @@ const JSON_INSTRUCTION = `只输出一个 JSON 对象，不要解释或代码围
   "memoryText": "今天发生/感受的一句话（第一人称，简短）",
   "memoryImportance": 1,
   "moodDelta": {"stress": -5, "loneliness": 3},
+  "dailyStateDelta": {"energy": -4, "workload": 2, "socialBattery": -3, "budgetPressure": 0},
+  "goalUpdate": {"title":"必须与当前目标完全一致","status":"active","progressDelta":3,"motivationDelta":1,"nextStep":"一个很小的下一步","blocker":""},
   "post": null,
   "post": {
     "note": "30~150字第一人称足迹",
@@ -423,6 +433,25 @@ const TOOL: Anthropic.Tool = {
       memoryText: { type: "string" },
       memoryImportance: { type: "integer", enum: [1, 2, 3] },
       moodDelta: { type: "object", additionalProperties: { type: "number" } },
+      dailyStateDelta: {
+        type: "object",
+        properties: {
+          energy: { type: "number" }, workload: { type: "number" },
+          socialBattery: { type: "number" }, budgetPressure: { type: "number" },
+        },
+        additionalProperties: false,
+      },
+      goalUpdate: {
+        type: ["object", "null"],
+        properties: {
+          title: { type: "string" },
+          status: { type: "string", enum: ["active", "blocked", "paused", "completed", "abandoned"] },
+          progressDelta: { type: "number" }, motivationDelta: { type: "number" },
+          blocker: { type: "string" }, nextStep: { type: "string" },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
       post: {
         type: ["object", "null"],
         properties: {
@@ -753,12 +782,36 @@ function normalize(raw: unknown): DecideOutput | null {
     }
   }
 
+  const dailyStateDelta: Partial<DailyRealityState> = {};
+  if (o.dailyStateDelta && typeof o.dailyStateDelta === "object") {
+    for (const key of ["energy", "workload", "socialBattery", "budgetPressure"] as const) {
+      const value = (o.dailyStateDelta as Record<string, unknown>)[key];
+      if (typeof value === "number" && Number.isFinite(value)) dailyStateDelta[key] = value;
+    }
+  }
+  let goalUpdate: GoalUpdate | null = null;
+  if (o.goalUpdate && typeof o.goalUpdate === "object") {
+    const value = o.goalUpdate as Record<string, unknown>;
+    const title = typeof value.title === "string" ? value.title.trim() : "";
+    const statuses = new Set<GoalStatus>(["active", "blocked", "paused", "completed", "abandoned"]);
+    if (title) goalUpdate = {
+      title,
+      status: typeof value.status === "string" && statuses.has(value.status as GoalStatus) ? value.status as GoalStatus : undefined,
+      progressDelta: typeof value.progressDelta === "number" ? value.progressDelta : undefined,
+      motivationDelta: typeof value.motivationDelta === "number" ? value.motivationDelta : undefined,
+      blocker: typeof value.blocker === "string" ? value.blocker : undefined,
+      nextStep: typeof value.nextStep === "string" ? value.nextStep : undefined,
+    };
+  }
+
   return {
     memoryText,
     memoryImportance,
     moodDelta,
     post,
     people,
+    goalUpdate,
+    dailyStateDelta,
   };
 }
 

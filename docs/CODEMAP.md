@@ -116,7 +116,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Orchestrator: `src/services/simulation/engine.ts`.
 - Daily decision/location: `decide.ts`; social pass: `social.ts`; world state: `world.ts`.
 - Personas, canonical voice/behavior constraints, and relationships: `src/lib/personas.ts`, `relationships.ts`, `community.ts`.
-- Memory/life/status: `memoryContext.ts` assembles recent and durable decision context; `memory.ts`, `lifeEvents.ts`, and `signature.ts` maintain summaries and long-term state.
+- State/memory/life: `characterState.ts` owns structured goals and practical daily constraints; `memoryContext.ts` assembles recent and durable decision context; `memory.ts`, `lifeEvents.ts`, and `signature.ts` maintain summaries and long-term state.
 - Image pipeline: `image.ts`, `imageQA.ts`, `regenerate.ts`, `src/lib/cloudinary.ts`.
 - Script/API entry points: `scripts/sim-*.ts`, `src/app/api/simulate/route.ts`.
 - Persona documentation: `docs/demo-personas.md`, `docs/Agent_Architecture.md`.
@@ -183,6 +183,8 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `migrations/20260715110000_add_direct_messages/migration.sql` — direct messaging.
 - `migrations/20260731120000_add_user_admin_role/migration.sql` — admin role.
 - `migrations/20260903120000_split_post_kind/migration.sql` — LIFE/ACTIVITY post semantics and existing social-post backfill.
+- `migrations/20260910120000_add_character_goal_daily_state/migration.sql` — additive structured goal progress and practical daily-state storage.
+- `migrations/20260910123000_backfill_character_goal_daily_state/migration.sql` — converts existing goals and emotion snapshots into initial structured character state.
 
 ### `public/`
 
@@ -418,6 +420,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `relationships.ts` — relationship growth/decay after activity.
 - `memory.ts` — long-term memory compression.
 - `memoryContext.ts` — shared recent-plus-durable memory retrieval for daily and social decisions.
+- `characterState.ts` — compatible parsing and bounded updates for goal progress and practical daily state.
 - `lifeEvents.ts` — occasional persona life-event generation.
 - `signature.ts` — persona status/signature refresh.
 - `image.ts` — outfit planning, prompt composition, providers, generation, upload preflight, and Cloudinary persistence (server-signed credentials preferred; unsigned preset fallback).

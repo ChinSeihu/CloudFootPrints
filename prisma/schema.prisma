@@ -344,6 +344,8 @@ model CharacterState {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   emotion      Json      @default("{}") // { stress, loneliness, excitement, satisfaction, ... } 0–100
   goals        String[]  @default([])
+  goalState    Json      @default("[]") // 带进度、动机、阻碍和下一步的结构化目标；兼容旧 goals
+  dailyState   Json      @default("{}") // { energy, workload, socialBattery, budgetPressure } 0–100
   lifeStage    String?
   cast         Json      @default("[]") // 系统外的常出现熟人名册 [{name, relation}]，让"又见到某人"有连续性
   lastActiveAt DateTime? // 最后产出内容时间（Community Agent 用来保证每人每周露面）
