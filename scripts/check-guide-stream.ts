@@ -34,8 +34,8 @@ async function main(): Promise<void> {
   const bodies: Array<Record<string, unknown>> = [];
   globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-    const choice = bodies.length === 1
-      ? { finish_reason: "stop", message: { content: "", reasoning_content: "thinking" } }
+    const choice = bodies.length < 3
+      ? { finish_reason: "stop", message: { content: "", reasoning_content: bodies.length === 1 ? "thinking" : null } }
       : { finish_reason: "stop", message: { content: "usable answer" } };
     return new Response(JSON.stringify({ choices: [choice] }), { status: 200 });
   };
@@ -47,7 +47,10 @@ async function main(): Promise<void> {
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: "test" }],
     });
-    if (content !== "usable answer" || bodies.length !== 2 || JSON.stringify(bodies[1].thinking) !== JSON.stringify({ type: "disabled" }) || "reasoning_effort" in bodies[1] || "response_format" in bodies[1]) {
+    if (content !== "usable answer" || bodies.length !== 3
+      || JSON.stringify(bodies[1].thinking) !== JSON.stringify({ type: "disabled" })
+      || "reasoning_effort" in bodies[1] || !("response_format" in bodies[1])
+      || "response_format" in bodies[2]) {
       throw new Error(`DeepSeek fallback regression: ${JSON.stringify({ content, bodies })}`);
     }
   } finally { globalThis.fetch = originalFetch; }

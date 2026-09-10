@@ -15,15 +15,24 @@ export function deepSeekModel(configured = process.env.LLM_MODEL): string {
 
 /**
  * Signature: `async function requestDeepSeekContent(baseUrl: string, apiKey: string, body: DeepSeekRequestBody, signal?: AbortSignal): Promise<string>`
- * Purpose: Requires a final visible answer from DeepSeek and retries once without thinking when reasoning consumes the completion or the first request ends transiently.
+ * Purpose: Requires visible content and degrades from thinking JSON to non-thinking JSON, then non-thinking prompt-only JSON when needed.
  */
 export async function requestDeepSeekContent(baseUrl: string, apiKey: string, body: DeepSeekRequestBody, signal?: AbortSignal): Promise<string> {
   let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const thinking = body.thinking as { type?: unknown } | undefined;
+  const stages = [
+    { disableThinking: false, removeJsonMode: false },
+    ...(thinking?.type === "disabled" ? [] : [{ disableThinking: true, removeJsonMode: false }]),
+    ...(body.response_format ? [{ disableThinking: true, removeJsonMode: true }] : []),
+  ];
+  for (let attempt = 0; attempt < stages.length; attempt++) {
+    const stage = stages[attempt];
     const requestBody: DeepSeekRequestBody = { ...body, model: deepSeekModel(typeof body.model === "string" ? body.model : undefined) };
-    if (attempt > 0) {
+    if (stage.disableThinking) {
       requestBody.thinking = { type: "disabled" };
       delete requestBody.reasoning_effort;
+    }
+    if (stage.removeJsonMode) {
       delete requestBody.response_format;
     }
     try {
@@ -36,7 +45,7 @@ export async function requestDeepSeekContent(baseUrl: string, apiKey: string, bo
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
         const error = new Error(`DeepSeek ${response.status}: ${detail.slice(0, 300)}`);
-        if (attempt === 0 && (response.status === 429 || response.status >= 500)) { lastError = error; continue; }
+        if (attempt < stages.length - 1 && (response.status === 429 || response.status >= 500)) { lastError = error; continue; }
         throw error;
       }
       const data = (await response.json()) as { choices?: DeepSeekChoice[] };
@@ -48,7 +57,11 @@ export async function requestDeepSeekContent(baseUrl: string, apiKey: string, bo
       if (signal?.aborted) throw error;
       lastError = error instanceof Error ? error : new Error(String(error));
     }
-    if (attempt === 0) console.warn(JSON.stringify({ level: "warn", message: "DeepSeek content retry without thinking", error: lastError.message }));
+    if (attempt < stages.length - 1) console.warn(JSON.stringify({
+      level: "warn",
+      message: stages[attempt + 1].removeJsonMode ? "DeepSeek content retry without JSON mode" : "DeepSeek content retry without thinking",
+      error: lastError.message,
+    }));
   }
   throw lastError ?? new Error("DeepSeek returned no content");
 }
