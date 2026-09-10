@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-09-10
+
+### DeepSeek 模型切换
+- 默认、本地与示例配置从已弃用的 `deepseek-chat` 别名切换为显式的 `deepseek-v4-flash`，并同步 README。
+
 ## 2026-09-09
 
 ### 修复锚点周边展开
