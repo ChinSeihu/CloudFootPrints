@@ -27,6 +27,16 @@ const GENERAL_QUICK = [
   "讲讲东京祭典的历史与文化渊源",
 ];
 
+/**
+ * Signature: `function visibleMessageContent(message: UIMessage): string`
+ * Purpose: Hides candidate lists from route prompts already stored by older clients while preserving them as model context.
+ */
+function visibleMessageContent(message: UIMessage): string {
+  if (message.role !== "user") return message.content;
+  const candidateListAt = message.content.indexOf("\n\n附近活动：");
+  return candidateListAt >= 0 ? message.content.slice(0, candidateListAt).trim() : message.content;
+}
+
 function topicQuick(t: GuideTopic): string[] {
   const n = t.title;
   switch (t.kind) {
@@ -210,14 +220,16 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
   if (!open || !ready) return null;
 
   /**
-   * Signature: `async function send(text: string): Promise<void>`
-   * Purpose: Streams guide text into one persisted message, preserving partial output and restoring the question on failure.
+   * Signature: `async function send(text: string, privateContext?: string): Promise<void>`
+   * Purpose: Streams guide text while keeping route candidates in model-only context and restoring the visible question on failure.
    */
-  async function send(text: string) {
+  async function send(text: string, privateContext?: string) {
     const t = text.trim();
     if (!t || loading) return;
     setDismissedEntryNonce(openNonce);
-    const next: UIMessage[] = [...messages, { role: "user", content: t, context: topicRef.current ? topicInfo(topicRef.current) : undefined }];
+    const topicContext = !privateContext && topicRef.current ? topicInfo(topicRef.current) : "";
+    const context = [topicContext, privateContext ?? ""].filter(Boolean).join("\n\n");
+    const next: UIMessage[] = [...messages, { role: "user", content: t, context: context || undefined }];
     setMessages(next);
     setInput("");
     setLoadingAction("thinking");
@@ -362,7 +374,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
                 m.role === "user" ? "bg-violet-600 text-white" : "bg-neutral-100 text-neutral-800"
               }`}
             >
-              {m.content}
+              {visibleMessageContent(m)}
             </div>
             {/* 导游提到的活动：可点击进入详情 */}
             {m.role === "assistant" && m.events && m.events.length > 0 && (
@@ -386,7 +398,6 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
             )}
           </div>
         ))}
-        {detailRequest && <div><LoadingFeedback compact scene="calendar" text="打开活动卡片…" /><button type="button" onClick={() => setDetailRequest(null)} className="rounded-full px-3 py-2 text-xs text-neutral-500">取消打开</button></div>}
         {detailError && <p role="alert" className="text-sm text-rose-600">暂时无法打开活动，请稍后再点一次。</p>}
         {loading && messages[messages.length - 1]?.role !== "assistant" && (
           <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : thinkingStatus} />
@@ -437,7 +448,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
               <button
                 key={action.label}
                 type="button"
-                onClick={() => action.mode === "chat" ? send(action.prompt) : planNearbyRoute(action.prompt)}
+                onClick={() => action.mode === "chat" ? send(action.label, action.prompt) : planNearbyRoute(action.prompt)}
                 className={`text-left rounded-2xl border px-3.5 py-3 text-sm font-semibold shadow-[0_10px_24px_rgba(124,58,237,0.18)] ${index === 0 ? "border-violet-200 bg-violet-600 text-white" : "border-violet-200 bg-violet-50 text-violet-700"}`}
               >
                 <span className="block">{action.label}</span>
@@ -491,6 +502,16 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
           发送
         </button>
       </div>
+
+      {detailRequest && (
+        <div className="absolute inset-0 z-30 grid place-items-center bg-white/70 px-6 backdrop-blur-[2px]" role="status" aria-live="polite">
+          <div className="w-full max-w-xs rounded-3xl border border-violet-100 bg-white p-5 text-center shadow-[0_20px_60px_rgba(76,29,149,0.18)]">
+            <LoadingFeedback compact scene="calendar" text="正在打开活动卡片…" />
+            <p className="mt-2 text-xs text-neutral-400">正在读取活动时间、地点和详情</p>
+            <button type="button" onClick={() => setDetailRequest(null)} className="mt-3 rounded-full px-4 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100">取消打开</button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog open={confirmClear} title="清空导游对话" message="删除此浏览器中当前账号的导游聊天记录？" confirmText="清空" onCancel={() => setConfirmClear(false)} onConfirm={() => { setMessages([]); setInput(""); setDismissedEntryNonce(Math.max(0, openNonce - 1)); setConfirmClear(false); }} />
       {detail && <EventDetail event={detail} onClose={() => setDetail(null)} />}
