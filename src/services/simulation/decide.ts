@@ -15,6 +15,7 @@ import { goalStatePrompt, type DailyRealityState, type GoalState, type GoalUpdat
 import type { ActivitySignal } from "./activityImpact";
 import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 
 // 角色「当天决策」LLM。遵循 V7：先过日子→形成记忆→（按概率）才产内容；不是 prompt→帖子。
 // provider 与 lib/llm.ts 一致：deepseek/openai 走 JSON 模式，anthropic 走 tool use。
@@ -855,13 +856,7 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
       process.env.LLM_BASE_URL || "https://api.deepseek.com"
     ).replace(/\/$/, "");
 
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getApiKey()}`,
-      },
-      body: JSON.stringify({
+    const content = await requestDeepSeekContent(baseUrl, getApiKey(), {
         model: process.env.LLM_MODEL || "deepseek-flash",
         ...deepSeekTaskOptions("persona.daily"),
         messages: [
@@ -876,18 +871,8 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
         ],
         response_format: { type: "json_object" },
         max_tokens: llmTaskConfig("persona.daily").maxTokens,
-      }),
     });
-
-    if (!res.ok) {
-      throw new Error(`sim LLM ${res.status}: ${await res.text()}`);
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    result = normalize(safeParse(data.choices?.[0]?.message?.content ?? ""));
+    result = normalize(safeParse(content));
   }
 
   return result;

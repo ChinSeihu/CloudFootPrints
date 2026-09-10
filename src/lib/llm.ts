@@ -1,4 +1,5 @@
 import { readSSE, partialGuideReply } from "@/lib/guideStream";
+import { deepSeekModel, requestDeepSeekContent } from "@/lib/deepSeek";
 import Anthropic from "@anthropic-ai/sdk";
 import { EVENT_CATEGORIES, isEventCategory, type EventCategory } from "@/lib/categories";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
@@ -11,6 +12,14 @@ import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 const ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5";
 const DEEPSEEK_DEFAULT_MODEL = "deepseek-flash";
 const DEEPSEEK_DEFAULT_BASE = "https://api.deepseek.com";
+
+/**
+ * Signature: `function getDeepSeekModel(): string`
+ * Purpose: Resolves the configured DeepSeek model while keeping the current V4.1 Flash API name as the default.
+ */
+function getDeepSeekModel(): string {
+  return deepSeekModel(process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL);
+}
 
 function getApiKey(): string {
   const apiKey = process.env.LLM_API_KEY || process.env.ANTHROPIC_API_KEY;
@@ -156,7 +165,7 @@ events 数组中每个对象的字段：
 
 async function extractViaOpenAICompatible(pageText: string): Promise<RawExtractedEvent[]> {
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-  const model = process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL;
+  const model = getDeepSeekModel();
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -260,7 +269,7 @@ async function classifyViaAnthropic(items: ClassifyItem[]): Promise<string[]> {
 
 async function classifyViaOpenAICompatible(items: ClassifyItem[]): Promise<string[]> {
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-  const model = process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL;
+  const model = getDeepSeekModel();
   const instruction = `只输出 JSON：{"categories": ["...", ...]}，数组与输入等长、同顺序，每项是 ${CATEGORY_LIST} 之一。不要解释或 Markdown 围栏。`;
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -321,7 +330,7 @@ export async function normalizeAddressForGeocode(raw: string): Promise<string | 
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
       body: JSON.stringify({
-        model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+        model: getDeepSeekModel(),
         ...deepSeekTaskOptions("extract.geocode"),
         messages: [
           { role: "system", content: GEOCODE_NORMALIZE_SYSTEM },
@@ -423,7 +432,7 @@ async function summarizeViaAnthropic(items: SummarizeItem[]): Promise<string[]> 
 
 async function summarizeViaOpenAICompatible(items: SummarizeItem[]): Promise<string[]> {
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-  const model = process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL;
+  const model = getDeepSeekModel();
   const instruction = `只输出 JSON：{"summaries": ["...", ...]}，数组与输入等长、同顺序，每项是 ≤14 字的中文短摘要。不要解释或 Markdown 围栏。`;
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -591,20 +600,13 @@ suggestions 是你推测用户接下来最可能想问的 3~4 个问题，第一
 **无论是首次提问还是多轮追问，每一轮回答都必须给出至少 3 条 suggestions，绝不能省略或返回空数组。**
 referenced 是你回答中提到的、来自上方参考活动清单的活动编号（如 E1、E5）；没有提到就给空数组 []。
 不要任何解释或代码围栏。`;
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-    body: JSON.stringify({
-      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+  const content = await requestDeepSeekContent(baseUrl, getApiKey(), {
+      model: getDeepSeekModel(),
       ...deepSeekTaskOptions("guide.chat"),
       messages: [{ role: "system", content: `${system}\n\n${instruction}` }, ...messages],
       response_format: { type: "json_object" },
       max_tokens: llmTaskConfig("guide.chat").maxTokens,
-    }),
   });
-  if (!res.ok) throw new Error(`AI 聊天请求失败 ${res.status}`);
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content ?? "";
   const parsed = safeJsonParse(content) as { reply?: string; suggestions?: string[]; referenced?: string[] } | null;
   const reply = (parsed && typeof parsed.reply === "string" ? parsed.reply : content).trim();
   // 仍为空 → 不带 JSON 约束重答一次，保证不空白。
@@ -649,7 +651,7 @@ async function generateSuggestions(messages: ChatMessage[], reply: string): Prom
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
-      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+      model: getDeepSeekModel(),
       ...deepSeekTaskOptions("guide.suggestions"),
       messages: convo,
       response_format: { type: "json_object" },
@@ -681,19 +683,12 @@ async function plainAnthropicReply(system: string, messages: ChatMessage[]): Pro
 
 async function plainOpenAIReply(baseUrl: string, system: string, messages: ChatMessage[]): Promise<string> {
   try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-      body: JSON.stringify({
-        model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+    return await requestDeepSeekContent(baseUrl, getApiKey(), {
+        model: getDeepSeekModel(),
         ...deepSeekTaskOptions("guide.chat"),
         messages: [{ role: "system", content: system }, ...messages],
         max_tokens: llmTaskConfig("guide.chat").maxTokens,
-      }),
     });
-    if (!res.ok) return "抱歉，刚才没答上来，请再问一次或换个问法。";
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return (data.choices?.[0]?.message?.content ?? "").trim() || "抱歉，刚才没答上来，请再问一次或换个问法。";
   } catch {
     return "抱歉，刚才没答上来，请再问一次或换个问法。";
   }
@@ -716,19 +711,12 @@ export async function chatAsPersona(system: string, messages: ChatMessage[]): Pr
   }
 
   const baseUrl = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-    body: JSON.stringify({
-      model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL,
+  return requestDeepSeekContent(baseUrl, getApiKey(), {
+      model: getDeepSeekModel(),
       ...deepSeekTaskOptions("persona.chat"),
       messages: [{ role: "system", content: system }, ...messages],
       max_tokens: llmTaskConfig("persona.chat").maxTokens,
-    }),
   });
-  if (!res.ok) throw new Error(`persona chat failed: ${res.status}`);
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return (data.choices?.[0]?.message?.content ?? "").trim();
 }
 
 /**
@@ -757,23 +745,50 @@ export async function streamGuideReply(messages: ChatMessage[], context: string,
     }
   } else {
     const base = (process.env.LLM_BASE_URL || DEEPSEEK_DEFAULT_BASE).replace(/\/$/, "");
-    const response = await fetch(`${base}/chat/completions`, {
-      method: "POST", signal: requestSignal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-      body: JSON.stringify({ model: process.env.LLM_MODEL || DEEPSEEK_DEFAULT_MODEL, stream: true,
-        ...deepSeekTaskOptions("guide.chat"),
-        messages: [{ role: "system", content: `${system}\n只输出 JSON：{"reply":"纯文本正文","suggestions":["相关追问"],"referenced":["E1"]}。提供3个相关追问。正文不出现活动编号。` }, ...messages],
-        response_format: { type: "json_object" }, max_tokens: config.maxTokens }),
-    });
-    if (!response.ok || !response.body) {
-      const providerError = await response.text().catch(() => "");
-      throw new Error(`guide provider ${response.status}: ${providerError.slice(0, 300)}`);
-    }
-    for await (const frame of readSSE(response.body)) {
-      if (frame === "[DONE]") break;
-      const data = JSON.parse(frame) as { error?: unknown; choices?: { delta?: { content?: string } }[] };
-      if (data.error) throw new Error(`guide provider stream error: ${JSON.stringify(data.error).slice(0, 300)}`);
-      append(data.choices?.[0]?.delta?.content ?? "");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      raw = "";
+      previous = "";
+      try {
+        const requestMessages = [{ role: "system", content: `${system}\n只输出 JSON：{"reply":"纯文本正文","suggestions":["相关追问"],"referenced":["E1"]}。提供3个相关追问。正文不出现活动编号。` }, ...messages];
+        if (attempt > 0) {
+          const fallback = await requestDeepSeekContent(base, getApiKey(), {
+            model: getDeepSeekModel(), thinking: { type: "disabled" }, messages: requestMessages,
+            response_format: { type: "json_object" }, max_tokens: config.maxTokens,
+          }, requestSignal);
+          const structured = safeJsonParse(fallback) as Partial<GuideReply> | null;
+          append(typeof structured?.reply === "string" && structured.reply.trim()
+            ? fallback
+            : JSON.stringify({ reply: fallback, suggestions: [], referenced: [] }));
+          break;
+        }
+        let completed = false;
+        const response = await fetch(`${base}/chat/completions`, {
+          method: "POST", signal: requestSignal,
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
+          body: JSON.stringify({ model: getDeepSeekModel(), stream: true,
+            ...deepSeekTaskOptions("guide.chat"), messages: requestMessages,
+            response_format: { type: "json_object" }, max_tokens: config.maxTokens }),
+        });
+        if (!response.ok || !response.body) {
+          const providerError = await response.text().catch(() => "");
+          throw new Error(`guide provider ${response.status}: ${providerError.slice(0, 300)}`);
+        }
+        for await (const frame of readSSE(response.body)) {
+          if (frame === "[DONE]") { completed = true; break; }
+          const data = JSON.parse(frame) as { error?: unknown; choices?: { delta?: { content?: string }; finish_reason?: string | null }[] };
+          if (data.error) throw new Error(`guide provider stream error: ${JSON.stringify(data.error).slice(0, 300)}`);
+          if (data.choices?.some(choice => Boolean(choice.finish_reason))) completed = true;
+          append(data.choices?.[0]?.delta?.content ?? "");
+        }
+        if (!completed) throw new Error("guide stream ended without completion signal");
+        if (!raw.trim()) throw new Error("empty guide reply");
+        const structured = safeJsonParse(raw) as Partial<GuideReply> | null;
+        if (typeof structured?.reply !== "string" || !structured.reply.trim()) throw new Error("empty guide reply");
+        break;
+      } catch (error) {
+        if (attempt > 0 || previous.trim() || requestSignal.aborted) throw error;
+        console.warn(JSON.stringify({ level: "warn", message: "guide stream retry", error: error instanceof Error ? error.message : String(error) }));
+      }
     }
   }
   let result: Partial<GuideReply>;

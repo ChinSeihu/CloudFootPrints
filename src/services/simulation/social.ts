@@ -25,6 +25,7 @@ import {
 } from "./characterState";
 import { assessPersonaContent, qualityRewriteInstruction } from "./contentQuality";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 
 type SocialActionType = "post" | "comment" | "reply" | "react" | "none";
 
@@ -290,13 +291,7 @@ async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], c
   }
 
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({
+  const content = await requestDeepSeekContent(baseUrl, getApiKey(), {
       model: process.env.LLM_MODEL || "deepseek-flash",
       ...deepSeekTaskOptions("persona.social"),
       messages: [
@@ -305,11 +300,8 @@ async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], c
       ],
       response_format: { type: "json_object" },
       max_tokens: llmTaskConfig("persona.social").maxTokens,
-    }),
   });
-  if (!res.ok) throw new Error(`social LLM ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return normalizeDecision(safeParse(data.choices?.[0]?.message?.content ?? ""));
+  return normalizeDecision(safeParse(content));
 }
 
 /**

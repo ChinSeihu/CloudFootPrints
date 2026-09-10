@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 import { prisma } from "@/lib/db";
 import { personaOf, personaVoiceText } from "@/lib/personas";
 
@@ -45,19 +46,12 @@ async function summarizeLife(username: string, texts: string[]): Promise<string 
     return t?.text.trim() || null;
   }
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
-    body: JSON.stringify({
+  try { return await requestDeepSeekContent(baseUrl, getApiKey(), {
       model: process.env.LLM_MODEL || "deepseek-flash",
       ...deepSeekTaskOptions("persona.memory"),
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
       max_tokens: llmTaskConfig("persona.memory").maxTokens,
-    }),
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return (data.choices?.[0]?.message?.content ?? "").trim() || null;
+  }); } catch { return null; }
 }
 
 // 压缩某人最旧的一批 EVENT 记忆为一条 SUMMARY。返回摘要文本（无可压则 null）。

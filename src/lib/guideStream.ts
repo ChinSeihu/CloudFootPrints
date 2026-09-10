@@ -11,12 +11,15 @@ export async function* readSSE(body: ReadableStream<Uint8Array>): AsyncGenerator
     while (true) {
       const { value, done } = await reader.read();
       buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
-      if (done) buffer += "\n\n";
       let end: number;
       while ((end = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, end).replace(/\r$/, "");
         buffer = buffer.slice(end + 1);
-        if (!line && data.length) { yield data.join("\n"); data = []; }
+        if (!line && data.length) {
+          const event = data.join("\n");
+          data = [];
+          if (event.trim()) yield event;
+        }
         else if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
       }
       if (done) break;
