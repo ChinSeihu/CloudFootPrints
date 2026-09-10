@@ -290,7 +290,7 @@ async function callSocialLLM(input: Parameters<typeof buildPrompt>[0]): Promise<
       Authorization: `Bearer ${getApiKey()}`,
     },
     body: JSON.stringify({
-      model: process.env.LLM_MODEL || "deepseek-chat",
+      model: process.env.LLM_MODEL || "deepseek-flash",
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },

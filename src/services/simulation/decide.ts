@@ -849,7 +849,7 @@ export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> 
         Authorization: `Bearer ${getApiKey()}`,
       },
       body: JSON.stringify({
-        model: process.env.LLM_MODEL || "deepseek-chat",
+        model: process.env.LLM_MODEL || "deepseek-flash",
         messages: [
           {
             role: "system",

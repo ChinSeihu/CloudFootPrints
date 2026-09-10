@@ -50,7 +50,7 @@ async function selectWithLlm(dateKey: string, candidates: FeaturedCandidate[]): 
   if (!apiKey) return [];
 
   const baseUrl = (process.env.LLM_BASE_URL ?? "https://api.deepseek.com").replace(/\/$/, "");
-  const model = process.env.LLM_MODEL ?? "deepseek-chat";
+  const model = process.env.LLM_MODEL ?? "deepseek-flash";
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {

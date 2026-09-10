@@ -8,7 +8,7 @@ import { EVENT_CATEGORIES, isEventCategory, type EventCategory } from "@/lib/cat
 // 两条路径都返回"未校验的活动对象数组"，由 ingest/extract 侧用 zod 校验兜底。
 
 const ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5";
-const DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash";
+const DEEPSEEK_DEFAULT_MODEL = "deepseek-flash";
 const DEEPSEEK_DEFAULT_BASE = "https://api.deepseek.com";
 
 function getApiKey(): string {

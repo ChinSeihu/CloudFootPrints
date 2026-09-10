@@ -48,7 +48,7 @@ async function summarizeLife(username: string, texts: string[]): Promise<string 
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
-      model: process.env.LLM_MODEL || "deepseek-chat",
+      model: process.env.LLM_MODEL || "deepseek-flash",
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
       temperature: 0.7,
       max_tokens: 300,

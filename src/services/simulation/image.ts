@@ -531,7 +531,7 @@ ${world.season} / ${world.weather}
     }
 
     console.info(
-      `[image-prompt] ready persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} model=${process.env.LLM_MODEL || (useAnthropic ? "claude-haiku-4-5" : "deepseek-chat")} words=${words} elapsedMs=${elapsedMs}`
+      `[image-prompt] ready persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} model=${process.env.LLM_MODEL || (useAnthropic ? "claude-haiku-4-5" : "deepseek-flash")} words=${words} elapsedMs=${elapsedMs}`
     );
     if ((process.env.IMAGE_PROMPT_LOG ?? "").toLowerCase() === "true") {
       console.info(`[image-prompt] scene persona=${persona.id} name=${JSON.stringify(persona.username)} ${JSON.stringify(prompt)}`);
@@ -570,7 +570,7 @@ ${world.season} / ${world.weather}
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: process.env.LLM_MODEL || "deepseek-chat",
+          model: process.env.LLM_MODEL || "deepseek-flash",
           messages: [
             { role: "system", content: system },
             { role: "user", content: userWithWardrobe },

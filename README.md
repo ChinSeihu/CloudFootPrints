@@ -31,7 +31,7 @@
 - **前端/服务端**：Next.js 16（App Router）+ TypeScript + Tailwind v4
 - **数据库/ORM**：Prisma 7（pg driver adapter）+ PostgreSQL（Neon / Supabase 云端免费层）
 - **地图**：MapLibre GL JS + CARTO Positron 底图
-- **LLM（可切换 provider）**：DeepSeek（`deepseek-v4-flash`，OpenAI 兼容 / JSON 模式）或 Claude（`claude-haiku-4-5`，tool use）
+- **LLM（可切换 provider）**：DeepSeek（`deepseek-flash`，OpenAI 兼容 / JSON 模式）或 Claude（`claude-haiku-4-5`，tool use）
 - **地理编码**：国土地理院（GSI）免费 API
 - **天气**：Open-Meteo（免费无 key）
 
@@ -71,7 +71,7 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
 # LLM（提取 / 评测才需要，可切换 provider）
 LLM_PROVIDER="deepseek"                       # deepseek | anthropic
 LLM_API_KEY=""                                # 对应 provider 的 key
-LLM_MODEL="deepseek-v4-flash"                      # anthropic: claude-haiku-4-5
+LLM_MODEL="deepseek-flash"                      # anthropic: claude-haiku-4-5
 LLM_BASE_URL="https://api.deepseek.com"        # anthropic 留空
 
 # 底图（CARTO Positron，免费）

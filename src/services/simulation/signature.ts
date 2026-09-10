@@ -38,7 +38,7 @@ async function oneLine(system: string, user: string, maxTokens: number): Promise
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getApiKey()}` },
     body: JSON.stringify({
-      model: process.env.LLM_MODEL || "deepseek-chat",
+      model: process.env.LLM_MODEL || "deepseek-flash",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       temperature: 0.85,
       max_tokens: maxTokens,

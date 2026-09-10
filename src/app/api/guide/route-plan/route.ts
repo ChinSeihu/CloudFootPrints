@@ -96,7 +96,7 @@ async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string)
   const key = apiKey();
   if (!key) return null;
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-  const model = process.env.LLM_MODEL || "deepseek-chat";
+  const model = process.env.LLM_MODEL || "deepseek-flash";
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
