@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_META } from "@/lib/categories";
-import { CategoryIcon, IconPin, IconCalendar, IconMap, IconHeart, IconBookmark, IconChevronLeft, IconSparkles, IconUser } from "@/components/icons";
+import { CategoryIcon, IconPin, IconCalendar, IconMap, IconHeart, IconBookmark, IconChevronLeft, IconSparkles } from "@/components/icons";
 import { useAuth } from "@/components/Auth/AuthContext";
 import { useGuide } from "@/components/Guide/GuideContext";
 import { displayTags } from "@/lib/tags";
@@ -748,10 +748,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const loginPromptOverlay = loginPromptAction && (
     <div role="dialog" aria-modal="true" aria-labelledby="reaction-login-title" className="fixed inset-0 z-[130] flex items-center justify-center bg-neutral-950/35 p-5 backdrop-blur-[2px]">
       <button type="button" aria-label="关闭登录提示" onClick={() => setLoginPromptAction(null)} className="absolute inset-0 cursor-default" />
-      <div className="relative w-full max-w-[320px] rounded-3xl bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
-        <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-violet-100 text-violet-600">
-          <IconUser className="h-5 w-5" />
-        </div>
+      <div className="relative w-full max-w-[320px] rounded-3xl bg-white px-5 pb-5 pt-4 shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
         <h2 id="reaction-login-title" className="text-center text-base font-bold text-neutral-950">登录后再{loginPromptAction}</h2>
         <p className="mt-1.5 text-center text-[13px] leading-5 text-neutral-500">登录后可保存互动记录，并在个人页随时查看。</p>
         <div className="mt-4 grid grid-cols-2 gap-2.5">
