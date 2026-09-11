@@ -58,7 +58,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-transparent text-neutral-900 transition active:scale-95 sm:h-9 sm:w-9",
+    "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/100 text-neutral-900 transition active:scale-95 sm:h-9 sm:w-9",
     active && "text-rose-500",
   );
 }
@@ -188,6 +188,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [wantPulse, setWantPulse] = useState(false);
   const [wantError, setWantError] = useState<string | null>(null);
   const [postActionsExpanded, setPostActionsExpanded] = useState(true);
+  const [officialHeaderScrolled, setOfficialHeaderScrolled] = useState(false);
   const wantInFlight = useRef(false);
   const wantPulseTimer = useRef<number | null>(null);
   const shareNoticeTimer = useRef<number | null>(null);
@@ -216,6 +217,15 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     const collapseThreshold = Math.min(element.clientHeight * 0.25, Math.max(1, scrollableDistance - scrollEndBuffer));
     const expanded = scrollableDistance <= 0 || element.scrollTop < collapseThreshold;
     setPostActionsExpanded((current) => current === expanded ? current : expanded);
+  }
+
+  /**
+   * Signature: `function handleOfficialScroll(event: React.UIEvent<HTMLDivElement>): void`
+   * Purpose: Reveals the official-event toolbar surface only after its detail view leaves the top.
+   */
+  function handleOfficialScroll(event: React.UIEvent<HTMLDivElement>) {
+    const scrolled = event.currentTarget.scrollTop > 0;
+    setOfficialHeaderScrolled((current) => current === scrolled ? current : scrolled);
   }
 
   useEffect(() => {
@@ -883,20 +893,22 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   const hero = images[0];
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+    <div onScroll={handleOfficialScroll} className="fixed inset-0 z-50 overflow-y-auto bg-white">
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
-        <div className="absolute z-99 opacity-50 px-4 w-full pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
-          <button type="button" onClick={onClose} aria-label="返回" className="left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-lg backdrop-blur sm:left-5 sm:top-5 sm:h-10 sm:w-10">
-            <IconChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="absolute right-4 top-4 flex gap-2 sm:right-5 sm:top-5 sm:gap-2.5">
-            <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
-              <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" /></span>
+        <div className="sticky top-0 z-[99] h-0 w-full">
+          <div className={`flex w-full items-center justify-between px-4 pb-3 pt-4 transition-[background-color,box-shadow,backdrop-filter] duration-200 sm:px-7 sm:pb-5 sm:pt-8 ${officialHeaderScrolled ? "bg-white/70 shadow-[0_6px_18px_rgba(15,23,42,0.08)] backdrop-blur-md" : "bg-transparent shadow-none backdrop-blur-none"}`}>
+            <button type="button" onClick={onClose} aria-label="返回" className="left-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/100 text-neutral-900 shadow-lg backdrop-blur sm:left-5 sm:top-5 sm:h-10 sm:w-10">
+              <IconChevronLeft className="h-5 w-5" />
             </button>
-            <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
-              <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
+            <div className="flex gap-2 sm:gap-2.5">
+              <button type="button" onClick={() => toggleReaction("LIKE")} className={iconButtonClass(reactions.likedByMe)}>
+                <span className="flex flex-col items-center leading-none"><IconHeart filled={reactions.likedByMe} className="h-4 w-4" /></span>
+              </button>
+              <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
+                <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
+            </div>
           </div>
         </div>
         <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
