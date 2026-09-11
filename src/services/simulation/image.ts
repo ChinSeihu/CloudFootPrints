@@ -1027,7 +1027,7 @@ class AgnesProvider implements ImageProvider {
 
 /**
  * OpenAI GPT Image provider using generations for text-only requests and edits for identity references.
- * Quota or rate-limit responses fail cleanly so the simulation can continue without an image.
+ * Quota or rate-limit responses fall back to the configured Agnes image model.
  */
 class OpenAIImageProvider implements ImageProvider {
   readonly name = "openai";
@@ -1076,8 +1076,8 @@ class OpenAIImageProvider implements ImageProvider {
 
       if (!response.ok) {
         if (response.status === 429) {
-          console.warn("[image-generation] OpenAI quota or rate limit reached; image skipped");
-          return null;
+          console.warn("[image-generation] OpenAI quota or rate limit reached; falling back to Agnes");
+          return new AgnesProvider().generate(prompt, refImage);
         }
         console.warn(`[image-generation] OpenAI request failed status=${response.status}`);
         return null;

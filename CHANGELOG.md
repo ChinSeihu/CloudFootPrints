@@ -3,7 +3,7 @@
 ## 2026-09-11
 
 - 社区模拟工作流的 GPT Image 质量档位改为读取 GitHub Actions 仓库变量 `OPENAI_IMAGE_QUALITY`，未配置时继续使用 `medium`。
-- 模拟图片质检从 Agnes 切换到支持视觉输入的 `deepseek-flash`，停止工作流中的 Agnes 配置及 GPT Image 限流回退；同时提高人物推演 thinking 输出额度，并增加 DeepSeek token、重试阶段和完整人物决策日志。
+- 模拟图片质检从 Agnes 切换到支持视觉输入的 `deepseek-flash`，Agnes 继续保留为可选生图提供方及 GPT Image 限流回退；同时提高人物推演 thinking 输出额度，并增加 DeepSeek token、重试阶段和完整人物决策日志。
 
 ## 2026-09-10
 
