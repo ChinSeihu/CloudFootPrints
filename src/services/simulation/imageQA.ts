@@ -1,14 +1,5 @@
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 import { imageSpecToText, type ImageSpec } from "./decide"
-
-async function fetchT(url: string, init: RequestInit, ms: number): Promise<Response> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), ms);
-  try {
-    return await fetch(url, { ...init, signal: ac.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 export type QAResult = { ok: boolean; reason: string; improvedPrompt: string | null };
 export type ImageQAProfile = "strict" | "openai-relaxed";
@@ -56,7 +47,7 @@ function safeParse(text: string): unknown {
 
 /**
  * Signature: `async function judgeImage(imageRef: string, imageSpec: ImageSpec, basePrompt: string, profile?: ImageQAProfile): Promise<QAResult>`
- * Purpose: Reviews a generated image with either the established strict criteria or a relaxed GPT Image acceptance threshold.
+ * Purpose: Reviews a generated image through DeepSeek vision with either the strict criteria or a relaxed GPT Image acceptance threshold.
  */
 export async function judgeImage(
   imageRef: string,
@@ -64,9 +55,9 @@ export async function judgeImage(
   basePrompt: string,
   profile: ImageQAProfile = "strict"
 ): Promise<QAResult> {
-  const base = process.env.AGNES_API_URL;
-  const key = process.env.AGNES_API_KEY;
-  const model = process.env.IMAGE_QA_MODEL || "agnes-2.0-flash";
+  const base = process.env.LLM_BASE_URL || "https://api.deepseek.com";
+  const key = process.env.LLM_API_KEY;
+  const model = process.env.IMAGE_QA_MODEL || process.env.LLM_MODEL || "deepseek-flash";
 
   if (!base || !key) {
     return {
@@ -75,8 +66,6 @@ export async function judgeImage(
       improvedPrompt: null,
     };
   }
-
-  const endpoint = `${base.replace(/\/$/, "")}/chat/completions`;
 
   const ask = [
     `Intended image specification:\n${imageSpecToText(imageSpec)}`,
@@ -91,51 +80,29 @@ export async function judgeImage(
   ].join("\n");
 
   try {
-    const res = await fetchT(
-      endpoint,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
+    const content = await requestDeepSeekContent(base, key, {
+      model,
+      thinking: { type: "disabled" },
+      max_tokens: 1000,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: profile === "openai-relaxed" ? OPENAI_RELAXED_QA_SYSTEM : QA_SYSTEM,
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: 700,
-          messages: [
-            {
-              role: "system",
-              content:
-                profile === "openai-relaxed"
-                  ? OPENAI_RELAXED_QA_SYSTEM
-                  : QA_SYSTEM,
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: ask },
-                { type: "image_url", image_url: { url: imageRef } },
-              ],
-            },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: ask },
+            { type: "image_url", image_url: { url: imageRef, detail: "low" } },
           ],
-        }),
-      },
-      60000
-    );
+        },
+      ],
+    }, controller.signal, { task: "image.qa" }).finally(() => clearTimeout(timer));
 
-    if (!res.ok) {
-      return {
-        ok: true,
-        reason: `QA request failed ${res.status}, skipped`,
-        improvedPrompt: null,
-      };
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const parsed = safeParse(data.choices?.[0]?.message?.content ?? "") as {
+    const parsed = safeParse(content) as {
       ok?: unknown;
       reason?: unknown;
       improvedPrompt?: unknown;
@@ -166,10 +133,16 @@ export async function judgeImage(
       reason,
       improvedPrompt,
     };
-  } catch {
+  } catch (error) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "DeepSeek image QA skipped",
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    }));
     return {
       ok: true,
-      reason: "QA exception, skipped",
+      reason: "DeepSeek QA request failed, skipped",
       improvedPrompt: null,
     };
   }

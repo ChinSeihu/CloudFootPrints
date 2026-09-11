@@ -871,6 +871,10 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
         ],
         response_format: { type: "json_object" },
         max_tokens: llmTaskConfig("persona.daily").maxTokens,
+    }, undefined, {
+      task: "persona.daily",
+      personaId: inp.persona.id,
+      personaName: inp.persona.username,
     });
     result = normalize(safeParse(content));
   }
@@ -880,11 +884,21 @@ async function requestDecision(inp: DecideInput, correction = ""): Promise<Decid
 
 /**
  * Signature: `async function decideDay(inp: DecideInput): Promise<DecideOutput | null>`
- * Purpose: Produces a daily decision, runs deterministic persona-content QA, and retries once with focused correction feedback when needed.
+ * Purpose: Produces and logs a daily decision, runs deterministic persona-content QA, and retries once with focused correction feedback when needed.
  */
 export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> {
+  const startedAt = Date.now();
   let result = await requestDecision(inp);
-  if (!result) return null;
+  if (!result) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "Persona daily decision missing",
+      personaId: inp.persona.id,
+      personaName: inp.persona.username,
+      elapsedMs: Date.now() - startedAt,
+    }));
+    return null;
+  }
 
   let quality = assessPersonaContent({
     persona: inp.persona,
@@ -915,5 +929,19 @@ export async function decideDay(inp: DecideInput): Promise<DecideOutput | null> 
     result.post = null;
   }
   if (result.post) result.post.spotIndex = resolveSpotIndex(result.post, inp.spots);
+  console.info(JSON.stringify({
+    level: "info",
+    message: "Persona daily decision completed",
+    personaId: inp.persona.id,
+    personaName: inp.persona.username,
+    elapsedMs: Date.now() - startedAt,
+    memoryText: result.memoryText,
+    memoryImportance: result.memoryImportance,
+    moodDelta: result.moodDelta,
+    post: result.post,
+    people: result.people,
+    goalUpdate: result.goalUpdate,
+    dailyStateDelta: result.dailyStateDelta,
+  }));
   return result;
 }

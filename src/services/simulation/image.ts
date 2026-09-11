@@ -571,7 +571,11 @@ ${world.season} / ${world.weather}
             { role: "user", content: userWithWardrobe },
           ],
           max_tokens: llmTaskConfig("persona.image-prompt").maxTokens,
-    }, AbortSignal.timeout(45000));
+    }, AbortSignal.timeout(45000), {
+      task: "persona.image-prompt",
+      personaId: persona.id,
+      personaName: persona.username,
+    });
     return finish(content);
   } catch (error) {
     console.warn(
@@ -1023,7 +1027,7 @@ class AgnesProvider implements ImageProvider {
 
 /**
  * OpenAI GPT Image provider using generations for text-only requests and edits for identity references.
- * Quota or rate-limit responses fall back to the previously configured Agnes image model.
+ * Quota or rate-limit responses fail cleanly so the simulation can continue without an image.
  */
 class OpenAIImageProvider implements ImageProvider {
   readonly name = "openai";
@@ -1072,8 +1076,8 @@ class OpenAIImageProvider implements ImageProvider {
 
       if (!response.ok) {
         if (response.status === 429) {
-          console.warn("[image-generation] OpenAI quota or rate limit reached; falling back to Agnes");
-          return new AgnesProvider().generate(prompt, refImage);
+          console.warn("[image-generation] OpenAI quota or rate limit reached; image skipped");
+          return null;
         }
         console.warn(`[image-generation] OpenAI request failed status=${response.status}`);
         return null;

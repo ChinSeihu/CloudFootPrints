@@ -78,7 +78,7 @@ export async function maybeLifeEvent(username: string, when: Date): Promise<Life
       raw = res.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? null;
     } else {
       const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
-      raw = await requestDeepSeekContent(baseUrl, getApiKey(), { model: process.env.LLM_MODEL || "deepseek-flash", ...deepSeekTaskOptions("persona.life-event"), messages: [{ role: "system", content: system }, { role: "user", content: u }], response_format: { type: "json_object" }, max_tokens: llmTaskConfig("persona.life-event").maxTokens });
+      raw = await requestDeepSeekContent(baseUrl, getApiKey(), { model: process.env.LLM_MODEL || "deepseek-flash", ...deepSeekTaskOptions("persona.life-event"), messages: [{ role: "system", content: system }, { role: "user", content: u }], response_format: { type: "json_object" }, max_tokens: llmTaskConfig("persona.life-event").maxTokens }, undefined, { task: "persona.life-event", personaId: persona.id, personaName: persona.username });
     }
   } catch { return null; }
   const parsed = safeParse(raw ?? "") as { memory?: unknown; status?: unknown; goal?: unknown } | null;

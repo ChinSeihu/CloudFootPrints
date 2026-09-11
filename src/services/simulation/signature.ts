@@ -42,7 +42,7 @@ async function oneLine(system: string, user: string, maxTokens: number): Promise
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       // Thinking tokens share the completion budget, so short visible copy still needs headroom.
       max_tokens: llmTaskConfig("persona.signature").maxTokens,
-  }); } catch { return null; }
+  }, undefined, { task: "persona.signature" }); } catch { return null; }
 }
 
 // 去掉引号/书名号/多余空白，截断到上限。

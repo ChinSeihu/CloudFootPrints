@@ -300,6 +300,10 @@ async function requestSocialDecision(input: Parameters<typeof buildPrompt>[0], c
       ],
       response_format: { type: "json_object" },
       max_tokens: llmTaskConfig("persona.social").maxTokens,
+  }, undefined, {
+    task: "persona.social",
+    personaId: input.persona.id,
+    personaName: input.persona.username,
   });
   return normalizeDecision(safeParse(content));
 }

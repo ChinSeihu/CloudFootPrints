@@ -31,13 +31,13 @@ export const LLM_TASK_CONFIG: Record<LlmTaskKey, LlmTaskConfig> = {
   "guide.chat": { thinking: "enabled", effort: "low", maxTokens: 24000, timeoutMs: 180_000 },
   "guide.suggestions": { thinking: "disabled", maxTokens: 400 },
   "guide.route": { thinking: "enabled", effort: "high", maxTokens: 32000, timeoutMs: 180_000 },
-  "persona.chat": { thinking: "enabled", effort: "low", maxTokens: 1200 },
+  "persona.chat": { thinking: "enabled", effort: "low", maxTokens: 8000 },
   "persona.daily": { thinking: "enabled", effort: "high", maxTokens: 32000 },
-  "persona.social": { thinking: "enabled", effort: "low", maxTokens: 1800 },
+  "persona.social": { thinking: "enabled", effort: "low", maxTokens: 8000 },
   "persona.life-event": { thinking: "enabled", effort: "high", maxTokens: 32000 },
-  "persona.memory": { thinking: "enabled", effort: "low", maxTokens: 1600 },
-  "persona.signature": { thinking: "enabled", effort: "low", maxTokens: 1000 },
-  "persona.image-prompt": { thinking: "enabled", effort: "low", maxTokens: 2400 },
+  "persona.memory": { thinking: "enabled", effort: "low", maxTokens: 8000 },
+  "persona.signature": { thinking: "enabled", effort: "low", maxTokens: 8000 },
+  "persona.image-prompt": { thinking: "enabled", effort: "low", maxTokens: 8000 },
 };
 
 /**

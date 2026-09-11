@@ -51,7 +51,7 @@ async function summarizeLife(username: string, texts: string[]): Promise<string 
       ...deepSeekTaskOptions("persona.memory"),
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
       max_tokens: llmTaskConfig("persona.memory").maxTokens,
-  }); } catch { return null; }
+  }, undefined, { task: "persona.memory" }); } catch { return null; }
 }
 
 // 压缩某人最旧的一批 EVENT 记忆为一条 SUMMARY。返回摘要文本（无可压则 null）。
