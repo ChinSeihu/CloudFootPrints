@@ -176,6 +176,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [commentHasMore, setCommentHasMore] = useState(false);
   const [replyMeta, setReplyMeta] = useState<Record<string, ReplyPageMeta>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [loginPromptAction, setLoginPromptAction] = useState<"点赞" | "收藏" | "报名" | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
@@ -408,8 +409,17 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       .catch(() => {});
   }, [event.author?.id, isUserPost, user]);
 
+  /**
+   * Signature: `async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP"): Promise<void>`
+   * Purpose: Applies an authenticated reaction optimistically, or opens a prominent login prompt before any unauthenticated request.
+   */
   async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP") {
     setErr(null);
+    const action = type === "LIKE" ? "点赞" : type === "FAVORITE" ? "收藏" : "报名";
+    if (!user) {
+      setLoginPromptAction(action);
+      return;
+    }
     setReactions((prev) => {
       if (type === "LIKE") {
         const active = prev.likedByMe;
@@ -431,7 +441,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       if (!res.ok) {
         const refetch = await fetch(`/api/events/${event.id}/reactions`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (refetch) setReactions(refetch);
-        setErr(res.status === 401 ? "请先到「个人」页登录后再操作" : "操作失败");
+        if (res.status === 401) setLoginPromptAction(action);
+        else setErr("操作失败");
         return;
       }
       const d = (await res.json()) as { active: boolean; count: number };
@@ -734,6 +745,21 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     );
   }
 
+  const loginPromptOverlay = loginPromptAction && (
+    <div role="dialog" aria-modal="true" aria-labelledby="reaction-login-title" className="fixed inset-0 z-[130] flex items-end justify-center bg-neutral-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-6">
+      <button type="button" aria-label="关闭登录提示" onClick={() => setLoginPromptAction(null)} className="absolute inset-0 cursor-default" />
+      <div className="relative w-full max-w-sm rounded-t-[28px] bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 shadow-[0_24px_70px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6">
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-violet-100 text-xl text-violet-600">♡</div>
+        <h2 id="reaction-login-title" className="text-center text-lg font-bold text-neutral-950">登录后再{loginPromptAction}</h2>
+        <p className="mt-2 text-center text-sm leading-6 text-neutral-500">登录后可以保存你的互动记录，也能在个人页面随时查看。</p>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setLoginPromptAction(null)} className="h-11 rounded-2xl bg-neutral-100 text-sm font-semibold text-neutral-600 transition active:scale-[0.98]">暂不登录</button>
+          <button type="button" onClick={() => { onClose(); router.push("/me"); }} className="h-11 rounded-2xl bg-violet-600 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]">前往登录</button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (isUserPost) {
     return (
       <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-y-auto bg-white">
@@ -876,6 +902,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           </div>
         </div>
         {shareFeedback}
+        {loginPromptOverlay}
         {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
         {directMessageTarget && user && (
           <DirectMessages
@@ -995,6 +1022,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         </main>
       </div>
       {shareFeedback}
+      {loginPromptOverlay}
       {lightbox && <Lightbox images={lightbox.images} index={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   );
