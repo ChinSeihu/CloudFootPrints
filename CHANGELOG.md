@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-09-11
+
+- 社区模拟工作流的 GPT Image 质量档位改为读取 GitHub Actions 仓库变量 `OPENAI_IMAGE_QUALITY`，未配置时继续使用 `medium`。
+
 ## 2026-09-10
 
 - DeepSeek 默认模型、运行时回退、本地配置示例与模拟工作流统一切换为官方 V4.1 Flash 模型名 `deepseek-flash`。

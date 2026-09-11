@@ -65,7 +65,7 @@ jobs:
           OPENAI_IMAGE_API_URL: ${{ secrets.OPENAI_IMAGE_API_URL }}
           OPENAI_IMAGE_MODEL: ${{ secrets.OPENAI_IMAGE_MODEL }}
           OPENAI_IMAGE_SIZE: "1024x1536"
-          OPENAI_IMAGE_QUALITY: "medium"
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'medium' }}
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           AGNES_MODEL: ${{ secrets.AGNES_MODEL }}
           AGNES_API_URL: ${{ secrets.AGNES_API_URL }}
