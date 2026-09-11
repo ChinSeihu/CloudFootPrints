@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CATEGORY_META } from "@/lib/categories";
 import type { GuideRouteCandidate, GuideRoutePlan, GuideRouteStop } from "@/lib/guideRoute";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 
 export const maxDuration = 240;
 
@@ -101,11 +102,8 @@ async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string)
   const baseUrl = (process.env.LLM_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
   const model = process.env.LLM_MODEL || "deepseek-flash";
   const config = llmTaskConfig("guide.route");
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    signal: AbortSignal.timeout(config.timeoutMs ?? 180_000),
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
+  try {
+    const content = await requestDeepSeekContent(baseUrl, key, {
       model,
       ...deepSeekTaskOptions("guide.route"),
       max_tokens: config.maxTokens,
@@ -139,11 +137,9 @@ async function llmPlan(candidates: GuideRouteCandidate[], intentPrompt?: string)
           }),
         },
       ],
-    }),
-  });
-  if (!res.ok) return null;
-  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return normalizePlan(parseJson(data.choices?.[0]?.message?.content ?? ""), candidates);
+    }, AbortSignal.timeout(config.timeoutMs ?? 180_000));
+    return normalizePlan(parseJson(content), candidates);
+  } catch { return null; }
 }
 
 export async function POST(req: Request) {

@@ -6,6 +6,7 @@ import type { World } from "./world";
 import { judgeImage } from "./imageQA";
 import { imageSpecToText, type ImageSpec } from "./decide";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 
 // 身份参考只用于人物身份与稳定脸部特征，发型、服装、道具和背景均可随新场景变化。
 async function loadRefImage(refIndex: number): Promise<string | null> {
@@ -562,15 +563,7 @@ ${world.season} / ${world.weather}
       process.env.LLM_BASE_URL || "https://api.deepseek.com"
     ).replace(/\/$/, "");
 
-    const res = await fetchT(
-      `${baseUrl}/chat/completions`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
+    const content = await requestDeepSeekContent(baseUrl, key, {
           model: process.env.LLM_MODEL || "deepseek-flash",
           ...deepSeekTaskOptions("persona.image-prompt"),
           messages: [
@@ -578,23 +571,8 @@ ${world.season} / ${world.weather}
             { role: "user", content: userWithWardrobe },
           ],
           max_tokens: llmTaskConfig("persona.image-prompt").maxTokens,
-        }),
-      },
-      45000
-    );
-
-    if (!res.ok) {
-      console.warn(
-        `[image-prompt] request failed persona=${persona.id} name=${JSON.stringify(persona.username)} provider=deepseek status=${res.status} elapsedMs=${Date.now() - startedAt}`
-      );
-      return null;
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    return finish(data.choices?.[0]?.message?.content);
+    }, AbortSignal.timeout(45000));
+    return finish(content);
   } catch (error) {
     console.warn(
       `[image-prompt] request error persona=${persona.id} name=${JSON.stringify(persona.username)} provider=${useAnthropic ? "anthropic" : "deepseek"} elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : "unknown"}`

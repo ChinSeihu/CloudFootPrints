@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { requestDeepSeekContent } from "@/lib/deepSeek";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
 
 type FeaturedCandidate = {
@@ -52,13 +53,7 @@ async function selectWithLlm(dateKey: string, candidates: FeaturedCandidate[]): 
 
   const baseUrl = (process.env.LLM_BASE_URL ?? "https://api.deepseek.com").replace(/\/$/, "");
   const model = process.env.LLM_MODEL ?? "deepseek-flash";
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
+  const content = await requestDeepSeekContent(baseUrl, apiKey, {
       model,
       ...deepSeekTaskOptions("recommend.featured"),
       max_tokens: llmTaskConfig("recommend.featured").maxTokens,
@@ -78,12 +73,7 @@ async function selectWithLlm(dateKey: string, candidates: FeaturedCandidate[]): 
           }),
         },
       ],
-    }),
   });
-
-  if (!response.ok) throw new Error(`featured LLM failed: ${response.status} ${response.statusText}`);
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content ?? "";
   const parsed = JSON.parse(content) as { ids?: unknown };
   return Array.isArray(parsed.ids) ? parsed.ids.filter((id): id is string => typeof id === "string") : [];
 }

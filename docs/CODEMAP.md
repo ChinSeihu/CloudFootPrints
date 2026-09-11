@@ -81,10 +81,10 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 - Client state/chat/FAB: `src/components/Guide/GuideContext.tsx`, `GuideChat.tsx`, `GuideFab.tsx`.
 - Chat endpoint: `src/app/api/chat/route.ts`.
-- Streaming protocol: `src/lib/guideStream.ts` — UTF-8 SSE framing and partial JSON reply decoding; `streamGuideReply` in `src/lib/llm.ts` handles both providers and cancellation.
+- Streaming protocol: `src/lib/guideStream.ts` — UTF-8 SSE framing and partial JSON reply decoding; `streamGuideReply` in `src/lib/llm.ts` handles both providers, cancellation, and one pre-reply DeepSeek retry; `scripts/check-guide-stream.ts` covers empty and truncated SSE events.
 - Activity grounding: `src/services/guideEvents.ts`.
 - Route-plan endpoint/types: `src/app/api/guide/route-plan/route.ts`, `src/lib/guideRoute.ts`.
-- LLM calls: `src/lib/llm.ts`; keyed thinking levels and token budgets: `src/lib/llmTaskConfig.ts`.
+- LLM calls: `src/lib/llm.ts`; keyed thinking levels and token budgets: `src/lib/llmTaskConfig.ts`; `src/lib/deepSeek.ts` validates visible content and retries empty thinking responses once with thinking disabled.
 
 ### Rail, stations, and route planning
 
