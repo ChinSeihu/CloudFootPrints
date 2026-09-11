@@ -58,7 +58,7 @@ function durationLabel(start: string | null, end: string | null): string {
 
 function iconButtonClass(active = false) {
   return cx(
-    "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 transition active:scale-95 sm:h-9 sm:w-9",
+    "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-sm transition active:scale-95",
     active && "text-rose-500",
   );
 }
@@ -896,8 +896,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     <div onScroll={handleOfficialScroll} className="fixed inset-0 z-50 overflow-y-auto bg-white">
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
         <div className="sticky top-0 z-[99] h-0 w-full">
-          <div className={`flex w-full items-center justify-between px-4 py-2 transition-[background-color,box-shadow,backdrop-filter] duration-200 sm:px-5 sm:py-2.5 ${officialHeaderScrolled ? "bg-white/70 shadow-[0_4px_12px_rgba(15,23,42,0.07)] backdrop-blur-md" : "bg-transparent shadow-none backdrop-blur-none"}`}>
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-lg backdrop-blur sm:h-10 sm:w-10">
+          <div className={`mx-3 mt-2 flex items-center justify-between rounded-full px-2 py-1.5 transition-[background-color,box-shadow,backdrop-filter] duration-200 sm:mx-5 sm:mt-3 sm:px-2.5 sm:py-2 ${officialHeaderScrolled ? "bg-white/80 shadow-[0_6px_20px_rgba(15,23,42,0.10)] backdrop-blur-md" : "bg-transparent shadow-none backdrop-blur-none"}`}>
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-sm backdrop-blur transition active:scale-95">
               <IconChevronLeft className="h-5 w-5" />
             </button>
             <div className="flex gap-2 sm:gap-2.5">
