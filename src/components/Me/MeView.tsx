@@ -22,12 +22,13 @@ import { moodTagOf } from "@/lib/moods";
 import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/eventJourney";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, CommentDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type Tab = "checkins" | "posts" | "managed" | "favorites" | "messages";
 
-function fmtDate(d: string | null): string {
-  if (!d) return "时间未定";
-  return new Date(d).toLocaleString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+function fmtDate(d: string | null, locale: string, fallback: string): string {
+  if (!d) return fallback;
+  return new Date(d).toLocaleString(locale, { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -35,6 +36,8 @@ function fmtDate(d: string | null): string {
  * Purpose: Renders the profile and opens a requested saved-activity collection when arriving from activity details.
  */
 function MeContent() {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -134,20 +137,20 @@ function MeContent() {
   // 足迹统计：总数 / 照片数 / 活跃天数
   const footStats = useMemo(() => {
     const photoCount = checkins.reduce((n, c) => n + (c.photoUrls?.length || (c.photoUrl ? 1 : 0)), 0);
-    const days = new Set(checkins.map((c) => new Date(c.createdAt).toLocaleDateString("zh-CN")));
+    const days = new Set(checkins.map((c) => new Date(c.createdAt).toLocaleDateString(locale)));
     return { total: checkins.length, photos: photoCount, days: days.size };
-  }, [checkins]);
+  }, [checkins, locale]);
 
   // 足迹按「年-月」分组（checkins 已按时间倒序），保留顺序
   const footGroups = useMemo(() => {
     const m = new Map<string, CheckInDTO[]>();
     for (const c of checkins) {
       const d = new Date(c.createdAt);
-      const k = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+      const k = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(d);
       (m.get(k) ?? m.set(k, []).get(k)!).push(c);
     }
     return [...m.entries()];
-  }, [checkins]);
+  }, [checkins, locale]);
 
   // 互动消息逐条记录已读；只打开分类或消息页不改变提醒状态。
   const readKey = user ? `tem_interaction_read_v2_${user.id}` : null;
@@ -295,7 +298,7 @@ function MeContent() {
 
   function deletePost(id: string) {
     setConfirmBox({
-      message: "确定删除这条发帖吗？",
+      message: t("me.deletePostConfirm"),
       onOk: async () => {
         const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
         if (res.ok) {
@@ -308,7 +311,7 @@ function MeContent() {
 
   function deleteCheckin(id: string) {
     setConfirmBox({
-      message: "确定删除这条足迹吗？",
+      message: t("me.deleteCheckinConfirm"),
       onOk: async () => {
         const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
         if (res.ok) setCheckins((prev) => prev.filter((c) => c.id !== id));
@@ -325,7 +328,7 @@ function MeContent() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.imageUrl) {
-        window.alert(data?.error ?? "重新生图失败");
+        window.alert(data?.error ?? t("me.regenerateFailed"));
         return null;
       }
       setCheckins((prev) =>
@@ -337,7 +340,7 @@ function MeContent() {
       );
       return { imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] };
     } catch {
-      window.alert("重新生图失败");
+      window.alert(t("me.regenerateFailed"));
       return null;
     }
   }
@@ -347,7 +350,7 @@ function MeContent() {
       const res = await fetch(`/api/events/${id}/regenerate-image`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.imageUrl) {
-        window.alert(data?.error ?? "重新生图失败");
+        window.alert(data?.error ?? t("me.regenerateFailed"));
         return null;
       }
       setPosts((prev) =>
@@ -362,17 +365,17 @@ function MeContent() {
       );
       return { imageUrl: data.imageUrl, imageUrls: data.imageUrls ?? [data.imageUrl] };
     } catch {
-      window.alert("重新生图失败");
+      window.alert(t("me.regenerateFailed"));
       return null;
     }
   }
 
   const tabs: Array<[Tab, string, number]> = [
-    ["checkins", "足迹", checkins.length],
-    ["posts", "发帖", posts.length],
-    ...(user?.isAdmin ? [["managed", "管理", managedPosts.length] as [Tab, string, number]] : []),
-    ["favorites", "活动", new Set([...wants, ...favorites, ...signups].map((event) => event.id)).size],
-    ["messages", "消息", notices.length + conversations.length],
+    ["checkins", t("me.checkins"), checkins.length],
+    ["posts", t("me.posts"), posts.length],
+    ...(user?.isAdmin ? [["managed", t("me.manage"), managedPosts.length] as [Tab, string, number]] : []),
+    ["favorites", t("me.events"), new Set([...wants, ...favorites, ...signups].map((event) => event.id)).size],
+    ["messages", t("me.messages"), notices.length + conversations.length],
   ];
 
   return (
@@ -407,15 +410,15 @@ function MeContent() {
 
       <div className="p-3">
         {!loaded ? (
-          <LoadingFeedback scene="profile" text="整理相册，找回你的城市回忆…" />
+          <LoadingFeedback scene="profile" text={t("loading.profile")} />
         ) : tab === "checkins" ? (
           <>{/* 足迹 */}
             {loaded && checkins.length === 0 && (
-              <MascotFeedback>还没有足迹。回到地图页，用右下角的 ＋ 记录足迹。</MascotFeedback>
+              <MascotFeedback>{t("me.noCheckins")}</MascotFeedback>
             )}
             {checkins.length > 0 && (
               <div className="grid grid-cols-3 gap-1.5 mb-4">
-                {([["足迹", footStats.total], ["照片", footStats.photos], ["活跃天", footStats.days]] as const).map(([label, value]) => (
+                {([[t("me.checkins"), footStats.total], [t("me.photos"), footStats.photos], [t("me.activeDays"), footStats.days]] as const).map(([label, value]) => (
                   <div key={label} className="rounded-lg bg-neutral-50 px-2 py-1.5 text-center">
                     <div className="text-sm font-semibold text-neutral-800 tabular-nums">{value}</div>
                     <div className="text-[11px] text-neutral-400 mt-0.5">{label}</div>
@@ -425,7 +428,7 @@ function MeContent() {
             )}
             {footGroups.map(([month, items]) => (
             <div key={month} className="mb-6">
-              <div className="mb-3 border-b border-neutral-200 pb-1 text-[15px] font-semibold text-neutral-900">{month} · {items.length} 处</div>
+              <div className="mb-3 border-b border-neutral-200 pb-1 text-[15px] font-semibold text-neutral-900">{month} · {t("me.placesCount", { count: items.length })}</div>
               <ol className="space-y-4">
               {items.map((c) => {
                 const d = new Date(c.createdAt);
@@ -455,21 +458,21 @@ function MeContent() {
                       className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-neutral-400 hover:text-blue-500 transition"
                     >
                       <IconMap className="w-3.5 h-3.5" />
-                      在地图
+                      {t("me.onMap")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingCheckin(c)}
                       className="text-[11px] text-neutral-400 hover:text-blue-500 transition"
                     >
-                      编辑
+                      {t("profile.edit")}
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteCheckin(c.id)}
                       className="text-[11px] text-neutral-400 hover:text-red-500 transition"
                     >
-                      删除
+                      {t("common.delete")}
                     </button>
                   </div>
                   {c.event && (
@@ -529,11 +532,11 @@ function MeContent() {
                   </div>
                   {interactionOpen && (
                     <div className="mt-2 rounded-xl bg-neutral-50 p-3">
-                      <CheckinCommentThreads comments={comments} loading={commentLoadState[c.id] === "loading" || (!checkinComments[c.id] && !commentLoadState[c.id])} error={commentLoadState[c.id] === "error"} onRetry={() => void loadCheckinInteractions(c.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
+                      <CheckinCommentThreads comments={comments} loading={commentLoadState[c.id] === "loading" || (!checkinComments[c.id] && !commentLoadState[c.id])} error={commentLoadState[c.id] === "error"} onRetry={() => void loadCheckinInteractions(c.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [c.id]: { id: root.id, username: root.author?.username ?? t("detail.user") } }))} />
                       {checkinReplyTo[c.id] && (
                         <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-600">
-                          <span>回复 @{checkinReplyTo[c.id]?.username}</span>
-                          <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [c.id]: null }))}>取消</button>
+                          <span>{t("detail.reply")} @{checkinReplyTo[c.id]?.username}</span>
+                          <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [c.id]: null }))}>{t("common.cancel")}</button>
                         </div>
                       )}
                       <div className="mt-3 flex items-center gap-2">
@@ -541,11 +544,11 @@ function MeContent() {
                           value={checkinDrafts[c.id] ?? ""}
                           onChange={(event) => setCheckinDrafts((current) => ({ ...current, [c.id]: event.target.value }))}
                           onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) void submitPersonalCheckinComment(c.id); }}
-                          aria-label="足迹评论内容"
-                          placeholder={checkinReplyTo[c.id] ? `回复 @${checkinReplyTo[c.id]?.username}` : "写一条评论"}
+                          aria-label={t("me.checkinComment")}
+                          placeholder={checkinReplyTo[c.id] ? `${t("detail.reply")} @${checkinReplyTo[c.id]?.username}` : t("detail.commentPlaceholder")}
                           className="min-w-0 flex-1 rounded-full bg-white px-3 py-2 text-xs outline-none ring-1 ring-neutral-200 focus:ring-blue-300"
                         />
-                        <button type="button" onClick={() => submitPersonalCheckinComment(c.id)} className="rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white">发送</button>
+                        <button type="button" onClick={() => submitPersonalCheckinComment(c.id)} className="rounded-full bg-blue-600 px-3 py-2 text-xs font-semibold text-white">{t("message.send")}</button>
                       </div>
                     </div>
                   )}
@@ -560,7 +563,7 @@ function MeContent() {
         ) : tab === "posts" ? (
           <>{/* 发帖 */}
             {loaded && posts.length === 0 && (
-              <MascotFeedback>还没有发帖。回到地图页，用右下角的 ＋ → 发帖 标记一个活动。</MascotFeedback>
+              <MascotFeedback>{t("me.noPosts")}</MascotFeedback>
             )}
             <ul className="space-y-2">
               {posts.map((p) => {
@@ -576,7 +579,7 @@ function MeContent() {
                       <div className="px-3 pt-3">
                         <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                           <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                          {p.postKind === "LIFE" ? "生活动态" : "用户活动"} · {meta.label} · {fmtDate(p.postKind === "LIFE" ? p.createdAt ?? null : p.startTime)}
+                          {t(p.postKind === "LIFE" ? "me.lifePost" : "me.userEvent")} · {meta.label} · {fmtDate(p.postKind === "LIFE" ? p.createdAt ?? null : p.startTime, locale, t("detail.timeTbd"))}
                         </div>
                         <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
                         {p.venueName && (
@@ -597,21 +600,21 @@ function MeContent() {
                         className="inline-flex items-center gap-1 text-xs text-blue-600"
                       >
                         <IconMap className="w-3.5 h-3.5" />
-                        在地图上查看
+                        {t("me.viewOnMap")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingPost(p)}
                         className="text-xs text-neutral-500 hover:text-blue-600 ml-auto"
                       >
-                        编辑
+                        {t("profile.edit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => deletePost(p.id)}
                         className="text-xs text-red-500"
                       >
-                        删除
+                        {t("common.delete")}
                       </button>
                     </div>
                   </li>
@@ -623,13 +626,13 @@ function MeContent() {
           <>{/* 管理员：虚拟用户发帖 */}
             <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-2">
               <div>
-                <h2 className="text-sm font-semibold text-neutral-900">虚拟用户发帖</h2>
-                <p className="mt-0.5 text-xs text-neutral-400">可编辑或删除角色账号发布的内容</p>
+                <h2 className="text-sm font-semibold text-neutral-900">{t("me.virtualPosts")}</h2>
+                <p className="mt-0.5 text-xs text-neutral-400">{t("me.virtualPostsHint")}</p>
               </div>
               <CountBadge count={managedPosts.length} active tone="blue" />
             </div>
             {managedPosts.length === 0 && (
-              <p className="text-sm text-neutral-500">当前没有虚拟用户发帖。</p>
+              <p className="text-sm text-neutral-500">{t("me.noVirtualPosts")}</p>
             )}
             <ul className="space-y-2">
               {managedPosts.map((p) => {
@@ -639,7 +642,7 @@ function MeContent() {
                     <div className="flex items-center gap-2 border-b border-neutral-100 px-3 py-2">
                       <Avatar user={p.author ?? null} size={28} />
                       <span className="min-w-0 truncate text-xs font-semibold text-neutral-800">
-                        {p.author?.username ?? "虚拟用户"}
+                        {p.author?.username ?? t("me.virtualUser")}
                       </span>
                       <span className="ml-auto shrink-0 text-[11px] text-neutral-400">
                         {p.createdAt ? new Date(p.createdAt).toLocaleDateString("zh-CN") : ""}
@@ -654,7 +657,7 @@ function MeContent() {
                       <div className="px-3 py-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] text-neutral-500">
                           <CategoryIcon category={p.category} className="h-3.5 w-3.5" />
-                          {meta.label} · {fmtDate(p.startTime)}
+                          {meta.label} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
                         </div>
                         <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
                         {p.venueName && (
@@ -675,21 +678,21 @@ function MeContent() {
                         className="inline-flex items-center gap-1 text-xs text-blue-600"
                       >
                         <IconMap className="h-3.5 w-3.5" />
-                        地图
+                        {t("nav.map")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingPost(p)}
                         className="ml-auto text-xs text-neutral-600 hover:text-blue-600"
                       >
-                        编辑
+                        {t("profile.edit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => deletePost(p.id)}
                         className="text-xs text-red-500"
                       >
-                        删除
+                        {t("common.delete")}
                       </button>
                     </div>
                   </li>
@@ -703,7 +706,7 @@ function MeContent() {
             return (
               <>{/* 想去 / 收藏 / 报名 二级切换 */}
                 <div className="flex gap-2 mb-3">
-                  {([["wants", "想去", wants.length], ["favorites", "收藏", favorites.length], ["signups", "报名", signups.length]] as const).map(([key, label, n]) => {
+                  {([["wants", t("detail.want"), wants.length], ["favorites", t("detail.favorite"), favorites.length], ["signups", t("detail.signup"), signups.length]] as const).map(([key, label, n]) => {
                     const active = favSub === key;
                     return (
                       <button
@@ -723,16 +726,16 @@ function MeContent() {
                 {favSub === "wants" && list.some((item) => ["soon", "active"].includes(getJourneyStatus(item, journeyNow, visitedEventIds.has(item.id)).stage)) && (
                   <div className="mb-3 flex items-center gap-2 rounded-2xl bg-violet-50 px-3 py-2">
                     <MascotAnimation className="h-16 w-16" />
-                    <p className="text-xs leading-5 text-violet-800">你想去的活动即将开始或正在进行。查看下方活动时间，点击“路线”安排出发吧。</p>
+                    <p className="text-xs leading-5 text-violet-800">{t("me.wantsHint")}</p>
                   </div>
                 )}
                 {loaded && list.length === 0 && (
                   <MascotFeedback>
                     {favSub === "wants"
-                      ? "还没有想去的活动。在推荐卡点“想去”，就会出现在这里。"
+                      ? t("me.noWants")
                       : favSub === "favorites"
-                        ? "还没有收藏。在活动详情里点收藏，就会出现在这里。"
-                        : "还没有报名。在开启报名的活动详情里点「报名参加」，就会出现在这里。"}
+                        ? t("me.noFavorites")
+                        : t("me.noSignups")}
                   </MascotFeedback>
                 )}
                 <div className="columns-2 gap-2 sm:columns-3 [&>article]:w-full [&>article]:break-inside-avoid">
@@ -753,7 +756,7 @@ function MeContent() {
                           <div className="p-3 pb-2">
                           <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                             <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                            {meta.label} · {fmtDate(p.startTime)}
+                            {meta.label} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
                           </div>
                           <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{p.title}</h3>
                           {p.venueName && (
@@ -773,11 +776,11 @@ function MeContent() {
                           ) : favSub === "favorites" ? (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
                               <IconBookmark filled className="w-3.5 h-3.5" />
-                              已收藏
+                              {t("me.saved")}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs text-blue-500 mt-2">
-                              ✓ 已报名
+                              ✓ {t("me.signedUp")}
                             </span>
                           )}
                           </div>
@@ -789,7 +792,7 @@ function MeContent() {
                               onClick={() => router.push(buildJourneyMapUrl(p, "route"))}
                               className="inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
                             >
-                              <IconMap className="h-3.5 w-3.5" />路线
+                              <IconMap className="h-3.5 w-3.5" />{t("detail.route")}
                             </button>
                             <button
                               type="button"
@@ -797,7 +800,7 @@ function MeContent() {
                               onClick={() => router.push(buildJourneyMapUrl(p, "checkin"))}
                               className="min-w-0 whitespace-nowrap rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
                             >
-                              {journey.stage === "visited" ? "已留足迹" : journey.stage === "ended" ? "记足迹" : journey.canCheckIn ? "记录到访" : "到访后记录"}
+                              {t(journey.stage === "visited" ? "me.visited" : journey.stage === "ended" ? "me.addFootprint" : journey.canCheckIn ? "me.recordVisit" : "me.recordAfterVisit")}
                             </button>
                           </div>
                         )}
@@ -810,15 +813,15 @@ function MeContent() {
           })()
         ) : (
           <>{/* 消息：私信 / 被回复 */}
-            <div role="tablist" aria-label="消息分类" className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-neutral-100 p-1.5">
+            <div role="tablist" aria-label={t("me.messageCategories")} className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-neutral-100 p-1.5">
               <button type="button" role="tab" aria-selected={messageSub === "direct"} onClick={() => setMessageSub("direct")} className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left transition ${messageSub === "direct" ? "bg-white text-neutral-950 shadow-sm ring-1 ring-black/5" : "text-neutral-500"}`}>
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 5h16v12H8l-4 3Z" /><path d="M8 9h8M8 13h5" /></svg></span>
-                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">私信</span><span className="block truncate text-[10px] text-neutral-400">一对一聊天</span></span>
+                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">{t("message.title")}</span><span className="block truncate text-[10px] text-neutral-400">{t("me.directHint")}</span></span>
                 {directUnread > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{Math.min(99, directUnread)}</span>}
               </button>
               <button type="button" role="tab" aria-selected={messageSub === "activity"} onClick={() => setMessageSub("activity")} className={`flex min-w-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left transition ${messageSub === "activity" ? "bg-white text-neutral-950 shadow-sm ring-1 ring-black/5" : "text-neutral-500"}`}>
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 21a9 9 0 1 0-9-9" /><path d="M3 16v5h5" /><path d="m8 12 2.5 2.5L16 9" /></svg></span>
-                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">互动</span><span className="block truncate text-[10px] text-neutral-400">评论 · 回复 · 点赞</span></span>
+                <span className="min-w-0 flex-1"><span className="block text-xs font-bold">{t("me.interactions")}</span><span className="block truncate text-[10px] text-neutral-400">{t("me.interactionsHint")}</span></span>
                 {unreadCount > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{Math.min(99, unreadCount)}</span>}
               </button>
             </div>
@@ -827,7 +830,7 @@ function MeContent() {
             ) : (
             <>
             {loaded && notices.length === 0 && (
-              <p className="text-sm text-neutral-500">还没有新消息。帖子和足迹收到评论、回复或点赞后，会出现在这里。</p>
+              <p className="text-sm text-neutral-500">{t("me.noNotices")}</p>
             )}
             <ul className="space-y-2.5">
               {notices.map((n) => {
@@ -839,18 +842,18 @@ function MeContent() {
                       onClick={() => openNotice(n)}
                       className={`relative w-full rounded-xl border bg-white p-3 text-left transition-shadow hover:shadow-md ${unread ? "border-blue-200 shadow-[0_5px_16px_rgba(37,99,235,0.08)]" : "border-black/10"}`}
                     >
-                      {unread && <span className="absolute right-2 top-2 size-2 rounded-full bg-blue-600" aria-label="未读" />}
+                      {unread && <span className="absolute right-2 top-2 size-2 rounded-full bg-blue-600" aria-label={t("me.unread")} />}
                       <div className="flex items-center gap-2 mb-1">
                         <Avatar user={n.author} size={28} />
-                        <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? "用户"}</span>
+                        <span className="text-sm font-medium text-neutral-800 truncate">{n.author?.username ?? t("detail.user")}</span>
                         <span className="text-[11px] text-neutral-400 shrink-0">
                           {n.type === "reply"
-                            ? "回复了你的评论"
+                            ? t("me.repliedComment")
                             : n.type === "checkin_comment"
-                              ? "评论了你的足迹"
+                              ? t("me.commentedCheckin")
                               : n.type === "checkin_like"
-                                ? "赞了你的足迹"
-                                : "评论了你的帖子"}
+                                ? t("me.likedCheckin")
+                                : t("me.commentedPost")}
                         </span>
                         <span className="text-[11px] text-neutral-300 ml-auto shrink-0">
                           {new Date(n.createdAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
@@ -859,10 +862,10 @@ function MeContent() {
                       {n.type !== "checkin_like" && <p className="text-sm text-neutral-700 whitespace-pre-wrap">{n.text}</p>}
                       {n.type === "reply" && n.parentText && (
                         <p className="text-xs text-neutral-400 mt-1 pl-2 border-l-2 border-neutral-200 line-clamp-2">
-                          你：{n.parentText}
+                          {t("me.youPrefix")}：{n.parentText}
                         </p>
                       )}
-                      <div className="text-[11px] text-blue-500 mt-1.5 truncate">{n.targetType === "checkin" ? "足迹" : "在"}《{n.eventTitle}》· 查看 ›</div>
+                      <div className="text-[11px] text-blue-500 mt-1.5 truncate">{t(n.targetType === "checkin" ? "me.checkins" : "me.in")}《{n.eventTitle}》· {t("me.view")} ›</div>
                     </button>
                   </li>
                 );
@@ -934,12 +937,13 @@ function MeContent() {
  * Purpose: Renders authentication, profile content, footprints, and type-aware LIFE/ACTIVITY post management.
  */
 export function MeView() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <PageLoading scene="profile" text="整理相册，找回你的城市回忆…" />
+      <PageLoading scene="profile" text={t("loading.profile")} />
     );
   }
   if (!user) return <AuthForm />;
-  return <Suspense fallback={<PageLoading scene="profile" text="打开你的活动列表…" />}><MeContent /></Suspense>;
+  return <Suspense fallback={<PageLoading scene="profile" text={t("me.openingList")} />}><MeContent /></Suspense>;
 }
