@@ -7,6 +7,8 @@ import { isUserPost } from "@/components/common/EventSource";
 import { MascotNavIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { rankRecommendations } from "@/lib/recommendationRank";
 import type { EventDTO } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/config";
 
 type Props = {
   events: EventDTO[];
@@ -23,8 +25,8 @@ type Props = {
   onRecommendIntent: (intent: RecommendIntent, events: EventDTO[]) => void;
 };
 
-function formatDistance(d: number | null): string {
-  if (d == null) return "东京周边";
+function formatDistance(d: number | null, nearby: string): string {
+  if (d == null) return nearby;
   return d < 10 ? `${d.toFixed(1)}km` : `${Math.round(d)}km`;
 }
 
@@ -36,12 +38,9 @@ export type RecommendIntent = {
   tone: string;
 };
 
-const SUGGESTION_CARDS: RecommendIntent[] = [
-  { id: "relax", title: "想放松一下", subtitle: "轻松散步和休息点", prompt: "我想放松一下，请从附近活动里挑适合轻松散步、休息、不赶时间的点，规划一条舒缓路线。", tone: "bg-violet-50 text-violet-700" },
-  { id: "solo", title: "一个人去", subtitle: "安静自在的选择", prompt: "我想一个人去，请推荐附近适合独处、安静、不尴尬的活动，并规划顺路的游玩路线。", tone: "bg-cyan-50 text-cyan-700" },
-  { id: "photo", title: "今天想拍照", subtitle: "出片地点和动线", prompt: "我今天想拍照，请从附近活动里挑视觉效果好、适合出片的点，规划拍照路线和停留顺序。", tone: "bg-rose-50 text-rose-700" },
-  { id: "night", title: "夜生活", subtitle: "傍晚后的安排", prompt: "我想体验夜生活，请推荐附近适合傍晚或晚上去的活动，并安排一条夜间游玩路线。", tone: "bg-indigo-50 text-indigo-700" },
-];
+const CATEGORY_KEYS: Record<EventCategory, TranslationKey> = {
+  EXHIBITION: "category.exhibition", MARKET: "category.market", LIVE: "category.live", FESTIVAL: "category.festival", TALK: "category.talk", SPORTS: "category.sports", OTHER: "category.other",
+};
 
 /**
  * Signature: `function SuggestionIcon({ intent }: { intent: RecommendIntent }): React.ReactElement`
@@ -61,14 +60,15 @@ function SuggestionIcon({ intent }: { intent: RecommendIntent }) {
 }
 
 function SourceIconBadge({ sourceType }: { sourceType: string }) {
+  const { t } = useLanguage();
   const user = isUserPost(sourceType);
   return (
     <span
       className={`absolute bottom-2 left-2 grid h-6 w-6 place-items-center rounded-full border border-white/80 shadow-sm backdrop-blur ${
         user ? "bg-amber-100/95 text-amber-700" : "bg-sky-100/95 text-sky-700"
       }`}
-      aria-label={user ? "个人发布" : "官方活动"}
-      title={user ? "个人发布" : "官方活动"}
+      aria-label={t(user ? "source.userPost" : "source.officialEvent")}
+      title={t(user ? "source.userPost" : "source.officialEvent")}
     >
       {user ? (
         <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
@@ -109,7 +109,14 @@ function EventImagePlaceholder({ title, color }: { title: string; color: string 
  * Purpose: Shows nearby recommendations with the selected IP guide entry and preserves anchor controls when no events match.
  */
 export function PopularCard({ events, center, open, anchored = false, onOpenChange, onClearAnchor, onResetFilters, onExpandArea, onSelect, onViewAll, onPlanRoute, onRecommendIntent }: Props) {
+  const { t } = useLanguage();
   const mascotIdentity = useMascotIdentity();
+  const suggestionCards: RecommendIntent[] = [
+    { id: "relax", title: t("nearby.relax"), subtitle: t("nearby.relaxHint"), prompt: t("nearby.relaxPrompt"), tone: "bg-violet-50 text-violet-700" },
+    { id: "solo", title: t("nearby.solo"), subtitle: t("nearby.soloHint"), prompt: t("nearby.soloPrompt"), tone: "bg-cyan-50 text-cyan-700" },
+    { id: "photo", title: t("nearby.photo"), subtitle: t("nearby.photoHint"), prompt: t("nearby.photoPrompt"), tone: "bg-rose-50 text-rose-700" },
+    { id: "night", title: t("nearby.night"), subtitle: t("nearby.nightHint"), prompt: t("nearby.nightPrompt"), tone: "bg-indigo-50 text-indigo-700" },
+  ];
   const [activeCategory, setActiveCategory] = useState<EventCategory | "ALL">("ALL");
   const [activeIntent, setActiveIntent] = useState<RecommendIntent | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -229,7 +236,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
         className="absolute bottom-28 left-1/2 z-[40] -translate-x-1/2 pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-2.5 text-xs font-semibold text-neutral-700 shadow-[0_10px_30px_rgba(15,23,42,0.16)] backdrop-blur"
       >
         <span className="h-2 w-2 rounded-full bg-blue-600" />
-        {anchored ? "锚点周边" : "附近活动"} · {nearest.length}个
+        {t(anchored ? "nearby.anchor" : "nearby.events")} · {t("nearby.count", { count: nearest.length })}
       </button>
     );
   }
@@ -246,7 +253,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        aria-label="收起附近活动"
+        aria-label={t("nearby.collapse")}
         className="mx-auto mb-2 block h-8 w-28 touch-none cursor-grab rounded-full py-3 active:cursor-grabbing"
       >
         <span className="mx-auto block h-1.5 w-14 rounded-full bg-neutral-300" />
@@ -254,10 +261,10 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[18px] font-black leading-tight text-neutral-950">{activeIntent?.title ?? (anchored ? "锚点周边" : "附近活动")}</h2>
+          <h2 className="text-[18px] font-black leading-tight text-neutral-950">{activeIntent?.title ?? t(anchored ? "nearby.anchor" : "nearby.events")}</h2>
           <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] leading-none text-neutral-500">
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z" /><circle cx="12" cy="10" r="2.5" /></svg>
-            {activeIntent?.subtitle ?? (anchored ? "以锚点为中心 · 按距离推荐" : "以当前位置为中心 · 按距离推荐")}
+            {activeIntent?.subtitle ?? t(anchored ? "nearby.anchorHint" : "nearby.locationHint")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -267,7 +274,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
             className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(124,58,237,0.28)]"
           >
             <MascotNavIcon identity={mascotIdentity} role="discover" className="h-7 w-7" />
-            AI 帮我规划
+            {t("nearby.aiPlan")}
           </button>
         </div>
       </div>
@@ -280,7 +287,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
             activeCategory === "ALL" ? "bg-blue-600 text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)]" : "bg-neutral-100 text-neutral-500"
           }`}
         >
-          全部
+          {t("common.all")}
         </button>
         {categories.map((category) => {
           const meta = CATEGORY_META[category];
@@ -296,7 +303,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
               style={active ? { backgroundColor: meta.color } : undefined}
             >
               <CategoryIcon category={category} className="h-3.5 w-3.5" style={active ? undefined : { color: meta.color }} />
-              {meta.label}
+              {t(CATEGORY_KEYS[category])}
             </button>
           );
         })}
@@ -307,26 +314,26 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-neutral-400 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-600 shadow-sm"
           >
             <span aria-hidden="true" className="text-sm leading-none">↺</span>
-            重置锚点
+            {t("nearby.resetAnchor")}
           </button>
         )}
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <h3 className="text-sm font-black text-neutral-950">精选活动</h3>
+        <h3 className="text-sm font-black text-neutral-950">{t("nearby.featured")}</h3>
         <button type="button" onClick={onViewAll} className="text-xs font-semibold text-neutral-500">
-          查看全部 ›
+          {t("nearby.viewAll")} ›
         </button>
       </div>
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {shown.length === 0 && (
           <div role="status" className="w-full rounded-2xl bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
-            当前范围和筛选条件下暂无活动。
+            {t("nearby.empty")}
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => { setActiveCategory("ALL"); setActiveIntent(null); onResetFilters?.(); }} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">清除筛选</button>
-              {onExpandArea && <button type="button" onClick={onExpandArea} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">扩大地图范围</button>}
-              <button type="button" onClick={onViewAll} className="shrink-0 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-2">看看全东京</button>
+              <button type="button" onClick={() => { setActiveCategory("ALL"); setActiveIntent(null); onResetFilters?.(); }} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">{t("calendar.clearFilters")}</button>
+              {onExpandArea && <button type="button" onClick={onExpandArea} className="shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-3 py-2 text-violet-700">{t("nearby.expandArea")}</button>}
+              <button type="button" onClick={onViewAll} className="shrink-0 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-2">{t("nearby.allTokyo")}</button>
             </div>
           </div>
         )}
@@ -353,12 +360,12 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
                   className="absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm"
                   style={{ backgroundColor: meta.color }}
                 >
-                  {meta.label}
+                  {t(CATEGORY_KEYS[ev.category])}
                 </span>
                 <SourceIconBadge sourceType={ev.sourceType} />
                 <button
                   type="button"
-                  aria-label={favorited ? "取消收藏" : "收藏活动"}
+                  aria-label={t(favorited ? "nearby.unfavorite" : "nearby.favorite")}
                   onClick={(event) => { event.stopPropagation(); void toggleFavorite(ev); }}
                   className={`absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-white/70 backdrop-blur ${favorited ? "bg-blue-600 text-white" : "bg-black/30 text-white"}`}
                 >
@@ -372,7 +379,7 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
                     <span key={reason} className="shrink-0 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700">{reason}</span>
                   ))}
                 </div>
-                <p className="mt-1 truncate text-[10px] text-neutral-400">{formatDistance(d)} · {ev.venueName ?? "会场待定"}</p>
+                <p className="mt-1 truncate text-[10px] text-neutral-400">{formatDistance(d, t("nearby.tokyoArea"))} · {ev.venueName ?? t("nearby.venueTbd")}</p>
               </div>
             </div>
           );
@@ -381,10 +388,10 @@ export function PopularCard({ events, center, open, anchored = false, onOpenChan
 
       <div className="mt-2.5">
         <div className="mb-2">
-          <h3 className="text-sm font-black leading-tight text-neutral-950">为你推荐</h3>
+          <h3 className="text-sm font-black leading-tight text-neutral-950">{t("nearby.forYou")}</h3>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
-          {SUGGESTION_CARDS.map((card) => {
+          {suggestionCards.map((card) => {
             const active = activeIntent?.id === card.id;
             return (
               <button

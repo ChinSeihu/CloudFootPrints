@@ -6,6 +6,7 @@ import { PageLoading } from "@/components/PageLoading";
 import { useBrowseState } from "./useBrowseState";
 import { BrowseScroll } from "./BrowseScroll";
 import type { CheckInDTO, EventDTO, EventMetrics } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 const CalendarView = dynamic(() => import("@/components/Calendar/CalendarView").then(m => m.CalendarView));
 const RecommendList = dynamic(() => import("@/components/Recommend/RecommendList").then(m => m.RecommendList));
@@ -19,8 +20,9 @@ const EMPTY_CHECKINS: CheckInDTO[] = [];
  * Purpose: Places compact refresh progress and staged updates beside the page search and filter actions.
  */
 function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }: { busy: boolean; hasUpdate: boolean; hasError: boolean; onRefresh: () => void; onApply: () => void }) {
+  const { t } = useLanguage();
 
-  return <button type="button" onClick={hasUpdate ? onApply : onRefresh} disabled={busy} title={busy ? "正在后台更新" : hasUpdate ? "有新内容，点击更新" : hasError ? "刷新失败，点击重试" : "刷新内容"} aria-label={busy ? "正在刷新" : hasUpdate ? "应用新内容" : hasError ? "刷新失败，点击重试" : "刷新内容"} className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-50 text-slate-600 ring-1 ring-black/5 disabled:opacity-80">
+  return <button type="button" onClick={hasUpdate ? onApply : onRefresh} disabled={busy} title={t(busy ? "browse.updating" : hasUpdate ? "browse.applyHint" : hasError ? "browse.retryHint" : "browse.refresh")} aria-label={t(busy ? "browse.refreshing" : hasUpdate ? "browse.apply" : hasError ? "browse.retryHint" : "browse.refresh")} className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-50 text-slate-600 ring-1 ring-black/5 disabled:opacity-80">
     <svg viewBox="0 0 24 24" className={`h-4 w-4 ${busy ? "motion-safe:animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 2M17.9 15A7 7 0 0 1 6 18l-2-2"/></svg>
     {hasUpdate && !busy && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white" />}
     {hasError && !busy && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />}
@@ -32,8 +34,9 @@ function BrowseRefreshControl({ busy, hasUpdate, hasError, onRefresh, onApply }:
  * Purpose: Isolates browsing snapshots by account and avoids displaying another account's cached interaction state.
  */
 export function BrowsePage({ mode }: { mode: Mode }) {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
-  if (loading) return <PageLoading scene={mode === "calendar" ? "calendar" : "discover"} text="正在打开页面…" />;
+  if (loading) return <PageLoading scene={mode === "calendar" ? "calendar" : "discover"} text={t("browse.opening")} />;
   const scope = user?.id ?? "guest";
   return <BrowseSession key={`${mode}:${scope}`} mode={mode} scope={scope} />;
 }
@@ -42,6 +45,7 @@ export function BrowsePage({ mode }: { mode: Mode }) {
  * Purpose: Shows saved content immediately, loads independent sections separately, and stages refreshes to avoid moving cards under the reader.
  */
 function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
+  const { t } = useLanguage();
   const key = `${mode}:${scope}`;
   const [events, setEvents] = useBrowseState<EventDTO[] | null>(`${key}:events`, null, { persist: false });
   const [footprints, setFootprints] = useBrowseState<Footprints | null>(`${key}:footprints`, null, { persist: false });
@@ -76,13 +80,13 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
           if (!controller.signal.aborted) {
             if (hadEvents) setPendingMetrics(result.metrics); else setMetrics(result.metrics);
           }
-        } catch { report("活动热度"); }
+        } catch { report("metrics"); }
       }
-    }).catch(() => report("活动"));
+    }).catch(() => report("events"));
     const footprintRequest = mode === "recommend" ? read<Footprints>("/api/checkins?discover=1&limit=24").then(data => {
       if (controller.signal.aborted) return;
       if (hadFootprints) setPendingFootprints(data); else setFootprints(data);
-    }).catch(() => report("足迹")) : Promise.resolve();
+    }).catch(() => report("checkins")) : Promise.resolve();
     void Promise.allSettled([activityRequest, footprintRequest]).then(() => {
       if (!controller.signal.aborted) setBusy(false);
     });
@@ -101,10 +105,10 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
   };
   const refresh = () => { setErrors([]); setBusy(true); setAttempt(n => n + 1); };
   const refreshControl: ReactNode = <BrowseRefreshControl busy={busy} hasUpdate={hasUpdate} hasError={errors.length > 0} onApply={applyPending} onRefresh={refresh} />;
-  if (!hasContent && busy) return <PageLoading scene={mode === "calendar" ? "calendar" : "discover"} text="正在寻找活动…" />;
+  if (!hasContent && busy) return <PageLoading scene={mode === "calendar" ? "calendar" : "discover"} text={t("browse.finding")} />;
   return <BrowseScroll storageKey={key}>
     <div className={mode === "recommend" ? "px-3 pb-3" : ""}>
-      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} refreshControl={refreshControl} /> : <RecommendList events={displayEvents} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} refreshControl={refreshControl} eventsNotice={events === null ? errors.includes("活动") ? "活动暂时加载失败，请点击刷新重试" : "正在加载活动…" : undefined} checkinsNotice={footprints === null ? errors.includes("足迹") ? "足迹暂时加载失败，请点击刷新重试" : "正在加载足迹…" : undefined} />)}
+      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} refreshControl={refreshControl} /> : <RecommendList events={displayEvents} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} refreshControl={refreshControl} eventsNotice={events === null ? t(errors.includes("events") ? "browse.eventsFailed" : "browse.eventsLoading") : undefined} checkinsNotice={footprints === null ? t(errors.includes("checkins") ? "browse.checkinsFailed" : "browse.checkinsLoading") : undefined} />)}
     </div>
   </BrowseScroll>;
 }
