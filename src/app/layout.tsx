@@ -28,9 +28,9 @@ export const metadata: Metadata = {
   },
   description: "发现东京附近的活动与生活动态，规划路线、记录到访，并留下属于你的城市足迹。",
   icons: {
-    icon: [{ url: "/moon-logo-192.png", type: "image/png", sizes: "192x192" }],
-    shortcut: "/moon-logo-192.png",
-    apple: [{ url: "/moon-logo-180.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/splash-logo-02-192.png", type: "image/png", sizes: "192x192" }],
+    shortcut: "/splash-logo-02-192.png",
+    apple: [{ url: "/splash-logo-02-180.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.webmanifest",
 };
