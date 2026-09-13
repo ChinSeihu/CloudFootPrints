@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IconPlus, IconHeart, IconPin } from "@/components/icons";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 // 浮动操作按钮（FAB）：点开有两个动作——打卡 / 发帖。
 //  - 打卡：我来过这里（个人足迹）
@@ -13,6 +14,7 @@ export function ActionFab({
   onCheckin: () => void;
   onPost: () => void;
 }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
 
   function choose(fn: () => void) {
@@ -30,7 +32,7 @@ export function ActionFab({
             className="flex flex-col items-center gap-1 rounded-xl bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700 transition active:scale-[0.98]"
           >
             <IconPin className="w-5 h-5" />
-            发布活动
+            {t("publish.activity")}
           </button>
           <button
             type="button"
@@ -38,14 +40,14 @@ export function ActionFab({
             className="flex flex-col items-center gap-1 rounded-xl bg-rose-50 px-3 py-3 text-sm font-semibold text-rose-600 transition active:scale-[0.98]"
           >
             <IconHeart className="w-5 h-5" />
-            发布足迹
+            {t("action.publishCheckin")}
           </button>
         </div>
       )}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="记录足迹或发帖"
+        aria-label={t("action.open")}
         className="h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center active:scale-95 transition"
       >
         <IconPlus className={`w-7 h-7 transition-transform ${open ? "rotate-45" : ""}`} />

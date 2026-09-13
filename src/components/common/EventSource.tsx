@@ -1,6 +1,9 @@
+"use client";
+
 // 官方抓取活动 vs 用户发帖 的视觉区分：小徽标 + 来源筛选。
 // 约定：sourceType === "USER" 为个人发帖，其余（walkerplus/jalan/connpass…）为官方。
 import type { EventDTO } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 export type SourceSel = "ALL" | "OFFICIAL" | "USER";
 
@@ -32,6 +35,7 @@ function IconBadgeCheck({ className }: { className?: string }) {
 
 // 卡片/弹窗上的来源徽标。
 export function SourceBadge({ sourceType, className = "" }: { sourceType: string; className?: string }) {
+  const { t } = useLanguage();
   const user = isUserPost(sourceType);
   return (
     <span
@@ -40,17 +44,18 @@ export function SourceBadge({ sourceType, className = "" }: { sourceType: string
       } ${className}`}
     >
       {user ? <IconPerson className="w-2.5 h-2.5" /> : <IconBadgeCheck className="w-2.5 h-2.5" />}
-      {user ? "个人" : "官方"}
+      {t(user ? "source.user" : "source.official")}
     </span>
   );
 }
 
 // 来源筛选：全部 / 官方 / 个人 三选一。
 export function SourceFilter({ value, onChange }: { value: SourceSel; onChange: (v: SourceSel) => void }) {
+  const { t } = useLanguage();
   const opts: { k: SourceSel; label: string; active: string }[] = [
-    { k: "ALL", label: "全部来源", active: "bg-neutral-700 text-white" },
-    { k: "OFFICIAL", label: "官方", active: "bg-sky-600 text-white" },
-    { k: "USER", label: "个人", active: "bg-amber-500 text-white" },
+    { k: "ALL", label: t("source.all"), active: "bg-neutral-700 text-white" },
+    { k: "OFFICIAL", label: t("source.official"), active: "bg-sky-600 text-white" },
+    { k: "USER", label: t("source.user"), active: "bg-amber-500 text-white" },
   ];
   return (
     <div className="inline-flex items-center gap-1 p-0.5 rounded-full bg-neutral-100">

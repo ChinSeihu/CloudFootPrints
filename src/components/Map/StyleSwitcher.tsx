@@ -1,6 +1,7 @@
 "use client";
 
 import type { MapTheme } from "@/lib/mapTheme";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type Props = {
   value: MapTheme;
@@ -9,6 +10,7 @@ type Props = {
 
 // 底图风格切换：标准（Positron）/ 柔和（马卡龙水彩）。由父级定位。
 export function StyleSwitcher({ value, onChange }: Props) {
+  const { t: translate } = useLanguage();
   return (
     <div className="pointer-events-auto">
       <div className="inline-flex rounded-full bg-white/95 backdrop-blur shadow-sm border border-black/10 overflow-hidden text-xs">
@@ -21,7 +23,7 @@ export function StyleSwitcher({ value, onChange }: Props) {
               value === t ? "bg-blue-600 text-white" : "text-neutral-600"
             }`}
           >
-            {t === "standard" ? "标准" : "柔和"}
+            {translate(t === "standard" ? "map.standard" : "map.soft")}
           </button>
         ))}
       </div>
