@@ -27,21 +27,12 @@ const REPLY_PAGE_SIZE = 10;
 const cx = (...items: Array<string | false | null | undefined>) => items.filter(Boolean).join(" ");
 
 /**
- * Signature: `function fmtDateTime(value: string | null): string`
+ * Signature: `function fmtCompact(value: string | null | undefined, locale?: string, fallback?: string): string`
  * Purpose: Formats activity times in Tokyo time for departure planning.
  */
-function fmtDateTime(value: string | null): string {
-  if (!value) return "时间未定";
-  return new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-/**
- * Signature: `function fmtCompact(value: string | null): string`
- * Purpose: Formats activity times in Tokyo time for departure planning.
- */
-function fmtCompact(value: string | null): string {
-  if (!value) return "时间待定";
-  return new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+function fmtCompact(value: string | null | undefined, locale = "zh-CN", fallback = ""): string {
+  if (!value) return fallback;
+  return new Date(value).toLocaleString(locale, { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function fmtCommentTime(value: string): string {
@@ -116,7 +107,7 @@ function ChevronDownIcon({ className = "h-4 w-4", up = false }: { className?: st
   );
 }
 
-function TinyLoading({ label = "加载中" }: { label?: string }) {
+function TinyLoading({ label = "" }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
       <span className="h-3 w-3 animate-spin rounded-full border-2 border-neutral-200 border-t-violet-400" />
@@ -213,6 +204,8 @@ function EventHeroImage({ src }: { src: string }) {
  * Purpose: Renders full-screen activity details above global navigation with zoomable images, saved actions, and type-appropriate interactions.
  */
 export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
   const { openGuide } = useGuide();
   const { user } = useAuth();
@@ -235,7 +228,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [commentHasMore, setCommentHasMore] = useState(false);
   const [replyMeta, setReplyMeta] = useState<Record<string, ReplyPageMeta>>({});
   const [err, setErr] = useState<string | null>(null);
-  const [loginPromptAction, setLoginPromptAction] = useState<"点赞" | "收藏" | "报名" | null>(null);
+  const [loginPromptAction, setLoginPromptAction] = useState<"LIKE" | "FAVORITE" | "SIGNUP" | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
@@ -304,7 +297,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           setWantLoadedKey(`${user.id}:${event.id}`);
         }
       })
-      .catch(() => { if (!cancelled) setWantError("想去状态加载失败，请重新打开详情"); });
+      .catch(() => { if (!cancelled) setWantError(t("detail.operationFailed")); });
     return () => { cancelled = true; };
   }, [event.id, event.postKind, user]);
 
@@ -333,7 +326,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         body: JSON.stringify({ type: "WANT" }),
       });
       const data = await response.json() as { active: boolean; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "保存失败，请稍后再试");
+      if (!response.ok) throw new Error(data.error ?? t("detail.savedFailed"));
       setWantedId(data.active ? event.id : null);
       if (!data.active && wantPulseTimer.current !== null) {
         window.clearTimeout(wantPulseTimer.current);
@@ -348,7 +341,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       }
       setWantedId(wasWanted ? event.id : null);
       setWantPulse(false);
-      setWantError(error instanceof Error ? error.message : "网络错误，请稍后再试");
+      setWantError(error instanceof Error ? error.message : t("common.networkError"));
     } finally {
       wantInFlight.current = false;
     }
@@ -474,7 +467,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
    */
   async function toggleReaction(type: "LIKE" | "FAVORITE" | "SIGNUP") {
     setErr(null);
-    const action = type === "LIKE" ? "点赞" : type === "FAVORITE" ? "收藏" : "报名";
+    const action = type;
     if (!user) {
       setLoginPromptAction(action);
       return;
@@ -501,7 +494,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         const refetch = await fetch(`/api/events/${event.id}/reactions`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (refetch) setReactions(refetch);
         if (res.status === 401) setLoginPromptAction(action);
-        else setErr("操作失败");
+        else setErr(t("detail.operationFailed"));
         return;
       }
       const d = (await res.json()) as { active: boolean; count: number };
@@ -513,7 +506,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             : { ...prev, signedUpByMe: d.active, signupCount: d.count },
       );
     } catch {
-      setErr("网络错误，请稍后再试");
+      setErr(t("common.networkError"));
     }
   }
 
@@ -521,7 +514,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     const authorId = event.author?.id;
     if (!authorId) return;
     if (!user) {
-      setErr("请先到「个人」页登录后再关注");
+      setErr(t("detail.loginToFollow"));
       return;
     }
     if (user.id === authorId) return;
@@ -543,7 +536,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     const authorId = event.author?.id;
     if (!authorId || user?.id === authorId) return;
     if (!user) {
-      setErr("请先登录后再发起私信");
+      setErr(t("detail.loginToMessage"));
       return;
     }
     setDirectMessageTarget(authorId);
@@ -567,10 +560,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         setReplyTo(null);
       } else {
         const d = await res.json().catch(() => ({}));
-        setErr(res.status === 401 ? "请先到「个人」页登录后再评论" : d.error || "评论失败");
+        setErr(res.status === 401 ? t("detail.loginToComment") : d.error || t("detail.commentFailed"));
       }
     } catch {
-      setErr("网络错误，请稍后再试");
+      setErr(t("common.networkError"));
     } finally {
       setPosting(false);
     }
@@ -599,10 +592,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         });
       } else {
         const d = await res.json().catch(() => ({}));
-        setErr(d.error || "删除失败");
+        setErr(d.error || t("detail.deleteFailed"));
       }
     } catch {
-      setErr("网络错误，请稍后再试");
+      setErr(t("common.networkError"));
     } finally {
       setDeletingId(null);
     }
@@ -627,14 +620,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     if (navigator.share) {
       try {
         await navigator.share({ title: event.title, text: event.title, url });
-        showShareNotice("分享已完成");
+        showShareNotice(t("detail.shared"));
         return;
       } catch {
         /* Some desktop browsers report AbortError when no share target exists. */
       }
     }
     const copied = await copyToClipboard(url);
-    showShareNotice(copied ? "活动链接已复制" : "分享失败，请稍后再试");
+    showShareNotice(copied ? t("detail.linkCopied") : t("detail.shareFailed"));
   }
 
   const shareFeedback = shareNotice && (
@@ -673,16 +666,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           <button type="button" onClick={toggleWant} disabled={!!user && wantLoadedKey !== `${user.id}:${event.id}`} aria-pressed={!!user && wantedId === event.id}
             className={`flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg px-1.5 text-xs font-bold transition active:scale-[0.99] disabled:opacity-60 ${user && wantedId === event.id ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-600 hover:bg-rose-100"}`}>
             <span className={`transition-transform duration-300 ${wantPulse ? "scale-125" : "scale-100"}`}><IconHeart filled={!!user && wantedId === event.id} className="h-3.5 w-3.5" /></span>
-            <span aria-live="polite">{user && wantedId === event.id ? "已想去" : "想去"}</span>
+            <span aria-live="polite">{user && wantedId === event.id ? t("detail.wanted") : t("detail.want")}</span>
           </button>
-          <button type="button" onClick={jumpToMap} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-violet-600 px-1.5 text-xs font-bold text-white"><IconMap className="h-3.5 w-3.5" />{isUserPost ? "规划出发路线" : "路线"}</button>
-          {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-indigo-50 px-1.5 text-xs font-bold text-indigo-700"><IconSparkles className="h-3.5 w-3.5" />AI 导游</button>}
+          <button type="button" onClick={jumpToMap} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-violet-600 px-1.5 text-xs font-bold text-white"><IconMap className="h-3.5 w-3.5" />{isUserPost ? t("detail.planRoute") : t("detail.route")}</button>
+          {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-indigo-50 px-1.5 text-xs font-bold text-indigo-700"><IconSparkles className="h-3.5 w-3.5" />{t("guide.title")}</button>}
         </div>
         <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600">
-          <p>{event.signupEnabled ? "此活动开放站内报名；门票及入场要求请向发布者确认。" : "预约、票价及入场时段以活动来源的最新说明为准。"}</p>
-          {event.sourceUrl ? <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex py-1 font-semibold text-violet-700">查看来源与预约信息 ↗</a> : <span>请联系发布者确认，想去或收藏不代表完成预约。</span>}
-          {user && wantedId === event.id && <button type="button" className="ml-2 py-1 font-semibold text-rose-600" onClick={() => { onClose(); router.push("/me?collection=wants"); }}>查看我的想去 ›</button>}
-          {reactions.favoritedByMe && <button type="button" className="ml-2 py-1 font-semibold text-violet-700" onClick={() => { onClose(); router.push("/me?collection=favorites"); }}>查看我的收藏 ›</button>}
+          <p>{event.signupEnabled ? t("detail.signupNotice") : t("detail.sourceNotice")}</p>
+          {event.sourceUrl ? <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex py-1 font-semibold text-violet-700">{t("detail.viewSource")}</a> : <span>{t("detail.contactPublisher")}</span>}
+          {user && wantedId === event.id && <button type="button" className="ml-2 py-1 font-semibold text-rose-600" onClick={() => { onClose(); router.push("/me?collection=wants"); }}>{t("detail.myWants")}</button>}
+          {reactions.favoritedByMe && <button type="button" className="ml-2 py-1 font-semibold text-violet-700" onClick={() => { onClose(); router.push("/me?collection=favorites"); }}>{t("detail.myFavorites")}</button>}
         </div>
         {wantError && <p role="alert" className="text-xs text-red-600">{wantError}</p>}
       </div>
@@ -693,14 +686,14 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     const mine = !!user && c.userId === user.id;
     const parent = c.parentId ? byId.get(c.parentId) : null;
     const showAt = !!parent && !!parent.parentId;
-    const atName = parent?.author?.username ?? "用户";
+    const atName = parent?.author?.username ?? t("detail.user");
     return (
       <div className={cx("flex gap-2.5", isReply && "ml-8 border-l border-neutral-100 pl-3")}>
         <Avatar user={c.author} size={isReply ? 28 : 38} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-neutral-900">{c.author?.username ?? "用户"}</span>
-            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600">评论</span>
+            <span className="text-sm font-semibold text-neutral-900">{c.author?.username ?? t("detail.user")}</span>
+            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600">{t("detail.comment")}</span>
             <button type="button" onClick={() => toggleReaction("LIKE")} className="ml-auto inline-flex items-center gap-1 text-neutral-400 hover:text-rose-500">
               <IconHeart className="h-3.5 w-3.5" />
             </button>
@@ -711,10 +704,10 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           </div>
           <div className="mt-1 flex items-center gap-4 text-xs text-neutral-400">
             <span>{fmtCommentTime(c.createdAt)}</span>
-            <button type="button" onClick={() => setReplyTo({ id: c.id, username: c.author?.username ?? "用户" })} className="hover:text-violet-600">回复</button>
+            <button type="button" onClick={() => setReplyTo({ id: c.id, username: c.author?.username ?? t("detail.user") })} className="hover:text-violet-600">{t("detail.reply")}</button>
             {mine && (
               <button type="button" onClick={() => removeComment(c.id)} disabled={deletingId === c.id} className="hover:text-red-500 disabled:opacity-50">
-                {deletingId === c.id ? "删除中…" : "删除"}
+                {deletingId === c.id ? t("detail.deleting") : t("common.delete")}
               </button>
             )}
           </div>
@@ -728,16 +721,16 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       <section className="border-t border-neutral-100 pt-5">
         <div className="mb-4 flex items-center gap-2.5">
           <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({commentTotal})</h3>
-          <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最热</button>
-          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>最新</button>
+          <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>{t("detail.hot")}</button>
+          <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>{t("detail.new")}</button>
           {commentLoading && <TinyLoading label="" />}
         </div>
         {!loaded && (
           <div className="py-5 text-center"><TinyLoading /></div>
         )}
-        {!loaded && !commentLoading && !commentLoadError && <p role="status" className="pb-4 text-xs text-neutral-500">正在加载评论…</p>}
-        {commentLoadError && <p role="alert" className="pb-4 text-xs text-rose-700">评论加载失败。<button type="button" className="ml-2 underline" onClick={() => void loadCommentPage(comments.length === 0)}>重试</button></p>}
-        {loaded && !commentLoading && !commentLoadError && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">还没有评论，来说两句。</p>}
+        {!loaded && !commentLoading && !commentLoadError && <p role="status" className="pb-4 text-xs text-neutral-500">{t("detail.loadingComments")}</p>}
+        {commentLoadError && <p role="alert" className="pb-4 text-xs text-rose-700">{t("detail.commentsFailed")}<button type="button" className="ml-2 underline" onClick={() => void loadCommentPage(comments.length === 0)}>{t("common.retry")}</button></p>}
+        {loaded && !commentLoading && !commentLoadError && comments.length === 0 && <p className="pb-4 text-[13px] text-neutral-400">{t("detail.noComments")}</p>}
         <ul className="space-y-4">
           {threads.map(({ comment, replies }) => {
             const meta = replyMeta[comment.id];
@@ -753,7 +746,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   disabled={!!meta.loading}
                   className="ml-11 inline-flex items-center gap-1.5 rounded-full bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500 disabled:opacity-60"
                 >
-                  {meta.loading ? <TinyLoading label="加载回复" /> : meta.error ? "回复加载失败，点击重试" : `查看更多回复${remaining > 0 ? `（${remaining}）` : ""}`}
+                  {meta.loading ? <TinyLoading label={t("detail.loadingReplies")} /> : meta.error ? t("detail.repliesFailed") : remaining > 0 ? t("detail.moreRepliesCount", { count: remaining }) : t("detail.moreReplies")}
                 </button>
               )}
             </li>
@@ -766,7 +759,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             disabled={commentMoreLoading}
             className="mt-5 w-full rounded-full bg-neutral-50 py-3 text-[13px] font-medium text-neutral-600 disabled:opacity-60"
           >
-            {commentMoreLoading ? <TinyLoading label="加载评论" /> : "加载更多评论"}
+            {commentMoreLoading ? <TinyLoading label={t("detail.loadComments")} /> : t("detail.moreComments")}
           </button>
         )}
       </section>
@@ -780,7 +773,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         {replyTo && (
           <div className="flex items-center justify-between rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-600">
             <span>回复 @{replyTo.username}</span>
-            <button type="button" onClick={() => setReplyTo(null)}>取消</button>
+            <button type="button" onClick={() => setReplyTo(null)}>{t("common.cancel")}</button>
           </div>
         )}
         <div className="flex items-center gap-2.5">
@@ -790,7 +783,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addComment(); }}
-              placeholder={replyTo ? `回复 @${replyTo.username}…` : "写下你的评论…"}
+              placeholder={replyTo ? `${t("detail.reply")} @${replyTo.username}…` : t("detail.commentPlaceholder")}
               className="h-10 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-neutral-400"
             />
             <ImageIcon className="h-4 w-4 text-indigo-400" />
@@ -806,13 +799,13 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   const loginPromptOverlay = loginPromptAction && (
     <div role="dialog" aria-modal="true" aria-labelledby="reaction-login-title" className="fixed inset-0 z-[130] flex items-center justify-center bg-neutral-950/35 p-5 backdrop-blur-[2px]">
-      <button type="button" aria-label="关闭登录提示" onClick={() => setLoginPromptAction(null)} className="absolute inset-0 cursor-default" />
+      <button type="button" aria-label={t("detail.closeLogin")} onClick={() => setLoginPromptAction(null)} className="absolute inset-0 cursor-default" />
       <div className="relative w-full max-w-[320px] rounded-3xl bg-white px-5 pb-5 pt-4 shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
-        <h2 id="reaction-login-title" className="text-center text-base font-bold text-neutral-950">登录后再{loginPromptAction}</h2>
-        <p className="mt-1.5 text-center text-[13px] leading-5 text-neutral-500">登录后可保存互动记录，并在个人页随时查看。</p>
+        <h2 id="reaction-login-title" className="text-center text-base font-bold text-neutral-950">{t("detail.loginAction", { action: loginPromptAction === "LIKE" ? t("detail.like") : loginPromptAction === "FAVORITE" ? t("detail.favorite") : t("detail.signup") })}</h2>
+        <p className="mt-1.5 text-center text-[13px] leading-5 text-neutral-500">{t("detail.loginHint")}</p>
         <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <button type="button" onClick={() => setLoginPromptAction(null)} className="h-10 rounded-xl bg-neutral-100 text-[13px] font-semibold text-neutral-600 transition active:scale-[0.98]">暂不登录</button>
-          <button type="button" onClick={() => { onClose(); router.push("/me"); }} className="h-10 rounded-xl bg-violet-600 text-[13px] font-semibold text-white shadow-sm transition active:scale-[0.98]">前往登录</button>
+          <button type="button" onClick={() => setLoginPromptAction(null)} className="h-10 rounded-xl bg-neutral-100 text-[13px] font-semibold text-neutral-600 transition active:scale-[0.98]">{t("detail.notNow")}</button>
+          <button type="button" onClick={() => { onClose(); router.push("/me"); }} className="h-10 rounded-xl bg-violet-600 text-[13px] font-semibold text-white shadow-sm transition active:scale-[0.98]">{t("detail.goLogin")}</button>
         </div>
       </div>
     </div>
@@ -823,15 +816,15 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
           <div className="sticky top-0 z-40 -mx-4 flex min-w-0 items-center bg-white/95 px-4 py-2 shadow-[0_6px_18px_rgba(15,23,42,0.06)] backdrop-blur sm:-mx-7 sm:px-7 sm:py-2.5">
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 hover:bg-neutral-50 sm:h-10 sm:w-10">
+            <button type="button" onClick={onClose} aria-label={t("detail.back")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 hover:bg-neutral-50 sm:h-10 sm:w-10">
               <IconChevronLeft className="h-5 w-5" />
             </button>
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
               <Avatar user={event.author} size={36} />
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span title={event.author?.username ?? "用户"} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? "用户"}</span>
+                <span title={event.author?.username ?? t("detail.user")} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
                 {event.author?.id && user?.id !== event.author.id && (
-                  <button type="button" onClick={startDirectMessage} className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-violet-600 sm:text-[11px]">私信</button>
+                  <button type="button" onClick={startDirectMessage} className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-violet-600 sm:text-[11px]">{t("detail.message")}</button>
                 )}
               </div>
             </div>
@@ -847,7 +840,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                       : "border-violet-200 bg-white text-violet-600",
                   )}
                 >
-                  {authorFollowActive ? "已关注" : "关注"}
+                  {authorFollowActive ? t("detail.following") : t("detail.follow")}
                 </button>
               )}
               <div
@@ -857,20 +850,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 )}
                 aria-hidden={!postActionsExpanded}
               >
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("LIKE")} aria-label="点赞" className={iconButtonClass(reactions.likedByMe, false)}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("LIKE")} aria-label={t("detail.like")} className={iconButtonClass(reactions.likedByMe, false)}>
                   <IconHeart filled={reactions.likedByMe} className="h-4 w-4" />
                 </button>
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("FAVORITE")} aria-label="收藏" className={iconButtonClass(reactions.favoritedByMe, false)}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("FAVORITE")} aria-label={t("detail.favorite")} className={iconButtonClass(reactions.favoritedByMe, false)}>
                   <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
                 </button>
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={shareEvent} aria-label="分享" className={iconButtonClass(false, false)}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={shareEvent} aria-label={t("common.share")} className={iconButtonClass(false, false)}>
                   <ShareIcon className="h-4 w-4" />
                 </button>
               </div>
               <button
                 type="button"
                 onClick={() => setPostActionsExpanded(true)}
-                aria-label="展开点赞、收藏和分享操作"
+                aria-label={t("detail.expandActions")}
                 aria-expanded={postActionsExpanded}
                 aria-hidden={postActionsExpanded}
                 tabIndex={postActionsExpanded ? -1 : 0}
@@ -919,7 +912,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 />
                 {event.description.length > 120 && (
                   <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex items-center gap-1 text-[13px] font-semibold text-violet-600">
-                    {expanded ? "收起" : "展开"}
+                    {expanded ? t("detail.collapse") : t("detail.expand")}
                     <ChevronDownIcon up={expanded} />
                   </button>
                 )}
@@ -933,7 +926,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             )}
 
             {event.postKind === "LIFE" && (
-              <p className="mt-2 text-[11px] leading-4 text-neutral-400">发布时间：{event.createdAt ? fmtCompact(event.createdAt) : "时间未定"}</p>
+              <p className="mt-2 text-[11px] leading-4 text-neutral-400">{t("detail.publishedAt")}{fmtCompact(event.createdAt, locale, t("detail.timeTbd"))}</p>
             )}
 
             <section className="mt-2 bg-neutral-50 px-3 py-3 sm:mt-3">
@@ -945,7 +938,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                       <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
                     </span>
                     {event.postKind !== "LIFE" && (
-                      <span>活动时间：{fmtCompact(event.startTime)}{event.endTime ? ` - ${fmtCompact(event.endTime)}` : ""}</span>
+                      <span>{t("detail.activityTimePrefix")}{fmtCompact(event.startTime, locale, t("detail.timeTbd"))}{event.endTime ? ` - ${fmtCompact(event.endTime, locale, t("detail.timeTbd"))}` : ""}</span>
                     )}
                   </section>
                   <button type="button" onClick={jumpToMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
@@ -985,7 +978,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       <div className="mx-auto min-h-full w-full max-w-[920px] bg-white">
         <div className="sticky top-0 z-[99] h-0 w-full">
           <div className={`mx-3 mt-2 flex items-center justify-between rounded-full px-2 py-1.5 transition-[background-color,box-shadow,backdrop-filter] duration-200 sm:mx-5 sm:mt-3 sm:px-2.5 sm:py-2 ${officialHeaderScrolled ? "bg-white/80 shadow-[0_6px_20px_rgba(15,23,42,0.10)] backdrop-blur-md" : "bg-transparent shadow-none backdrop-blur-none"}`}>
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-sm backdrop-blur transition active:scale-95">
+            <button type="button" onClick={onClose} aria-label={t("detail.back")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-sm backdrop-blur transition active:scale-95">
               <IconChevronLeft className="h-5 w-5" />
             </button>
             <div className="flex gap-2 sm:gap-2.5">
@@ -995,13 +988,13 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               <button type="button" onClick={() => toggleReaction("FAVORITE")} className={iconButtonClass(reactions.favoritedByMe)}>
                 <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
               </button>
-              <button type="button" onClick={shareEvent} aria-label="分享" className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
+              <button type="button" onClick={shareEvent} aria-label={t("common.share")} className={iconButtonClass()}><ShareIcon className="h-4 w-4" /></button>
             </div>
           </div>
         </div>
         <section className="relative h-[34vh] min-h-[292px] overflow-hidden bg-blue-500 sm:h-[48vh] sm:min-h-[420px]">
           {hero ? (
-            <button type="button" aria-label="放大查看活动图片" onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
+            <button type="button" aria-label={t("detail.zoomImage")} onClick={() => setLightbox({ images, index: 0 })} className="block h-full w-full cursor-zoom-in">
               <EventHeroImage key={hero} src={hero} />
             </button>
           ) : (
@@ -1009,7 +1002,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/65" />
           <div className="pointer-events-none absolute bottom-9 left-4 right-4 text-white sm:bottom-16 sm:left-8 sm:right-8">
-            <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-bold sm:mb-3 sm:px-3 sm:text-sm">限定</span>
+            <span className="mb-2 inline-flex rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-bold sm:mb-3 sm:px-3 sm:text-sm">{t("detail.limited")}</span>
             <h1 className="max-w-[760px] text-[19px] font-black leading-tight tracking-normal drop-shadow-sm sm:text-[24px]">{event.title}</h1>
             {event.summary || event.description ? <p className="mt-1.5 max-w-[740px] text-xs font-medium leading-5 drop-shadow-sm sm:mt-3 sm:text-base sm:leading-relaxed">{event.summary ?? event.description?.slice(0, 40)}</p> : null}
           </div>
@@ -1025,23 +1018,23 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           <section className="-mt-5 overflow-hidden rounded-[22px] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.13)] ring-1 ring-black/5 sm:-mt-7 sm:rounded-[28px]">
             <div className="grid grid-cols-2 divide-x divide-neutral-100 px-3.5 py-3.5 sm:px-6 sm:py-6">
               <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconCalendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />活动时间</div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconCalendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t("detail.eventTime")}</div>
                 <div className="space-y-1 text-[13px] font-bold leading-snug text-neutral-950 sm:text-sm">
-                  <div>{fmtCompact(event.startTime)}</div>
-                  {event.endTime && <><div className="text-xs text-neutral-400">—</div><div>{fmtCompact(event.endTime)}</div></>}
+                  <div>{fmtCompact(event.startTime, locale, t("detail.timeTbd"))}</div>
+                  {event.endTime && <><div className="text-xs text-neutral-400">—</div><div>{fmtCompact(event.endTime, locale, t("detail.timeTbd"))}</div></>}
                 </div>
                 {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600 sm:text-xs">{durationLabel(event.startTime, event.endTime)}</span>}
               </div>
               <div className="pl-3.5 sm:pl-10">
-                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />活动地点</div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t("detail.eventPlace")}</div>
                 <div className="space-y-1 text-[13px] font-bold leading-snug text-neutral-950 sm:text-sm">
                   <div className="flex min-w-0 items-start gap-1.5">
-                    <span className="line-clamp-2 min-w-0 flex-1">{event.venueName ?? "地点未定"}</span>
-                    <CopyButton text={event.address || event.venueName || ""} label="复制地点" className="h-5 w-5 rounded-full hover:bg-neutral-100" />
+                    <span className="line-clamp-2 min-w-0 flex-1">{event.venueName ?? t("detail.placeTbd")}</span>
+                    <CopyButton text={event.address || event.venueName || ""} label={t("detail.copyPlace")} className="h-5 w-5 rounded-full hover:bg-neutral-100" />
                   </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
-                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">查看路线 〉</button>
+                <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">{t("detail.viewRoute")}</button>
               </div>
             </div>
             <div className="border-t border-neutral-100 bg-neutral-50/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
@@ -1071,7 +1064,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               {event.description.length > 140 && (
                 <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-4 block text-sm font-semibold text-violet-600">
                   <span className="inline-flex items-center gap-1">
-                    {expanded ? "收起更多" : "展开更多"}
+                    {expanded ? t("detail.collapseMore") : t("detail.expandMore")}
                     <ChevronDownIcon up={expanded} />
                   </span>
                 </button>

@@ -5,5 +5,5 @@ import { PageLoading } from "@/components/PageLoading";
  * Purpose: Shows the IP searching for discoveries while the feed route resolves.
  */
 export default function Loading() {
-  return <PageLoading scene="discover" text="找找附近，有什么新鲜事…" />;
+  return <PageLoading scene="discover" messageKey="loading.discover" />;
 }

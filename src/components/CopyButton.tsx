@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { IconCopy, IconCheck } from "@/components/icons";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 // 通用复制按钮：点一下把 text 写入剪贴板，短暂切换成对勾反馈。
 export function CopyButton({
   text,
   className = "",
-  label = "复制",
+  label,
 }: {
   text: string;
   className?: string;
   label?: string;
 }) {
+  const { t } = useLanguage();
+  const resolvedLabel = label ?? t("common.copy");
   const [copied, setCopied] = useState(false);
 
   async function copy(e: React.MouseEvent) {
@@ -30,8 +33,8 @@ export function CopyButton({
     <button
       type="button"
       onClick={copy}
-      aria-label={label}
-      title={copied ? "已复制" : label}
+      aria-label={resolvedLabel}
+      title={copied ? t("common.copied") : resolvedLabel}
       className={`inline-flex items-center justify-center shrink-0 transition-colors ${
         copied ? "text-green-600" : "text-neutral-400 hover:text-blue-600"
       } ${className}`}

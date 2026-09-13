@@ -5,5 +5,5 @@ import { PageLoading } from "@/components/PageLoading";
  * Purpose: Shows the minimal Cloud Footprints brand mark while the initial App Router page is loading.
  */
 export default function Loading() {
-  return <PageLoading variant="splash" text="正在展开东京…" />;
+  return <PageLoading variant="splash" messageKey="loading.splash" />;
 }

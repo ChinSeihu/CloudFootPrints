@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 // 可吸附底部 sheet：两档 half（默认半屏）/ full（完整表单）。
 //  - 打开默认 half：表单和地图都可见，锚点仍可调整
@@ -29,6 +30,7 @@ export function BottomSheet({
   footer?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   const [snap, setSnap] = useState<"peek" | "full">("peek");
   useEffect(() => { onSnapChange?.(snap); }, [snap, onSnapChange]);
   const [dragY, setDragY] = useState(0);
@@ -86,7 +88,7 @@ export function BottomSheet({
           type="button"
           onClick={onClose}
           onPointerDown={(e) => e.stopPropagation()}
-          aria-label="关闭"
+          aria-label={t("common.close")}
           className="absolute right-4 top-4 z-10 grid h-8 w-8 place-items-center rounded-full bg-neutral-100 text-xl leading-none text-neutral-500 hover:bg-neutral-200"
         >
           ×

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MOOD_TAGS } from "@/lib/moods";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 export function MoodSelector({
   value,
@@ -10,6 +11,7 @@ export function MoodSelector({
   value: number[];
   onChange: (value: number[]) => void;
 }) {
+  const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const selectedValues = value.slice(0, 6);
   const visibleMoods = useMemo(() => {
@@ -57,7 +59,7 @@ export function MoodSelector({
         className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/70 py-2 text-xs font-medium text-neutral-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
         aria-expanded={expanded}
       >
-        {expanded ? "收起心情" : `更多心情（${MOOD_TAGS.length - 3}）`}
+        {expanded ? t("mood.less") : t("mood.more", { count: MOOD_TAGS.length - 3 })}
       </button>
       {selectedValues.length > 0 && <p className="text-[11px] text-neutral-400">已选择 {selectedValues.length}/6，可多选</p>}
     </div>

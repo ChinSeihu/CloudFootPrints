@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 // 应用内确认弹窗：替代 window.confirm（部分移动端 webview 的 confirm 不可靠，
 // 甚至点「取消」也返回 true 导致误删）。受控显示，确认/取消各回调。
@@ -8,8 +9,8 @@ import { useEffect, useState } from "react";
 export function ConfirmDialog({
   open,
   message,
-  title = "确认",
-  confirmText = "删除",
+  title,
+  confirmText,
   danger = true,
   onConfirm,
   onCancel,
@@ -22,6 +23,9 @@ export function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
+  const resolvedTitle = title ?? t("common.confirm");
+  const resolvedConfirmText = confirmText ?? t("common.delete");
   const [busy, setBusy] = useState(false);
   // 弹窗关闭后复位忙碌态（下次打开是干净状态）
   useEffect(() => {
@@ -48,7 +52,7 @@ export function ConfirmDialog({
         className="relative w-full max-w-xs rounded-2xl bg-white shadow-xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-semibold text-neutral-900 mb-1">{title}</div>
+        <div className="text-sm font-semibold text-neutral-900 mb-1">{resolvedTitle}</div>
         <p className="text-sm text-neutral-600 leading-relaxed">{message}</p>
         <div className="flex gap-2 mt-5">
           <button
@@ -57,7 +61,7 @@ export function ConfirmDialog({
             disabled={busy}
             className="flex-1 py-2.5 rounded-xl text-sm text-neutral-600 bg-neutral-100 hover:bg-neutral-200/70 transition disabled:opacity-50"
           >
-            取消
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -72,7 +76,7 @@ export function ConfirmDialog({
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
               </svg>
             )}
-            {busy ? "处理中…" : confirmText}
+            {busy ? t("common.processing") : resolvedConfirmText}
           </button>
         </div>
       </div>
