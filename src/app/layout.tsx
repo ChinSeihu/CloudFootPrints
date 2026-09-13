@@ -9,6 +9,8 @@ import { GuideProvider } from "@/components/Guide/GuideContext";
 import { GuideChat } from "@/components/Guide/GuideChat";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ViewportHeightSync } from "@/components/ViewportHeightSync";
+import { cookies, headers } from "next/headers";
+import { LanguageProvider, type AppLanguage } from "@/components/I18n/LanguageProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,21 +45,34 @@ export const viewport: Viewport = {
 };
 
 /**
- * Signature: `function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): React.JSX.Element`
+ * Signature: `async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>): Promise<React.JSX.Element>`
  * Purpose: Provide the CloudFootprints Tokyo document shell, product metadata, shared providers, and primary navigation.
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const requestHeaders = await headers();
+  const savedLanguage = cookieStore.get("tem_language")?.value;
+  const preferredLanguage = requestHeaders.get("accept-language")?.toLowerCase() ?? "";
+  const initialLanguage: AppLanguage = savedLanguage === "ja" || savedLanguage === "en" || savedLanguage === "zh"
+    ? savedLanguage
+    : preferredLanguage.startsWith("ja")
+      ? "ja"
+      : preferredLanguage.startsWith("en")
+        ? "en"
+        : "zh";
+
   return (
     <html
-      lang="zh"
+      lang={initialLanguage === "zh" ? "zh-CN" : initialLanguage}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="app-viewport flex flex-col overflow-hidden">
         <ViewportHeightSync />
+        <LanguageProvider initialLanguage={initialLanguage}>
         <AuthProvider>
           <GuideProvider>
             <main className="flex-1 min-h-0 relative">{children}</main>
@@ -66,6 +81,7 @@ export default function RootLayout({
             <InstallPrompt />
           </GuideProvider>
         </AuthProvider>
+        </LanguageProvider>
         <Analytics />
         <SpeedInsights />
       </body>

@@ -12,6 +12,7 @@ import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 import type { PublicUser } from "@/lib/auth";
 import { MascotPicker } from "@/components/Mascot/Mascot";
+import { useLanguage, type AppLanguage } from "@/components/I18n/LanguageProvider";
 
 type FollowMode = "following" | "followers";
 type FollowStats = { followingCount: number; followerCount: number };
@@ -53,6 +54,7 @@ function KnotIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 export function ProfileHeader() {
   const router = useRouter();
   const { user, setUser, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signature, setSignature] = useState(user?.signature ?? "");
@@ -217,7 +219,7 @@ export function ProfileHeader() {
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
                 className="grid h-8 w-8 place-items-center rounded-full bg-black/25 text-white/90 shadow-sm backdrop-blur"
-                aria-label="打开资料菜单"
+                aria-label={t("profile.openMenu")}
                 aria-expanded={menuOpen}
               >
                 <span className="flex flex-col gap-1">
@@ -229,10 +231,10 @@ export function ProfileHeader() {
               {menuOpen && (
                 <div className="absolute right-0 top-9 z-10 w-28 overflow-hidden rounded-xl border border-black/5 bg-white py-1 text-sm shadow-lg">
                   <button type="button" onClick={startEdit} className="block w-full px-3 py-2 text-left text-neutral-700 hover:bg-neutral-50">
-                    编辑资料
+                    {t("profile.edit")}
                   </button>
                   <button type="button" onClick={logout} className="block w-full px-3 py-2 text-left text-neutral-500 hover:bg-neutral-50">
-                    登出
+                    {t("profile.logout")}
                   </button>
                 </div>
               )}
@@ -329,6 +331,25 @@ export function ProfileHeader() {
               <input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="状态 / 此刻心情" className={fieldCls} />
               <input value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="个性签名" className={fieldCls} />
               <input value={hometown} onChange={(e) => setHometown(e.target.value)} placeholder="常住地（可选）" className={fieldCls} />
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-neutral-700">{t("settings.language")}</span>
+                  <span className="text-[10px] text-neutral-400">{t("settings.languageHint")}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["zh", "ja", "en"] as const).map((option: AppLanguage) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setLanguage(option)}
+                      aria-pressed={language === option}
+                      className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${language === option ? "border-violet-500 bg-violet-50 text-violet-700" : "border-neutral-200 bg-white text-neutral-500"}`}
+                    >
+                      {t(option === "zh" ? "settings.chinese" : option === "ja" ? "settings.japanese" : "settings.english")}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-neutral-700">IP 伙伴</span>

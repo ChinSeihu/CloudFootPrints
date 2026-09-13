@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MascotNavIcon, useMascotIdentity, type MascotNavRole, type MascotIdentity } from "@/components/Mascot/Mascot";
+import { useLanguage, type TranslationKey } from "@/components/I18n/LanguageProvider";
 
-const TABS: ReadonlyArray<{ href: string; label: string; role: MascotNavRole }> = [
-  { href: "/", label: "地图", role: "map" },
-  { href: "/calendar", label: "日历", role: "calendar" },
-  { href: "/recommend", label: "探索", role: "discover" },
-  { href: "/me", label: "我的", role: "profile" },
+const TABS: ReadonlyArray<{ href: string; labelKey: TranslationKey; role: MascotNavRole }> = [
+  { href: "/", labelKey: "nav.map", role: "map" },
+  { href: "/calendar", labelKey: "nav.calendar", role: "calendar" },
+  { href: "/recommend", labelKey: "nav.explore", role: "discover" },
+  { href: "/me", labelKey: "nav.me", role: "profile" },
 ] as const;
 
 const ACTIVE_COLORS: Record<Exclude<MascotIdentity, "none">, string> = {
@@ -26,6 +27,7 @@ const ACTIVE_COLORS: Record<Exclude<MascotIdentity, "none">, string> = {
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
   const mascotIdentity = useMascotIdentity();
   const textOnly = mascotIdentity === "none";
   const [pending, setPending] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function BottomNav() {
 
   return (
     <nav
-      aria-label="主要导航"
+      aria-label={t("nav.primary")}
       className={`relative z-[50] grid ${textOnly ? "min-h-14" : "min-h-[4.5rem]"} h-auto shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur`}
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
@@ -58,7 +60,7 @@ export function BottomNav() {
             onTouchStart={() => router.prefetch(tab.href)}
             aria-current={active ? "page" : undefined}
             className={`relative flex h-12 items-center justify-center rounded-lg text-[15px] tracking-wider motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${active ? "font-semibold text-violet-700" : "font-medium text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800"}`}>
-            {tab.label}
+            {t(tab.labelKey)}
             <span aria-hidden="true" className={`absolute bottom-1 h-0.5 w-4 rounded-full bg-violet-500 motion-safe:transition-[opacity,transform] motion-safe:duration-200 ${active ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"}`} />
           </Link>
         );
@@ -80,7 +82,7 @@ export function BottomNav() {
             </span>
             <span className={`relative leading-4 ${active ? "font-bold" : "font-medium"}`}>
               <span aria-hidden="true" className={`absolute -left-2.5 top-1.5 h-1 w-1 rounded-full bg-current motion-safe:transition-[opacity,transform] motion-safe:duration-200 ${active ? "scale-100 opacity-100" : "scale-0 opacity-0"}`} />
-              {tab.label}
+              {t(tab.labelKey)}
             </span>
           </Link>
         );
