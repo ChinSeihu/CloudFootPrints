@@ -188,7 +188,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### `public/`
 
-- `brand/splash-logo-02.png` — fixed high-resolution, white-backed 02 splash mark; `splash-logo-02-{180,192,512}.png` provide matching PWA/Apple launcher assets. The six earlier moon-phase crops remain archived in `brand/moon-logos/`.
+- `brand/splash-logo-02-wordmark.png` — fixed high-resolution, white-backed 02 splash logo with the embedded “云迹 / CLOUD FOOTPRINT” wordmark; `splash-logo-02-wordmark-{180,192,512}.png` provide matching PWA/Apple launcher assets. The mark-only source and six earlier moon-phase crops remain archived alongside it.
 - `manifest.webmanifest` — installable app name, colors, start URL, and icon metadata.
 - `brand/mascots/` — archived character sheets, September 4 design reference, current user-supplied V4 menu atlas, historical V3 atlas, prompts, and asset guidance.
 

@@ -84,7 +84,7 @@ export function InstallPrompt() {
     <aside role="dialog" aria-label="安装云迹东京桌面应用" className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-[45] mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/80 bg-white/95 p-3 shadow-[0_18px_52px_rgba(15,23,42,0.24)] backdrop-blur-xl">
       <div className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- local install icon is already optimized at 192px. */}
-        <img src="/splash-logo-02-192.png" alt="" className="h-12 w-12 shrink-0 rounded-xl shadow-sm" />
+        <img src="/splash-logo-02-wordmark-192.png" alt="" className="h-12 w-12 shrink-0 rounded-xl shadow-sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-black text-slate-900">云迹东京也可以安装到桌面</p>
           <p className="mt-0.5 text-xs leading-5 text-slate-500">独立窗口打开，像普通应用一样从桌面或程序坞进入。</p>
