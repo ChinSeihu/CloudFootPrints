@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ymd } from "@/lib/dateFilter";
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type Props = {
   value: string; // "YYYY-MM-DDTHH:mm" 或 ""
@@ -23,11 +22,11 @@ function splitValue(v: string): { date: string; time: string } {
   return { date, time: time.slice(0, 5) };
 }
 
-function fmtDisplay(v: string): string {
+function fmtDisplay(v: string, locale: string): string {
   if (!v) return "";
   const { date, time } = splitValue(v);
   const [y, m, d] = date.split("-").map(Number);
-  return `${y}年${m}月${d}日 ${time || "00:00"}`;
+  return `${new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric" }).format(new Date(y, m - 1, d))} ${time || "00:00"}`;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
@@ -37,7 +36,9 @@ const MINUTES = ["00", "10", "20", "30", "40", "50"];
  * Signature: `function DateTimeField({ value, onChange, placeholder, align }: Props): React.JSX.Element`
  * Purpose: Selects a local date and time while allowing its calendar popup to align within narrow layouts.
  */
-export function DateTimeField({ value, onChange, placeholder = "选择时间", align = "left" }: Props) {
+export function DateTimeField({ value, onChange, placeholder, align = "left" }: Props) {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const { date, time } = splitValue(value);
@@ -69,6 +70,10 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
   }, [view]);
 
   const [hh, mm] = time ? time.split(":") : ["", ""];
+  const weekdays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, 7 + index))),
+    [locale],
+  );
 
   function emit(nextDate: string, nextTime: string) {
     if (!nextDate) {
@@ -106,7 +111,7 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
       >
         <svg viewBox="0 0 24 24" className="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
         <span className={value ? "text-neutral-800" : "text-neutral-400"}>
-          {value ? fmtDisplay(value) : placeholder}
+          {value ? fmtDisplay(value, locale) : (placeholder ?? t("datetime.choose"))}
         </span>
         {value && (
           <span
@@ -117,7 +122,7 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
               onChange("");
             }}
             className="ml-auto text-neutral-300 hover:text-neutral-500 text-base leading-none"
-            aria-label="清除"
+            aria-label={t("common.clear")}
           >
             ×
           </span>
@@ -128,13 +133,13 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
         <div className={`absolute z-30 mt-1.5 w-[17rem] max-w-[82vw] rounded-xl border border-neutral-200 bg-white p-3 shadow-lg ${align === "right" ? "right-0" : "left-0"}`}>
           {/* 月份导航 */}
           <div className="flex items-center justify-between mb-1.5">
-            <button type="button" onClick={() => shiftMonth(-1)} className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100" aria-label="上个月">‹</button>
-            <span className="text-sm font-medium text-neutral-800">{view.y}年{view.m + 1}月</span>
-            <button type="button" onClick={() => shiftMonth(1)} className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100" aria-label="下个月">›</button>
+            <button type="button" onClick={() => shiftMonth(-1)} className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100" aria-label={t("calendar.previousMonth")}>‹</button>
+            <span className="text-sm font-medium text-neutral-800">{new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(new Date(view.y, view.m, 1))}</span>
+            <button type="button" onClick={() => shiftMonth(1)} className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100" aria-label={t("calendar.nextMonth")}>›</button>
           </div>
 
           <div className="grid grid-cols-7 mb-1">
-            {WEEKDAYS.map((w, i) => (
+            {weekdays.map((w, i) => (
               <div key={w} className={`text-center text-[11px] py-1 ${i === 0 || i === 6 ? "text-rose-400" : "text-neutral-400"}`}>{w}</div>
             ))}
           </div>
@@ -162,13 +167,13 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
 
           {/* 时间 */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-neutral-100">
-            <span className="text-[11px] text-neutral-400">时间</span>
+            <span className="text-[11px] text-neutral-400">{t("filter.time")}</span>
             <select
               value={hh || ""}
               onChange={(e) => setHour(e.target.value)}
               className="flex-1 rounded-lg bg-neutral-50 border border-neutral-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
-              <option value="" disabled>时</option>
+              <option value="" disabled>{t("datetime.hour")}</option>
               {HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
             <span className="text-neutral-400">:</span>
@@ -177,13 +182,13 @@ export function DateTimeField({ value, onChange, placeholder = "选择时间", a
               onChange={(e) => setMinute(e.target.value)}
               className="flex-1 rounded-lg bg-neutral-50 border border-neutral-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             >
-              <option value="" disabled>分</option>
+              <option value="" disabled>{t("datetime.minute")}</option>
               {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 
           <div className="flex justify-end mt-2.5">
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-blue-600 px-2 py-1 hover:underline">完成</button>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-blue-600 px-2 py-1 hover:underline">{t("common.done")}</button>
           </div>
         </div>
       )}

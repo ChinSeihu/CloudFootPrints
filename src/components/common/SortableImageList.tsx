@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { Lightbox } from "./Lightbox";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type SortableImageListProps = {
   images: string[];
@@ -43,6 +44,7 @@ export function moveImageItem<T>(items: T[], fromIndex: number, toIndex: number)
  * Purpose: Renders images with whole-tile pointer insertion, animated reflow, keyboard reordering, removal, and fullscreen preview.
  */
 export function SortableImageList({ images, onMove, onRemove, layout = "grid", columns = 3, addControl, addPosition = "end" }: SortableImageListProps) {
+  const { t } = useLanguage();
   const activeIndexRef = useRef<number | null>(null);
   const pointerSessionRef = useRef<PointerSession | null>(null);
   const tileRefs = useRef(new Map<string, HTMLDivElement>());
@@ -168,7 +170,7 @@ export function SortableImageList({ images, onMove, onRemove, layout = "grid", c
       <div
         role="button"
         tabIndex={0}
-        aria-label={`预览第 ${index + 1} 张图片${images.length > 1 ? "，可拖动调整顺序" : ""}`}
+        aria-label={`${t("images.preview", { count: index + 1 })}${images.length > 1 ? t("images.dragHint") : ""}`}
         onPointerDown={(event) => handlePointerDown(event, index)}
         onPointerMove={handlePointerMove}
         onPointerUp={(event) => handlePointerUp(event, index)}
@@ -178,15 +180,15 @@ export function SortableImageList({ images, onMove, onRemove, layout = "grid", c
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover" />
-        {index === 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">封面</span>}
+        {index === 0 && <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">{t("images.cover")}</span>}
       </div>
-      <button type="button" onClick={() => onRemove(index)} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur" aria-label={`移除第 ${index + 1} 张图片`}>×</button>
+      <button type="button" onClick={() => onRemove(index)} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-sm leading-none text-neutral-700 shadow backdrop-blur" aria-label={t("images.remove", { count: index + 1 })}>×</button>
     </div>
   ));
 
   return (
     <div>
-      {images.length > 0 && <p className="mb-1.5 text-[11px] text-neutral-400">{images.length > 1 ? "直接拖动图片排序，轻点放大预览，第一张为封面" : "轻点图片放大预览"}</p>}
+      {images.length > 0 && <p className="mb-1.5 text-[11px] text-neutral-400">{t(images.length > 1 ? "images.sortHint" : "images.singleHint")}</p>}
       <div className={layout === "row" ? "flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : `grid gap-2 ${columns === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         {addPosition === "start" && addControl}
         {imageNodes}

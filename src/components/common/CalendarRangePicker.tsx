@@ -11,8 +11,7 @@ import {
   tokyoToday,
   ymd,
 } from "@/lib/dateFilter";
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type Props = {
   value: DayRange;
@@ -27,6 +26,8 @@ function parse(s: string): Date {
 
 // 通用日历范围选择器：月历点选 from→to，附快捷预设。值/回调用 YYYY-MM-DD。
 export function CalendarRangePicker({ value, onChange }: Props) {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const today = tokyoToday();
   const anchor = value.from ?? value.to ?? today;
   const [view, setView] = useState(() => {
@@ -65,7 +66,11 @@ export function CalendarRangePicker({ value, onChange }: Props) {
     return day === value.from || day === value.to;
   }
 
-  const monthLabel = `${view.y}年${view.m + 1}月`;
+  const monthLabel = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(new Date(view.y, view.m, 1));
+  const weekdays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, 7 + index))),
+    [locale],
+  );
 
   function shiftMonth(delta: number) {
     setView((v) => {
@@ -75,10 +80,10 @@ export function CalendarRangePicker({ value, onChange }: Props) {
   }
 
   const presets: { label: string; range: DayRange }[] = [
-    { label: "全部", range: ALL_DATES },
-    { label: "今天", range: presetToday() },
-    { label: "本周末", range: presetWeekend() },
-    { label: "本月", range: presetThisMonth() },
+    { label: t("common.all"), range: ALL_DATES },
+    { label: t("common.today"), range: presetToday() },
+    { label: t("datetime.weekend"), range: presetWeekend() },
+    { label: t("datetime.month"), range: presetThisMonth() },
   ];
 
   function presetActive(r: DayRange): boolean {
@@ -114,7 +119,7 @@ export function CalendarRangePicker({ value, onChange }: Props) {
           type="button"
           onClick={() => shiftMonth(-1)}
           className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100"
-          aria-label="上个月"
+          aria-label={t("calendar.previousMonth")}
         >
           ‹
         </button>
@@ -123,7 +128,7 @@ export function CalendarRangePicker({ value, onChange }: Props) {
           type="button"
           onClick={() => shiftMonth(1)}
           className="w-7 h-7 grid place-items-center rounded-full text-neutral-500 hover:bg-neutral-100"
-          aria-label="下个月"
+          aria-label={t("calendar.nextMonth")}
         >
           ›
         </button>
@@ -131,7 +136,7 @@ export function CalendarRangePicker({ value, onChange }: Props) {
 
       {/* 星期表头 */}
       <div className="grid grid-cols-7 mb-1">
-        {WEEKDAYS.map((w, i) => (
+        {weekdays.map((w, i) => (
           <div
             key={w}
             className={`text-center text-[11px] py-1 ${i === 0 || i === 6 ? "text-rose-400" : "text-neutral-400"}`}
@@ -176,9 +181,9 @@ export function CalendarRangePicker({ value, onChange }: Props) {
       <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-neutral-100">
         <span className="text-[11px] text-neutral-500">
           {isAllDates(value)
-            ? "未选择日期（全部）"
+            ? t("datetime.noDate")
             : value.from && !value.to
-              ? `${value.from} 起，点选结束日`
+              ? t("datetime.selectEnd", { date: value.from })
               : `${value.from} → ${value.to}`}
         </span>
         {!isAllDates(value) && (
@@ -187,7 +192,7 @@ export function CalendarRangePicker({ value, onChange }: Props) {
             onClick={() => onChange(ALL_DATES)}
             className="text-[11px] text-blue-600 hover:underline"
           >
-            清除
+            {t("common.clear")}
           </button>
         )}
       </div>
