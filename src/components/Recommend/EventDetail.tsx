@@ -57,9 +57,10 @@ function durationLabel(start: string | null, end: string | null): string {
   return `持续${days}天`;
 }
 
-function iconButtonClass(active = false) {
+function iconButtonClass(active = false, withShadow = true) {
   return cx(
-    "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 shadow-sm transition active:scale-95",
+    "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-neutral-900 transition active:scale-95",
+    withShadow && "shadow-sm",
     active && "text-rose-500",
   );
 }
@@ -822,7 +823,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
       <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
           <div className="sticky top-0 z-40 -mx-4 flex min-w-0 items-center bg-white/95 px-4 py-2 shadow-[0_6px_18px_rgba(15,23,42,0.06)] backdrop-blur sm:-mx-7 sm:px-7 sm:py-2.5">
-            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:bg-neutral-50 sm:h-10 sm:w-10">
+            <button type="button" onClick={onClose} aria-label="返回" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 hover:bg-neutral-50 sm:h-10 sm:w-10">
               <IconChevronLeft className="h-5 w-5" />
             </button>
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
@@ -856,13 +857,13 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 )}
                 aria-hidden={!postActionsExpanded}
               >
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("LIKE")} aria-label="点赞" className={iconButtonClass(reactions.likedByMe)}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("LIKE")} aria-label="点赞" className={iconButtonClass(reactions.likedByMe, false)}>
                   <IconHeart filled={reactions.likedByMe} className="h-4 w-4" />
                 </button>
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("FAVORITE")} aria-label="收藏" className={iconButtonClass(reactions.favoritedByMe)}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={() => toggleReaction("FAVORITE")} aria-label="收藏" className={iconButtonClass(reactions.favoritedByMe, false)}>
                   <IconBookmark filled={reactions.favoritedByMe} className="h-4 w-4" />
                 </button>
-                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={shareEvent} aria-label="分享" className={iconButtonClass()}>
+                <button type="button" tabIndex={postActionsExpanded ? 0 : -1} onClick={shareEvent} aria-label="分享" className={iconButtonClass(false, false)}>
                   <ShareIcon className="h-4 w-4" />
                 </button>
               </div>
@@ -874,7 +875,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                 aria-hidden={postActionsExpanded}
                 tabIndex={postActionsExpanded ? -1 : 0}
                 className={cx(
-                  "grid h-7 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-700 shadow-[0_8px_20px_rgba(15,23,42,0.14)] backdrop-blur transition-[opacity,transform,width] duration-300 ease-out active:scale-95",
+                  "grid h-7 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-700 backdrop-blur transition-[opacity,transform,width] duration-300 ease-out active:scale-95",
                   postActionsExpanded ? "pointer-events-none w-0 translate-x-2 opacity-0" : "w-7 translate-x-0 opacity-100 sm:h-9 sm:w-9",
                 )}
               >
