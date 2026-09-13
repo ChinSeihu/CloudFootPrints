@@ -33,6 +33,8 @@ import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter"
 import { MOOD_TAGS } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 import { MascotPublishIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
@@ -379,8 +381,7 @@ function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> 
   };
 }
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+function checkinsToFC(list: CheckInDTO[], locale: string): GeoJSON.FeatureCollection<GeoJSON.Point> {
   // 按时间正序编号「第 N 个足迹」
   const seqOf = new Map(
     [...list].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)).map((c, i) => [c.id, i + 1]),
@@ -410,7 +411,7 @@ function checkinsToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection<GeoJSON.Poi
           photo: photos[0] ?? "", // 缩略图标记用
           // GeoJSON 属性存字符串，点击时解析
           photos: JSON.stringify(photos),
-          when: `${d.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 周${WEEKDAYS[d.getDay()]}`,
+          when: new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }).format(d),
         },
       };
     }),
@@ -473,6 +474,8 @@ type JourneyTarget = { id: string; title: string; lat: number; lng: number };
  * Purpose: Coordinates map content, exploration anchors, nearby recommendations, and route/publishing panels.
  */
 export function MapExplorer() {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
   const mascotIdentity = useMascotIdentity();
   const routerRef = useRef(router);
@@ -778,7 +781,7 @@ export function MapExplorer() {
       el.className = "tem-explore-anchor";
       el.setAttribute("role", "button");
       el.setAttribute("tabindex", "0");
-      el.setAttribute("aria-label", "展开锚点周边活动");
+      el.setAttribute("aria-label", t("map.expandAnchorEvents"));
       el.innerHTML = `<span class="tem-explore-dot"></span>`;
       const openAnchorRecommendations = () => {
         setNearbyRecommendationsOpen(true);
@@ -917,7 +920,7 @@ export function MapExplorer() {
     const visibleCheckins = showUserCheckinsRef.current
       ? checkinsRef.current.filter((checkin) => !mineOnlyRef.current || checkin.isMine)
       : [];
-    src?.setData(checkinsToFC(visibleCheckins));
+    src?.setData(checkinsToFC(visibleCheckins, locale));
     const trail = mapRef.current?.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
     trail?.setData(checkinTrailToFC(visibleCheckins));
     loadCheckinPhotos(mapRef.current, visibleCheckins);
@@ -954,14 +957,14 @@ export function MapExplorer() {
 
   const handleDeleteCheckin = useCallback((id: string) => {
     setConfirmBox({
-      message: "确定删除这条足迹吗？",
+      message: t("me.deleteCheckinConfirm"),
       onOk: async () => {
         const res = await fetch(`/api/checkins/${id}`, { method: "DELETE" });
         if (res.ok) {
-          showToast("足迹已删除");
+          showToast(t("map.checkinDeleted"));
           await fetchCheckinsRef.current();
         } else {
-          showToast("删除失败");
+          showToast(t("detail.deleteFailed"));
         }
       },
     });
@@ -969,14 +972,14 @@ export function MapExplorer() {
 
   const handleDeleteEvent = useCallback((id: string) => {
     setConfirmBox({
-      message: "确定删除这条发帖吗？",
+      message: t("me.deletePostConfirm"),
       onOk: async () => {
         const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
         if (res.ok) {
-          showToast("发帖已删除");
+          showToast(t("map.postDeleted"));
           if (lastBboxRef.current) await fetchEventsRef.current(lastBboxRef.current);
         } else {
-          showToast("删除失败");
+          showToast(t("detail.deleteFailed"));
         }
       },
     });
@@ -1179,30 +1182,30 @@ export function MapExplorer() {
     const cardHtml = (ev: PopupEvent): string => {
       const color = CATEGORY_COLORS[ev.category] ?? "#6b7280";
       const meta = CATEGORY_META[ev.category as keyof typeof CATEGORY_META];
-      const label = meta?.label ?? ev.category;
+      const label = CATEGORY_TRANSLATION_KEYS[ev.category as EventCategory] ? t(CATEGORY_TRANSLATION_KEYS[ev.category as EventCategory]) : (meta?.label ?? ev.category);
       const displayTime = ev.postKind === "LIFE" ? ev.createdAt : ev.startTime;
       const when = displayTime
-        ? new Date(displayTime).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
-        : "时间未定";
+        ? new Date(displayTime).toLocaleString(locale, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+        : t("detail.timeTbd");
       const venue = [ev.venueName, ev.address].filter(Boolean).map(escapeHtml).join(" · ");
       const copyText = ev.address || ev.venueName;
       const venueRow = venue
         ? `<div class="tem-card-venue">
             <span class="tem-card-venue-text">${venue}</span>
-            <button class="tem-card-copy" data-action="copy" data-copy="${escapeHtml(copyText)}" aria-label="复制地址" title="复制地址">${COPY_SVG}</button>
+            <button class="tem-card-copy" data-action="copy" data-copy="${escapeHtml(copyText)}" aria-label="${t("map.copyAddress")}" title="${t("map.copyAddress")}">${COPY_SVG}</button>
           </div>`
         : "";
-      const detailText = (ev.description || ev.venueName || ev.address || "暂无更多详情。").trim();
-      const detailHint = `${detailText}${/[。.!?！？]$/.test(detailText) ? "" : "。"}点击查看详情`;
+      const detailText = (ev.description || ev.venueName || ev.address || t("map.noMoreDetails")).trim();
+      const detailHint = t("map.detailHint", { detail: detailText });
       const image = ev.imageUrl
         ? `<div class="tem-card-image"><img src="${escapeHtml(ev.imageUrl)}" alt="" loading="lazy" /><div class="tem-card-imgshade"></div></div>`
         : "";
       const del = ev.sourceType === "USER"
-        ? `<button class="tem-card-del" data-action="delete">删除</button>`
+        ? `<button class="tem-card-del" data-action="delete">${t("common.delete")}</button>`
         : "";
       const srcBadge = ev.sourceType === "USER"
-        ? `<span class="tem-card-src tem-src-user">个人</span>`
-        : `<span class="tem-card-src tem-src-official">官方</span>`;
+        ? `<span class="tem-card-src tem-src-user">${t("source.user")}</span>`
+        : `<span class="tem-card-src tem-src-official">${t("source.official")}</span>`;
       return `<div class="tem-card ${ev.sourceType === "USER" ? "tem-card-user" : "tem-card-official"} ${ev.imageUrl ? "" : "tem-card-noimage"}" data-event-id="${escapeHtml(ev.id)}" data-source-type="${escapeHtml(ev.sourceType)}">
         ${image}
         <div class="tem-card-badges">
@@ -1214,30 +1217,30 @@ export function MapExplorer() {
           ${venueRow}
           <div class="tem-card-meta">
             <span class="tem-card-time">${when}</span>
-            ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">${ev.postKind === "LIFE" ? "生活动态" : "用户活动"}</span>` : `<span class="tem-card-sourcehint">官方活动</span>`}
+            ${ev.sourceType === "USER" ? `<span class="tem-card-sourcehint">${t(ev.postKind === "LIFE" ? "me.lifePost" : "me.userEvent")}</span>` : `<span class="tem-card-sourcehint">${t("source.officialEvent")}</span>`}
           </div>
           <div class="tem-card-tabs" role="tablist">
-            <button class="tem-card-tab active" data-tab="detail" type="button">详情</button>
-            <button class="tem-card-tab" data-tab="posts" type="button">发帖</button>
-            <button class="tem-card-tab" data-tab="checkins" type="button">足迹</button>
+            <button class="tem-card-tab active" data-tab="detail" type="button">${t("map.details")}</button>
+            <button class="tem-card-tab" data-tab="posts" type="button">${t("me.posts")}</button>
+            <button class="tem-card-tab" data-tab="checkins" type="button">${t("me.checkins")}</button>
           </div>
           <div class="tem-card-panel active" data-panel="detail">
             <p class="tem-card-desc">${escapeHtml(detailHint)}</p>
             <div class="tem-card-detail-actions">
-              <button class="tem-card-act act-nav" data-action="route" type="button">${ROUTE_SVG}导航</button>
-              <button class="tem-card-act act-guide" data-action="guide" type="button">${SPARKLE_SVG}问导游</button>
-              <button class="tem-card-act act-fav" data-action="favorite" type="button">收藏</button>
-              ${ev.sourceUrl ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">来源</a>` : ""}
+              <button class="tem-card-act act-nav" data-action="route" type="button">${ROUTE_SVG}${t("map.navigation")}</button>
+              <button class="tem-card-act act-guide" data-action="guide" type="button">${SPARKLE_SVG}${t("guide.ask")}</button>
+              <button class="tem-card-act act-fav" data-action="favorite" type="button">${t("detail.favorite")}</button>
+              ${ev.sourceUrl ? `<a class="tem-card-link" data-action="source" href="${escapeHtml(ev.sourceUrl)}" target="_blank" rel="noreferrer">${t("map.source")}</a>` : ""}
               ${del}
             </div>
           </div>
           <div class="tem-card-panel" data-panel="posts">
-            <button class="tem-card-create act-post" data-action="post" type="button">发布相关发帖</button>
-            <div class="tem-card-related" data-related="posts">切换后加载相关发帖</div>
+            <button class="tem-card-create act-post" data-action="post" type="button">${t("map.publishRelatedPost")}</button>
+            <div class="tem-card-related" data-related="posts">${t("map.loadRelatedPosts")}</div>
           </div>
           <div class="tem-card-panel" data-panel="checkins">
-            <button class="tem-card-create act-checkin" data-action="checkin" type="button">发布足迹</button>
-            <div class="tem-card-related" data-related="checkins">切换后加载公开足迹</div>
+            <button class="tem-card-create act-checkin" data-action="checkin" type="button">${t("action.publishCheckin")}</button>
+            <div class="tem-card-related" data-related="checkins">${t("map.loadPublicCheckins")}</div>
           </div>
         </div>
       </div>`;
@@ -1246,7 +1249,7 @@ export function MapExplorer() {
     // 在指定坐标弹出一组活动卡片（1 个或多个），整卡点击 → 推荐详情页
     const openEventsPopup = (coords: [number, number], evs: PopupEvent[]) => {
       if (evs.length === 0) return;
-      const head = evs.length > 1 ? `<div class="tem-pop-head">此处有 ${evs.length} 个活动</div>` : "";
+      const head = evs.length > 1 ? `<div class="tem-pop-head">${t("map.eventsHere", { count: evs.length })}</div>` : "";
       const html = `<div class="tem-pop">${head}${evs.map(cardHtml).join("")}</div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "340px" })
         .setLngLat(coords)
@@ -1259,7 +1262,7 @@ export function MapExplorer() {
         const renderRelated = async (kind: "posts" | "checkins") => {
           const box = card.querySelector<HTMLElement>(`[data-related="${kind}"]`);
           if (!box || box.dataset.loaded === "1") return;
-          box.textContent = "加载中...";
+          box.textContent = t("detail.loading");
           try {
             const res = await fetch(`/api/events/${encodeURIComponent(id)}/related`);
             if (!res.ok) throw new Error("failed");
@@ -1272,25 +1275,25 @@ export function MapExplorer() {
               box.innerHTML = posts.length
                 ? posts.slice(0, 3).map((post) => `<div class="tem-related-row" data-action="open-related" data-event-id="${escapeHtml(post.id)}">
                     ${post.imageUrl ? `<img src="${escapeHtml(post.imageUrl)}" alt="" />` : `<span class="tem-related-thumb"></span>`}
-                    <span><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.venueName ?? "相关发帖")}</small></span>
+                    <span><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.venueName ?? t("map.relatedPost"))}</small></span>
                   </div>`).join("")
-                : `<div class="tem-related-empty">还没有相关发帖</div>`;
+                : `<div class="tem-related-empty">${t("map.noRelatedPosts")}</div>`;
             } else {
               const checkins = data.checkins ?? [];
               box.innerHTML = checkins.length
                 ? checkins.slice(0, 3).map((checkin) => {
                     const photo = checkin.photoUrls?.[0] ?? checkin.photoUrl ?? "";
-                    const author = checkin.author?.username ?? "用户";
+                    const author = checkin.author?.username ?? t("detail.user");
                     return `<div class="tem-related-row">
                       ${photo ? `<img src="${escapeHtml(photo)}" alt="" />` : `<span class="tem-related-heart">♡</span>`}
-                      <span><strong>${escapeHtml(author)}</strong><small>${escapeHtml(checkin.note || "留下了足迹")}</small></span>
+                      <span><strong>${escapeHtml(author)}</strong><small>${escapeHtml(checkin.note || t("map.leftFootprint"))}</small></span>
                     </div>`;
                   }).join("")
-                : `<div class="tem-related-empty">还没有公开足迹</div>`;
+                : `<div class="tem-related-empty">${t("map.noPublicCheckins")}</div>`;
             }
             box.dataset.loaded = "1";
           } catch {
-            box.innerHTML = `<div class="tem-related-empty">加载失败，稍后再试</div>`;
+            box.innerHTML = `<div class="tem-related-empty">${t("map.loadFailedLater")}</div>`;
           }
         };
         card.addEventListener("click", (ev) => {
@@ -1379,7 +1382,7 @@ export function MapExplorer() {
             }).then((res) => {
               if (!res.ok || !actionEl) return;
               actionEl.classList.add("active");
-              actionEl.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>已收藏`;
+              actionEl.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>${t("me.saved")}`;
             }).catch(() => {});
             return;
           }
@@ -1494,7 +1497,7 @@ export function MapExplorer() {
       : [];
     map.addSource("checkins", {
       type: "geojson",
-      data: checkinsToFC(visibleCheckins),
+      data: checkinsToFC(visibleCheckins, locale),
       cluster: true,
       clusterRadius: 36,
       clusterMaxZoom: 15,
@@ -1630,9 +1633,9 @@ export function MapExplorer() {
       const rating = Number(p.rating ?? 0);
       if (moodValues.length === 0 && rating > 0) moodValues = [rating];
       const moods = moodValues.map((value) => MOOD_TAGS.find((item) => item.value === value)).filter((item): item is (typeof MOOD_TAGS)[number] => !!item);
-      const stars = moods.length ? `<div class="tem-ci-rating">心情 · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
-      const ownerTitle = Number(p.isMine ?? 0) === 1 ? "我的足迹" : "公开足迹";
-      const visibility = Number(p.isPublic ?? 0) === 1 ? "公开" : "隐藏";
+      const stars = moods.length ? `<div class="tem-ci-rating">${t("checkin.mood")} · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
+      const ownerTitle = t(Number(p.isMine ?? 0) === 1 ? "map.myCheckin" : "checkin.public");
+      const visibility = t(Number(p.isPublic ?? 0) === 1 ? "map.visible" : "map.hidden");
       const authorName = String(p.authorName ?? "");
       const authorAvatar = String(p.authorAvatar ?? "");
       const author = authorName
@@ -1653,7 +1656,7 @@ export function MapExplorer() {
           <div class="tem-ci-titlerow">
             <span class="tem-ci-title">${ownerTitle}</span>
             <span class="tem-ci-visibility">${visibility}</span>
-            ${p.seq ? `<span class="tem-ci-seq">第 ${Number(p.seq)} 个</span>` : ""}
+            ${p.seq ? `<span class="tem-ci-seq">${t("map.sequence", { count: Number(p.seq) })}</span>` : ""}
           </div>
           ${author}
           <div class="tem-ci-when">${escapeHtml(String(p.when ?? ""))}</div>
@@ -2420,7 +2423,7 @@ export function MapExplorer() {
         <span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "text-white shadow-[0_8px_18px_rgba(15,23,42,0.12)]" : "bg-blue-50"}`} style={active ? { backgroundColor: meta.color } : { color: meta.color }}>
           <CategoryIcon category={category} className="h-5 w-5" />
         </span>
-        {meta.label}
+        {t(CATEGORY_TRANSLATION_KEYS[category])}
       </button>
     );
   }
@@ -2454,7 +2457,7 @@ export function MapExplorer() {
   return (
     <div className={`absolute inset-0 ${mapPopupOpen ? "tem-map-popup-open" : ""}`}>
       <MapView onReady={handleReady} onBoundsChange={fetchEvents} />
-      {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text="展开地图，准备出发…" /></div></div>}
+      {!mapReady && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"><div className="max-w-[calc(100%-6rem)] rounded-2xl bg-white/90 px-3 shadow-sm"><LoadingFeedback compact scene="map" text={t("map.loading")} /></div></div>}
       <div
         aria-hidden={mapChromeOpen}
         inert={mapChromeOpen}
@@ -2490,11 +2493,11 @@ export function MapExplorer() {
               <span className={`grid h-9 w-9 place-items-center rounded-full ${foodFilter === "OFF" ? "bg-neutral-100 text-neutral-400" : "bg-rose-50 text-rose-500"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 3v6a2 2 0 0 0 4 0V3" /><path d="M6 9v12" /><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9" /></svg>
               </span>
-              美食
+              {t("map.food")}
             </button>
             {foodMenuOpen && (
               <div className="absolute bottom-full left-0 z-50 mb-3 w-32 rounded-2xl border border-black/10 bg-white p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
-                {([["ALL", "全部"], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", "不显示"]] as const).map(([val, label]) => {
+                {([["ALL", t("common.all")], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", t("map.hide")]] as const).map(([val, label]) => {
                   const active = foodFilter === val;
                   return (
                     <button
@@ -2515,7 +2518,7 @@ export function MapExplorer() {
             <span className={`grid h-9 w-9 place-items-center rounded-full ${showStations ? "bg-blue-50 text-blue-600" : "bg-neutral-100 text-neutral-400"}`}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="13" rx="3" /><path d="M5 11h14" /><path d="M8.5 20l-2 2M15.5 20l2 2" /><circle cx="9" cy="13.5" r="0.6" /><circle cx="15" cy="13.5" r="0.6" /></svg>
             </span>
-            车站
+            {t("map.stations")}
           </button>
 
           {renderQuickCategory("FESTIVAL")}
@@ -2530,13 +2533,13 @@ export function MapExplorer() {
                 setMapMenuOpen(false);
                 setFoodMenuOpen(false);
               }}
-              aria-label="发帖"
+              aria-label={t("me.posts")}
               className="flex w-full min-w-0 flex-col items-center gap-1 text-[11px] font-semibold text-violet-700"
             >
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-100 to-rose-50 shadow-[0_10px_22px_rgba(124,58,237,0.2)] ring-1 ring-violet-200">
-                <MascotPublishIcon identity={mascotIdentity} className="h-8 w-8" title="发布内容" />
+                <MascotPublishIcon identity={mascotIdentity} className="h-8 w-8" title={t("map.publishContent")} />
               </span>
-              发帖
+              {t("me.posts")}
             </button>
           </div>
 
@@ -2555,7 +2558,7 @@ export function MapExplorer() {
               <span className={`grid h-9 w-9 place-items-center rounded-full ${mapMenuOpen || showLandmarks ? "bg-slate-100 text-slate-600" : "bg-neutral-100 text-neutral-400"}`}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
               </span>
-              更多
+              {t("calendar.more")}
             </button>
             {mapMenuOpen && (
               <div className="absolute bottom-full right-0 z-50 mb-3 w-44 rounded-2xl border border-black/10 bg-white p-2 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
@@ -2564,7 +2567,7 @@ export function MapExplorer() {
                   onClick={() => setShowLandmarks((v) => !v)}
                   className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showLandmarks ? "bg-slate-100 text-slate-700" : "text-neutral-500 hover:bg-neutral-100"}`}
                 >
-                  景点
+                  {t("map.landmarks")}
                   <span className={`h-2.5 w-2.5 rounded-full ${showLandmarks ? "bg-blue-600" : "bg-neutral-300"}`} />
                 </button>
                 <button
@@ -2572,7 +2575,7 @@ export function MapExplorer() {
                   onClick={() => setShowUserCheckins((v) => !v)}
                   className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserCheckins ? "bg-rose-50 text-rose-700" : "text-neutral-500 hover:bg-neutral-100"}`}
                 >
-                  用户足迹
+                  {t("map.userCheckins")}
                   <span className={`h-2.5 w-2.5 rounded-full ${showUserCheckins ? "bg-rose-500" : "bg-neutral-300"}`} />
                 </button>
                 <button
@@ -2580,7 +2583,7 @@ export function MapExplorer() {
                   onClick={() => setShowLifePosts((v) => !v)}
                   className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showLifePosts ? "bg-violet-50 text-violet-700" : "text-neutral-500 hover:bg-neutral-100"}`}
                 >
-                  生活动态
+                  {t("me.lifePost")}
                   <span className={`h-2.5 w-2.5 rounded-full ${showLifePosts ? "bg-violet-500" : "bg-neutral-300"}`} />
                 </button>
                 <button
@@ -2588,7 +2591,7 @@ export function MapExplorer() {
                   onClick={() => setShowUserActivities((v) => !v)}
                   className={`mb-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${showUserActivities ? "bg-indigo-50 text-indigo-700" : "text-neutral-500 hover:bg-neutral-100"}`}
                 >
-                  用户活动
+                  {t("me.userEvent")}
                   <span className={`h-2.5 w-2.5 rounded-full ${showUserActivities ? "bg-indigo-500" : "bg-neutral-300"}`} />
                 </button>
                 <StyleSwitcher value={theme} onChange={setTheme} />
@@ -2618,8 +2621,8 @@ export function MapExplorer() {
               <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-neutral-300" />
             </div>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-black text-neutral-950">发布内容</h2>
-              <button type="button" onClick={() => setPublishMenuOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-neutral-400 hover:bg-neutral-100" aria-label="关闭">×</button>
+              <h2 className="text-base font-black text-neutral-950">{t("map.publishContent")}</h2>
+              <button type="button" onClick={() => setPublishMenuOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-neutral-400 hover:bg-neutral-100" aria-label={t("common.close")}>×</button>
             </div>
             <button
               type="button"
@@ -2633,8 +2636,8 @@ export function MapExplorer() {
                 </svg>
               </span>
               <span>
-                <span className="block text-sm font-bold text-neutral-950">动态 · 分享此刻</span>
-                <span className="mt-0.5 block text-xs text-neutral-500">发布与这个地点有关的照片和见闻</span>
+                <span className="block text-sm font-bold text-neutral-950">{t("map.lifeTitle")}</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">{t("map.lifeHint")}</span>
               </span>
             </button>
             <button
@@ -2649,8 +2652,8 @@ export function MapExplorer() {
                 </svg>
               </span>
               <span>
-                <span className="block text-sm font-bold text-neutral-950">活动 · 邀请参加</span>
-                <span className="mt-0.5 block text-xs text-neutral-500">分享即将或正在进行的活动</span>
+                <span className="block text-sm font-bold text-neutral-950">{t("map.activityTitle")}</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">{t("map.activityHint")}</span>
               </span>
             </button>
             <button
@@ -2664,8 +2667,8 @@ export function MapExplorer() {
                 </svg>
               </span>
               <span>
-                <span className="block text-sm font-bold text-neutral-950">足迹 · 我来过</span>
-                <span className="mt-0.5 block text-xs text-neutral-500">记录你去过的地点和心情</span>
+                <span className="block text-sm font-bold text-neutral-950">{t("map.checkinTitle")}</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">{t("map.checkinHint")}</span>
               </span>
             </button>
           </div>
@@ -2726,27 +2729,27 @@ export function MapExplorer() {
 
       {journeyTarget && arrivalDistance !== null && arrivalDistance <= 500 && !dialogAt && (
         <div className="fixed left-3 right-3 top-4 z-[1100] mx-auto max-w-md rounded-2xl border border-emerald-200 bg-white/95 p-3 pr-10 shadow-[0_14px_40px_rgba(15,23,42,0.18)] backdrop-blur">
-          <button type="button" aria-label="稍后记录" onClick={() => { setJourneyTarget(null); setArrivalDistance(null); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-lg text-neutral-400 hover:bg-neutral-100">×</button>
+          <button type="button" aria-label={t("map.recordLater")} onClick={() => { setJourneyTarget(null); setArrivalDistance(null); }} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full text-lg text-neutral-400 hover:bg-neutral-100">×</button>
           <div className="flex items-center gap-3">
             <MascotAnimation kind="success" className="h-16 w-16" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-neutral-950">你已到达「{journeyTarget.title}」附近</p>
-              <p className="mt-0.5 text-xs text-neutral-500">距离约 {Math.max(1, Math.round(arrivalDistance))} 米，是否留下足迹？</p>
+              <p className="text-sm font-bold text-neutral-950">{t("map.arrivedNear", { title: journeyTarget.title })}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{t("map.arrivalDistance", { meters: Math.max(1, Math.round(arrivalDistance)) })}</p>
             </div>
-            <button type="button" onClick={startJourneyCheckin} className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white">记录到访</button>
+            <button type="button" onClick={startJourneyCheckin} className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white">{t("me.recordVisit")}</button>
           </div>
         </div>
       )}
 
       {checkinSuccess && (
-        <div className="fixed inset-0 z-[1200] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true" aria-label="足迹记录成功">
+        <div className="fixed inset-0 z-[1200] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true" aria-label={t("map.checkinSuccess")}>
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
             <MascotAnimation animated kind="success" className="mx-auto h-32 w-32" />
-            <h2 className="mt-4 text-lg font-black text-neutral-950">足迹已记录</h2>
-            <p className="mt-2 text-sm text-neutral-500">「{checkinSuccess.title}」已经加入你的足迹。</p>
+            <h2 className="mt-4 text-lg font-black text-neutral-950">{t("map.checkinRecorded")}</h2>
+            <p className="mt-2 text-sm text-neutral-500">{t("map.checkinAdded", { title: checkinSuccess.title })}</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCheckinSuccess(null)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700">返回地图</button>
-              <button type="button" onClick={() => router.push("/me")} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white">查看足迹</button>
+              <button type="button" onClick={() => setCheckinSuccess(null)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700">{t("map.backToMap")}</button>
+              <button type="button" onClick={() => router.push("/me")} className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white">{t("map.viewCheckins")}</button>
             </div>
           </div>
         </div>
