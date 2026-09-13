@@ -23,6 +23,7 @@ import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/e
 import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, CommentDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 type Tab = "checkins" | "posts" | "managed" | "favorites" | "messages";
 
@@ -579,7 +580,7 @@ function MeContent() {
                       <div className="px-3 pt-3">
                         <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                           <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                          {t(p.postKind === "LIFE" ? "me.lifePost" : "me.userEvent")} · {meta.label} · {fmtDate(p.postKind === "LIFE" ? p.createdAt ?? null : p.startTime, locale, t("detail.timeTbd"))}
+                          {t(p.postKind === "LIFE" ? "me.lifePost" : "me.userEvent")} · {t(CATEGORY_TRANSLATION_KEYS[p.category])} · {fmtDate(p.postKind === "LIFE" ? p.createdAt ?? null : p.startTime, locale, t("detail.timeTbd"))}
                         </div>
                         <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
                         {p.venueName && (
@@ -657,7 +658,7 @@ function MeContent() {
                       <div className="px-3 py-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] text-neutral-500">
                           <CategoryIcon category={p.category} className="h-3.5 w-3.5" />
-                          {meta.label} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
+                          {t(CATEGORY_TRANSLATION_KEYS[p.category])} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
                         </div>
                         <h3 className="text-sm font-medium leading-snug">{p.title}</h3>
                         {p.venueName && (
@@ -756,7 +757,7 @@ function MeContent() {
                           <div className="p-3 pb-2">
                           <div className="flex items-center gap-1 text-[11px] text-neutral-500 mb-1">
                             <CategoryIcon category={p.category} className="w-3.5 h-3.5" />
-                            {meta.label} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
+                            {t(CATEGORY_TRANSLATION_KEYS[p.category])} · {fmtDate(p.startTime, locale, t("detail.timeTbd"))}
                           </div>
                           <h3 className="text-sm font-medium leading-snug mb-1 line-clamp-2">{p.title}</h3>
                           {p.venueName && (

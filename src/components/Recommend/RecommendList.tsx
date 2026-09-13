@@ -22,6 +22,9 @@ import { DEMO_USERS } from "@/lib/demoUsers";
 import { EventDetail } from "./EventDetail";
 import { TodayPicks } from "./TodayPicks";
 import type { CheckInDTO, CommentDTO, EventDTO, EventMetrics } from "@/lib/types";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/config";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
 type DiscoverFilter = "follow" | "near" | "new" | "hot";
@@ -31,19 +34,20 @@ const EMPTY_METRICS: EventMetrics = { likeCount: 0, favoriteCount: 0, signupCoun
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 const TOKYO_CENTER = { lat: 35.681236, lng: 139.767125 };
 
-function fmtDate(d: string | null): string {
-  if (!d) return "时间待定";
-  return new Date(d).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+function fmtDate(d: string | null, locale: string, fallback: string): string {
+  if (!d) return fallback;
+  return new Date(d).toLocaleDateString(locale, { month: "numeric", day: "numeric" });
 }
 
-function relativeTime(value: string): string {
+function relativeTime(value: string, locale: string): string {
   const diff = Date.now() - Date.parse(value);
   if (!Number.isFinite(diff)) return "";
   const min = Math.max(1, Math.floor(diff / 60_000));
-  if (min < 60) return `${min}分钟前`;
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
+  if (min < 60) return formatter.format(-min, "minute");
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour}小时前`;
-  return `${Math.floor(hour / 24)}天前`;
+  if (hour < 24) return formatter.format(-hour, "hour");
+  return formatter.format(-Math.floor(hour / 24), "day");
 }
 
 function metricsOf(ev: EventDTO): EventMetrics {
@@ -134,6 +138,7 @@ function MasonryGrid({ children, className = "" }: { children: React.ReactNode; 
 }
 
 function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initialIndex: number; onClose: () => void }) {
+  const { t } = useLanguage();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
@@ -159,8 +164,8 @@ function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initial
   }, [activeIndex, onClose, showImage]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="图片预览" className="fixed inset-0 z-[70] flex items-center bg-black/85" onClick={onClose}>
-      <button type="button" onClick={onClose} aria-label="关闭图片预览" className="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-black/45 text-2xl text-white backdrop-blur">×</button>
+    <div role="dialog" aria-modal="true" aria-label={t("common.imagePreview")} className="fixed inset-0 z-[70] flex items-center bg-black/85" onClick={onClose}>
+      <button type="button" onClick={onClose} aria-label={t("common.closeImagePreview")} className="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-black/45 text-2xl text-white backdrop-blur">×</button>
       <div
         ref={scrollerRef}
         onClick={(event) => event.stopPropagation()}
@@ -172,14 +177,14 @@ function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initial
       >
         {urls.map((src, index) => (
           <div key={`${src}-${index}`} className="flex h-full w-full shrink-0 snap-center items-center justify-center p-4 sm:p-10">
-            <img src={src} alt={`图片 ${index + 1}`} draggable={false} className="max-h-full max-w-full select-none rounded-xl object-contain shadow-2xl" />
+            <img src={src} alt={t("images.preview", { count: index + 1 })} draggable={false} className="max-h-full max-w-full select-none rounded-xl object-contain shadow-2xl" />
           </div>
         ))}
       </div>
       {urls.length > 1 && (
         <>
-          <button type="button" aria-label="上一张" disabled={activeIndex === 0} onClick={(event) => { event.stopPropagation(); showImage(activeIndex - 1); }} className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">‹</button>
-          <button type="button" aria-label="下一张" disabled={activeIndex === urls.length - 1} onClick={(event) => { event.stopPropagation(); showImage(activeIndex + 1); }} className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">›</button>
+          <button type="button" aria-label={t("common.previousImage")} disabled={activeIndex === 0} onClick={(event) => { event.stopPropagation(); showImage(activeIndex - 1); }} className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">‹</button>
+          <button type="button" aria-label={t("common.nextImage")} disabled={activeIndex === urls.length - 1} onClick={(event) => { event.stopPropagation(); showImage(activeIndex + 1); }} className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-3xl text-white backdrop-blur disabled:opacity-25">›</button>
           <div className="pointer-events-none absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             {activeIndex + 1}/{urls.length}
           </div>
@@ -203,11 +208,11 @@ function SectionBand({ children, tone = "neutral", className = "", bandRef }: { 
   );
 }
 
-function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): string {
-  if (filter === "follow") return kind === "posts" ? "关注的人暂时还没有发帖" : "关注的人暂时还没有公开足迹";
-  if (filter === "near") return kind === "posts" ? "附近暂时还没有用户发帖" : "附近暂时还没有公开足迹";
-  if (filter === "hot") return kind === "posts" ? "暂时还没有热门发帖" : "暂时还没有热门足迹";
-  return kind === "posts" ? "暂时还没有用户发布" : "附近还没有公开足迹";
+function discoverEmptyKey(filter: DiscoverFilter, kind: "posts" | "checkins"): TranslationKey {
+  if (filter === "follow") return kind === "posts" ? "explore.emptyFollowPosts" : "explore.emptyFollowCheckins";
+  if (filter === "near") return kind === "posts" ? "explore.emptyNearPosts" : "explore.emptyNearCheckins";
+  if (filter === "hot") return kind === "posts" ? "explore.emptyHotPosts" : "explore.emptyHotCheckins";
+  return kind === "posts" ? "explore.emptyPosts" : "explore.emptyCheckins";
 }
 
 /**
@@ -215,6 +220,8 @@ function discoverEmptyText(filter: DiscoverFilter, kind: "posts" | "checkins"): 
  * Purpose: Renders discovery and community feeds, including detail dismissal when the active Explore navigation tab is selected again.
  */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
@@ -314,7 +321,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const response = await fetch(`/api/checkins/${encodeURIComponent(checkin.id)}`, { method: "DELETE" });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      window.alert(data?.error ?? "删除失败");
+      window.alert(data?.error ?? t("detail.deleteFailed"));
       return;
     }
     setDiscoverCheckinRows((rows) => rows.filter((item) => item.id !== checkin.id));
@@ -372,7 +379,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
    */
   function reportPost() {
     setPostMenuId(null);
-    setPostReportNotice("举报功能稍后开放");
+    setPostReportNotice(t("explore.reportLater"));
     if (postReportNoticeTimer.current !== null) window.clearTimeout(postReportNoticeTimer.current);
     postReportNoticeTimer.current = window.setTimeout(() => {
       setPostReportNotice(null);
@@ -730,7 +737,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     });
     if (!res.ok) {
       const error = await res.json().catch(() => ({})) as { error?: string };
-      throw new Error(error.error ?? "发送失败，请重试");
+      throw new Error(error.error ?? t("explore.sendFailedRetry"));
     }
     const data = await res.json() as { comment: CommentDTO };
     setCheckinDrafts((current) => ({ ...current, [id]: "" }));
@@ -746,7 +753,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       };
     });
     } catch (error) {
-      setCheckinCommentError((current) => ({ ...current, [id]: error instanceof Error ? error.message : "网络异常，请重试" }));
+      setCheckinCommentError((current) => ({ ...current, [id]: error instanceof Error ? error.message : t("explore.networkRetry") }));
     } finally {
       checkinSendingRef.current.delete(id);
       setCheckinSending((current) => ({ ...current, [id]: false }));
@@ -846,7 +853,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         {postMenuId === post.id && (
           <button
             type="button"
-            aria-label={`举报${post.title}`}
+            aria-label={t("explore.reportPost", { title: post.title })}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -855,7 +862,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-neutral-950/75 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-lg backdrop-blur"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 21V4" /><path d="M5 4h13l-2 5 2 5H5" /></svg>
-            举报
+            {t("explore.report")}
           </button>
         )}
       </div>
@@ -878,7 +885,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likeCount = metricOverride?.likeCount ?? checkin.metrics?.likeCount ?? 0;
     const commentCount = metricOverride?.commentCount ?? checkin.metrics?.commentCount ?? 0;
     const likedByMe = metricOverride?.likedByMe === true;
-    const text = checkin.note || checkin.event?.title || "来过这里";
+    const text = checkin.note || checkin.event?.title || t("explore.visitedHere");
     return (
       <article key={checkin.id} className="relative rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
         <div className="flex items-center gap-3">
@@ -887,16 +894,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <Avatar user={checkin.author} size={30} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <p className="truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? "用户"}</p>
+                  <p className="truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? t("detail.user")}</p>
                   {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{moods[0].label}</span>}
                 </div>
-                <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt)} · {checkin.event?.title ?? "东京"}</p>
+                <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt, locale)} · {checkin.event?.title ?? t("picks.tokyo")}</p>
               </div>
               {canManageCheckin(checkin) && (
                 <div className="relative shrink-0">
                   <button
                     type="button"
-                    aria-label="足迹管理"
+                    aria-label={t("explore.manageCheckin")}
                     aria-expanded={checkinMenuId === checkin.id}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => setCheckinMenuId((current) => current === checkin.id ? null : checkin.id)}
@@ -921,7 +928,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                         }}
                         className="block w-full px-3 py-2 text-left text-xs text-neutral-700 hover:bg-neutral-50"
                       >
-                        编辑足迹
+                        {t("explore.editCheckin")}
                       </button>
                       <button
                         type="button"
@@ -931,7 +938,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                         }}
                         className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50"
                       >
-                        删除足迹
+                        {t("explore.deleteCheckin")}
                       </button>
                     </div>
                   )}
@@ -941,7 +948,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             <p className={`mt-2 text-[13px] font-normal leading-5 text-neutral-800 ${expanded ? "" : "line-clamp-2"}`}>{text}</p>
             {text.length > 38 && (
               <button type="button" onClick={() => toggleCheckin(checkin.id)} className="mt-1 text-[11px] font-semibold text-violet-600">
-                {expanded ? "收起" : "展开"}
+                {t(expanded ? "detail.collapse" : "detail.expand")}
               </button>
             )}
           </div>
@@ -964,11 +971,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
         {interactionOpen && (
           <div className="mt-2 rounded-lg bg-neutral-50 p-2">
-            <CheckinCommentThreads comments={comments} loading={commentLoadState[checkin.id] === "loading" || (!checkinComments[checkin.id] && !commentLoadState[checkin.id])} error={commentLoadState[checkin.id] === "error"} onRetry={() => void loadCheckinInteractions(checkin.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: { id: root.id, username: root.author?.username ?? "用户" } }))} />
+            <CheckinCommentThreads comments={comments} loading={commentLoadState[checkin.id] === "loading" || (!checkinComments[checkin.id] && !commentLoadState[checkin.id])} error={commentLoadState[checkin.id] === "error"} onRetry={() => void loadCheckinInteractions(checkin.id)} onReply={(root) => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: { id: root.id, username: root.author?.username ?? t("detail.user") } }))} />
             {checkinReplyTo[checkin.id] && (
               <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-violet-100 px-2 py-1.5 text-xs text-violet-800">
-                <span>回复 @{checkinReplyTo[checkin.id]?.username}</span>
-                <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: null }))}>取消回复</button>
+                <span>{t("detail.reply")} @{checkinReplyTo[checkin.id]?.username}</span>
+                <button type="button" onClick={() => setCheckinReplyTo((current) => ({ ...current, [checkin.id]: null }))}>{t("explore.cancelReply")}</button>
               </div>
             )}
             {checkinCommentError[checkin.id] && <p role="alert" className="mt-2 text-xs text-rose-700">{checkinCommentError[checkin.id]}</p>}
@@ -979,14 +986,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) void submitCheckinComment(checkin.id);
                 }}
-                aria-label="足迹评论内容"
+                aria-label={t("me.checkinComment")}
                 disabled={checkinSending[checkin.id]}
                 maxLength={1000}
-                placeholder={checkinReplyTo[checkin.id] ? `回复 @${checkinReplyTo[checkin.id]?.username}` : "写一句回应"}
+                placeholder={checkinReplyTo[checkin.id] ? `${t("detail.reply")} @${checkinReplyTo[checkin.id]?.username}` : t("explore.writeResponse")}
                 className="min-w-0 flex-1 rounded-full bg-white px-3 py-1.5 text-[12px] outline-none ring-1 ring-black/5 focus:ring-violet-200"
               />
               <button type="button" disabled={checkinSending[checkin.id] || !(checkinDrafts[checkin.id] ?? "").trim()} onClick={() => submitCheckinComment(checkin.id)} className="rounded-full bg-violet-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-50">
-                {checkinSending[checkin.id] ? "发送中" : "发送"}
+                {t(checkinSending[checkin.id] ? "explore.sending" : "message.send")}
               </button>
             </div>
           </div>
@@ -1004,23 +1011,23 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             <svg viewBox="0 0 36 36" className="h-8 w-8" fill="none"><circle cx="18" cy="18" r="12" fill="white" fillOpacity=".16" stroke="white" strokeOpacity=".55" /><circle cx="18" cy="18" r="9" fill="white" fillOpacity=".95" /><path d="m23 12-3 8-8 4 3-9Z" fill="#7c3aed" /><path d="m23 12-5 6-6 6 3-9Z" fill="#38bdf8" /><circle cx="18" cy="18" r="2" fill="white" /><path d="M18 4v3M29 18h3M4 18h3M18 29v3" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">探索</h1>
-            <p className="truncate text-[11px] text-neutral-400">{tab === "OFFICIAL" ? "活动灵感与城市足迹" : "发现大家分享的东京"}</p>
+            <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">{t("explore.title")}</h1>
+            <p className="truncate text-[11px] text-neutral-400">{t(tab === "OFFICIAL" ? "explore.officialSubtitle" : "explore.discoverSubtitle")}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-violet-700" : "text-slate-600"}`}>
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label={t("common.search")} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-violet-700" : "text-slate-600"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div className="relative" ref={filterBoxRef}>
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${!isAllDates(dateRange) ? "text-violet-700" : "text-slate-600"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label={t("filter.title")} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${!isAllDates(dateRange) ? "text-violet-700" : "text-slate-600"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
               <div className="fixed inset-x-3 top-[4.75rem] z-[70] max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-2xl bg-white p-3 shadow-xl ring-1 ring-black/10 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs text-neutral-400">时间 · {dayRangeLabel(dateRange)}</span>
-                  {!isAllDates(dateRange) && <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs font-semibold text-blue-600">重置</button>}
+                  <span className="text-xs text-neutral-400">{t("filter.time")} · {dayRangeLabel(dateRange)}</span>
+                  {!isAllDates(dateRange) && <button type="button" onClick={() => setDateRange(ALL_DATES)} className="text-xs font-semibold text-blue-600">{t("common.reset")}</button>}
                 </div>
                 <CalendarRangePicker value={dateRange} onChange={setDateRange} />
               </div>
@@ -1035,16 +1042,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {searchOpen && (
         <div className="mb-3 rounded-xl bg-white p-2 shadow-sm ring-1 ring-black/10">
           <div className="flex items-center gap-2">
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索活动、地点、标签" className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
-            <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-xs font-semibold text-blue-600">取消</button>
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("explore.searchPlaceholder")} className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
+            <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-xs font-semibold text-blue-600">{t("common.cancel")}</button>
           </div>
         </div>
       )}
 
       <nav className="mb-3 grid grid-cols-2 gap-1 rounded bg-white p-2 shadow-sm ring-1 ring-black/5 sm:mb-4 sm:p-1.5">
         {[
-          ["OFFICIAL", "活动", "官方精选活动"],
-          ["DISCOVER", "发现", "用户内容与足迹"],
+          ["OFFICIAL", t("me.events"), t("explore.officialTab")],
+          ["DISCOVER", t("explore.discover"), t("explore.discoverTab")],
         ].map(([key, label]) => {
           const active = tab === key;
           const isDiscover = key === "DISCOVER";
@@ -1062,7 +1069,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <span className={`absolute right-2 top-2 h-2 w-2 rounded-full ${isDiscover ? "bg-emerald-400" : "bg-blue-500"} ${active ? "opacity-100" : "opacity-35"}`} />
               <span className="block text-sm font-black leading-tight">{label}</span>
               <span className={`mt-0.5 block text-[10px] font-medium leading-tight ${active ? "text-violet-400" : "text-neutral-400"}`}>
-                {isDiscover ? "用户内容与足迹" : "官方精选活动"}
+                {t(isDiscover ? "explore.discoverTab" : "explore.officialTab")}
               </span>
             </button>
           );
@@ -1080,19 +1087,19 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
                 <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">官方精选</span>
+                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">{t("explore.officialFeatured")}</span>
                   <span className="rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{Math.max(1, featuredEvents.length)}</span>
                 </div>
                 <div className="absolute bottom-5 left-3 right-3 text-white">
                   <h2 className="line-clamp-2 text-lg font-black leading-tight sm:text-xl">{hero.title}</h2>
-                  <p className="mt-1 text-xs font-medium opacity-90">{fmtDate(hero.startTime)} · {hero.venueName ?? "东京"}</p>
+                  <p className="mt-1 text-xs font-medium opacity-90">{fmtDate(hero.startTime, locale, t("calendar.timeTbd"))} · {hero.venueName ?? t("picks.tokyo")}</p>
                 </div>
               </button>
               {featuredEvents.length > 1 && (
                 <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5">
                   {featuredEvents.map((event, index) => {
                     const active = index === heroIndex % featuredEvents.length;
-                    return <button key={event.id} type="button" aria-label={`切换精选 ${index + 1}`} onClick={() => setHeroIndex(index)} className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`} />;
+                    return <button key={event.id} type="button" aria-label={t("explore.switchFeatured", { count: index + 1 })} onClick={() => setHeroIndex(index)} className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`} />;
                   })}
                 </div>
               )}
@@ -1107,13 +1114,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 return (
                   <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
                     <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-4.5 w-4.5 sm:h-5 sm:w-5" /></span>
-                    <span className="truncate">{meta.label}</span>
+                    <span className="truncate">{t(CATEGORY_TRANSLATION_KEYS[c])}</span>
                   </button>
                 );
               })}
               <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-blue-600 text-white" : "text-neutral-700"}`}>
                 <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
-                <span className="truncate">全部</span>
+                <span className="truncate">{t("common.all")}</span>
               </button>
             </div>
           </section>
@@ -1121,7 +1128,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           {!hasOfficialSearch && (
           <SectionBand tone="blue" className="space-y-3 !p-2">
           <section>
-            <SectionTitle title="热门活动" icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title={t("explore.popularEvents")} icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
             <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {hot.map((ev) => {
                 const meta = CATEGORY_META[ev.category];
@@ -1130,13 +1137,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                     {ev.imageUrl && (
                       <div className="relative aspect-square bg-neutral-100">
                         <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-                        <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{meta.label}</span>
+                        <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</span>
                       </div>
                     )}
                     <div className="p-2.5">
-                      {!ev.imageUrl && <div className="mb-1 text-[10px] font-semibold" style={{ color: meta.color }}>{meta.label}</div>}
+                      {!ev.imageUrl && <div className="mb-1 text-[10px] font-semibold" style={{ color: meta.color }}>{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</div>}
                       <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900 sm:text-[13px]">{ev.title}</h3>
-                      <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime)}</p>
+                      <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</p>
                     </div>
                   </button>
                 );
@@ -1149,16 +1156,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
           {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
           {!eventsNotice && activityList.length === 0 && <div className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">
-            <p>没有符合当前条件的活动。</p>
+            <p>{t("explore.noMatchingEvents")}</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <button type="button" className="rounded-full bg-violet-100 px-3 py-2 text-violet-700" onClick={() => { setCat("ALL"); setDateRange(ALL_DATES); setQuery(""); }}>查看所有活动</button>
-              {!isAllDates(dateRange) && <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setDateRange(ALL_DATES)}>不限日期</button>}
-              <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setTab("DISCOVER")}>看看大家的分享</button>
+              <button type="button" className="rounded-full bg-violet-100 px-3 py-2 text-violet-700" onClick={() => { setCat("ALL"); setDateRange(ALL_DATES); setQuery(""); }}>{t("explore.viewAllEvents")}</button>
+              {!isAllDates(dateRange) && <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setDateRange(ALL_DATES)}>{t("explore.anyDate")}</button>}
+              <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setTab("DISCOVER")}>{t("explore.communityShares")}</button>
             </div>
           </div>}
           {activityList.length > 0 && (
             <SectionBand tone="neutral" className="scroll-mt-4 !p-2" bandRef={allActivitiesRef}>
-              <SectionTitle title={cat === "ALL" ? "全部活动" : `${CATEGORY_META[cat].label}活动`} icon="calendar" tone="green" />
+              <SectionTitle title={cat === "ALL" ? t("explore.allEvents") : t("explore.categoryEvents", { category: t(CATEGORY_TRANSLATION_KEYS[cat]) })} icon="calendar" tone="green" />
               <MasonryGrid>
                 {activityList.slice(0, activityVisibleCount).map((ev) => {
                   const meta = CATEGORY_META[ev.category];
@@ -1166,29 +1173,29 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                     <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
                       {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
                       <div className="p-3">
-                        <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{meta.label}</div>
+                        <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</div>
                         <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
-                        <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? fmtDate(ev.startTime)}</p>
+                        <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</p>
                       </div>
                     </button>
                   );
                 })}
               </MasonryGrid>
               {activityVisibleCount < activityList.length && (
-                <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">继续加载中...</div>
+                <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">{t("explore.loadingMore")}</div>
               )}
             </SectionBand>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          {discoverFilter !== "new" && ((discoverPosts.length === 0 && !eventsNotice) || (discoverCheckins.length === 0 && !checkinsNotice)) && <button type="button" className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700" onClick={() => setDiscoverFilter("new")}>换个范围，看看全东京最新分享</button>}
+          {discoverFilter !== "new" && ((discoverPosts.length === 0 && !eventsNotice) || (discoverCheckins.length === 0 && !checkinsNotice)) && <button type="button" className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700" onClick={() => setDiscoverFilter("new")}>{t("explore.latestTokyo")}</button>}
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
-              ["follow", "关注"],
-              ["near", "附近"],
-              ["new", "最新"],
-              ["hot", "热门"],
+              ["follow", t("detail.follow")],
+              ["near", t("explore.near")],
+              ["new", t("detail.new")],
+              ["hot", t("detail.hot")],
             ].map(([key, label]) => {
               const active = discoverFilter === key;
               return <button key={key} type="button" onClick={() => setDiscoverFilter(key as DiscoverFilter)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold shadow-sm ring-1 ring-black/5 ${active ? "bg-emerald-600 text-white" : "bg-white text-neutral-500"}`}>{label}</button>;
@@ -1197,9 +1204,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
           <SectionBand tone="emerald" className="space-y-3 !p-2">
           <section>
-            <SectionTitle title="大家在东京（用户发帖）" icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title={t("explore.communityPosts")} icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
             {discoverPosts.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{eventsNotice ?? discoverEmptyText(discoverFilter, "posts")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{eventsNotice ?? t(discoverEmptyKey(discoverFilter, "posts"))}</div>
             ) : (
               <MasonryGrid>
                 {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
@@ -1208,9 +1215,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </section>
 
           <section>
-            <SectionTitle title="附近足迹（用户签到）" icon="trail" tone="rose" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">查看全部 〉</button>} />
+            <SectionTitle title={t("explore.nearbyFootprints")} icon="trail" tone="rose" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
             {discoverCheckins.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</div>
+              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? t(discoverEmptyKey(discoverFilter, "checkins"))}</div>
             ) : (
               <div className="grid grid-cols-1 gap-1.5">
                 {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
@@ -1222,8 +1229,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-2 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75">
             <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
               {[
-                ["posts", "全部发帖"],
-                ["checkins", "全部足迹"],
+                ["posts", t("explore.allPosts")],
+                ["checkins", t("explore.allFootprints")],
               ].map(([key, label]) => {
                 const active = discoverFullType === key;
                 return (
@@ -1243,31 +1250,31 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               discoverPosts.length > 0 ? (
                 <MasonryGrid>{discoverPosts.map((post) => renderPostCard(post))}</MasonryGrid>
               ) : (
-                <MascotFeedback>{eventsNotice ?? discoverEmptyText(discoverFilter, "posts")}</MascotFeedback>
+                <MascotFeedback>{eventsNotice ?? t(discoverEmptyKey(discoverFilter, "posts"))}</MascotFeedback>
               )
             ) : discoverCheckins.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 gap-1.5">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
-                  {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text="再找一些新的足迹…" /> : checkinsLoadError ? (
-                    <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">加载失败，点这里重试</button></MascotFeedback>
-                  ) : checkinsHasMore ? "继续向下加载更多足迹" : "已经加载完全部足迹"}
+                  {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text={t("explore.findingFootprints")} /> : checkinsLoadError ? (
+                    <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">{t("explore.loadFailedRetry")}</button></MascotFeedback>
+                  ) : checkinsHasMore ? t("explore.scrollMoreFootprints") : t("explore.allFootprintsLoaded")}
                 </div>
               </>
             ) : (
-              <MascotFeedback>{checkinsNotice ?? discoverEmptyText(discoverFilter, "checkins")}</MascotFeedback>
+              <MascotFeedback>{checkinsNotice ?? t(discoverEmptyKey(discoverFilter, "checkins"))}</MascotFeedback>
             )}
             </div>
           </section>
 
           {moodStats.length > 0 && (
             <SectionBand tone="neutral">
-              <SectionTitle title="今日心情" icon="mood" tone="zinc" />
+              <SectionTitle title={t("explore.todayMood")} icon="mood" tone="zinc" />
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
                   <div key={mood.value} className={`min-h-28 rounded-lg border p-3 ${mood.tone}`}>
                     <p className="text-sm font-black">{mood.label}</p>
-                    <p className="mt-1 text-[11px] opacity-75">今天最多</p>
+                    <p className="mt-1 text-[11px] opacity-75">{t("explore.mostToday")}</p>
                     <p className="mt-2 text-lg font-black">{count}</p>
                     <mood.Icon className="ml-auto mt-1 h-8 w-8 opacity-50" />
                   </div>
@@ -1279,7 +1286,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       )}
 
       {selected && <EventDetail event={selected} onClose={closeEventDetail} />}
-      {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text="打开活动卡片，看看有哪些精彩…" /> : <div role="alert" className="text-center text-sm text-neutral-600">暂时无法打开活动。<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">重试</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">取消</button></div></div>}
+      {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text={t("explore.openingEvent")} /> : <div role="alert" className="text-center text-sm text-neutral-600">{t("explore.openFailed")}<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">{t("common.retry")}</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">{t("common.cancel")}</button></div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
       {postReportNotice && <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur">{postReportNotice}</div>}
       {editingCheckin && (
@@ -1291,9 +1298,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       )}
       <ConfirmDialog
         open={!!deletingCheckin}
-        title="删除足迹"
-        message="确定删除这条足迹吗？删除后无法恢复。"
-        confirmText="删除"
+        title={t("explore.deleteCheckin")}
+        message={t("explore.deleteCheckinConfirm")}
+        confirmText={t("common.delete")}
         danger
         onCancel={() => setDeletingCheckin(null)}
         onConfirm={async () => {
