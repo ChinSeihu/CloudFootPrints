@@ -126,10 +126,10 @@ function TinyLoading({ label = "加载中" }: { label?: string }) {
 }
 
 /**
- * Signature: `function TranslatedBody({ text, children }: { text: string; children: React.ReactNode }): React.JSX.Element`
+ * Signature: `function TranslatedBody({ text, displayedText, className }: { text: string; displayedText: string; className: string }): React.JSX.Element`
  * Purpose: Shows activity or post body text with an on-demand LLM translation into the active interface language.
  */
-function TranslatedBody({ text, children }: { text: string; children: React.ReactNode }) {
+function TranslatedBody({ text, displayedText, className }: { text: string; displayedText: string; className: string }) {
   const { language, t } = useLanguage();
   const [translation, setTranslation] = useState<string | null>(null);
   const [translatedLanguage, setTranslatedLanguage] = useState<string | null>(null);
@@ -173,12 +173,12 @@ function TranslatedBody({ text, children }: { text: string; children: React.Reac
   }
 
   return (
-    <div>
-      {showTranslation && translation ? <p className="whitespace-pre-wrap text-[13px] leading-6 text-neutral-900 sm:text-sm sm:leading-7">{translation}</p> : children}
-      <button type="button" onClick={toggleTranslation} disabled={loading} className="mt-1.5 inline-flex text-[11px] font-medium text-neutral-400 transition hover:text-violet-600 disabled:cursor-wait">
+    <p className={cx(className, showTranslation && "whitespace-pre-wrap")}>
+      {showTranslation && translation ? translation : displayedText}
+      <button type="button" onClick={toggleTranslation} disabled={loading} className="ml-2 inline-flex align-baseline text-[11px] font-medium text-neutral-400 transition hover:text-violet-600 disabled:cursor-wait">
         {loading ? t("translate.loading") : failed ? t("translate.retry") : showTranslation ? t("translate.original") : t("translate.action")}
       </button>
-    </div>
+    </p>
   );
 }
 
@@ -912,18 +912,17 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
             {event.description && (
               <div className="mt-2.5 sm:mt-5">
-                <TranslatedBody text={event.description}>
-                  <p className="text-[13px] leading-6 text-neutral-800 sm:text-sm sm:leading-7">
-                    {expanded ? event.description : event.description.slice(0, 120)}
-                    {!expanded && event.description.length > 120 ? "..." : ""}
-                    {event.description.length > 120 && (
-                      <button type="button" onClick={() => setExpanded((v) => !v)} className="ml-2 inline-flex items-center gap-1 text-[13px] font-semibold text-violet-600">
-                        {expanded ? "收起" : "展开"}
-                        <ChevronDownIcon up={expanded} />
-                      </button>
-                    )}
-                  </p>
-                </TranslatedBody>
+                <TranslatedBody
+                  text={event.description}
+                  displayedText={expanded ? event.description : `${event.description.slice(0, 120)}${event.description.length > 120 ? "..." : ""}`}
+                  className="text-[13px] leading-6 text-neutral-800 sm:text-sm sm:leading-7"
+                />
+                {event.description.length > 120 && (
+                  <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex items-center gap-1 text-[13px] font-semibold text-violet-600">
+                    {expanded ? "收起" : "展开"}
+                    <ChevronDownIcon up={expanded} />
+                  </button>
+                )}
               </div>
             )}
 
@@ -1064,17 +1063,19 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
           {event.description && (
             <section className="px-2 py-5 sm:px-4 sm:py-6">
-              <TranslatedBody text={event.description}>
-                <p className={cx("text-[13px] leading-6 text-neutral-900 sm:text-sm sm:leading-7", !expanded && "line-clamp-4")}>{event.description}</p>
-                {event.description.length > 140 && (
-                  <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-4 block text-sm font-semibold text-violet-600">
-                    <span className="inline-flex items-center gap-1">
-                      {expanded ? "收起更多" : "展开更多"}
-                      <ChevronDownIcon up={expanded} />
-                    </span>
-                  </button>
-                )}
-              </TranslatedBody>
+              <TranslatedBody
+                text={event.description}
+                displayedText={expanded ? event.description : `${event.description.slice(0, 140)}${event.description.length > 140 ? "..." : ""}`}
+                className="text-[13px] leading-6 text-neutral-900 sm:text-sm sm:leading-7"
+              />
+              {event.description.length > 140 && (
+                <button type="button" onClick={() => setExpanded((v) => !v)} className="mx-auto mt-4 block text-sm font-semibold text-violet-600">
+                  <span className="inline-flex items-center gap-1">
+                    {expanded ? "收起更多" : "展开更多"}
+                    <ChevronDownIcon up={expanded} />
+                  </span>
+                </button>
+              )}
             </section>
           )}
 
