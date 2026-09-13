@@ -4,6 +4,7 @@ export type LlmTaskKey =
   | "extract.summarize"
   | "extract.geocode"
   | "recommend.featured"
+  | "ui.translate"
   | "guide.chat"
   | "guide.suggestions"
   | "guide.route"
@@ -28,6 +29,7 @@ export const LLM_TASK_CONFIG: Record<LlmTaskKey, LlmTaskConfig> = {
   "extract.summarize": { thinking: "disabled", maxTokens: 1024 },
   "extract.geocode": { thinking: "disabled", maxTokens: 128 },
   "recommend.featured": { thinking: "enabled", effort: "low", maxTokens: 500 },
+  "ui.translate": { thinking: "disabled", maxTokens: 4000, timeoutMs: 60_000 },
   "guide.chat": { thinking: "enabled", effort: "low", maxTokens: 24000, timeoutMs: 180_000 },
   "guide.suggestions": { thinking: "disabled", maxTokens: 400 },
   "guide.route": { thinking: "enabled", effort: "high", maxTokens: 32000, timeoutMs: 180_000 },

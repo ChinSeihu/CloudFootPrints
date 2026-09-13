@@ -39,6 +39,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Deferred public activity metrics: `src/app/api/events/metrics/route.ts` — bounded IDs and database-aggregated reaction/click counts.
 - Feed and filters: `src/components/Recommend/RecommendList.tsx`.
 - Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx`.
+- On-demand activity/post body translation: `src/components/Recommend/EventDetail.tsx`, `src/app/api/translate/route.ts`, `src/lib/llmTaskConfig.ts`.
 - Shared event reads/writes: `src/services/events.ts`.
 - Detail/related APIs: `src/app/api/events/[id]/route.ts`, `related/route.ts`.
 - Shared DTOs/tags/source helpers: `src/lib/types.ts`, `src/lib/tags.ts`, `src/components/common/EventSource.tsx`.

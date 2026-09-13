@@ -63,7 +63,9 @@ export default async function RootLayout({
       ? "ja"
       : preferredLanguage.startsWith("en")
         ? "en"
-        : "zh";
+        : preferredLanguage.startsWith("zh")
+          ? "zh"
+          : "en";
 
   return (
     <html
