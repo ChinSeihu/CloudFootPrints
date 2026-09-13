@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { fieldCls } from "@/components/Map/formStyles";
 import { Avatar } from "@/components/common/Avatar";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 type DemoLoginUser = {
   username: string;
@@ -14,6 +15,7 @@ type DemoLoginUser = {
 // 登录 / 注册表单（本地账号）。成功后写入全局登录态。
 export function AuthForm() {
   const { setUser } = useAuth();
+  const { t } = useLanguage();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -50,12 +52,12 @@ export function AuthForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "操作失败");
+        setError(data.error || t("auth.operationFailed"));
         return;
       }
       setUser(data.user);
     } catch {
-      setError("网络错误，请稍后再试");
+      setError(t("common.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -73,12 +75,12 @@ export function AuthForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "登录失败");
+        setError(data.error || t("auth.loginFailed"));
         return;
       }
       setUser(data.user);
     } catch {
-      setError("网络错误，请稍后再试");
+      setError(t("common.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -87,14 +89,14 @@ export function AuthForm() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-sm mx-auto px-6 py-6 pb-10">
-      <h1 className="text-xl font-semibold mb-1">{mode === "login" ? "登录" : "注册"}</h1>
-      <p className="text-sm text-neutral-500 mb-6">登录后即可记录足迹、发帖、评论</p>
+      <h1 className="text-xl font-semibold mb-1">{mode === "login" ? t("auth.login") : t("auth.register")}</h1>
+      <p className="text-sm text-neutral-500 mb-6">{t("auth.subtitle")}</p>
 
       <div className="space-y-3">
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="用户名"
+          placeholder={t("auth.username")}
           autoComplete="username"
           className={fieldCls}
         />
@@ -103,7 +105,7 @@ export function AuthForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-          placeholder={mode === "register" ? "设置密码（至少 6 位）" : "密码"}
+          placeholder={mode === "register" ? t("auth.newPassword") : t("auth.password")}
           autoComplete={mode === "register" ? "new-password" : "current-password"}
           className={fieldCls}
         />
@@ -114,7 +116,7 @@ export function AuthForm() {
           disabled={submitting || !username.trim() || !password}
           className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-medium shadow-sm transition active:scale-[0.99] disabled:opacity-40"
         >
-          {submitting ? "处理中…" : mode === "login" ? "登录" : "注册"}
+          {submitting ? t("common.processing") : mode === "login" ? t("auth.login") : t("auth.register")}
         </button>
       </div>
 
@@ -123,14 +125,14 @@ export function AuthForm() {
         onClick={() => { setMode((m) => (m === "login" ? "register" : "login")); setError(null); }}
         className="mt-4 text-sm text-blue-600"
       >
-        {mode === "login" ? "没有账号？去注册" : "已有账号？去登录"}
+        {mode === "login" ? t("auth.switchToRegister") : t("auth.switchToLogin")}
       </button>
 
       {/* 测试账号一键登录（当前阶段方便用） */}
       <div className="mt-6">
         <div className="flex items-center gap-2 mb-3">
           <div className="h-px flex-1 bg-neutral-200" />
-          <span className="text-[11px] text-neutral-400">测试账号 · 一键登录</span>
+          <span className="text-[11px] text-neutral-400">{t("auth.demo")}</span>
           <div className="h-px flex-1 bg-neutral-200" />
         </div>
         <div className="space-y-2">

@@ -7,8 +7,7 @@ import { CategoryIcon, IconChevronLeft, IconChevronRight, IconPin } from "@/comp
 import { EventDetail } from "@/components/Recommend/EventDetail";
 import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 function tokyoDateKey(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -18,9 +17,9 @@ function ymd(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function fmtTime(iso: string | null): string {
-  if (!iso) return "时间待定";
-  return new Date(iso).toLocaleTimeString("zh-CN", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" });
+function fmtTime(iso: string | null, locale: string, fallback: string): string {
+  if (!iso) return fallback;
+  return new Date(iso).toLocaleTimeString(locale, { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" });
 }
 
 function dayInfo(key: string) {
@@ -55,6 +54,9 @@ function heatColor(count: number, max: number): { backgroundColor: string; color
  * Purpose: Renders a compact date navigator and layered horizontal activity cards while retaining calendar filters and navigation state.
  */
 export function CalendarView({ events, refreshControl, refreshNotice }: { events: EventDTO[]; refreshControl?: ReactNode; refreshNotice?: string | null }) {
+  const { language, t } = useLanguage();
+  const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
+  const weekdays = useMemo(() => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "Asia/Tokyo" }).format(new Date(Date.UTC(2026, 0, 4 + index)))), [locale]);
   const todayKey = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }), []);
   const [year, setYear] = useBrowseState("calendar:year", () => Number(todayKey.slice(0, 4)));
   const [month, setMonth] = useBrowseState("calendar:month", () => Number(todayKey.slice(5, 7)) - 1);
@@ -180,26 +182,26 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
             <svg viewBox="0 0 36 36" className="h-8 w-8" fill="none"><rect x="7" y="9" width="23" height="23" rx="5" fill="#075985" fillOpacity=".25" /><rect x="6" y="6" width="23" height="24" rx="5" fill="white" /><path d="M6 11a5 5 0 0 1 5-5h13a5 5 0 0 1 5 5v3H6Z" fill="#dbeafe" /><path d="M12 4v5M23 4v5" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" /><path d="M11 18h3M18 18h3M11 23h3" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" /><path d="m20 24 2 2 4-5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="m25 30 4-5v1a4 4 0 0 1-4 4" fill="#93c5fd" /></svg>
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">日历</h1>
-            <p className="truncate text-[11px] text-neutral-400">按日期查看东京活动</p>
+            <h1 className="text-lg font-black leading-tight tracking-tight text-neutral-900">{t("nav.calendar")}</h1>
+            <p className="truncate text-[11px] text-neutral-400">{t("calendar.subtitle")}</p>
           </div>
         </div>
         <div className="flex shrink-0 gap-1.5">
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label="搜索" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-blue-700" : "text-slate-600"}`}>
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label={t("common.search")} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-blue-700" : "text-slate-600"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div ref={filterRef} className="relative">
-            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label="筛选" className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${cat !== "ALL" ? "text-blue-700" : "text-slate-600"}`}>
+            <button type="button" onClick={() => setFilterOpen((v) => !v)} aria-label={t("filter.title")} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${cat !== "ALL" ? "text-blue-700" : "text-slate-600"}`}>
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
             </button>
             {filterOpen && (
               <div className="fixed inset-x-3 top-[4.75rem] z-[70] max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-2xl bg-white p-3 shadow-xl ring-1 ring-black/10 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-neutral-500">分类筛选</span>
-                  {cat !== "ALL" && <button type="button" onClick={() => setCat("ALL")} className="text-xs font-semibold text-blue-600">重置</button>}
+                  <span className="text-xs font-semibold text-neutral-500">{t("calendar.categoryFilter")}</span>
+                  {cat !== "ALL" && <button type="button" onClick={() => setCat("ALL")} className="text-xs font-semibold text-blue-600">{t("common.reset")}</button>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => setCat("ALL")} className={`rounded-full px-3 py-2 text-xs font-semibold ${cat === "ALL" ? "bg-blue-600 text-white" : "bg-neutral-100 text-neutral-500"}`}>全部</button>
+                  <button type="button" onClick={() => setCat("ALL")} className={`rounded-full px-3 py-2 text-xs font-semibold ${cat === "ALL" ? "bg-blue-600 text-white" : "bg-neutral-100 text-neutral-500"}`}>{t("common.all")}</button>
                   {EVENT_CATEGORIES.map((c) => {
                     const meta = CATEGORY_META[c];
                     const active = cat === c;
@@ -222,19 +224,19 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
 
       {searchOpen && (
         <div className="mb-3 flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/5">
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索活动、场馆、标签" className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
-          {query && <button type="button" onClick={() => setQuery("")} className="px-2 text-xs font-semibold text-neutral-400">清空</button>}
+          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("calendar.searchPlaceholder")} className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
+          {query && <button type="button" onClick={() => setQuery("")} className="px-2 text-xs font-semibold text-neutral-400">{t("common.clear")}</button>}
         </div>
       )}
 
       <section className="rounded-lg bg-white px-3 pb-2.5 pt-3 shadow-[0_6px_20px_rgba(15,23,42,0.05)] ring-1 ring-black/5">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="上个月" className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label={t("calendar.previousMonth")} className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
             <h2 className="px-1 text-base font-extrabold tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="下个月" className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label={t("calendar.nextMonth")} className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
           </div>
-          <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-9 rounded-lg bg-neutral-50 px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100">今天</button>
+          <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-9 rounded-lg bg-neutral-50 px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100">{t("common.today")}</button>
         </div>
 
         <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -261,7 +263,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 }`}
               >
                 {info.holiday && <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${active ? "bg-white" : "bg-rose-500"}`} />}
-                <span className={`text-[9px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{WEEKDAYS[info.weekday]}</span>
+                <span className={`text-[9px] ${active ? "text-white/80" : info.isRed ? "text-rose-500" : info.weekday === 6 ? "text-blue-500" : "text-neutral-400"}`}>{weekdays[info.weekday]}</span>
                 <span className="mt-0.5 text-sm font-extrabold">{Number(key.slice(8, 10))}</span>
                 <span
                   className={`mt-0.5 h-0.5 rounded-full ${count === 0 ? "bg-transparent" : active ? "bg-white/80" : "bg-blue-500/70"}`}
@@ -277,28 +279,28 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <div>
             <h2 className="text-base font-extrabold text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日</h2>
-            <p className="mt-0.5 text-xs text-neutral-400">周{WEEKDAYS[dayInfo(selected).weekday]}{selected === todayKey && " · 今天"}</p>
+            <p className="mt-0.5 text-xs text-neutral-400">{weekdays[dayInfo(selected).weekday]}{selected === todayKey && ` · ${t("common.today")}`}</p>
             {holidayName(selected) && <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{holidayName(selected)}</p>}
           </div>
           <div className="flex rounded-lg bg-neutral-100 p-0.5">
             {(["starting", "ongoing"] as const).map((k) => {
               const active = dayTab === k;
               const count = k === "starting" ? startingEvents.length : ongoingEvents.length;
-              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${active ? "bg-blue-600 text-white shadow-sm" : "text-neutral-500"}`}>{k === "starting" ? "新开始" : "进行中"} {count}</button>;
+              return <button key={k} type="button" onClick={() => setDayTab(k)} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition ${active ? "bg-blue-600 text-white shadow-sm" : "text-neutral-500"}`}>{k === "starting" ? t("calendar.starting") : t("calendar.ongoing")} {count}</button>;
             })}
           </div>
         </div>
         {shownEvents.length === 0 ? (
           <div className="py-7 text-center text-sm text-neutral-500">
-            <p>当前筛选下这一天没有活动。</p>
+            <p>{t("calendar.noEvents")}</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {(cat !== "ALL" || query) && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => { setCat("ALL"); setQuery(""); }}>清除筛选</button>}
-              {(dayTab === "starting" ? ongoingEvents : startingEvents).length > 0 && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => setDayTab(dayTab === "starting" ? "ongoing" : "starting")}>看看{dayTab === "starting" ? "展期中" : "当天开始"}的活动</button>}
+              {(cat !== "ALL" || query) && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => { setCat("ALL"); setQuery(""); }}>{t("calendar.clearFilters")}</button>}
+              {(dayTab === "starting" ? ongoingEvents : startingEvents).length > 0 && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => setDayTab(dayTab === "starting" ? "ongoing" : "starting")}>{dayTab === "starting" ? t("calendar.viewOngoing") : t("calendar.viewStarting")}</button>}
               {[...byDate.keys()].some(day => day > selected) && <button className="rounded-full bg-blue-50 px-3 py-2 text-blue-700" onClick={() => {
                 const next = [...byDate.keys()].filter(day => day > selected).sort()[0];
                 if (next) setMonthDate(Number(next.slice(0, 4)), Number(next.slice(5, 7)) - 1, Number(next.slice(8, 10)));
-              }}>下一个有活动的日期</button>}
-              <button className="rounded-full bg-neutral-100 px-3 py-2" onClick={() => shiftDay(1)}>看看后一天</button>
+              }}>{t("calendar.nextEventDate")}</button>}
+              <button className="rounded-full bg-neutral-100 px-3 py-2" onClick={() => shiftDay(1)}>{t("calendar.nextDay")}</button>
             </div>
           </div>
         ) : (
@@ -311,11 +313,11 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
               const daysUntilEnd = Number.isNaN(endMs) ? null : Math.round((endMs - selectedMs) / 86_400_000);
               const endingSoon = dayTab === "ongoing" && daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 3;
               const statusLabel = dayTab === "starting"
-                ? "今日开始"
+                ? t("calendar.startsToday")
                 : endingSoon
-                  ? daysUntilEnd === 0 ? "今天结束" : `${daysUntilEnd}天后结束`
+                  ? daysUntilEnd === 0 ? t("calendar.endsToday") : t("calendar.endsInDays", { count: daysUntilEnd })
                   : null;
-              const endLabel = endKey ? `至 ${Number(endKey.slice(5, 7))}/${Number(endKey.slice(8, 10))}` : null;
+              const endLabel = endKey ? `${t("calendar.until")} ${Number(endKey.slice(5, 7))}/${Number(endKey.slice(8, 10))}` : null;
               return (
                 <li key={ev.id} className="relative">
                   <button type="button" onClick={() => setDetail(ev)} className={`group relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg border border-black/5 bg-white p-1.5 pr-8 text-left shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${endingSoon ? "border-l-4 border-l-amber-400" : ""}`}>
@@ -330,7 +332,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                       <div className="flex items-center gap-1.5">
                         <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{meta.label}</span>
                         {statusLabel && <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${endingSoon ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{statusLabel}</span>}
-                        {dayTab === "starting" && <span className="ml-auto text-[11px] font-semibold text-neutral-400">{fmtTime(ev.startTime)}</span>}
+                        {dayTab === "starting" && <span className="ml-auto text-[11px] font-semibold text-neutral-400">{fmtTime(ev.startTime, locale, t("calendar.timeTbd"))}</span>}
                       </div>
                       <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
                       <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-neutral-500">
@@ -349,12 +351,12 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
 
       <section className="mt-2 rounded-lg bg-white p-3 shadow-[0_6px_20px_rgba(15,23,42,0.05)] ring-1 ring-black/5">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-black text-neutral-950">本月活动热力图</h2>
+          <h2 className="text-base font-black text-neutral-950">{t("calendar.heatmap")}</h2>
           <div className="flex items-center gap-1 text-[10px] text-neutral-400">
-            <span>少</span><span className="h-2 w-2 rounded bg-sky-50" /><span className="h-2 w-2 rounded bg-sky-200" /><span className="h-2 w-2 rounded bg-blue-500" /><span>多</span>
+            <span>{t("calendar.less")}</span><span className="h-2 w-2 rounded bg-sky-50" /><span className="h-2 w-2 rounded bg-sky-200" /><span className="h-2 w-2 rounded bg-blue-500" /><span>{t("calendar.more")}</span>
           </div>
         </div>
-        <div className="mb-1 grid grid-cols-7 text-center text-[10px] text-neutral-400">{WEEKDAYS.map((d, i) => <span key={d} className={i === 0 ? "text-rose-400" : i === 6 ? "text-blue-400" : ""}>{d}</span>)}</div>
+        <div className="mb-1 grid grid-cols-7 text-center text-[10px] text-neutral-400">{weekdays.map((d, i) => <span key={d} className={i === 0 ? "text-rose-400" : i === 6 ? "text-blue-400" : ""}>{d}</span>)}</div>
         <div className="grid grid-cols-7 gap-1">
           {heatCells.map((key, i) => {
             if (!key) return <span key={`blank-${i}`} />;
@@ -366,7 +368,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                 key={key}
                 type="button"
                 onClick={() => setSelectedDate(key)}
-                title={`${Number(key.slice(8, 10))}日 ${count}个活动${info.holiday ? ` · ${info.holiday}` : ""}`}
+                title={`${Number(key.slice(8, 10))} · ${t("calendar.eventsCount", { count })}${info.holiday ? ` · ${info.holiday}` : ""}`}
                 className={`relative h-7 overflow-hidden rounded-md text-[10px] font-semibold border border-transparent"
                 } ${selected === key ? "ring-2 ring-blue-600 ring-offset-1" : ""}`}
                 style={color}

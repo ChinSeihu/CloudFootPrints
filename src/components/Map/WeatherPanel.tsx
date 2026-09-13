@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { WeatherIcon } from "@/components/icons";
 import { WeatherAnimation } from "./WeatherAnimation";
 import type { WeatherForecast } from "@/services/weather";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 // 把东京日期串（YYYY-MM-DD）转成"今天/明天/周几"标签。
-function dayLabel(dateStr: string, index: number, todayKey: string): string {
-  if (dateStr === todayKey) return "今天";
-  if (index === 1) return "明天";
+function dayLabel(dateStr: string, index: number, todayKey: string, language: "zh" | "ja" | "en", today: string, tomorrow: string): string {
+  if (dateStr === todayKey) return today;
+  if (index === 1) return tomorrow;
   const d = new Date(`${dateStr}T12:00:00+09:00`);
-  return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][d.getDay()];
+  return d.toLocaleDateString(language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US", { weekday: "short" });
 }
 
 function dayShort(dateStr: string): string {
@@ -26,6 +27,7 @@ type Props = {
  * Purpose: Provides an independently clickable map-weather control and forecast panel while reporting its expanded state to the map shell.
  */
 export function WeatherPanel({ onOpenChange }: Props) {
+  const { language, t } = useLanguage();
   const [data, setData] = useState<WeatherForecast | null>(null);
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -71,7 +73,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
           onOpenChange?.(next);
           return next;
         })}
-        aria-label="天气"
+        aria-label={t("weather.title")}
         aria-pressed={open}
         className={`pointer-events-auto absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-800"
@@ -94,7 +96,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
           {/* 提示：地图动画跟"当前实况"，下方卡片是未来 7 天，避免歧义 */}
           <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] text-neutral-700 bg-white/90 rounded-full px-2.5 py-1 shadow-sm pointer-events-auto">
             <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />
-            现在 {data.current.label} {data.current.temp}° · 动画为实况，下为未来 7 天
+            {t("weather.currentPrefix")} {data.current.label} {data.current.temp}° · {t("weather.forecastHint")}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {data.daily.map((d, i) => (
@@ -103,7 +105,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
                 className="shrink-0 w-20 rounded-2xl bg-white/95 backdrop-blur shadow-md px-2.5 py-2.5 flex flex-col items-center gap-1"
               >
                 <span className="text-[11px] font-medium text-neutral-700">
-                  {dayLabel(d.date, i, todayKey)}
+                  {dayLabel(d.date, i, todayKey, language, t("common.today"), t("common.tomorrow"))}
                 </span>
                 <span className="text-[10px] text-neutral-400">{dayShort(d.date)}</span>
                 <WeatherIcon kind={d.kind} className="w-6 h-6 text-blue-600 my-0.5" />

@@ -5,6 +5,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { CategoryIcon } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
@@ -31,6 +32,7 @@ function IconFilter({ className }: { className?: string }) {
 
 // 筛选：左上角一个「筛选」按钮，点开展开面板（分类/时间/我的）；收起时不挡地图。
 export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -106,21 +108,21 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
       {open && (
         <div className="w-64 max-w-[78vw] rounded-3xl border border-white/80 bg-white/95 p-3 shadow-[0_16px_42px_rgba(15,23,42,0.14)] backdrop-blur pointer-events-auto">
           <div className="flex items-center justify-between mb-2.5">
-            <span className="text-sm font-medium">筛选</span>
+            <span className="text-sm font-medium">{t("filter.title")}</span>
             <div className="flex items-center gap-2.5">
               {activeCount > 0 && (
                 <button type="button" onClick={clearAll} className="text-xs text-blue-600 font-medium">
-                  清除全部
+                  {t("filter.clearAll")}
                 </button>
               )}
               <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-500">
-                收起
+                {t("route.collapse")}
               </button>
             </div>
           </div>
 
           {/* 分类 */}
-          <div className="text-[11px] text-neutral-400 mb-1.5">分类</div>
+          <div className="text-[11px] text-neutral-400 mb-1.5">{t("filter.category")}</div>
           <div className="flex flex-wrap gap-1.5 mb-3">
             {EVENT_CATEGORIES.map((c) => {
               const meta = CATEGORY_META[c];
@@ -143,7 +145,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
           </div>
 
           {/* 时间（日历范围选择已移到顶部计数右侧）：此处只留「含过期」 */}
-          <div className="text-[11px] text-neutral-400 mb-1.5">时间</div>
+          <div className="text-[11px] text-neutral-400 mb-1.5">{t("filter.time")}</div>
           <div className="mb-3">
             <button
               type="button"
@@ -152,7 +154,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
                 value.showExpired ? "bg-neutral-700 text-white border-transparent" : "bg-white text-neutral-600 border-neutral-300"
               }`}
             >
-              含过期
+              {t("filter.expired")}
             </button>
           </div>
 
@@ -168,7 +170,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4Z" />
               </svg>
-              只看我的
+              {t("filter.mineOnly")}
             </button>
             {/* 足迹路线：从底部控件移到这里，避免地图下方按钮拥挤 */}
             <button
@@ -179,7 +181,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
               }`}
             >
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 19c2 0 2-3 4-3s2 3 4 3 2-4 4-4" /><circle cx="5" cy="19" r="1.4" /><circle cx="19" cy="15" r="1.4" /></svg>
-              足迹路线
+              {t("filter.trail")}
             </button>
           </div>
         </div>

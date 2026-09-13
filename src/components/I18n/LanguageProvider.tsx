@@ -9,7 +9,7 @@ import { LANGUAGE_COOKIE_KEY, LANGUAGE_STORAGE_KEY, type AppLanguage, type Trans
 const messages: Record<AppLanguage, TranslationMessages> = { zh: zhMessages, ja: jaMessages, en: enMessages };
 
 export type { AppLanguage, TranslationKey } from "@/i18n/config";
-type LanguageContextValue = { language: AppLanguage; setLanguage: (language: AppLanguage) => void; t: (key: TranslationKey) => string };
+type LanguageContextValue = { language: AppLanguage; setLanguage: (language: AppLanguage) => void; t: (key: TranslationKey, values?: Record<string, string | number>) => string };
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 /**
@@ -30,7 +30,11 @@ export function LanguageProvider({ children, initialLanguage }: { children: Reac
       localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
       document.cookie = `${LANGUAGE_COOKIE_KEY}=${nextLanguage}; Path=/; Max-Age=31536000; SameSite=Lax`;
     },
-    t(key) { return messages[language][key]; },
+    t(key, values) {
+      const message = messages[language][key];
+      if (!values) return message;
+      return Object.entries(values).reduce((result, [name, value]) => result.replaceAll(`{${name}}`, String(value)), message);
+    },
   }), [language]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
