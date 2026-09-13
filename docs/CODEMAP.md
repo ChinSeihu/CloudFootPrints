@@ -275,7 +275,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### `src/components/`
 
 - `BottomNav.tsx` — app-wide bottom navigation with mobile system safe-area spacing.
-- `I18n/LanguageProvider.tsx` — three-language client context, request-language initialization, and device-level language persistence.
+- `I18n/LanguageProvider.tsx` — client language context and device-level preference persistence; shared locale configuration and language packs live under `src/i18n/`.
 - `ViewportHeightSync.tsx` — synchronizes the fixed app shell with the visible viewport after mobile PWA resume and system UI changes.
 - `Mascot/Mascot.tsx` — four named IP selections plus persisted no-IP mode, unified raster crop regions, picker, per-character publishing marks, shared footprint mark, and legacy preference migration.
 - `CopyButton.tsx` — reusable clipboard action.

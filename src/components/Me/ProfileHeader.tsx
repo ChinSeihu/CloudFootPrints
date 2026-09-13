@@ -12,7 +12,8 @@ import { IconPin, IconSparkles } from "@/components/icons";
 import { PRESET_COVERS } from "@/lib/covers";
 import type { PublicUser } from "@/lib/auth";
 import { MascotPicker } from "@/components/Mascot/Mascot";
-import { useLanguage, type AppLanguage } from "@/components/I18n/LanguageProvider";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
+import type { AppLanguage } from "@/i18n/config";
 
 type FollowMode = "following" | "followers";
 type FollowStats = { followingCount: number; followerCount: number };

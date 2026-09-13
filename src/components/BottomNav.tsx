@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MascotNavIcon, useMascotIdentity, type MascotNavRole, type MascotIdentity } from "@/components/Mascot/Mascot";
-import { useLanguage, type TranslationKey } from "@/components/I18n/LanguageProvider";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/config";
 
 const TABS: ReadonlyArray<{ href: string; labelKey: TranslationKey; role: MascotNavRole }> = [
   { href: "/", labelKey: "nav.map", role: "map" },

@@ -10,7 +10,8 @@ import { GuideChat } from "@/components/Guide/GuideChat";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ViewportHeightSync } from "@/components/ViewportHeightSync";
 import { cookies, headers } from "next/headers";
-import { LanguageProvider, type AppLanguage } from "@/components/I18n/LanguageProvider";
+import { LanguageProvider } from "@/components/I18n/LanguageProvider";
+import { DEFAULT_LANGUAGE, LANGUAGE_COOKIE_KEY, isAppLanguage, type AppLanguage } from "@/i18n/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,9 +56,9 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const requestHeaders = await headers();
-  const savedLanguage = cookieStore.get("tem_language")?.value;
+  const savedLanguage = cookieStore.get(LANGUAGE_COOKIE_KEY)?.value;
   const preferredLanguage = requestHeaders.get("accept-language")?.toLowerCase() ?? "";
-  const initialLanguage: AppLanguage = savedLanguage === "ja" || savedLanguage === "en" || savedLanguage === "zh"
+  const initialLanguage: AppLanguage = isAppLanguage(savedLanguage)
     ? savedLanguage
     : preferredLanguage.startsWith("ja")
       ? "ja"
@@ -65,7 +66,7 @@ export default async function RootLayout({
         ? "en"
         : preferredLanguage.startsWith("zh")
           ? "zh"
-          : "en";
+          : DEFAULT_LANGUAGE;
 
   return (
     <html

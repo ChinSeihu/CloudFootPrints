@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { deepSeekModel, requestDeepSeekContent } from "@/lib/deepSeek";
 import { deepSeekTaskOptions, llmTaskConfig } from "@/lib/llmTaskConfig";
-import type { AppLanguage } from "@/components/I18n/LanguageProvider";
+import { isAppLanguage, type AppLanguage } from "@/i18n/config";
 
 export const maxDuration = 60;
 
@@ -15,7 +15,7 @@ export async function POST(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   const targetLanguage = body?.targetLanguage as AppLanguage | undefined;
-  if (!text || text.length > 12_000 || !targetLanguage || !(targetLanguage in LANGUAGE_NAMES)) {
+  if (!text || text.length > 12_000 || !isAppLanguage(targetLanguage)) {
     return NextResponse.json({ error: "Invalid translation request" }, { status: 400 });
   }
 
