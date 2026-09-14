@@ -230,11 +230,11 @@ export function ProfileHeader() {
                 </span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-9 z-10 w-28 overflow-hidden rounded-xl border border-black/5 bg-white py-1 text-sm shadow-lg">
-                  <button type="button" onClick={startEdit} className="block w-full px-3 py-2 text-left text-neutral-700 hover:bg-neutral-50">
+                <div className="absolute right-0 top-9 z-10 w-40 overflow-hidden rounded-xl border border-black/5 bg-white py-1 text-sm shadow-lg">
+                  <button type="button" onClick={startEdit} className="block w-full whitespace-nowrap px-3 py-2 text-left text-neutral-700 hover:bg-neutral-50">
                     {t("profile.edit")}
                   </button>
-                  <button type="button" onClick={logout} className="block w-full px-3 py-2 text-left text-neutral-500 hover:bg-neutral-50">
+                  <button type="button" onClick={logout} className="block w-full whitespace-nowrap px-3 py-2 text-left text-neutral-500 hover:bg-neutral-50">
                     {t("profile.logout")}
                   </button>
                 </div>

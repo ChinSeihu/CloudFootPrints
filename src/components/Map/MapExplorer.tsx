@@ -1747,16 +1747,16 @@ export function MapExplorer() {
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
       let lines: { name: string; colour?: string; ref?: string }[] = [];
       try { lines = JSON.parse(p.lines || "[]"); } catch { /* ignore */ }
-      const typeLabel = p.subway ? "地铁站" : "电车站";
+      const typeLabel = t(p.subway ? "map.subwayStation" : "map.trainStation");
       // 每条线路都可点 → 打开整合面板（默认看该线下一班时刻 + 顶部切换其它线路 + 全程）。
       const lineChips = lines.length
         ? `<div class="tem-st-lines">${lines.map((l) =>
             `<button class="tem-st-line tem-st-line-btn" data-line="${escapeHtml(l.name)}"><i style="background:${escapeHtml(l.colour || "#888")}"></i><span>${escapeHtml(l.name)}</span><span class="tem-st-go">›</span></button>`
           ).join("")}</div>`
-        : `<p class="tem-st-none">暂无线路信息</p>`;
+        : `<p class="tem-st-none">${t("map.noLineInfo")}</p>`;
       // 简单说明：N 条线路经过 + 前几条线名。
       const desc = lines.length
-        ? `${typeLabel}，${lines.length} 条线路经过${lines.length > 3 ? `（含 ${lines.slice(0, 3).map((l) => l.name).join("、")} 等）` : ""}。`
+        ? t("map.linesPass", { type: typeLabel, count: lines.length, examples: lines.length > 3 ? t("map.lineExamples", { names: lines.slice(0, 3).map((l) => l.name).join(language === "en" ? ", " : "、") }) : "" })
         : `${typeLabel}。`;
       const html = `<div class="tem-st">
         <div class="tem-st-name">${escapeHtml(p.name)}${p.nameEn ? `<span class="tem-st-en">${escapeHtml(p.nameEn)}</span>` : ""}</div>
@@ -1764,8 +1764,8 @@ export function MapExplorer() {
         <p class="tem-st-desc">${escapeHtml(desc)}</p>
         ${lineChips}
         <div class="tem-st-actions">
-          <button class="tem-st-nav" data-action="route"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>从这导航</button>
-          <button class="tem-st-ask" data-action="ask">✨ 问 AI 导游</button>
+          <button class="tem-st-nav" data-action="route"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>${t("map.navigateFromHere")}</button>
+          <button class="tem-st-ask" data-action="ask">✨ ${t("guide.ask")}</button>
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
@@ -1779,11 +1779,11 @@ export function MapExplorer() {
       popup.getElement()?.querySelector('[data-action="ask"]')?.addEventListener("click", () => {
         popup.remove();
         openGuideRef.current({
-          title: `${p.name}站`,
+          title: t("map.stationName", { name: p.name ?? "" }),
           kind: "station",
           category: typeLabel,
-          venueName: `${p.name}站`,
-          description: `东京${typeLabel}：${p.name}${p.nameEn ? `（${p.nameEn}）` : ""}。${lines.length ? `经过线路：${lines.map((l) => l.name).join("、")}。` : ""}`,
+          venueName: t("map.stationName", { name: p.name ?? "" }),
+          description: t("map.stationDescription", { type: typeLabel, name: p.name ?? "", english: p.nameEn ? ` (${p.nameEn})` : "", lines: lines.length ? t("map.passingLines", { names: lines.map((l) => l.name).join(language === "en" ? ", " : "、") }) : "" }),
         });
       });
       // 点击线路 chip → 打开整合面板（时刻表 + 线路全程），默认选中该线。
@@ -1847,7 +1847,7 @@ export function MapExplorer() {
       const images = (p.images ?? "").split("|").filter(Boolean);
       const cover = p.cover ?? "";
       const coverHtml = cover
-        ? `<div data-action="lightbox" style="position:relative;cursor:zoom-in;border-radius:10px;overflow:hidden;margin-bottom:8px"><img src="${escapeHtml(cover)}" alt="" loading="lazy" style="display:block;width:100%;height:128px;object-fit:cover"/>${images.length > 1 ? `<span style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;border-radius:6px;padding:1px 6px">${images.length} 张</span>` : ""}</div>`
+        ? `<div data-action="lightbox" style="position:relative;cursor:zoom-in;border-radius:10px;overflow:hidden;margin-bottom:8px"><img src="${escapeHtml(cover)}" alt="" loading="lazy" style="display:block;width:100%;height:128px;object-fit:cover"/>${images.length > 1 ? `<span style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;border-radius:6px;padding:1px 6px">${t("edit.imageCount", { count: images.length })}</span>` : ""}</div>`
         : "";
       const html = `<div class="tem-lm">
         ${coverHtml}
@@ -1855,28 +1855,28 @@ export function MapExplorer() {
           <span class="tem-lm-badge">${landmarkIconSvg(kind)}</span>
           <div class="tem-lm-titles">
             <div class="tem-lm-name">${escapeHtml(p.name)}</div>
-            <div class="tem-lm-kind" style="color:${color}">名胜 · ${escapeHtml(kindLabel)}</div>
+            <div class="tem-lm-kind" style="color:${color}">${t("map.landmark")} · ${escapeHtml(kindLabel)}</div>
           </div>
         </div>
         <div class="tem-lm-tabs" role="tablist">
-          <button class="tem-lm-tab active" data-tab="detail" type="button">详情</button>
-          <button class="tem-lm-tab" data-tab="posts" type="button">发帖</button>
-          <button class="tem-lm-tab" data-tab="checkins" type="button">足迹</button>
+          <button class="tem-lm-tab active" data-tab="detail" type="button">${t("map.details")}</button>
+          <button class="tem-lm-tab" data-tab="posts" type="button">${t("me.posts")}</button>
+          <button class="tem-lm-tab" data-tab="checkins" type="button">${t("me.checkins")}</button>
         </div>
         <div class="tem-lm-panel active" data-panel="detail">
           <p class="tem-lm-desc">${escapeHtml(p.blurb ?? "")}</p>
           <div class="tem-lm-actions">
-            <button class="tem-lm-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
-            <button class="tem-lm-ask" data-action="ask">✨ 问 AI 导游了解更多</button>
+            <button class="tem-lm-nav" data-action="route" title="${t("map.navigateHere")}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+            <button class="tem-lm-ask" data-action="ask">✨ ${t("map.askGuideMore")}</button>
           </div>
         </div>
         <div class="tem-lm-panel" data-panel="posts">
-          <button class="tem-lm-create act-post" data-action="post" type="button">发布相关发帖</button>
-          <div class="tem-lm-empty">分享和这个景点相关的活动或照片。</div>
+          <button class="tem-lm-create act-post" data-action="post" type="button">${t("map.publishRelatedPost")}</button>
+          <div class="tem-lm-empty">${t("map.landmarkPostHint")}</div>
         </div>
         <div class="tem-lm-panel" data-panel="checkins">
-          <button class="tem-lm-create act-checkin" data-action="checkin" type="button">发布足迹</button>
-          <div class="tem-lm-empty">记录你来过这里，也可以选择公开或隐藏。</div>
+          <button class="tem-lm-create act-checkin" data-action="checkin" type="button">${t("action.publishCheckin")}</button>
+          <div class="tem-lm-empty">${t("map.landmarkCheckinHint")}</div>
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-lm-popup" })
@@ -1903,7 +1903,7 @@ export function MapExplorer() {
           kind: "landmark",
           category: kindLabel,
           venueName: p.name!,
-          description: `东京名胜：${p.name}（${kindLabel}）。${p.blurb ?? ""}`,
+          description: t("map.landmarkDescription", { name: p.name ?? "", kind: kindLabel, detail: p.blurb ?? "" }),
         });
       });
       popup.getElement()?.querySelector('[data-action="post"]')?.addEventListener("click", () => {
@@ -1976,7 +1976,7 @@ export function MapExplorer() {
       // 信息行：人均 / 最寄駅 / 营业时间。
       const infoRows = [
         p.budget ? `<div class="tem-food-info"><span>💴</span>${escapeHtml(p.budget)}</div>` : "",
-        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(p.station)}站</div>` : "",
+        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(t("map.stationName", { name: p.station }))}</div>` : "",
         p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
       ].filter(Boolean).join("");
       const amenityItems = (p.amenities ?? "").split("|").filter(Boolean);
@@ -1986,7 +1986,7 @@ export function MapExplorer() {
         <div class="tem-food-head">
           <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
-            <div class="tem-food-name">${escapeHtml(p.name)}${rating > 0 ? ` <span style="display:inline-block;vertical-align:middle;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:600;margin-left:4px">✨AI精选</span>` : ""}</div>
+            <div class="tem-food-name">${escapeHtml(p.name)}${rating > 0 ? ` <span style="display:inline-block;vertical-align:middle;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:600;margin-left:4px">✨${t("map.aiPick")}</span>` : ""}</div>
             <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")}${metaTail ? " · " + metaTail : ""}</div>
           </div>
         </div>
@@ -1994,11 +1994,11 @@ export function MapExplorer() {
         ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
         ${amenityItems.length ? `<div class="tem-food-amenities">${amenityHtml}</div>` : ""}
         ${p.tips ? `<div class="tem-food-tips"><span>💡</span>${escapeHtml(p.tips)}</div>` : ""}
-        ${menuItems.length ? `<div class="tem-food-menu-label">招牌</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
+        ${menuItems.length ? `<div class="tem-food-menu-label">${t("map.specialties")}</div><div class="tem-food-menu">${menuHtml}</div>` : ""}
         <div class="tem-food-actions">
-          <button class="tem-food-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
-          <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
-          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
+          <button class="tem-food-nav" data-action="route" title="${t("map.navigateHere")}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+          <button class="tem-food-ask" data-action="ask">✨ ${t("guide.ask")}</button>
+          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${t("map.details")} ↗</a>` : ""}
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
@@ -2014,7 +2014,7 @@ export function MapExplorer() {
         openGuideRef.current({
           title: p.name!,
           kind: "food",
-          category: `美食 · ${p.genre ?? ""}`,
+          category: `${t("map.food")} · ${p.genre ?? ""}`,
           venueName: p.name!,
           description: `东京美食：${p.name}（${p.genre ?? ""}${rating > 0 ? `，评分 ${rating}` : ""}${p.budget ? `，人均 ${p.budget}` : ""}${p.station ? `，最近车站 ${p.station}` : ""}）。${menuItems.length ? `招牌：${menuItems.join("、")}。` : ""}${amenityItems.length ? `设施：${amenityItems.join("、")}。` : ""}${p.tips ? `提示：${p.tips}。` : ""}${p.blurb ?? ""}`,
         });
@@ -2065,7 +2065,7 @@ export function MapExplorer() {
       const amenities = (p.amenities ?? "").split("|").filter(Boolean);
       const infoRows = [
         p.budget ? `<div class="tem-food-info"><span>💴</span>${escapeHtml(p.budget)}</div>` : "",
-        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(p.station)}站</div>` : "",
+        p.station ? `<div class="tem-food-info"><span>📍</span>${escapeHtml(t("map.stationName", { name: p.station }))}</div>` : "",
         p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
       ].filter(Boolean).join("");
       const chips = amenities.map((a) => `<span class="tem-food-amenity">${escapeHtml(a)}</span>`).join("");
@@ -2083,9 +2083,9 @@ export function MapExplorer() {
         ${infoRows ? `<div class="tem-food-infos">${infoRows}</div>` : ""}
         ${chips ? `<div class="tem-food-amenities">${chips}</div>` : ""}
         <div class="tem-food-actions">
-          <button class="tem-food-nav" data-action="route" title="导航到这里"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
-          <button class="tem-food-ask" data-action="ask">✨ 问 AI 导游</button>
-          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">详情 ↗</a>` : ""}
+          <button class="tem-food-nav" data-action="route" title="${t("map.navigateHere")}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+          <button class="tem-food-ask" data-action="ask">✨ ${t("guide.ask")}</button>
+          ${p.url ? `<a class="tem-food-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${t("map.details")} ↗</a>` : ""}
         </div>
       </div>`;
       const popup = new mlg.Popup({ offset: 16, closeButton: true, maxWidth: "260px", className: "tem-food-popup" })
@@ -2101,7 +2101,7 @@ export function MapExplorer() {
         openGuideRef.current({
           title: p.name!,
           kind: "food",
-          category: `美食 · ${p.genre || FOOD_KIND_META[kind].label}`,
+          category: `${t("map.food")} · ${p.genre || FOOD_KIND_META[kind].label}`,
           venueName: p.name!,
           description: `东京餐厅：${p.name}，类型 ${subtitle}${p.budget ? `，人均 ${p.budget}` : ""}${p.station ? `，最寄 ${p.station}站` : ""}${p.open ? `，营业 ${p.open}` : ""}。`,
         });
@@ -2133,7 +2133,7 @@ export function MapExplorer() {
         map.flyTo({ center: [lng, lat], zoom: 16 });
         const action = sp.get("action");
         const eventId = sp.get("eventId") ?? "";
-        const title = sp.get("title") ?? "活动地点";
+        const title = sp.get("title") ?? t("map.eventLocation");
         const target = { id: eventId, title, lat, lng };
         if (action === "route") {
           setJourneyTarget(target);
@@ -2162,7 +2162,7 @@ export function MapExplorer() {
 
   function openPlacement(m: Mode, target: PlacementTarget = null) {
     if (!user) {
-      showToast("请先到「个人」页登录后再记录足迹 / 发帖");
+      showToast(t("map.loginToPublish"));
       return;
     }
     const map = mapRef.current;
@@ -2242,10 +2242,10 @@ export function MapExplorer() {
     if (res.ok) {
       setJourneyTarget(null);
       setArrivalDistance(null);
-      setCheckinSuccess({ title: checkinTarget?.title ?? "这次到访" });
+      setCheckinSuccess({ title: checkinTarget?.title ?? t("map.thisVisit") });
       await fetchCheckins();
     } else {
-      showToast("记录失败（数据库可能未配置）");
+      showToast(t("map.recordFailed"));
     }
   }
 
@@ -2260,11 +2260,11 @@ export function MapExplorer() {
     setDialogAt(null);
     setCheckinTarget(null);
     if (res.ok) {
-      showToast("已发布");
+      showToast(t("map.published"));
       if (lastBboxRef.current) await fetchEvents(lastBboxRef.current);
     } else {
       const d = await res.json().catch(() => ({}));
-      showToast(`发布失败：${d.error ?? res.status}`);
+      showToast(t("map.publishFailed", { error: d.error ?? res.status }));
     }
   }
 
@@ -2722,7 +2722,7 @@ export function MapExplorer() {
       )}
       {toast && (
         <div role="status" className="fixed left-1/2 top-[42%] z-[1200] flex max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-2xl bg-black/80 px-4 py-2 text-center text-sm text-white shadow-xl backdrop-blur">
-          {toast === "已发布" && <MascotAnimation animated kind="success" className="h-16 w-16" />}
+          {toast === t("map.published") && <MascotAnimation animated kind="success" className="h-16 w-16" />}
           {toast}
         </div>
       )}
