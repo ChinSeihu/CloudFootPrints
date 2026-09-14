@@ -720,7 +720,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     return (
       <section className="border-t border-neutral-100 pt-5">
         <div className="mb-4 flex items-center gap-2.5">
-          <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">评论 ({commentTotal})</h3>
+          <h3 className="border-l-4 border-violet-600 pl-3 text-sm font-bold text-neutral-950">{t("detail.commentsCount", { count: commentTotal })}</h3>
           <button type="button" onClick={() => setSort("hot")} className={cx("ml-1 rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "hot" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>{t("detail.hot")}</button>
           <button type="button" onClick={() => setSort("new")} className={cx("rounded-full px-2.5 py-1 text-[11px] font-medium", sort === "new" ? "border border-violet-400 bg-white text-violet-600" : "bg-neutral-100 text-neutral-600")}>{t("detail.new")}</button>
           {commentLoading && <TinyLoading label="" />}
@@ -772,7 +772,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
         {err && <p className="px-1 text-xs text-red-500">{err}</p>}
         {replyTo && (
           <div className="flex items-center justify-between rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-600">
-            <span>回复 @{replyTo.username}</span>
+            <span>{t("detail.replyingTo", { name: replyTo.username })}</span>
             <button type="button" onClick={() => setReplyTo(null)}>{t("common.cancel")}</button>
           </div>
         )}
@@ -790,7 +790,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             <SmileIcon className="ml-2.5 h-4 w-4 text-indigo-400" />
           </div>
           <button type="button" onClick={addComment} disabled={posting || !text.trim()} className="h-10 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-400 px-4 text-[13px] font-semibold text-white shadow-sm disabled:opacity-40">
-            发送
+            {t("guide.send")}
           </button>
         </div>
       </div>
@@ -943,7 +943,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   </section>
                   <button type="button" onClick={jumpToMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
                     <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    查看路线
+                    {t("detail.viewRoute")}
                   </button>
                 </div>
               )}
@@ -1009,7 +1009,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
           {images.length > 0 && (
             <button type="button" onClick={() => setLightbox({ images, index: 0 })} className="absolute bottom-8 right-4 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/70 sm:bottom-14 sm:right-8 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
               <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              查看大图 · 1/{images.length}
+              {t("detail.viewLargeImage", { current: 1, total: images.length })}
             </button>
           )}
         </section>

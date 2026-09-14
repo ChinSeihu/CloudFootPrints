@@ -61,7 +61,7 @@ export function MoodSelector({
       >
         {expanded ? t("mood.less") : t("mood.more", { count: MOOD_TAGS.length - 3 })}
       </button>
-      {selectedValues.length > 0 && <p className="text-[11px] text-neutral-400">已选择 {selectedValues.length}/6，可多选</p>}
+      {selectedValues.length > 0 && <p className="text-[11px] text-neutral-400">{t("mood.selected", { count: selectedValues.length })}</p>}
     </div>
   );
 }

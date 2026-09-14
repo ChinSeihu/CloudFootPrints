@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { MascotMotion, type MascotMotionKind } from "./MascotMotion";
 import { LoadingScene } from "./LoadingScene";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 /**
  * Signature: `function MascotAnimation({ animated, kind, className }: { animated?: boolean; kind?: MascotMotionKind; className?: string }): React.JSX.Element | null`
@@ -28,11 +29,12 @@ export function MascotFeedback({ children, loading = false }: { children: ReactN
  * Purpose: Delays route-loading feedback to avoid flashes during fast navigation.
  */
 export function NavigationFeedback() {
+  const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setVisible(true), 250);
     return () => window.clearTimeout(timer);
   }, []);
   if (!visible) return null;
-  return <div className="grid min-h-64 flex-1 place-items-center"><MascotFeedback loading>正在打开页面…</MascotFeedback></div>;
+  return <div className="grid min-h-64 flex-1 place-items-center"><MascotFeedback loading>{t("loading.openingPage")}</MascotFeedback></div>;
 }

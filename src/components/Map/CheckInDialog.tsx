@@ -148,7 +148,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
   const actionFooter = (
     <div className="flex items-center gap-2.5">
       <button type="button" onClick={onCancel} disabled={submitting} className="h-10 px-3 text-xs font-semibold text-neutral-500 transition hover:text-neutral-800">
-        取消
+        {t("common.cancel")}
       </button>
       <button type="button" onClick={handleSubmit} disabled={submitting} className="flex h-10 flex-1 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-[0_6px_16px_rgba(37,99,235,0.22)] transition active:scale-[0.99] disabled:opacity-40">
         {phase === "uploading" ? t("checkin.uploading") : submitting ? t("checkin.saving") : t("checkin.title")}
@@ -188,7 +188,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
             ))}
             <button type="button" onClick={() => setSelectedEvent(null)} className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${selectedEvent === null ? "bg-neutral-100 font-semibold text-neutral-700" : "text-neutral-500 hover:bg-neutral-50"}`}>
               <span className={`grid h-4 w-4 place-items-center rounded-full border ${selectedEvent === null ? "border-neutral-600" : "border-neutral-300"}`}>{selectedEvent === null && <span className="h-2 w-2 rounded-full bg-neutral-600" />}</span>
-              不关联活动，仅记录地点
+              {t("checkin.noAssociation")}
             </button>
             <div className="border-t border-neutral-100 pt-2">
               <input value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} className={`${fieldCls} h-9 bg-white`} placeholder={t("checkin.searchEvents")} />
@@ -217,7 +217,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
       </div>
 
       <div className="mb-3.5">
-        <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
+        <label className={labelCls}>{t("images.optionalMax", { count: MAX_IMAGES })}</label>
         {canUpload ? (
           <SortableImageList
             layout="grid"
@@ -232,7 +232,7 @@ export function CheckInDialog({ lat, lng, eventId, targetTitle, nearbyEvents = [
               <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border border-dashed border-neutral-300 bg-white text-neutral-400 transition hover:border-blue-400 hover:text-blue-500">
                 <span className="flex flex-col items-center gap-1 text-[11px]">
                   <IconPlus className="h-6 w-6" />
-                  添加图片
+                  {t("images.add")}
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
               </label>

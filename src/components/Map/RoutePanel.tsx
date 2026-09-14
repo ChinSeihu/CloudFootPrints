@@ -248,7 +248,7 @@ export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRout
               {active.egressWalk && (
                 <div className="flex items-center gap-2 text-sm pl-1 mt-1">
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="13" cy="4" r="2" /><path d="M7 21l3-6 2 2 1 4M10 9l3 1 2 3" /></svg>
-                  <span className="text-neutral-500 text-xs">{active.egressWalk.from} → 步行约 {active.egressWalk.meters}米 · {active.egressWalk.minutes}分 → {active.egressWalk.to}</span>
+                  <span className="text-neutral-500 text-xs">{active.egressWalk.from} → {t("route.walkMetersMinutes", { meters: active.egressWalk.meters, minutes: active.egressWalk.minutes })} → {active.egressWalk.to}</span>
                   <span className="ml-auto text-xs tabular-nums text-neutral-500">{fmtMin(base.min + lastOff + active.egressWalk.minutes)}</span>
                 </div>
               )}

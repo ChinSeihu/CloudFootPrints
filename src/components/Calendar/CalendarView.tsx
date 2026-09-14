@@ -233,7 +233,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => shiftMonth(-1)} aria-label={t("calendar.previousMonth")} className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronLeft className="h-4 w-4" /></button>
-            <h2 className="px-1 text-base font-extrabold tracking-tight text-neutral-950">{year}年 {month + 1}月</h2>
+            <h2 className="px-1 text-base font-extrabold tracking-tight text-neutral-950">{new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", timeZone: "Asia/Tokyo" }).format(new Date(Date.UTC(year, month, 1)))}</h2>
             <button type="button" onClick={() => shiftMonth(1)} aria-label={t("calendar.nextMonth")} className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-50 text-neutral-600 transition hover:bg-neutral-100"><IconChevronRight className="h-4 w-4" /></button>
           </div>
           <button type="button" onClick={() => setMonthDate(Number(todayKey.slice(0, 4)), Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)))} className="h-9 rounded-lg bg-neutral-50 px-3 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100">{t("common.today")}</button>
@@ -278,7 +278,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
       <section className="mt-3 px-0.5">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <div>
-            <h2 className="text-base font-extrabold text-neutral-950">{Number(selected.slice(5, 7))}月{Number(selected.slice(8, 10))}日</h2>
+            <h2 className="text-base font-extrabold text-neutral-950">{new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", timeZone: "Asia/Tokyo" }).format(new Date(`${selected}T00:00:00+09:00`))}</h2>
             <p className="mt-0.5 text-xs text-neutral-400">{weekdays[dayInfo(selected).weekday]}{selected === todayKey && ` · ${t("common.today")}`}</p>
             {holidayName(selected) && <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{holidayName(selected)}</p>}
           </div>

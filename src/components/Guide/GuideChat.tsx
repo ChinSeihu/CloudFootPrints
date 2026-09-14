@@ -133,7 +133,8 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
   const { open, openNonce, topic, closeGuide } = useGuide();
   const identity = useMascotIdentity();
   const hasMascot = identity !== "none";
-  const guideName = MASCOT_OPTIONS.find((option) => option.id === identity)?.name ?? t("guide.name");
+  const guideOption = MASCOT_OPTIONS.find((option) => option.id === identity);
+  const guideName = guideOption ? t(guideOption.labelKey) : t("guide.name");
   const isMichiru = identity.startsWith("michiru");
   const { messages, setMessages, ready, storageError } = useGuideHistory(storageKey);
   const [confirmClear, setConfirmClear] = useState(false);

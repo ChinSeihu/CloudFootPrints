@@ -1,18 +1,19 @@
 "use client";
 
 import { useId, useSyncExternalStore } from "react";
+import { useLanguage, type TranslationKey } from "@/components/I18n/LanguageProvider";
 
 export type MascotVariant = "standard" | "feminine";
 export type MascotCharacter = "kumoashi" | "michiru" | "footprint";
 export type MascotNavRole = "map" | "calendar" | "discover" | "profile";
 export type MascotIdentity = "kumoashi" | "kumoashi-sakura" | "michiru" | "michiru-lilac" | "none";
 
-export const MASCOT_OPTIONS: ReadonlyArray<{ id: MascotIdentity; name: string; variant: MascotVariant }> = [
-  { id: "none", name: "简洁模式 · 不使用 IP", variant: "standard" },
-  { id: "kumoashi", name: "云足·晴空", variant: "standard" },
-  { id: "kumoashi-sakura", name: "云足·樱梦", variant: "feminine" },
-  { id: "michiru", name: "路灵·远行", variant: "standard" },
-  { id: "michiru-lilac", name: "路灵·花语", variant: "feminine" },
+export const MASCOT_OPTIONS: ReadonlyArray<{ id: MascotIdentity; labelKey: TranslationKey; variant: MascotVariant }> = [
+  { id: "none", labelKey: "mascot.none", variant: "standard" },
+  { id: "kumoashi", labelKey: "mascot.kumoashi", variant: "standard" },
+  { id: "kumoashi-sakura", labelKey: "mascot.kumoashiSakura", variant: "feminine" },
+  { id: "michiru", labelKey: "mascot.michiru", variant: "standard" },
+  { id: "michiru-lilac", labelKey: "mascot.michiruLilac", variant: "feminine" },
 ];
 
 const STORAGE_KEY = "tem_mascot_identity";
@@ -111,14 +112,15 @@ type MascotPublishIconProps = {
  * Purpose: Offers four named companions or a persisted no-IP mode, applied immediately.
  */
 export function MascotPicker() {
+  const { t } = useLanguage();
   const identity = useMascotIdentity();
   return (
-    <div className="grid grid-cols-2 gap-2" role="group" aria-label="选择 IP 伙伴">
+    <div className="grid grid-cols-2 gap-2" role="group" aria-label={t("mascot.choose")}>
       {MASCOT_OPTIONS.map((option) => (
         <button key={option.id} type="button" onClick={() => setMascotIdentity(option.id)} aria-pressed={identity === option.id}
           className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${option.id === "none" ? "col-span-2" : ""} ${identity === option.id ? "border-violet-400 bg-violet-50 text-violet-800" : "border-neutral-200 bg-white text-neutral-600"}`}>
           <MascotNavIcon role="profile" identity={option.id} className="h-11 w-9" />
-          {option.name}
+          {t(option.labelKey)}
         </button>
       ))}
     </div>

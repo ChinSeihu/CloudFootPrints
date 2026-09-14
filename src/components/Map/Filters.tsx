@@ -70,7 +70,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
           }`}
         >
           <IconFilter className="w-4 h-4" />
-          筛选
+          {t("filter.title")}
           {activeCount > 0 && (
             <span className="ml-0.5 min-w-4 h-4 px-1 rounded-full bg-white/90 text-blue-600 text-[10px] leading-4 text-center">
               {activeCount}

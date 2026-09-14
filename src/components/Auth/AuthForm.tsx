@@ -138,12 +138,12 @@ export function AuthForm() {
         <div className="space-y-2">
           {demoLoading && (
             <div className="p-3 rounded-xl border border-neutral-200 text-xs text-neutral-400">
-              加载测试账号中…
+              {t("auth.loadingDemo")}
             </div>
           )}
           {!demoLoading && demoUsers.length === 0 && (
             <div className="p-3 rounded-xl border border-neutral-200 text-xs text-neutral-400">
-              暂未读取到测试账号
+              {t("auth.noDemo")}
             </div>
           )}
           {demoUsers.map((d) => (

@@ -150,7 +150,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
   const actionFooter = (
     <div className="flex items-center gap-2.5">
       <button type="button" onClick={onCancel} disabled={submitting} className="h-10 px-3 text-xs font-semibold text-neutral-500 transition hover:text-neutral-800">
-        取消
+        {t("common.cancel")}
       </button>
       <button
         type="button"
@@ -234,7 +234,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
 
       {/* 图片（可选，可多张，客户端压缩后上传图床） */}
       <div className="mb-3.5">
-        <label className={labelCls}>图片（可选，最多 {MAX_IMAGES} 张）</label>
+        <label className={labelCls}>{t("images.optionalMax", { count: MAX_IMAGES })}</label>
         {canUpload ? (
           <SortableImageList
             layout="grid"
@@ -250,7 +250,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
               <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border border-dashed border-neutral-300 bg-white text-neutral-400 transition hover:border-blue-400 hover:text-blue-500">
                 <span className="flex flex-col items-center gap-1 text-[11px]">
                   <IconPlus className="h-6 w-6" />
-                  添加图片
+                  {t("images.add")}
                 </span>
                 <input type="file" accept="image/*" multiple onChange={pickFiles} className="hidden" />
               </label>
@@ -258,7 +258,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
           />
         ) : (
           <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-            未配置图床（NEXT_PUBLIC_CLOUDINARY_*），暂不能上传图片。
+            {t("checkin.noUpload")}
           </p>
         )}
       </div>
