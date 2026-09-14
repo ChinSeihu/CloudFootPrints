@@ -35,7 +35,8 @@ import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
-import { FOOD_KIND_TRANSLATION_KEYS, LANDMARK_KIND_TRANSLATION_KEYS } from "@/i18n/mapLabels";
+import { FOOD_KIND_TRANSLATION_KEYS, LANDMARK_DESCRIPTION_TRANSLATION_KEYS, LANDMARK_KIND_TRANSLATION_KEYS } from "@/i18n/mapLabels";
+import type { TranslationKey } from "@/i18n/config";
 import { MascotPublishIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
@@ -177,7 +178,7 @@ async function loadLandmarkIcons(map: maplibregl.Map): Promise<void> {
 // 美食全量层（图层 id 仍叫 osmfood）：现承载 Hot Pepper 全量餐厅，按视野懒加载。
 const SHOW_OSM_FOOD = true;
 
-function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
+function landmarksToFC(translate: (key: TranslationKey) => string): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
     features: LANDMARKS.map((l) => {
@@ -185,7 +186,14 @@ function landmarksToFC(): GeoJSON.FeatureCollection<GeoJSON.Point> {
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [l.lng, l.lat] },
-        properties: { id: l.id, name: l.name, kind: l.kind, blurb: l.blurb, cover: imgs[0] ?? "", images: imgs.join("|") },
+        properties: {
+          id: l.id,
+          name: l.name,
+          kind: l.kind,
+          blurb: translate(LANDMARK_DESCRIPTION_TRANSLATION_KEYS[l.id]),
+          cover: imgs[0] ?? "",
+          images: imgs.join("|"),
+        },
       };
     }),
   };
@@ -1769,7 +1777,7 @@ export function MapExplorer() {
           <button class="tem-st-ask" data-action="ask">✨ ${t("guide.ask")}</button>
         </div>
       </div>`;
-      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "250px", className: "tem-station-popup" })
+      const popup = new mlg.Popup({ offset: 14, closeButton: true, maxWidth: "280px", className: "tem-station-popup" })
         .setLngLat(coords)
         .setHTML(html);
       activateMapPopup(popup, map);
@@ -1804,7 +1812,7 @@ export function MapExplorer() {
   const setupLandmarks = useCallback(async (map: maplibregl.Map) => {
     if (map.getSource("landmarks")) return;
     await loadLandmarkIcons(map);
-    map.addSource("landmarks", { type: "geojson", data: landmarksToFC() });
+    map.addSource("landmarks", { type: "geojson", data: landmarksToFC(t) });
     map.addLayer({
       id: "landmark-icon",
       type: "symbol",
@@ -1921,7 +1929,7 @@ export function MapExplorer() {
         });
       }
     });
-  }, [activateMapPopup]);
+  }, [activateMapPopup, t]);
 
   // ── 精选美食 POI 图层：点击弹「美食卡」（评分 + 招牌菜单）──
   const setupFood = useCallback(async (map: maplibregl.Map) => {
