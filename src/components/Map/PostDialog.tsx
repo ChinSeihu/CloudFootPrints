@@ -12,6 +12,7 @@ import { moveImageItem, SortableImageList } from "@/components/common/SortableIm
 import { BottomSheet } from "./BottomSheet";
 import { compactFieldCls as fieldCls, compactLabelCls as labelCls } from "./formStyles";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 export type PostDraft = {
   kind: "LIFE" | "ACTIVITY";
@@ -204,7 +205,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg" style={{ color: active ? "#fff" : meta.color, backgroundColor: active ? meta.color : `${meta.color}14` }}>
                   <CategoryIcon category={c} className="h-3.5 w-3.5" />
                 </span>
-                {meta.label}
+                {t(CATEGORY_TRANSLATION_KEYS[c])}
               </button>
             );
           })}

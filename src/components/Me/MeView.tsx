@@ -479,7 +479,7 @@ function MeContent() {
                   {c.event && (
                     <div className="flex items-center gap-1 text-xs text-neutral-500">
                       <CategoryIcon category={c.event.category} className="w-3.5 h-3.5" />
-                      {CATEGORY_META[c.event.category].label} · {c.event.title}
+                      {t(CATEGORY_TRANSLATION_KEYS[c.event.category])} · {c.event.title}
                     </div>
                   )}
                   {(() => {

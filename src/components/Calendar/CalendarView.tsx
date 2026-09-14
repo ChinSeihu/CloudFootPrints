@@ -8,6 +8,7 @@ import { EventDetail } from "@/components/Recommend/EventDetail";
 import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 function tokyoDateKey(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -208,7 +209,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                     return (
                       <button key={c} type="button" onClick={() => setCat(active ? "ALL" : c)} className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-semibold ${active ? "text-white" : "bg-neutral-100 text-neutral-500"}`} style={active ? { backgroundColor: meta.color } : undefined}>
                         <CategoryIcon category={c} className="h-3.5 w-3.5" />
-                        {meta.label}
+                        {t(CATEGORY_TRANSLATION_KEYS[c])}
                       </button>
                     );
                   })}
@@ -330,7 +331,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
                     )}
                     <div className="min-w-0 flex-1 py-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{meta.label}</span>
+                        <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: meta.color, backgroundColor: `${meta.color}14` }}>{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</span>
                         {statusLabel && <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${endingSoon ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{statusLabel}</span>}
                         {dayTab === "starting" && <span className="ml-auto text-[11px] font-semibold text-neutral-400">{fmtTime(ev.startTime, locale, t("calendar.timeTbd"))}</span>}
                       </div>

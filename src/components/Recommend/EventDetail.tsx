@@ -14,6 +14,7 @@ import { DirectMessages } from "@/components/Me/DirectMessages";
 import { copyToClipboard } from "@/lib/clipboard";
 import { buildJourneyMapUrl } from "@/lib/eventJourney";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 import type { EventDTO, CommentDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
@@ -646,7 +647,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   function askGuide() {
     openGuide({
       title: event.title,
-      category: meta.label,
+      category: t(CATEGORY_TRANSLATION_KEYS[event.category]),
       venueName: event.venueName,
       startTime: event.startTime,
       description: event.description,
@@ -1040,7 +1041,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
               <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-600">
                   <CategoryIcon category={event.category} className="h-4 w-4" />
-                  {meta.label}
+                  {t(CATEGORY_TRANSLATION_KEYS[event.category])}
                 </span>
                 {cardTags.map((tag) => (
                   <span key={tag} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm ring-1 ring-neutral-100">

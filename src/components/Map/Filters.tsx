@@ -6,6 +6,7 @@ import { CategoryIcon } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, isAllDates } from "@/lib/dateFilter";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 export type FilterState = {
   categories: Set<EventCategory>; // 空集 = 全部
@@ -138,7 +139,7 @@ export function Filters({ value, onChange, showTrail, onShowTrailChange }: Props
                   style={active ? { backgroundColor: meta.color } : undefined}
                 >
                   <CategoryIcon category={c} className="w-3.5 h-3.5" />
-                  {meta.label}
+                  {t(CATEGORY_TRANSLATION_KEYS[c])}
                 </button>
               );
             })}

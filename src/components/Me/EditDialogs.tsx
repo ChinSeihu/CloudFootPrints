@@ -13,6 +13,7 @@ import { fieldCls, labelCls } from "@/components/Map/formStyles";
 import { MoodSelector } from "@/components/common/MoodSelector";
 import type { CheckInDTO, EventDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
 const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
@@ -204,7 +205,7 @@ export function EditPostDialog({
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition ${active ? "text-white border-transparent shadow-sm" : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-300"}`}
                 style={active ? { backgroundColor: meta.color } : undefined}>
                 <CategoryIcon category={c} className="w-4 h-4" />
-                {meta.label}
+                {t(CATEGORY_TRANSLATION_KEYS[c])}
               </button>
             );
           })}

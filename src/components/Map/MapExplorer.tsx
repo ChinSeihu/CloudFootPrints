@@ -35,6 +35,7 @@ import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
+import { FOOD_KIND_TRANSLATION_KEYS, LANDMARK_KIND_TRANSLATION_KEYS } from "@/i18n/mapLabels";
 import { MascotPublishIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
@@ -1841,7 +1842,7 @@ export function MapExplorer() {
       const mlg = maplibreRef.current;
       if (!mlg) return;
       const kind = (p.kind ?? "landmark") as LandmarkKind;
-      const kindLabel = LANDMARK_KIND_META[kind].label;
+      const kindLabel = t(LANDMARK_KIND_TRANSLATION_KEYS[kind]);
       const color = LANDMARK_KIND_META[kind].color;
       const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
       const images = (p.images ?? "").split("|").filter(Boolean);
@@ -1987,7 +1988,7 @@ export function MapExplorer() {
           <span class="tem-food-badge">${foodIconSvg(kind)}</span>
           <div class="tem-food-titles">
             <div class="tem-food-name">${escapeHtml(p.name)}${rating > 0 ? ` <span style="display:inline-block;vertical-align:middle;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 5px;font-size:10px;font-weight:600;margin-left:4px">✨${t("map.aiPick")}</span>` : ""}</div>
-            <div class="tem-food-meta">${escapeHtml(FOOD_KIND_META[kind].label)} · ${escapeHtml(p.genre ?? "")}${metaTail ? " · " + metaTail : ""}</div>
+            <div class="tem-food-meta">${escapeHtml(t(FOOD_KIND_TRANSLATION_KEYS[kind]))} · ${escapeHtml(p.genre ?? "")}${metaTail ? " · " + metaTail : ""}</div>
           </div>
         </div>
         ${p.blurb ? `<p class="tem-food-desc">${escapeHtml(p.blurb)}</p>` : ""}
@@ -2069,7 +2070,7 @@ export function MapExplorer() {
         p.open ? `<div class="tem-food-info"><span>🕒</span>${escapeHtml(p.open)}</div>` : "",
       ].filter(Boolean).join("");
       const chips = amenities.map((a) => `<span class="tem-food-amenity">${escapeHtml(a)}</span>`).join("");
-      const subtitle = [FOOD_KIND_META[kind].label, p.genre].filter(Boolean).join(" · ");
+      const subtitle = [t(FOOD_KIND_TRANSLATION_KEYS[kind]), p.genre].filter(Boolean).join(" · ");
       const html = `<div class="tem-food">
         ${p.photo ? `<div class="tem-food-photo"><img src="${escapeHtml(p.photo)}" alt="${escapeHtml(p.name)}" loading="lazy"/></div>` : ""}
         <div class="tem-food-head">
@@ -2101,7 +2102,7 @@ export function MapExplorer() {
         openGuideRef.current({
           title: p.name!,
           kind: "food",
-          category: `${t("map.food")} · ${p.genre || FOOD_KIND_META[kind].label}`,
+          category: `${t("map.food")} · ${p.genre || t(FOOD_KIND_TRANSLATION_KEYS[kind])}`,
           venueName: p.name!,
           description: `东京餐厅：${p.name}，类型 ${subtitle}${p.budget ? `，人均 ${p.budget}` : ""}${p.station ? `，最寄 ${p.station}站` : ""}${p.open ? `，营业 ${p.open}` : ""}。`,
         });
@@ -2497,7 +2498,7 @@ export function MapExplorer() {
             </button>
             {foodMenuOpen && (
               <div className="absolute bottom-full left-0 z-50 mb-3 w-32 rounded-2xl border border-black/10 bg-white p-1.5 shadow-[0_12px_30px_rgba(15,23,42,0.16)]">
-                {([["ALL", t("common.all")], ...FOOD_KINDS.map((k) => [k, FOOD_KIND_META[k].label] as const), ["OFF", t("map.hide")]] as const).map(([val, label]) => {
+                {([["ALL", t("common.all")], ...FOOD_KINDS.map((k) => [k, t(FOOD_KIND_TRANSLATION_KEYS[k])] as const), ["OFF", t("map.hide")]] as const).map(([val, label]) => {
                   const active = foodFilter === val;
                   return (
                     <button

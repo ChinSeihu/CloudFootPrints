@@ -5,6 +5,22 @@ import { WeatherIcon } from "@/components/icons";
 import { WeatherAnimation } from "./WeatherAnimation";
 import type { WeatherForecast } from "@/services/weather";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/config";
+
+function weatherLabelKey(code: number): TranslationKey {
+  if (code === 0) return "weather.clear";
+  if (code === 1) return "weather.mainlyClear";
+  if (code === 2) return "weather.partlyCloudy";
+  if (code === 3) return "weather.overcast";
+  if (code === 45 || code === 48) return "weather.fog";
+  if (code >= 51 && code <= 57) return "weather.drizzle";
+  if (code >= 61 && code <= 67) return "weather.rain";
+  if (code >= 71 && code <= 77) return "weather.snow";
+  if (code >= 80 && code <= 82) return "weather.showers";
+  if (code === 85 || code === 86) return "weather.snowShowers";
+  if (code >= 95) return "weather.thunderstorm";
+  return "weather.partlyCloudy";
+}
 
 // 把东京日期串（YYYY-MM-DD）转成"今天/明天/周几"标签。
 function dayLabel(dateStr: string, index: number, todayKey: string, language: "zh" | "ja" | "en", today: string, tomorrow: string): string {
@@ -96,7 +112,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
           {/* 提示：地图动画跟"当前实况"，下方卡片是未来 7 天，避免歧义 */}
           <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] text-neutral-700 bg-white/90 rounded-full px-2.5 py-1 shadow-sm pointer-events-auto">
             <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />
-            {t("weather.currentPrefix")} {data.current.label} {data.current.temp}° · {t("weather.forecastHint")}
+            {t("weather.currentPrefix")} {t(weatherLabelKey(data.current.code))} {data.current.temp}° · {t("weather.forecastHint")}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {data.daily.map((d, i) => (
@@ -109,7 +125,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
                 </span>
                 <span className="text-[10px] text-neutral-400">{dayShort(d.date)}</span>
                 <WeatherIcon kind={d.kind} className="w-6 h-6 text-blue-600 my-0.5" />
-                <span className="text-[11px] text-neutral-500 leading-tight text-center">{d.label}</span>
+                <span className="text-[11px] text-neutral-500 leading-tight text-center">{t(weatherLabelKey(d.code))}</span>
                 <span className="text-xs">
                   <span className="font-semibold text-neutral-800">{d.tempMax}°</span>
                   <span className="text-neutral-400"> / {d.tempMin}°</span>
