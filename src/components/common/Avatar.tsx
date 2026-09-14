@@ -6,7 +6,7 @@ export function Avatar({ user, size = 32 }: { user: AvatarUser; size?: number })
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={user.avatarUrl} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
   }
-  const name = user?.username ?? "用户";
+  const name = user?.username ?? "?";
   return (
     <div
       className="rounded-full bg-blue-100 text-blue-600 font-semibold grid place-items-center shrink-0"

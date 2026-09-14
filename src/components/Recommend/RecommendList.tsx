@@ -11,7 +11,7 @@ import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
 import { isUserPost } from "@/components/common/EventSource";
-import { moodTagOf } from "@/lib/moods";
+import { moodLabelKey, moodTagOf } from "@/lib/moods";
 import { Avatar } from "@/components/common/Avatar";
 import { CheckinCommentThreads } from "@/components/common/CheckinCommentThreads";
 import { MascotFeedback } from "@/components/Mascot/MascotFeedback";
@@ -895,7 +895,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? t("detail.user")}</p>
-                  {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{moods[0].label}</span>}
+                  {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{t(moodLabelKey(moods[0].value))}</span>}
                 </div>
                 <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt, locale)} · {checkin.event?.title ?? t("picks.tokyo")}</p>
               </div>
@@ -957,7 +957,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         {expanded && imageGrid(urls, text, false)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{mood.label}</span>)}
+            {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{t(moodLabelKey(mood.value))}</span>)}
           </div>
         )}
         <div className="mt-2 flex items-center gap-2 border-t border-neutral-100 pt-2 text-[11px] font-semibold text-neutral-500">
@@ -1273,7 +1273,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <div className="grid grid-cols-4 gap-3">
                 {moodStats.map(({ mood, count }) => (
                   <div key={mood.value} className={`min-h-28 rounded-lg border p-3 ${mood.tone}`}>
-                    <p className="text-sm font-black">{mood.label}</p>
+                    <p className="text-sm font-black">{t(moodLabelKey(mood.value))}</p>
                     <p className="mt-1 text-[11px] opacity-75">{t("explore.mostToday")}</p>
                     <p className="mt-2 text-lg font-black">{count}</p>
                     <mood.Icon className="ml-auto mt-1 h-8 w-8 opacity-50" />

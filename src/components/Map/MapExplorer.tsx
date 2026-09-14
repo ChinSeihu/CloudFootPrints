@@ -30,7 +30,7 @@ import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categ
 import { CATEGORY_GLYPH } from "@/lib/categoryIcons";
 import { CategoryIcon } from "@/components/icons";
 import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter";
-import { MOOD_TAGS } from "@/lib/moods";
+import { MOOD_TAGS, moodLabelKey } from "@/lib/moods";
 import type { BBox } from "@/services/events";
 import type { EventDTO, CheckInDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
@@ -1633,7 +1633,7 @@ export function MapExplorer() {
       const rating = Number(p.rating ?? 0);
       if (moodValues.length === 0 && rating > 0) moodValues = [rating];
       const moods = moodValues.map((value) => MOOD_TAGS.find((item) => item.value === value)).filter((item): item is (typeof MOOD_TAGS)[number] => !!item);
-      const stars = moods.length ? `<div class="tem-ci-rating">${t("checkin.mood")} · ${moods.map((mood) => escapeHtml(mood.label)).join(" / ")}</div>` : "";
+      const stars = moods.length ? `<div class="tem-ci-rating">${t("checkin.mood")} · ${moods.map((mood) => escapeHtml(t(moodLabelKey(mood.value)))).join(" / ")}</div>` : "";
       const ownerTitle = t(Number(p.isMine ?? 0) === 1 ? "map.myCheckin" : "checkin.public");
       const visibility = t(Number(p.isPublic ?? 0) === 1 ? "map.visible" : "map.hidden");
       const authorName = String(p.authorName ?? "");
@@ -2308,7 +2308,7 @@ export function MapExplorer() {
    */
   function openNearbyRouteGuide(candidates: EventDTO[]) {
     if (candidates.length < 2) {
-      openGuideRef.current({ title: "附近游玩建议", kind: "route", description: "附近暂时没有足够的推荐活动。请先询问用户想逛的地区、出发位置和偏好，再提供建议，不要声称已有附近活动。" });
+      openGuideRef.current({ title: t("guide.nearbyAdvice"), kind: "route", description: "附近暂时没有足够的推荐活动。请先询问用户想逛的地区、出发位置和偏好，再提供建议，不要声称已有附近活动。" });
       return;
     }
     const list = candidates.slice(0, 8).map((event, index) => {
@@ -2319,14 +2319,14 @@ export function MapExplorer() {
     const prompt = `请根据下面这些地图附近活动，帮我规划一条适合步行或短距离移动的附近游玩路线。要求：选 3-5 个点，说明顺序、每站停留建议、适合的节奏和为什么这样安排；如果有时间冲突请提醒；语气像东京本地导游，不要提系统或数据来源。\n\n附近活动：\n${list}`;
     openGuideRef.current({
       kind: "route",
-      title: "附近活动路线规划",
+      title: t("guide.nearbyRouteTitle"),
       category: "AI 规划路线",
       description: `地图附近候选活动：\n${list}`,
       routePrompt: prompt,
       routeActions: [
-        { label: "规划附近游玩路线", description: "按顺路和节奏生成路线卡片", prompt, mode: "route" },
-        { label: "推荐值得优先去的活动", description: "先帮我挑 3-5 个重点", prompt: `请从这些附近活动里选出最值得优先去的 3-5 个，并说明适合谁、为什么值得去。\n\n附近活动：\n${list}`, mode: "chat" },
-        { label: "找附近休息和顺路点", description: "补充咖啡、休息、拍照建议", prompt: `请基于这些附近活动，帮我找适合穿插休息、咖啡、拍照或短暂停留的顺路建议。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.planRoute"), description: t("guide.action.planRouteHint"), prompt, mode: "route" },
+        { label: t("guide.action.prioritize"), description: t("guide.action.prioritizeHint"), prompt: `请从这些附近活动里选出最值得优先去的 3-5 个，并说明适合谁、为什么值得去。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.restStops"), description: t("guide.action.restStopsHint"), prompt: `请基于这些附近活动，帮我找适合穿插休息、咖啡、拍照或短暂停留的顺路建议。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
       routeCandidates: candidates.slice(0, 10).map((event) => ({
         id: event.id,
@@ -2359,24 +2359,24 @@ export function MapExplorer() {
     const prompt = `${intent.prompt}\n\n请基于下面这些地图附近活动给出推荐。要求：先说明推荐思路，再选出适合的 3-5 个点；如果适合形成路线，就按顺序给出路线和停留建议；语气像东京本地导游，不要提系统或数据来源。\n\n附近活动：\n${list}`;
     const actionMap: Record<RecommendIntent["id"], Array<{ label: string; description: string; prompt: string; mode?: "route" | "chat" }>> = {
       relax: [
-        { label: "规划放松路线", description: "慢一点逛，留出休息时间", prompt, mode: "route" },
-        { label: "推荐治愈活动", description: "挑轻松、不赶场的点", prompt: `请从这些附近活动里挑适合放松、治愈、慢慢逛的活动，并说明推荐理由。\n\n附近活动：\n${list}`, mode: "chat" },
-        { label: "找休息和咖啡点", description: "给路线中间安排喘口气", prompt: `请围绕这些附近活动，建议适合穿插休息、咖啡、安静停留的安排。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.relaxRoute"), description: t("guide.action.relaxRouteHint"), prompt, mode: "route" },
+        { label: t("guide.action.healing"), description: t("guide.action.healingHint"), prompt: `请从这些附近活动里挑适合放松、治愈、慢慢逛的活动，并说明推荐理由。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.coffee"), description: t("guide.action.coffeeHint"), prompt: `请围绕这些附近活动，建议适合穿插休息、咖啡、安静停留的安排。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
       solo: [
-        { label: "规划独处路线", description: "一个人也舒服的顺路安排", prompt, mode: "route" },
-        { label: "推荐一个人去的活动", description: "安静、自在、不尴尬", prompt: `请从这些附近活动里挑适合一个人去的活动，说明为什么一个人也舒服。\n\n附近活动：\n${list}`, mode: "chat" },
-        { label: "避开拥挤时段", description: "给我更自在的时间建议", prompt: `请根据这些附近活动，帮我安排更适合一个人去、尽量避开拥挤的时间和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.soloRoute"), description: t("guide.action.soloRouteHint"), prompt, mode: "route" },
+        { label: t("guide.action.soloEvents"), description: t("guide.action.soloEventsHint"), prompt: `请从这些附近活动里挑适合一个人去的活动，说明为什么一个人也舒服。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.avoidCrowds"), description: t("guide.action.avoidCrowdsHint"), prompt: `请根据这些附近活动，帮我安排更适合一个人去、尽量避开拥挤的时间和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
       photo: [
-        { label: "规划拍照路线", description: "按出片顺序生成路线卡片", prompt, mode: "route" },
-        { label: "推荐出片活动", description: "优先视觉强和有图的地点", prompt: `请从这些附近活动里挑最适合拍照出片的活动，说明画面感和拍摄建议。\n\n附近活动：\n${list}`, mode: "chat" },
-        { label: "找附近咖啡休息点", description: "拍照中途休息和整理照片", prompt: `请围绕这些附近活动，建议适合拍照中途休息、喝咖啡、整理照片的顺路安排。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.photoRoute"), description: t("guide.action.photoRouteHint"), prompt, mode: "route" },
+        { label: t("guide.action.photoEvents"), description: t("guide.action.photoEventsHint"), prompt: `请从这些附近活动里挑最适合拍照出片的活动，说明画面感和拍摄建议。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.photoBreak"), description: t("guide.action.photoBreakHint"), prompt: `请围绕这些附近活动，建议适合拍照中途休息、喝咖啡、整理照片的顺路安排。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
       night: [
-        { label: "规划夜间路线", description: "傍晚后更顺的玩法", prompt, mode: "route" },
-        { label: "推荐夜间活动", description: "Live、祭典和夜间氛围优先", prompt: `请从这些附近活动里挑适合傍晚或夜间去的活动，说明氛围和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
-        { label: "安排晚餐后去哪里", description: "把餐后散步和活动串起来", prompt: `请基于这些附近活动，帮我安排适合晚餐后继续逛的路线和节奏。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.nightRoute"), description: t("guide.action.nightRouteHint"), prompt, mode: "route" },
+        { label: t("guide.action.nightEvents"), description: t("guide.action.nightEventsHint"), prompt: `请从这些附近活动里挑适合傍晚或夜间去的活动，说明氛围和顺序。\n\n附近活动：\n${list}`, mode: "chat" },
+        { label: t("guide.action.afterDinner"), description: t("guide.action.afterDinnerHint"), prompt: `请基于这些附近活动，帮我安排适合晚餐后继续逛的路线和节奏。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
     };
     openGuideRef.current({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MOOD_TAGS } from "@/lib/moods";
+import { MOOD_TAGS, moodLabelKey } from "@/lib/moods";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 export function MoodSelector({
@@ -34,8 +34,9 @@ export function MoodSelector({
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-3 gap-2">
-        {visibleMoods.map(({ value: moodValue, label, tone, Icon }) => {
+        {visibleMoods.map(({ value: moodValue, tone, Icon }) => {
           const active = selectedValues.includes(moodValue);
+          const label = t(moodLabelKey(moodValue));
           return (
             <button
               key={moodValue}

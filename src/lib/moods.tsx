@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
+import type { TranslationKey } from "@/i18n/config";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -98,4 +99,8 @@ export const MOOD_TAGS: MoodTag[] = [
 export function moodTagOf(value: number | null | undefined): MoodTag | null {
   if (value == null) return null;
   return MOOD_TAGS.find((mood) => mood.value === value) ?? null;
+}
+
+export function moodLabelKey(value: number): TranslationKey {
+  return `mood.tag.${value}` as TranslationKey;
 }

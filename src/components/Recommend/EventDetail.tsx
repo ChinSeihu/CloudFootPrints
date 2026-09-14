@@ -39,13 +39,12 @@ function fmtCommentTime(value: string): string {
   return new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function durationLabel(start: string | null, end: string | null): string {
-  if (!start || !end) return "";
+function durationDays(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
   const a = new Date(start);
   const b = new Date(end);
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return "";
-  const days = Math.max(1, Math.ceil((b.getTime() - a.getTime()) / 86_400_000) + 1);
-  return `持续${days}天`;
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
+  return Math.max(1, Math.ceil((b.getTime() - a.getTime()) / 86_400_000) + 1);
 }
 
 function iconButtonClass(active = false, withShadow = true) {
@@ -1023,7 +1022,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   <div>{fmtCompact(event.startTime, locale, t("detail.timeTbd"))}</div>
                   {event.endTime && <><div className="text-xs text-neutral-400">—</div><div>{fmtCompact(event.endTime, locale, t("detail.timeTbd"))}</div></>}
                 </div>
-                {durationLabel(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600 sm:text-xs">{durationLabel(event.startTime, event.endTime)}</span>}
+                {durationDays(event.startTime, event.endTime) && <span className="mt-2 inline-flex rounded-lg bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-600 sm:text-xs">{t("detail.durationDays", { count: durationDays(event.startTime, event.endTime)! })}</span>}
               </div>
               <div className="pl-3.5 sm:pl-10">
                 <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-400 sm:mb-2 sm:gap-2 sm:text-xs"><IconPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{t("detail.eventPlace")}</div>

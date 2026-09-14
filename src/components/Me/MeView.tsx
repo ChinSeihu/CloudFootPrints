@@ -18,7 +18,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ProfileHeader } from "./ProfileHeader";
 import { EditPostDialog, EditCheckInDialog } from "./EditDialogs";
 import { DirectMessages } from "./DirectMessages";
-import { moodTagOf } from "@/lib/moods";
+import { moodLabelKey, moodTagOf } from "@/lib/moods";
 import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/eventJourney";
 import { DEMO_USERS } from "@/lib/demoUsers";
 import type { CheckInDTO, CommentDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
@@ -492,7 +492,7 @@ function MeContent() {
                           return (
                             <span key={mood.value} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${mood.tone}`}>
                               <Icon className="w-3.5 h-3.5" />
-                              {mood.label}
+                              {t(moodLabelKey(mood.value))}
                             </span>
                           );
                         })}
