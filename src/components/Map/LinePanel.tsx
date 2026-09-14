@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
+import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -50,6 +51,7 @@ export function LinePanel({
   onClose: () => void;
   onStation: (name: string) => void;
 }) {
+  const { t } = useLanguage();
   const [tt, setTt] = useState<Timetable | null>(null);
   const [loadingTt, setLoadingTt] = useState(true);
   const [tick, setTick] = useState(0);
@@ -142,7 +144,7 @@ export function LinePanel({
 
   return (
     <div className="fixed inset-0 z-[1000] flex flex-col justify-end">
-      <button type="button" className="absolute inset-0 bg-black/30" aria-label="关闭" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-black/30" aria-label={t("common.close")} onClick={onClose} />
       <div className="relative bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
         {/* 头部：站名 + 线路名 + 刷新 + 关闭 */}
         <div className="shrink-0 px-4 pt-3 pb-2 flex items-center gap-2">
@@ -150,19 +152,19 @@ export function LinePanel({
           <span className="font-semibold text-[15px] text-neutral-800 truncate">{line.name}</span>
           <span className="text-xs text-neutral-400 shrink-0 truncate">· {station.name}</span>
           <button
-            type="button" onClick={() => setTick((t) => t + 1)} disabled={loadingTt} aria-label="刷新" title="刷新"
+            type="button" onClick={() => setTick((value) => value + 1)} disabled={loadingTt} aria-label={t("line.refresh")} title={t("line.refresh")}
             className="ml-auto w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-sky-600 disabled:opacity-50 shrink-0"
           >
             <svg viewBox="0 0 24 24" className={`w-4 h-4 ${loadingTt ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
           </button>
-          <button type="button" onClick={onClose} aria-label="关闭" className="w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0">×</button>
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="w-7 h-7 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none shrink-0">×</button>
         </div>
 
         {/* 运行情况 */}
         {group?.status && (
           <div className={`shrink-0 px-4 pb-1.5 flex items-start gap-1.5 text-xs ${group.status.normal ? "text-emerald-600" : "text-amber-600"}`}>
             <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: group.status.normal ? "#10b981" : "#f59e0b" }} />
-            <span className="leading-snug">{group.status.normal ? "运行正常" : group.status.text}</span>
+            <span className="leading-snug">{group.status.normal ? t("line.normal") : group.status.text}</span>
           </div>
         )}
 
@@ -175,7 +177,7 @@ export function LinePanel({
               className="inline-flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-full px-3 py-1.5 transition"
             >
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
-              往 {selectedDir?.direction} 方面{group.directions.length > 1 ? " · 点击切换方向" : ""}
+              {t("line.toward", { destination: selectedDir?.direction ?? "" })}{group.directions.length > 1 ? t("line.switchDirection") : ""}
             </button>
           </div>
         )}
@@ -205,15 +207,15 @@ export function LinePanel({
 
         {/* 主体：选中班车的逐站时刻（= 该线站点表）；无时刻表则退回全程站点图 */}
         <div className="flex-1 overflow-y-auto px-4 py-2 border-t border-black/5" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          {loadingTt && !tt && <LoadingFeedback compact scene="map" text="看看接下来有哪些班次…" />}
+          {loadingTt && !tt && <LoadingFeedback compact scene="map" text={t("line.loadingDepartures")} />}
 
           {/* 有时刻表：班车逐站 + 实时列车位置 */}
           {group && (loadingTrain && !trainData ? (
-            <LoadingFeedback compact scene="map" text="正在查看这趟车的行程…" />
+            <LoadingFeedback compact scene="map" text={t("line.loadingJourney")} />
           ) : stops.length > 0 ? (
             <>
               {(trainData?.destination || trainData?.direction) && (
-                <div className="text-xs text-neutral-500 mb-2">本班车往 {trainData.destination || trainData.direction} · 共 {stops.length} 站{positions.length ? ` · 实时在跑 ${positions.length} 班` : ""}</div>
+                <div className="text-xs text-neutral-500 mb-2">{t("line.trainSummary", { destination: trainData.destination || trainData.direction || "", count: stops.length })}{positions.length ? t("line.liveTrains", { count: positions.length }) : ""}</div>
               )}
               <div className="relative border-l-2 ml-1.5" style={{ borderColor: color }}>
                 {stops.map((s, i) => {
@@ -227,20 +229,20 @@ export function LinePanel({
                       <button
                         type="button"
                         onClick={() => { setActiveStation(s.name); onStation(s.name); }}
-                        title="在地图上定位该站"
+                        title={t("line.locateStation")}
                         className={`relative flex items-center gap-2 w-full text-left py-2 pl-5 pr-2 rounded-r-lg transition ${isActive ? "" : isCurrent ? "bg-sky-50" : "hover:bg-neutral-50"}`}
                         style={isActive ? { background: `${color}2e` } : undefined}
                       >
                         <span className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" style={{ width: isCurrent ? 13 : 9, height: isCurrent ? 13 : 9, background: isCurrent ? color : "#fff", boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}` }} />
                         <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s.name}</span>
-                        {isCurrent && <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>当前</span>}
-                        {i === stops.length - 1 && <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 rounded shrink-0 bg-neutral-100">终点</span>}
+                        {isCurrent && <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>{t("line.current")}</span>}
+                        {i === stops.length - 1 && <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 rounded shrink-0 bg-neutral-100">{t("line.terminal")}</span>}
                         {(() => {
                           const here = posAtStation.get(s.name);
                           return here && here.length > 0 ? (
                             <span className="inline-flex items-center gap-0.5 text-[10px] text-rose-600 px-1 py-0.5 rounded bg-rose-50 shrink-0">
                               <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="currentColor"><rect x="5" y="3" width="14" height="13" rx="3" /><rect x="7" y="17" width="3" height="3" /><rect x="14" y="17" width="3" height="3" /></svg>
-                              在站{here.length > 1 ? `×${here.length}` : ""}
+                              {t("line.atStation")}{here.length > 1 ? `×${here.length}` : ""}
                             </span>
                           ) : null;
                         })()}
@@ -253,8 +255,8 @@ export function LinePanel({
                             <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-white" fill="currentColor"><rect x="5" y="3" width="14" height="13" rx="3" /><rect x="7" y="17" width="3" height="3" /><rect x="14" y="17" width="3" height="3" /></svg>
                           </span>
                           <span className="text-[11px] text-rose-600">
-                            列车{seg.length > 1 ? ` ×${seg.length}` : ""}行驶中
-                            {seg.some((p) => p.delayMin > 0) ? ` · 延误约 ${Math.max(...seg.map((p) => p.delayMin))} 分` : ""}
+                            {t("line.trainRunning")}{seg.length > 1 ? ` ×${seg.length}` : ""}
+                            {seg.some((p) => p.delayMin > 0) ? t("line.delay", { minutes: Math.max(...seg.map((p) => p.delayMin)) }) : ""}
                           </span>
                         </div>
                       )}
@@ -264,7 +266,7 @@ export function LinePanel({
               </div>
             </>
           ) : (
-            <p className="text-sm text-neutral-400 py-6 text-center">未取到该班车逐站时刻。</p>
+            <p className="text-sm text-neutral-400 py-6 text-center">{t("line.noStopTimes")}</p>
           ))}
 
           {/* 无 ODPT 时刻表：退回全程站点图 */}
@@ -273,7 +275,7 @@ export function LinePanel({
               <RouteList route={line.route} currentStation={station.name} onStation={onStation} />
             ) : (
               <p className="text-sm text-neutral-400 py-6 text-center leading-relaxed">
-                该线路暂无 ODPT 时刻表，也无站点图数据。<br />（时刻表目前仅 东京Metro·都营·临海线·海鸥线·多摩单轨 提供。）
+                {t("line.noTimetable")}<br />{t("line.timetableCoverage")}
               </p>
             )
           )}
@@ -285,6 +287,7 @@ export function LinePanel({
 
 // 线路全程站点列表（无时刻表线路的退路）：可切方向、标当前站、点击飞到该站。
 function RouteList({ route, currentStation, onStation }: { route: LineDetail; currentStation: string; onStation: (name: string) => void }) {
+  const { t } = useLanguage();
   const [rev, setRev] = useState(false);
   const [activeStation, setActiveStation] = useState<string | null>(null);
   const stations = rev ? [...route.stations].reverse() : route.stations;
@@ -297,11 +300,11 @@ function RouteList({ route, currentStation, onStation }: { route: LineDetail; cu
     <>
       <button type="button" onClick={() => setRev((v) => !v)} className="mb-2 inline-flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-full px-3 py-1.5 transition">
         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
-        往 {terminus} 方面 · 点击切换方向
+        {t("line.toward", { destination: terminus })}{t("line.switchDirection")}
       </button>
       <div className="relative border-l-2 ml-1.5" style={{ borderColor: color }}>
         {stations.map((s, i) => {
-          const edge = i === 0 ? "起点" : i === stations.length - 1 ? "终点" : "";
+          const edge = i === 0 ? t("line.origin") : i === stations.length - 1 ? t("line.terminal") : "";
           const isCurrent = s === currentStation;
           const isActive = s === activeStation;
           return (
@@ -315,7 +318,7 @@ function RouteList({ route, currentStation, onStation }: { route: LineDetail; cu
             >
               <span className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" style={{ width: isCurrent ? 14 : 10, height: isCurrent ? 14 : 10, background: isCurrent ? color : "#fff", boxShadow: `0 0 0 ${isCurrent ? 3 : 2}px ${color}` }} />
               <span className={`text-sm ${isCurrent ? "font-semibold text-neutral-900" : "text-neutral-700"}`}>{s}</span>
-              {isCurrent && <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>当前</span>}
+              {isCurrent && <span className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded shrink-0" style={{ background: color }}>{t("line.current")}</span>}
               {edge && <span className="text-[10px] text-neutral-500 px-1.5 py-0.5 rounded shrink-0 bg-neutral-100">{edge}</span>}
             </button>
           );
