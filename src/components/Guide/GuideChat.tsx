@@ -14,18 +14,14 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useGuideHistory, type GuideMessage as UIMessage } from "./useGuideHistory";
 import type { GuideRoutePlan } from "@/lib/guideRoute";
 import type { EventDTO } from "@/lib/types";
+import { useLanguage, type TranslationKey } from "@/components/I18n/LanguageProvider";
 
 // 导游回答里提到的活动（可点击进入详情）。
 type GuideEventLink = { id: string; title: string };
 // 聊天消息 + AI 推测的后续问题建议 + 提到的活动（仅 assistant 消息带）。
 
 
-const GENERAL_QUICK = [
-  "今天东京有什么值得去的活动？",
-  "推荐适合周末的展览或市集",
-  "帮我规划一条东京一日游路线",
-  "讲讲东京祭典的历史与文化渊源",
-];
+type Translate = (key: TranslationKey, values?: Record<string, string | number>) => string;
 
 /**
  * Signature: `function visibleMessageContent(message: UIMessage): string`
@@ -37,40 +33,19 @@ function visibleMessageContent(message: UIMessage): string {
   return candidateListAt >= 0 ? message.content.slice(0, candidateListAt).trim() : message.content;
 }
 
-function topicQuick(t: GuideTopic): string[] {
-  const n = t.title;
-  switch (t.kind) {
+function topicQuick(topic: GuideTopic, t: Translate): string[] {
+  const values = { name: topic.title };
+  switch (topic.kind) {
     case "food":
-      return [
-        `「${n}」的口碑和评价怎么样？`,
-        `「${n}」适合什么场合？（约会 / 聚餐 / 一人 / 商务）`,
-        `「${n}」必点 / 招牌菜是什么？`,
-        `「${n}」人均预算多少？需要预约吗？怎么去？`,
-      ];
+      return [t("guide.quick.foodReviews", values), t("guide.quick.foodOccasion", values), t("guide.quick.foodSignature", values), t("guide.quick.foodBudget", values)];
     case "landmark":
-      return [
-        `讲讲「${n}」的看点和历史`,
-        `「${n}」怎么去？最佳游览时间？`,
-        `「${n}」周边还有什么好玩的？`,
-      ];
+      return [t("guide.quick.landmarkHighlights", values), t("guide.quick.landmarkAccess", values), t("guide.quick.landmarkNearby", values)];
     case "station":
-      return [
-        `从「${n}」怎么换乘去主要景点？`,
-        `「${n}」周边有什么好吃好玩的？`,
-        `「${n}」附近近期有什么活动？`,
-      ];
+      return [t("guide.quick.stationTransfer", values), t("guide.quick.stationNearby", values), t("guide.quick.stationEvents", values)];
     case "route":
-      return [
-        "帮我规划附近 2-3 小时游玩路线",
-        "按轻松散步节奏推荐几个顺路点",
-        "如果我想拍照和休息，怎么安排更舒服？",
-      ];
+      return [t("guide.quick.routeHours"), t("guide.quick.routeRelaxed"), t("guide.quick.routePhoto")];
     default: // event
-      return [
-        `讲讲「${n}」的看点和文化背景`,
-        `「${n}」怎么去？给我路线建议`,
-        `和「${n}」类似或周边还有什么推荐？`,
-      ];
+      return [t("guide.quick.eventHighlights", values), t("guide.quick.eventAccess", values), t("guide.quick.eventSimilar", values)];
   }
 }
 
@@ -89,6 +64,7 @@ function topicInfo(t: GuideTopic): string {
 }
 
 function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: string) => void }) {
+  const { t } = useLanguage();
   return (
     <div className="mt-2 w-[min(24rem,85vw)] overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
       <div className="relative h-20 bg-[linear-gradient(135deg,#eef2ff,#f5f3ff)]">
@@ -117,7 +93,7 @@ function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: st
         </div>
         <div className="mt-3 flex gap-2 text-[11px] font-semibold text-neutral-500">
           <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-600">{plan.mood}</span>
-          <span className="rounded-full bg-neutral-100 px-2.5 py-1">约 {plan.totalMinutes} 分</span>
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1">{t("guide.routeMinutes", { count: plan.totalMinutes })}</span>
           <span className="rounded-full bg-neutral-100 px-2.5 py-1">{plan.walkKm}km</span>
         </div>
         <ol className="mt-3 space-y-3">
@@ -126,7 +102,7 @@ function RoutePlanCard({ plan, onOpen }: { plan: GuideRoutePlan; onOpen: (id: st
               <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-black text-white">{index + 1}</span>
               <button type="button" onClick={() => onOpen(stop.id)} className="min-w-0 flex-1 text-left">
                 <div className="truncate text-sm font-bold text-neutral-900">{stop.title}</div>
-                <div className="mt-0.5 text-xs text-neutral-500">{stop.venueName ?? "附近地点"} · 停留约 {stop.stayMinutes} 分</div>
+                <div className="mt-0.5 text-xs text-neutral-500">{stop.venueName ?? t("guide.nearbyPlace")} · {t("guide.stayMinutes", { count: stop.stayMinutes })}</div>
                 <div className="mt-1 text-xs leading-relaxed text-neutral-600">{stop.note}</div>
               </button>
             </li>
@@ -153,10 +129,11 @@ export function GuideChat() {
  * Purpose: Keeps one account-scoped conversation alive across panel closes and restores it after refresh.
  */
 function GuideChatSession({ storageKey }: { storageKey: string }) {
+  const { t } = useLanguage();
   const { open, openNonce, topic, closeGuide } = useGuide();
   const identity = useMascotIdentity();
   const hasMascot = identity !== "none";
-  const guideName = MASCOT_OPTIONS.find((option) => option.id === identity)?.name ?? "AI 导游";
+  const guideName = MASCOT_OPTIONS.find((option) => option.id === identity)?.name ?? t("guide.name");
   const isMichiru = identity.startsWith("michiru");
   const { messages, setMessages, ready, storageError } = useGuideHistory(storageKey);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -166,7 +143,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<"thinking" | "map">("thinking");
-  const [thinkingStatus, setThinkingStatus] = useState("正在理解你的问题…");
+  const [thinkingStatus, setThinkingStatus] = useState(t("guide.thinking"));
   const [detail, setDetail] = useState<EventDTO | null>(null); // 点击导游提到的活动 → 打开详情
   const [detailRequest, setDetailRequest] = useState<string | null>(null);
   const [detailError, setDetailError] = useState(false);
@@ -224,16 +201,16 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
    * Purpose: Streams guide text while keeping route candidates in model-only context and restoring the visible question on failure.
    */
   async function send(text: string, privateContext?: string) {
-    const t = text.trim();
-    if (!t || loading) return;
+    const question = text.trim();
+    if (!question || loading) return;
     setDismissedEntryNonce(openNonce);
     const topicContext = !privateContext && topicRef.current ? topicInfo(topicRef.current) : "";
     const context = [topicContext, privateContext ?? ""].filter(Boolean).join("\n\n");
-    const next: UIMessage[] = [...messages, { role: "user", content: t, context: context || undefined }];
+    const next: UIMessage[] = [...messages, { role: "user", content: question, context: context || undefined }];
     setMessages(next);
     setInput("");
     setLoadingAction("thinking");
-    setThinkingStatus("正在理解你的问题…");
+    setThinkingStatus(t("guide.thinking"));
     setLoading(true);
     const apiMessages = next.slice(-12).map((m) => ({ role: m.role, content: m.context ? `${m.context}\n\n${m.content}` : m.content }));
     const controller = new AbortController();
@@ -259,12 +236,12 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
       };
       try {
         for await (const frame of readSSE(res.body)) {
-          const data = JSON.parse(frame) as { type: string; status?: string; reply?: string; suggestions?: string[]; events?: { id: string; title: string }[] };
+          const data = JSON.parse(frame) as { type: string; statusKey?: TranslationKey; reply?: string; suggestions?: string[]; events?: { id: string; title: string }[] };
           if (data.type === "reply" && typeof data.reply === "string") {
             latest = data.reply;
             if (Date.now() - lastPaint >= 80) paint(latest);
-          } else if (data.type === "status" && typeof data.status === "string") {
-            setThinkingStatus(data.status);
+          } else if (data.type === "status" && data.statusKey) {
+            setThinkingStatus(t(data.statusKey));
           } else if (data.type === "done" && typeof data.reply === "string") {
             latest = data.reply;
             paint(latest, { suggestions: data.suggestions ?? [], events: data.events ?? [] });
@@ -275,8 +252,8 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
       } finally { if (!completed && latest) paint(latest); }
     } catch {
       if (controller.signal.aborted) return;
-      setMessages((m) => [...m, { role: "assistant", content: "回答中断了，已保留收到的内容。问题已放回输入框，可以重新发送。" }]);
-      setInput(current => current || t);
+      setMessages((m) => [...m, { role: "assistant", content: t("guide.interrupted") }]);
+      setInput(current => current || question);
     } finally {
       setLoading(false);
     }
@@ -291,10 +268,10 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
     if (loading) return;
     setDismissedEntryNonce(openNonce);
     if (candidates.length < 2) {
-      await send(intentPrompt ?? "附近活动较少，请先问问我的出发地和偏好，帮我安排游玩建议。");
+      await send(intentPrompt ?? t("guide.fewEventsQuestion"));
       return;
     }
-    const next: UIMessage[] = [...messages, { role: "user", content: "AI 规划附近游玩路线" }];
+    const next: UIMessage[] = [...messages, { role: "user", content: t("guide.planNearby") }];
     setMessages(next);
     setLoadingAction("map");
     setLoading(true);
@@ -314,14 +291,14 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
         ...m,
         {
           role: "assistant",
-          content: `${plan.summary}\n\n我把路线整理成下面这张卡片，你可以按编号依次逛，也可以点开某一站看详情。`,
+          content: `${plan.summary}\n\n${t("guide.routeCardHint")}`,
           routePlan: plan,
-          suggestions: ["这条路线适合拍照吗？", "如果只有 1 小时怎么压缩？", "附近适合休息吃东西的地方？"],
+          suggestions: [t("guide.routeSuggestionPhoto"), t("guide.routeSuggestionHour"), t("guide.routeSuggestionRest")],
         },
       ]);
     } catch {
       if (controller.signal.aborted) return;
-      setMessages((m) => [...m, { role: "assistant", content: "刚才路线规划失败了，可以稍后再试一次。" }]);
+      setMessages((m) => [...m, { role: "assistant", content: t("guide.routeFailed") }]);
     } finally {
       setLoading(false);
     }
@@ -336,7 +313,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
     setDetailRequest(id);
   }
 
-  const quick = topic ? topicQuick(topic) : GENERAL_QUICK;
+  const quick = topic ? topicQuick(topic, t) : [t("guide.quick.today"), t("guide.quick.weekend"), t("guide.quick.dayTrip"), t("guide.quick.festivalHistory")];
   const showEntryGuide = dismissedEntryNonce !== openNonce;
   // 最新一条 assistant 回复附带的「后续问题」建议（推测用户意图，≥3 个）
   const last = messages[messages.length - 1];
@@ -347,19 +324,19 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
       <div className="shrink-0 flex items-center justify-between px-4 h-14 border-b border-black/5">
         <div className="flex items-center gap-2 font-semibold">
           {hasMascot ? <MascotNavIcon identity={identity} role="discover" className="h-10 w-10" /> : <IconSparkles className="w-5 h-5 text-violet-600" />}
-          <span>{hasMascot ? guideName : "AI 导游"}{hasMascot && <span className="ml-2 text-xs font-normal text-neutral-400">AI 导游</span>}</span>
+          <span>{hasMascot ? guideName : t("guide.name")}{hasMascot && <span className="ml-2 text-xs font-normal text-neutral-400">{t("guide.name")}</span>}</span>
         </div>
         <button
           type="button"
           onClick={closeGuide}
-          aria-label="关闭"
+          aria-label={t("common.close")}
           className="w-8 h-8 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none"
         >
           ×
         </button>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-black/5 px-4 py-2 text-xs text-neutral-500"><span>{storageError ? "当前浏览器暂时无法保存聊天记录" : "聊天记录保存在此浏览器 · 最近 100 条"}</span><button type="button" disabled={loading || messages.length === 0} onClick={() => setConfirmClear(true)} className="shrink-0 rounded-full px-3 py-1 text-violet-600 disabled:opacity-40">清空对话</button></div>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-black/5 px-4 py-2 text-xs text-neutral-500"><span>{storageError ? t("guide.storageError") : t("guide.storageHint")}</span><button type="button" disabled={loading || messages.length === 0} onClick={() => setConfirmClear(true)} className="shrink-0 rounded-full px-3 py-1 text-violet-600 disabled:opacity-40">{t("guide.clear")}</button></div>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
         {messages.map((m, i) => (
           <div key={i} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
@@ -388,7 +365,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
                   >
                     <IconPin className="w-3.5 h-3.5 shrink-0 text-violet-500" />
                     <span className="truncate">{ev.title}</span>
-                    <span className="ml-auto shrink-0 text-violet-400 text-xs">详情 ›</span>
+                    <span className="ml-auto shrink-0 text-violet-400 text-xs">{t("guide.details")} ›</span>
                   </button>
                 ))}
               </div>
@@ -398,9 +375,9 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
             )}
           </div>
         ))}
-        {detailError && <p role="alert" className="text-sm text-rose-600">暂时无法打开活动，请稍后再点一次。</p>}
+        {detailError && <p role="alert" className="text-sm text-rose-600">{t("guide.detailFailed")}</p>}
         {loading && messages[messages.length - 1]?.role !== "assistant" && (
-          <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? "把想去的地方连起来，安排一条顺路的行程…" : thinkingStatus} />
+          <LoadingFeedback compact scene={loadingAction} text={loadingAction === "map" ? t("guide.planningRoute") : thinkingStatus} />
         )}
         {showEntryGuide && !loading && (
           <div className="text-sm text-neutral-500 leading-relaxed">
@@ -408,20 +385,20 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
               <div className="mb-4 flex items-center gap-3 rounded-2xl bg-violet-50/70 p-3">
                 <MascotAnimation animated kind="welcome" className="h-20 w-20" />
                 <div className="min-w-0">
-                  <p className="font-semibold text-neutral-800">我是{guideName}，你的东京向导</p>
-                  <p className="mt-1 text-xs leading-5 text-violet-700">{isMichiru ? "告诉我想去哪，我帮你把路线安排好。" : "今天想去哪？一起找找喜欢的地方吧。"}</p>
+                  <p className="font-semibold text-neutral-800">{t("guide.mascotIntro", { name: guideName })}</p>
+                  <p className="mt-1 text-xs leading-5 text-violet-700">{isMichiru ? t("guide.michiruWelcome") : t("guide.welcome")}</p>
                 </div>
               </div>
             )}
             {topic ? (
               <>
-                <p className="font-medium text-neutral-700 mb-1">关于「{topic.title}」</p>
-                <p>{topic.kind === "route" ? (topic.routeCandidates && topic.routeCandidates.length >= 2 ? "我已经看到你当前位置附近的活动，可以帮你按距离、节奏和兴趣串成一条游玩路线。" : "附近暂时没有足够的推荐活动。告诉我想逛的地区和偏好，我帮你想想怎么安排。") : "想了解它的看点、历史文化背景，或怎么去、周边推荐？选一个问题开始："}</p>
+                <p className="font-medium text-neutral-700 mb-1">{t("guide.about", { title: topic.title })}</p>
+                <p>{topic.kind === "route" ? (topic.routeCandidates && topic.routeCandidates.length >= 2 ? t("guide.routeReady") : t("guide.routeEmpty")) : t("guide.topicPrompt")}</p>
               </>
             ) : (
               <>
-                {!hasMascot && <p className="font-medium text-neutral-700 mb-1">你好，我是你的东京 AI 导游 🗼</p>}
-                <p>展览、市集、live、祭典——想了解活动信息、历史文化渊源，或要路线与推荐，随时问我：</p>
+                {!hasMascot && <p className="font-medium text-neutral-700 mb-1">{t("guide.hello")}</p>}
+                <p>{t("guide.generalPrompt")}</p>
               </>
             )}
           </div>
@@ -429,7 +406,7 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
         {/* 每次回答后，展示 AI 推测用户意图给出的后续问题，点击即追问 */}
         {!showEntryGuide && !loading && lastSuggestions.length > 0 && (
           <div className="flex flex-col gap-2 pt-1">
-            <p className="text-xs text-neutral-400 px-1">猜你接下来想问 · 点选继续</p>
+            <p className="text-xs text-neutral-400 px-1">{t("guide.followupHint")}</p>
             {lastSuggestions.map((s) => (
               <button
                 key={s}
@@ -461,8 +438,8 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
                 onClick={() => planNearbyRoute(topic.routePrompt ?? undefined)}
                 className="text-left rounded-2xl border border-violet-200 bg-violet-600 px-3.5 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)]"
               >
-                <span className="block">AI 规划附近游玩路线</span>
-                <span className="mt-1 block text-xs font-normal text-white/75">根据附近活动，给我一条顺路、有节奏的 City Walk</span>
+                <span className="block">{t("guide.planNearby")}</span>
+                <span className="mt-1 block text-xs font-normal text-white/75">{t("guide.planNearbyHint")}</span>
               </button>
             )}
           {quick.map((q) => (
@@ -488,32 +465,32 @@ function GuideChatSession({ storageKey }: { storageKey: string }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) send(input); }}
-          aria-label="向 AI 导游提问"
-          placeholder="问问东京的活动…"
+          aria-label={t("guide.askLabel")}
+          placeholder={t("guide.placeholder")}
           className="min-w-0 flex-1 border border-neutral-300 rounded-full px-4 py-2 text-base sm:text-sm"
         />
-        {loading && <button type="button" onClick={() => requestRef.current?.abort()} className="px-3 py-2 text-sm text-neutral-600">停止生成</button>}
+        {loading && <button type="button" onClick={() => requestRef.current?.abort()} className="px-3 py-2 text-sm text-neutral-600">{t("guide.stop")}</button>}
         <button
           type="button"
           onClick={() => send(input)}
           disabled={loading || !input.trim()}
           className="px-4 py-2 text-sm rounded-full bg-violet-600 text-white disabled:opacity-40"
         >
-          发送
+          {t("guide.send")}
         </button>
       </div>
 
       {detailRequest && (
         <div className="absolute inset-0 z-30 grid place-items-center bg-white/70 px-6 backdrop-blur-[2px]" role="status" aria-live="polite">
           <div className="w-full max-w-xs rounded-3xl border border-violet-100 bg-white p-5 text-center shadow-[0_20px_60px_rgba(76,29,149,0.18)]">
-            <LoadingFeedback compact scene="calendar" text="正在打开活动卡片…" />
-            <p className="mt-2 text-xs text-neutral-400">正在读取活动时间、地点和详情</p>
-            <button type="button" onClick={() => setDetailRequest(null)} className="mt-3 rounded-full px-4 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100">取消打开</button>
+            <LoadingFeedback compact scene="calendar" text={t("guide.openingEvent")} />
+            <p className="mt-2 text-xs text-neutral-400">{t("guide.readingEvent")}</p>
+            <button type="button" onClick={() => setDetailRequest(null)} className="mt-3 rounded-full px-4 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100">{t("guide.cancelOpen")}</button>
           </div>
         </div>
       )}
 
-      <ConfirmDialog open={confirmClear} title="清空导游对话" message="删除此浏览器中当前账号的导游聊天记录？" confirmText="清空" onCancel={() => setConfirmClear(false)} onConfirm={() => { setMessages([]); setInput(""); setDismissedEntryNonce(Math.max(0, openNonce - 1)); setConfirmClear(false); }} />
+      <ConfirmDialog open={confirmClear} title={t("guide.clearTitle")} message={t("guide.clearMessage")} confirmText={t("guide.clear")} onCancel={() => setConfirmClear(false)} onConfirm={() => { setMessages([]); setInput(""); setDismissedEntryNonce(Math.max(0, openNonce - 1)); setConfirmClear(false); }} />
       {detail && <EventDetail event={detail} onClose={() => setDetail(null)} />}
     </div>
   );

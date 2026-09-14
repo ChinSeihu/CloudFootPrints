@@ -28,18 +28,18 @@ export async function POST(req: Request): Promise<Response> {
       let statusTimer: ReturnType<typeof setInterval> | null = null;
       try {
         emit({ type: "start" });
-        emit({ type: "status", status: "正在理解你的问题…" });
+        emit({ type: "status", statusKey: "guide.thinking" });
         console.log(JSON.stringify({ level: "info", message: "guide request started", requestId }));
         const { context, refs } = await buildGuideEventsContext().catch(() => ({ context: "", refs: [] }));
         if (controller.signal.aborted) return;
         phase = "model";
-        const statuses = ["正在比较适合你的活动…", "正在核对时间和地点…", "正在整理更顺手的建议…"];
+        const statuses = ["guide.comparing", "guide.checkingDetails", "guide.organizing"];
         let statusIndex = 0;
-        emit({ type: "status", status: statuses[statusIndex] });
+        emit({ type: "status", statusKey: statuses[statusIndex] });
         statusTimer = setInterval(() => {
           if (statusIndex >= statuses.length - 1) return;
           statusIndex++;
-          emit({ type: "status", status: statuses[statusIndex] });
+          emit({ type: "status", statusKey: statuses[statusIndex] });
         }, 5000);
         const result = await streamGuideReply(messages, context, controller.signal, reply => emit({ type: "reply", reply }));
         phase = "complete";
