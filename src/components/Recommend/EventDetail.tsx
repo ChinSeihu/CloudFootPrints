@@ -821,28 +821,30 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </button>
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
               <Avatar user={event.author} size={36} />
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span title={event.author?.username ?? t("detail.user")} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
+              <div className="min-w-0 flex-1">
+                <span title={event.author?.username ?? t("detail.user")} className="block truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
                 {event.author?.id && user?.id !== event.author.id && (
-                  <button type="button" onClick={startDirectMessage} className="shrink-0 whitespace-nowrap text-[10px] font-semibold text-violet-600 sm:text-[11px]">{t("detail.message")}</button>
+                  <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                    <button type="button" onClick={startDirectMessage} className="h-6 shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-2.5 text-[10px] font-semibold leading-none text-violet-600 sm:h-7 sm:px-3 sm:text-[11px]">
+                      {t("detail.message")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleAuthorFollow}
+                      className={cx(
+                        "h-6 min-w-[3.5rem] shrink-0 whitespace-nowrap rounded-full border px-2.5 text-[10px] font-semibold leading-none transition sm:h-7 sm:min-w-[4rem] sm:px-3 sm:text-[11px]",
+                        authorFollowActive
+                          ? "border-neutral-200 bg-white text-neutral-500"
+                          : "border-violet-200 bg-white text-violet-600",
+                      )}
+                    >
+                      {authorFollowActive ? t("detail.following") : t("detail.follow")}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
             <div className="ml-1 flex shrink-0 items-center gap-1 sm:ml-auto sm:gap-2.5">
-              {event.author?.id && user?.id !== event.author.id && (
-                <button
-                  type="button"
-                  onClick={toggleAuthorFollow}
-                  className={cx(
-                    "h-7 w-[3.25rem] shrink-0 whitespace-nowrap rounded-full border px-1 py-1.5 text-[10px] font-semibold transition sm:h-9 sm:w-16 sm:px-2 sm:text-[11px]",
-                    authorFollowActive
-                      ? "border-neutral-200 bg-white text-neutral-500"
-                      : "border-violet-200 bg-white text-violet-600",
-                  )}
-                >
-                  {authorFollowActive ? t("detail.following") : t("detail.follow")}
-                </button>
-              )}
               <div
                 className={cx(
                   "flex items-center gap-1 overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-out sm:gap-2.5",
