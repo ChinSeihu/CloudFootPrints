@@ -813,7 +813,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
 
   if (isUserPost) {
     return (
-      <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-y-auto bg-white">
+      <div ref={postScrollRef} onScroll={handlePostScroll} className="fixed inset-0 z-[60] overflow-x-hidden overflow-y-auto bg-white">
         <div className="mx-auto flex min-h-full w-full max-w-[920px] flex-col px-4 pb-3 pt-4 sm:px-7 sm:pb-5 sm:pt-8">
           <div className="sticky top-0 z-40 -mx-4 flex min-w-0 items-center bg-white/95 px-4 py-2 shadow-[0_6px_18px_rgba(15,23,42,0.06)] backdrop-blur sm:-mx-7 sm:px-7 sm:py-2.5">
             <button type="button" onClick={onClose} aria-label={t("detail.back")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/95 text-neutral-900 hover:bg-neutral-50 sm:h-10 sm:w-10">
@@ -821,7 +821,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </button>
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
               <Avatar user={event.author} size={36} />
-              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span title={event.author?.username ?? t("detail.user")} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
                 {event.author?.id && user?.id !== event.author.id && (
                   <>
@@ -830,11 +830,11 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                       onClick={startDirectMessage}
                       aria-label={t("detail.message")}
                       title={t("detail.message")}
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-50 text-violet-600 transition active:scale-95 sm:h-8 sm:w-8"
+                      className="grid size-8 shrink-0 place-items-center rounded-full border border-violet-100 bg-violet-50 text-violet-600 transition active:scale-95"
                     >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
-                        <path d="M8 10h.01M12 10h.01M16 10h.01" />
+                      <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 14.5a4 4 0 0 1-4 4H8.5L4 21v-6.5a4 4 0 0 1-1-2.65V8a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4Z" />
+                        <path d="M8 11h8" />
                       </svg>
                     </button>
                     <button
