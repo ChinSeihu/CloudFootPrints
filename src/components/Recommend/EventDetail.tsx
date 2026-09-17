@@ -821,18 +821,27 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
             </button>
             <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
               <Avatar user={event.author} size={36} />
-              <div className="min-w-0 flex-1">
-                <span title={event.author?.username ?? t("detail.user")} className="block truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span title={event.author?.username ?? t("detail.user")} className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-neutral-950">{event.author?.username ?? t("detail.user")}</span>
                 {event.author?.id && user?.id !== event.author.id && (
-                  <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                    <button type="button" onClick={startDirectMessage} className="h-6 shrink-0 whitespace-nowrap rounded-full bg-violet-50 px-2.5 text-[10px] font-semibold leading-none text-violet-600 sm:h-7 sm:px-3 sm:text-[11px]">
-                      {t("detail.message")}
+                  <>
+                    <button
+                      type="button"
+                      onClick={startDirectMessage}
+                      aria-label={t("detail.message")}
+                      title={t("detail.message")}
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-50 text-violet-600 transition active:scale-95 sm:h-8 sm:w-8"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+                        <path d="M8 10h.01M12 10h.01M16 10h.01" />
+                      </svg>
                     </button>
                     <button
                       type="button"
                       onClick={toggleAuthorFollow}
                       className={cx(
-                        "h-6 min-w-[3.5rem] shrink-0 whitespace-nowrap rounded-full border px-2.5 text-[10px] font-semibold leading-none transition sm:h-7 sm:min-w-[4rem] sm:px-3 sm:text-[11px]",
+                        "h-7 shrink-0 whitespace-nowrap rounded-full border px-2.5 text-[10px] font-semibold leading-none transition sm:h-8 sm:px-3 sm:text-[11px]",
                         authorFollowActive
                           ? "border-neutral-200 bg-white text-neutral-500"
                           : "border-violet-200 bg-white text-violet-600",
@@ -840,7 +849,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                     >
                       {authorFollowActive ? t("detail.following") : t("detail.follow")}
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
