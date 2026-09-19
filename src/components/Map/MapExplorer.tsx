@@ -32,7 +32,7 @@ import { CategoryIcon } from "@/components/icons";
 import { ALL_DATES, eventInDayRange, rangeIncludesPast } from "@/lib/dateFilter";
 import { MOOD_TAGS, moodLabelKey } from "@/lib/moods";
 import type { BBox } from "@/services/events";
-import type { EventDTO, CheckInDTO } from "@/lib/types";
+import { hasEventCoordinates, type EventDTO, type EventWithCoordinates, type CheckInDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 import { FOOD_KIND_TRANSLATION_KEYS, LANDMARK_DESCRIPTION_TRANSLATION_KEYS, LANDMARK_KIND_TRANSLATION_KEYS } from "@/i18n/mapLabels";
@@ -360,7 +360,11 @@ function shortLabelExpr(prop: string, max = 12): unknown {
   return ["case", [">", ["length", s], max], ["concat", ["slice", s, 0, max - 1], "…"], s];
 }
 
-function eventsToFC(list: EventDTO[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+/**
+ * Signature: `function eventsToFC(list: EventWithCoordinates[]): GeoJSON.FeatureCollection<GeoJSON.Point>`
+ * Purpose: Converts only coordinate-bearing activities into the map source collection.
+ */
+function eventsToFC(list: EventWithCoordinates[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
     features: list.map((ev) => ({
@@ -534,7 +538,7 @@ export function MapExplorer() {
   const placingRef = useRef<maplibregl.Marker | null>(null);
   const checkinsRef = useRef<CheckInDTO[]>([]);
 
-  const [events, setEvents] = useState<EventDTO[]>([]);
+  const [events, setEvents] = useState<EventWithCoordinates[]>([]);
   const [filters, setFilters] = useBrowseState<FilterState>("map:filters", {
     categories: new Set(),
     dateRange: ALL_DATES,
@@ -874,7 +878,7 @@ export function MapExplorer() {
       const res = await fetch(`/api/events?${params}`);
       if (!res.ok) return;
       const data = (await res.json()) as { events: EventDTO[] };
-      if (id === reqIdRef.current) setEvents(data.events);
+      if (id === reqIdRef.current) setEvents(data.events.filter(hasEventCoordinates));
     })().catch(() => { /* 静默 */ });
 
     // Hot Pepper 全量餐厅：放大后按视野加载，并向外扩展预取一圈缓冲；
@@ -2316,11 +2320,12 @@ export function MapExplorer() {
    * Purpose: Always opens the guide, falling back to general advice when nearby candidates cannot form a route.
    */
   function openNearbyRouteGuide(candidates: EventDTO[]) {
-    if (candidates.length < 2) {
+    const locatedCandidates = candidates.filter(hasEventCoordinates);
+    if (locatedCandidates.length < 2) {
       openGuideRef.current({ title: t("guide.nearbyAdvice"), kind: "route", description: "附近暂时没有足够的推荐活动。请先询问用户想逛的地区、出发位置和偏好，再提供建议，不要声称已有附近活动。" });
       return;
     }
-    const list = candidates.slice(0, 8).map((event, index) => {
+    const list = locatedCandidates.slice(0, 8).map((event, index) => {
       const category = CATEGORY_META[event.category as keyof typeof CATEGORY_META]?.label ?? event.category;
       const time = event.startTime ? new Date(event.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "时间未定";
       return `${index + 1}. ${event.title}｜${category}｜${event.venueName ?? "地点待定"}｜${time}｜${event.summary ?? event.description ?? ""}`;
@@ -2337,7 +2342,7 @@ export function MapExplorer() {
         { label: t("guide.action.prioritize"), description: t("guide.action.prioritizeHint"), prompt: `请从这些附近活动里选出最值得优先去的 3-5 个，并说明适合谁、为什么值得去。\n\n附近活动：\n${list}`, mode: "chat" },
         { label: t("guide.action.restStops"), description: t("guide.action.restStopsHint"), prompt: `请基于这些附近活动，帮我找适合穿插休息、咖啡、拍照或短暂停留的顺路建议。\n\n附近活动：\n${list}`, mode: "chat" },
       ],
-      routeCandidates: candidates.slice(0, 10).map((event) => ({
+      routeCandidates: locatedCandidates.slice(0, 10).map((event) => ({
         id: event.id,
         title: event.title,
         category: event.category,
@@ -2356,11 +2361,12 @@ export function MapExplorer() {
    * Purpose: Opens intent-aware advice even when no nearby recommendations are available.
    */
   function openRecommendIntentGuide(intent: RecommendIntent, candidates: EventDTO[]) {
-    if (candidates.length === 0) {
+    const locatedCandidates = candidates.filter(hasEventCoordinates);
+    if (locatedCandidates.length === 0) {
       openGuideRef.current({ title: intent.title, kind: "route", description: `用户想要：${intent.title}，${intent.subtitle}。附近暂时没有推荐活动，请先询问地区和偏好，提供一般游玩建议，不要虚构附近活动。` });
       return;
     }
-    const list = candidates.slice(0, 8).map((event, index) => {
+    const list = locatedCandidates.slice(0, 8).map((event, index) => {
       const category = CATEGORY_META[event.category as keyof typeof CATEGORY_META]?.label ?? event.category;
       const time = event.startTime ? new Date(event.startTime).toLocaleString("zh-CN", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "时间未定";
       return `${index + 1}. ${event.title}｜${category}｜${event.venueName ?? "地点待定"}｜${time}｜${event.summary ?? event.description ?? ""}`;
@@ -2395,7 +2401,7 @@ export function MapExplorer() {
       description: `用户意图：${intent.title} - ${intent.subtitle}\n地图附近候选活动：\n${list}`,
       routePrompt: prompt,
       routeActions: actionMap[intent.id],
-      routeCandidates: candidates.slice(0, 10).map((event) => ({
+      routeCandidates: locatedCandidates.slice(0, 10).map((event) => ({
         id: event.id,
         title: event.title,
         category: event.category,

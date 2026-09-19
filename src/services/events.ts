@@ -32,8 +32,8 @@ export type NormalizedEvent = {
   address: string | null;
   imageUrl: string | null;
   imageUrls: string[];
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   startTime: Date | null;
   endTime: Date | null;
   sourceType: string;
@@ -55,7 +55,10 @@ type CachedOfficialEvent = Omit<NormalizedEvent, "startTime" | "endTime" | "crea
   updatedAt: string;
 };
 
-// 官方活动 → 统一形状（无作者、无 tags/多图/报名）。
+/**
+ * Signature: `function normalizeOfficial(e: Event): NormalizedEvent`
+ * Purpose: Converts an official event, including an optional unresolved location, into the shared activity shape.
+ */
 export function normalizeOfficial(e: Event): NormalizedEvent {
   return {
     id: e.id, title: e.title, description: e.description, summary: e.summary,
@@ -99,12 +102,17 @@ function timeWindowOR(q: EventQuery) {
   ];
 }
 
-const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery) => {
+/**
+ * Signature: `getCachedOfficialEventsInBounds(q: EventQuery, includeUnlocated: boolean): Promise<CachedOfficialEvent[]>`
+ * Purpose: Caches official activity reads while allowing non-map callers to include unresolved locations.
+ */
+const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery, includeUnlocated: boolean) => {
   const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
-  const eventWhere: Prisma.EventWhereInput = { ...bbox };
+  const eventWhere: Prisma.EventWhereInput = includeUnlocated
+    ? { AND: [{ OR: [bbox, { lat: null }, { lng: null }] }, ...(or ? [{ OR: or }] : [])] }
+    : { ...bbox, ...(or ? { OR: or } : {}) };
   if (q.category) eventWhere.category = q.category;
-  if (or) eventWhere.OR = or;
   const events = await prisma.event.findMany({ where: eventWhere, orderBy: [{ startTime: "asc" }], take: 500 });
   return events.map((event): CachedOfficialEvent => {
     const normalized = normalizeOfficial(event);
@@ -116,7 +124,7 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery) => 
       updatedAt: normalized.updatedAt.toISOString(),
     };
   });
-}, ["official-events-in-bounds-v1"], { revalidate: 86_400, tags: ["official-events"] });
+}, ["official-events-in-bounds-v2"], { revalidate: 86_400, tags: ["official-events"] });
 
 /**
  * Signature: `async function getFreshUserPosts(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
@@ -132,10 +140,13 @@ async function getFreshUserPosts(q: EventQuery) {
   return attachAuthors(posts.map(normalizePost));
 }
 
-// 官方活动按天缓存；用户发帖始终实时查询，最后合并为现有统一数据结构。
-export async function getEventsInBounds(q: EventQuery) {
+/**
+ * Signature: `async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Merges cached official activities with fresh user posts for map or non-map callers.
+ */
+async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
   const [cachedEvents, posts] = await Promise.all([
-    getCachedOfficialEventsInBounds(q),
+    getCachedOfficialEventsInBounds(q, includeUnlocated),
     getFreshUserPosts(q),
   ]);
   const events: NormalizedEvent[] = cachedEvents.map((event) => ({
@@ -150,8 +161,20 @@ export async function getEventsInBounds(q: EventQuery) {
   ).slice(0, 500 + posts.length);
 }
 
+/**
+ * Signature: `async function getEventsInBounds(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Loads discovery and calendar activities, including official events whose coordinates are unresolved.
+ */
+export async function getEventsInBounds(q: EventQuery) {
+  return loadEventsInBounds(q, true);
+}
+
+/**
+ * Signature: `async function getMapEventsInBounds(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Loads only activities with coordinates inside the requested map bounds.
+ */
 export async function getMapEventsInBounds(q: EventQuery) {
-  return getEventsInBounds(q);
+  return loadEventsInBounds(q, false);
 }
 
 /**

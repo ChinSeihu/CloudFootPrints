@@ -18,8 +18,8 @@ export type EventDTO = {
   address: string | null;
   imageUrl: string | null;
   imageUrls: string[];
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   startTime: string | null;
   endTime: string | null;
   sourceType: string;
@@ -34,6 +34,16 @@ export type EventDTO = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type EventWithCoordinates = EventDTO & { lat: number; lng: number };
+
+/**
+ * Signature: `function hasEventCoordinates(event: EventDTO): event is EventWithCoordinates`
+ * Purpose: Narrows an activity to the map-safe shape only when both coordinates are available.
+ */
+export function hasEventCoordinates(event: EventDTO): event is EventWithCoordinates {
+  return Number.isFinite(event.lat) && Number.isFinite(event.lng);
+}
 
 export type EventMetrics = {
   likeCount: number;

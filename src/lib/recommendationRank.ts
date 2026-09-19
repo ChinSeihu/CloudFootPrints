@@ -7,8 +7,8 @@ export type RecommendationCandidate = {
   category: EventCategory;
   imageUrl: string | null;
   venueName: string | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   startTime: string | null;
   endTime: string | null;
   featuredToday?: boolean;
@@ -109,7 +109,8 @@ export function rankRecommendations<T extends RecommendationCandidate>(
 ): RankedRecommendation<T>[] {
   return events
     .map((event) => {
-      const distance = center ? distanceKm(center, event) : null;
+      const eventCoordinates = event.lat !== null && event.lng !== null ? { lat: event.lat, lng: event.lng } : null;
+      const distance = center && eventCoordinates ? distanceKm(center, eventCoordinates) : null;
       const proximityScore = distance === null ? 0 : distance <= 1 ? 25 : distance <= 3 ? 19 : distance <= 8 ? 11 : distance <= 15 ? 4 : 0;
       const engagement = (event.metrics?.favoriteCount ?? 0) + (event.metrics?.signupCount ?? 0);
       const signals: ScoreReason[] = [

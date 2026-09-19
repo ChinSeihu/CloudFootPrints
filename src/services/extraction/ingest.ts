@@ -235,7 +235,7 @@ export async function prefilterEventsForIngest(
 
 /**
  * Signature: `async function ingestEvents(events: ExtractedEvent[], source: Pick<RawDocument, "sourceType" | "sourceUrl" | "trustLevel">, rawText?: string | null, options?: { countConsidered?: boolean }): Promise<IngestStats>`
- * Purpose: Geocodes, deduplicates, enriches undersized official imagery, and persists one extracted event batch.
+ * Purpose: Geocodes, deduplicates, enriches, and persists extracted events while retaining rows whose coordinates cannot be resolved.
  */
 export async function ingestEvents(
   events: ExtractedEvent[],
@@ -254,28 +254,28 @@ export async function ingestEvents(
   for (const ev of events) {
     const startTime = parseDateWithInferredTime(ev.startTime, ev.title, rawText, "start");
 
+    let coords: { lat: number; lng: number } | null = null;
     if (!ev.address) {
       stats.geocodeFailed++;
-      console.warn(`  ⚠️  无地址，跳过："${ev.title}"`);
-      continue;
-    }
-    // 含建筑名/设施名的地址，GSI 常定位到区中心/都厅 → 先 LLM 规范成标准住所再编码。
-    let queryAddr = ev.address;
-    if (geocodeLLMEnabled() && looksLikeFacilityName(ev.address)) {
-      const norm = await normalizeAddressForGeocode(ev.address);
-      if (norm && norm !== ev.address) {
-        queryAddr = norm;
-        console.log(`  ✓ LLM 规范化地址："${ev.address}" → "${norm}"`);
+      console.warn(`  ⚠️  无地址，仍入库但不在地图展示：“${ev.title}”`);
+    } else {
+      // 含建筑名/设施名的地址，GSI 常定位到区中心/都厅 → 先 LLM 规范成标准住所再编码。
+      let queryAddr = ev.address;
+      if (geocodeLLMEnabled() && looksLikeFacilityName(ev.address)) {
+        const norm = await normalizeAddressForGeocode(ev.address);
+        if (norm && norm !== ev.address) {
+          queryAddr = norm;
+          console.log(`  ✓ LLM 规范化地址：“${ev.address}” → “${norm}”`);
+        }
       }
-    }
-    let coords = await geocode(queryAddr);
-    if (!coords && queryAddr !== ev.address) {
-      coords = await geocode(ev.address); // 规范化后定位失败 → 回退原地址再试
-    }
-    if (!coords) {
-      stats.geocodeFailed++;
-      console.warn(`  ⚠️  地理编码失败，跳过："${ev.title}" @ ${ev.address}`);
-      continue;
+      coords = await geocode(queryAddr);
+      if (!coords && queryAddr !== ev.address) {
+        coords = await geocode(ev.address); // 规范化后定位失败 → 回退原地址再试
+      }
+      if (!coords) {
+        stats.geocodeFailed++;
+        console.warn(`  ⚠️  地理编码失败，仍入库但不在地图展示：“${ev.title}” @ ${ev.address}`);
+      }
     }
 
     // 每条活动优先用自己的详情页链接；缺失才回退到源的列表页 URL。
@@ -335,8 +335,8 @@ export async function ingestEvents(
         address: ev.address,
         tags: normalizeEventTags(ev.tags),
         imageUrl,
-        lat: coords.lat,
-        lng: coords.lng,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
         startTime,
         endTime: parseDateWithInferredTime(ev.endTime, ev.title, rawText, "end"),
         sourceType: source.sourceType,

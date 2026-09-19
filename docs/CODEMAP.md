@@ -186,6 +186,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `migrations/20260903120000_split_post_kind/migration.sql` — LIFE/ACTIVITY post semantics and existing social-post backfill.
 - `migrations/20260910120000_add_character_goal_daily_state/migration.sql` — additive structured goal progress and practical daily-state storage.
 - `migrations/20260910123000_backfill_character_goal_daily_state/migration.sql` — converts existing goals and emotion snapshots into initial structured character state.
+- `migrations/20260920090000_allow_events_without_coordinates/migration.sql` — allows extracted official events to remain discoverable when geocoding fails while map reads require coordinates.
 
 ### `public/`
 

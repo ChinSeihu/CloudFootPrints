@@ -1,4 +1,4 @@
-import type { EventDTO } from "@/lib/types";
+import type { EventDTO, EventWithCoordinates } from "@/lib/types";
 
 export type JourneyStage = "unscheduled" | "planned" | "soon" | "active" | "ended" | "visited";
 
@@ -45,11 +45,11 @@ export function distanceMeters(from: { lat: number; lng: number }, to: { lat: nu
 }
 
 /**
- * Signature: `function buildJourneyMapUrl(event: Pick<EventDTO, "id" | "title" | "lat" | "lng">, action: "route" | "checkin"): string`
+ * Signature: `function buildJourneyMapUrl(event: Pick<EventWithCoordinates, "id" | "title" | "lat" | "lng">, action: "route" | "checkin"): string`
  * Purpose: Builds a map deep link that centers the activity and immediately opens its route or associated check-in flow.
  */
 export function buildJourneyMapUrl(
-  event: Pick<EventDTO, "id" | "title" | "lat" | "lng">,
+  event: Pick<EventWithCoordinates, "id" | "title" | "lat" | "lng">,
   action: "route" | "checkin",
 ): string {
   const params = new URLSearchParams({

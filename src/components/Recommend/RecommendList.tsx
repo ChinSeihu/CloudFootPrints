@@ -66,7 +66,12 @@ function checkinHeatScore(checkin: CheckInDTO): number {
   return (checkin.metrics?.likeCount ?? 0) * 4 + (checkin.metrics?.commentCount ?? 0) * 5 + imageBonus;
 }
 
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+/**
+ * Signature: `function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }): number`
+ * Purpose: Sorts located discovery items by distance while placing unresolved locations last.
+ */
+function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }): number {
+  if (b.lat === null || b.lng === null) return Number.POSITIVE_INFINITY;
   const r = 6371;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
   const dLng = (b.lng - a.lng) * Math.PI / 180;

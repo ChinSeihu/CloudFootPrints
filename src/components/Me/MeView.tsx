@@ -21,7 +21,7 @@ import { DirectMessages } from "./DirectMessages";
 import { moodLabelKey, moodTagOf } from "@/lib/moods";
 import { buildJourneyMapUrl, getJourneyStatus, sortJourneyEvents } from "@/lib/eventJourney";
 import { DEMO_USERS } from "@/lib/demoUsers";
-import type { CheckInDTO, CommentDTO, DirectConversationDTO, EventDTO, ReplyNoticeDTO } from "@/lib/types";
+import { hasEventCoordinates, type CheckInDTO, type CommentDTO, type DirectConversationDTO, type EventDTO, type ReplyNoticeDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 
@@ -786,7 +786,7 @@ function MeContent() {
                           )}
                           </div>
                         </button>
-                        {favSub === "wants" && (
+                        {favSub === "wants" && hasEventCoordinates(p) && (
                           <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 p-2">
                             <button
                               type="button"
