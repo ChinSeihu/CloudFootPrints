@@ -20,27 +20,28 @@ export type ReplyNotice = {
 
 /**
  * Signature: `async function listReplyNotifications(userId: string): Promise<ReplyNotice[]>`
- * Purpose: Aggregates replies plus comments and likes received by the user's posts and footprints into one chronological interaction feed.
+ * Purpose: Aggregates released replies, comments, and likes received by the user's visible posts and footprints.
  */
 export async function listReplyNotifications(userId: string): Promise<ReplyNotice[]> {
+  const now = new Date();
   // 我的评论（用于「回复了我的评论」+ 展示被回复内容）
   const myComments = await prisma.comment.findMany({
-    where: { userId },
+    where: { userId, createdAt: { lte: now } },
     select: { id: true, text: true },
   });
   const myCommentText = new Map(myComments.map((c) => [c.id, c.text]));
   const myCommentIds = myComments.map((c) => c.id);
 
   // 我的发帖（Post 表）
-  const myPosts = await prisma.post.findMany({ where: { userId }, select: { id: true } });
+  const myPosts = await prisma.post.findMany({ where: { userId, createdAt: { lte: now } }, select: { id: true } });
   const myPostIds = myPosts.map((p) => p.id);
-  const myCheckins = await prisma.checkIn.findMany({ where: { userId }, select: { id: true, note: true } });
+  const myCheckins = await prisma.checkIn.findMany({ where: { userId, createdAt: { lte: now } }, select: { id: true, note: true } });
   const myCheckinIds = myCheckins.map((checkin) => checkin.id);
 
   // ① 别人回复了我的评论
   const replies = myCommentIds.length
     ? await prisma.comment.findMany({
-        where: { parentId: { in: myCommentIds }, userId: { not: userId } },
+        where: { parentId: { in: myCommentIds }, userId: { not: userId }, createdAt: { lte: now } },
         orderBy: { createdAt: "desc" },
         take: 100,
       })
@@ -49,7 +50,7 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
   // ② 别人评论了我的发帖（顶层评论，避免与①重复）
   const onPosts = myPostIds.length
     ? await prisma.comment.findMany({
-        where: { postId: { in: myPostIds }, parentId: null, userId: { not: userId } },
+        where: { postId: { in: myPostIds }, parentId: null, userId: { not: userId }, createdAt: { lte: now } },
         orderBy: { createdAt: "desc" },
         take: 100,
       })
@@ -57,14 +58,14 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
 
   const onCheckins = myCheckinIds.length
     ? await prisma.comment.findMany({
-        where: { checkInId: { in: myCheckinIds }, parentId: null, userId: { not: userId } },
+        where: { checkInId: { in: myCheckinIds }, parentId: null, userId: { not: userId }, createdAt: { lte: now } },
         orderBy: { createdAt: "desc" },
         take: 100,
       })
     : [];
   const checkinLikes = myCheckinIds.length
     ? await prisma.reaction.findMany({
-        where: { checkInId: { in: myCheckinIds }, type: ReactionType.LIKE, userId: { not: userId } },
+        where: { checkInId: { in: myCheckinIds }, type: ReactionType.LIKE, userId: { not: userId }, createdAt: { lte: now } },
         orderBy: { createdAt: "desc" },
         take: 100,
       })
@@ -81,8 +82,8 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
   const [users, events, posts, targetCheckins] = await Promise.all([
     userIds.length ? prisma.user.findMany({ where: { id: { in: userIds } }, select: AUTHOR_SELECT }) : [],
     tIds.length ? prisma.event.findMany({ where: { id: { in: tIds } }, select: { id: true, title: true } }) : [],
-    tIds.length ? prisma.post.findMany({ where: { id: { in: tIds } }, select: { id: true, title: true } }) : [],
-    checkinTargetIds.length ? prisma.checkIn.findMany({ where: { id: { in: checkinTargetIds } }, select: { id: true, note: true } }) : [],
+    tIds.length ? prisma.post.findMany({ where: { id: { in: tIds }, createdAt: { lte: now } }, select: { id: true, title: true } }) : [],
+    checkinTargetIds.length ? prisma.checkIn.findMany({ where: { id: { in: checkinTargetIds }, createdAt: { lte: now } }, select: { id: true, note: true } }) : [],
   ]);
   const userMap = new Map(users.map((u) => [u.id, u]));
   const titleMap = new Map([...events, ...posts].map((e) => [e.id, e.title]));
@@ -134,6 +135,9 @@ export async function listReplyNotifications(userId: string): Promise<ReplyNotic
       createdAt: reaction.createdAt.toISOString(),
     })),
   ];
-  notices.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return notices;
+  const visibleNotices = notices.filter((notice) => notice.targetType === "checkin"
+    ? checkinTitleMap.has(notice.eventId)
+    : titleMap.has(notice.eventId));
+  visibleNotices.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return visibleNotices;
 }

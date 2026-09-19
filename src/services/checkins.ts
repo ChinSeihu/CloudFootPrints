@@ -33,14 +33,19 @@ function clampPageSize(value: number, fallback = 40): number {
   return Math.max(1, Math.min(100, Math.floor(value)));
 }
 
+/**
+ * Signature: `async function listCheckins(userId?: string): Promise<Array<ReturnType<typeof serializeCheckin>>>`
+ * Purpose: Lists the user's footprints that have reached their publication time.
+ */
 export async function listCheckins(userId: string = CURRENT_USER_ID) {
+  const now = new Date();
   const rows = await prisma.checkIn.findMany({
-    where: { userId },
+    where: { userId, createdAt: { lte: now } },
     orderBy: { createdAt: "desc" },
     include: {
       event: { select: { id: true, title: true, category: true } },
       post: { select: { id: true, title: true, category: true } },
-      _count: { select: { comments: true, reactions: true } },
+      _count: { select: { comments: { where: { createdAt: { lte: now } } }, reactions: { where: { createdAt: { lte: now } } } } },
     },
   });
   // 关联目标可能是官方活动或用户发帖；统一暴露为 event 字段（前端不区分），并去掉 post。
@@ -48,24 +53,33 @@ export async function listCheckins(userId: string = CURRENT_USER_ID) {
   return rows.map((row) => serializeCheckin(row, userId, authors));
 }
 
+/**
+ * Signature: `async function listVisibleCheckins(userId?: string | null): Promise<Array<ReturnType<typeof serializeCheckin>>>`
+ * Purpose: Lists public or owned footprints that have reached their publication time.
+ */
 export async function listVisibleCheckins(userId?: string | null) {
+  const now = new Date();
   const rows = await prisma.checkIn.findMany({
-    where: userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true },
+    where: { createdAt: { lte: now }, ...(userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true }) },
     orderBy: { createdAt: "desc" },
     take: 500,
     include: {
       event: { select: { id: true, title: true, category: true } },
       post: { select: { id: true, title: true, category: true } },
-      _count: { select: { comments: true, reactions: true } },
+      _count: { select: { comments: { where: { createdAt: { lte: now } } }, reactions: { where: { createdAt: { lte: now } } } } },
     },
   });
   const authors = await loadCheckinAuthors(rows);
   return rows.map((row) => serializeCheckin(row, userId, authors));
 }
 
+/**
+ * Signature: `async function listMapCheckins(userId?: string | null): Promise<Array<ReturnType<typeof serializeCheckin>>>`
+ * Purpose: Lists map-ready footprints that have reached their publication time.
+ */
 export async function listMapCheckins(userId?: string | null) {
   const rows = await prisma.checkIn.findMany({
-    where: userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true },
+    where: { createdAt: { lte: new Date() }, ...(userId ? { OR: [{ isPublic: true }, { userId }] } : { isPublic: true }) },
     orderBy: { createdAt: "desc" },
     take: 500,
     select: {
@@ -90,18 +104,23 @@ export async function listMapCheckins(userId?: string | null) {
   return rows.map((row) => serializeCheckin({ ...row, _count: { comments: 0, reactions: 0 } }, userId, authors));
 }
 
+/**
+ * Signature: `async function listDiscoverCheckins(input?: { offset?: number; limit?: number; userId?: string | null }): Promise<{ checkins: Array<ReturnType<typeof serializeCheckin>>; nextOffset: number; hasMore: boolean }>`
+ * Purpose: Returns one paginated discovery page containing only published public footprints.
+ */
 export async function listDiscoverCheckins(input: { offset?: number; limit?: number; userId?: string | null } = {}) {
   const offset = Math.max(0, Math.floor(input.offset ?? 0));
   const limit = clampPageSize(input.limit ?? 40);
+  const now = new Date();
   const rows = await prisma.checkIn.findMany({
-    where: { isPublic: true },
+    where: { isPublic: true, createdAt: { lte: now } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     skip: offset,
     take: limit + 1,
     include: {
       event: { select: { id: true, title: true, category: true } },
       post: { select: { id: true, title: true, category: true } },
-      _count: { select: { comments: true, reactions: true } },
+      _count: { select: { comments: { where: { createdAt: { lte: now } } }, reactions: { where: { createdAt: { lte: now } } } } },
     },
   });
   const pageRows = rows.slice(0, limit);
@@ -141,11 +160,14 @@ export type CreateCheckinResult =
   | { ok: true; checkin: Awaited<ReturnType<typeof createCheckinRow>> }
   | { ok: false; error: string };
 
-// 关联目标 id 可能是官方活动或用户发帖（两表 id 全局唯一），解析后写对应列。
+/**
+ * Signature: `async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null>`
+ * Purpose: Resolves a check-in association to an official activity or already-published user post.
+ */
 async function resolveTarget(id: string): Promise<{ eventId: string } | { postId: string } | null> {
   const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
   if (e) return { eventId: id };
-  const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+  const p = await prisma.post.findFirst({ where: { id, createdAt: { lte: new Date() } }, select: { id: true } });
   if (p) return { postId: id };
   return null;
 }

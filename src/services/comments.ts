@@ -18,12 +18,17 @@ async function withAuthors<T extends { userId: string }>(rows: T[]) {
 // 解析评论目标 id 属于官方活动还是用户发帖（两表 id 全局唯一）。
 type CommentTarget = { eventId: string } | { postId: string } | { checkInId: string };
 
+/**
+ * Signature: `async function resolveTarget(id: string): Promise<CommentTarget | null>`
+ * Purpose: Resolves only official or already-visible targets that can receive comments.
+ */
 async function resolveTarget(id: string): Promise<CommentTarget | null> {
+  const now = new Date();
   const e = await prisma.event.findUnique({ where: { id }, select: { id: true } });
   if (e) return { eventId: id };
-  const p = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+  const p = await prisma.post.findFirst({ where: { id, createdAt: { lte: now } }, select: { id: true } });
   if (p) return { postId: id };
-  const c = await prisma.checkIn.findUnique({ where: { id }, select: { id: true, isPublic: true } });
+  const c = await prisma.checkIn.findFirst({ where: { id, createdAt: { lte: now } }, select: { id: true, isPublic: true } });
   if (c?.isPublic) return { checkInId: id };
   return null;
 }
@@ -32,18 +37,31 @@ function targetWhere(targetId: string) {
   return { OR: [{ eventId: targetId }, { postId: targetId }, { checkInId: targetId }] };
 }
 
+/**
+ * Signature: `async function listComments(targetId: string): Promise<Array<object>>`
+ * Purpose: Lists published comments with author information for an already-visible target.
+ */
 export async function listComments(targetId: string) {
+  if (!(await resolveTarget(targetId))) return [];
   const comments = await prisma.comment.findMany({
-    where: targetWhere(targetId),
+    where: { ...targetWhere(targetId), createdAt: { lte: new Date() } },
     orderBy: { createdAt: "asc" },
   });
   return withAuthors(comments);
 }
 
+/**
+ * Signature: `async function listCommentPage(targetId: string, opts?: { limit?: number; cursor?: string | null; sort?: "hot" | "new"; replyLimit?: number }): Promise<object>`
+ * Purpose: Returns a root-comment page and published reply previews for a visible target.
+ */
 export async function listCommentPage(
   targetId: string,
   opts: { limit?: number; cursor?: string | null; sort?: "hot" | "new"; replyLimit?: number } = {},
 ) {
+  if (!(await resolveTarget(targetId))) {
+    return { comments: [], totalCount: 0, hasMore: false, nextCursor: null, replyMeta: {} };
+  }
+  const now = new Date();
   const limit = Math.min(Math.max(opts.limit ?? 10, 1), 20);
   const replyLimit = Math.min(Math.max(opts.replyLimit ?? 3, 0), 10);
   const orderBy = opts.sort === "hot"
@@ -51,7 +69,7 @@ export async function listCommentPage(
     : [{ createdAt: "desc" as const }];
 
   const roots = await prisma.comment.findMany({
-    where: { ...targetWhere(targetId), parentId: null },
+    where: { ...targetWhere(targetId), parentId: null, createdAt: { lte: now } },
     orderBy,
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
@@ -62,11 +80,11 @@ export async function listCommentPage(
     ? await Promise.all(rootIds.map(async (rootId) => {
         const [items, total] = await Promise.all([
           prisma.comment.findMany({
-            where: { ...targetWhere(targetId), parentId: rootId },
+            where: { ...targetWhere(targetId), parentId: rootId, createdAt: { lte: now } },
             orderBy: { createdAt: "asc" },
             take: replyLimit + 1,
           }),
-          prisma.comment.count({ where: { ...targetWhere(targetId), parentId: rootId } }),
+          prisma.comment.count({ where: { ...targetWhere(targetId), parentId: rootId, createdAt: { lte: now } } }),
         ]);
         return { rootId, items: items.slice(0, replyLimit), total, hasMore: items.length > replyLimit };
       }))
@@ -84,7 +102,7 @@ export async function listCommentPage(
       },
     ]),
   );
-  const totalCount = await prisma.comment.count({ where: targetWhere(targetId) });
+  const totalCount = await prisma.comment.count({ where: { ...targetWhere(targetId), createdAt: { lte: now } } });
 
   return {
     comments,
@@ -95,20 +113,26 @@ export async function listCommentPage(
   };
 }
 
+/**
+ * Signature: `async function listReplyPage(targetId: string, rootId: string, opts?: { limit?: number; cursor?: string | null }): Promise<object>`
+ * Purpose: Returns one page of published replies beneath a visible root comment.
+ */
 export async function listReplyPage(
   targetId: string,
   rootId: string,
   opts: { limit?: number; cursor?: string | null } = {},
 ) {
+  if (!(await resolveTarget(targetId))) return { comments: [], hasMore: false, nextCursor: null };
+  const now = new Date();
   const limit = Math.min(Math.max(opts.limit ?? 10, 1), 20);
   const root = await prisma.comment.findFirst({
-    where: { ...targetWhere(targetId), id: rootId, parentId: null },
+    where: { ...targetWhere(targetId), id: rootId, parentId: null, createdAt: { lte: now } },
     select: { id: true },
   });
   if (!root) return { comments: [], hasMore: false, nextCursor: null };
 
   const replies = await prisma.comment.findMany({
-    where: { ...targetWhere(targetId), parentId: rootId },
+    where: { ...targetWhere(targetId), parentId: rootId, createdAt: { lte: now } },
     orderBy: { createdAt: "asc" },
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
@@ -125,6 +149,10 @@ export type CreateCommentResult =
   | { ok: true; comment: Awaited<ReturnType<typeof prisma.comment.create>> & { author: CommentAuthor | null } }
   | { ok: false; error: string };
 
+/**
+ * Signature: `async function createComment(targetId: string, text: string, userId: string, parentId?: string | null): Promise<CreateCommentResult>`
+ * Purpose: Creates a comment or reply only when its target and optional parent are already visible.
+ */
 export async function createComment(
   targetId: string,
   text: string,
@@ -141,8 +169,8 @@ export async function createComment(
   // 校验回复目标存在且属于同一活动/发帖
   let pid: string | null = null;
   if (parentId) {
-    const parent = await prisma.comment.findUnique({
-      where: { id: parentId },
+    const parent = await prisma.comment.findFirst({
+      where: { id: parentId, createdAt: { lte: new Date() } },
       select: { id: true, eventId: true, postId: true, checkInId: true },
     });
     const parentTargetId = parent?.eventId ?? parent?.postId ?? parent?.checkInId;

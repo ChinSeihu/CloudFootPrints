@@ -128,12 +128,12 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery, inc
 
 /**
  * Signature: `async function getFreshUserPosts(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
- * Purpose: Loads uncached user and virtual-user posts inside the requested map bounds and optional time/category filters.
+ * Purpose: Loads released user and virtual-user posts inside the requested map bounds and optional time/category filters.
  */
 async function getFreshUserPosts(q: EventQuery) {
   const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
-  const postWhere: Prisma.PostWhereInput = { ...bbox };
+  const postWhere: Prisma.PostWhereInput = { ...bbox, createdAt: { lte: new Date() } };
   if (q.category) postWhere.category = q.category;
   if (or) postWhere.OR = or;
   const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }], take: 500 });
@@ -179,7 +179,7 @@ export async function getMapEventsInBounds(q: EventQuery) {
 
 /**
  * Signature: `async function searchActivities(query: string, limit?: number): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
- * Purpose: Searches existing official and user-created activities by title or venue for optional check-in association, excluding LIFE posts.
+ * Purpose: Searches official activities and released user-created activities by title or venue, excluding LIFE posts.
  */
 export async function searchActivities(query: string, limit = 12) {
   const keyword = query.trim().slice(0, 60);
@@ -194,6 +194,7 @@ export async function searchActivities(query: string, limit = 12) {
     prisma.post.findMany({
       where: {
         kind: "ACTIVITY",
+        createdAt: { lte: new Date() },
         OR: [{ title: { contains: keyword, mode: "insensitive" } }, { venueName: { contains: keyword, mode: "insensitive" } }],
       },
       orderBy: { startTime: "desc" },
@@ -217,26 +218,35 @@ async function attachAuthors<T extends { userId: string | null }>(events: T[]) {
   return events.map((e) => ({ ...e, author: e.userId ? map.get(e.userId) ?? null : null }));
 }
 
-// 按 id 取单个活动（先查官方 Event，再查用户 Post），带作者公开信息；不存在返回 null。
+/**
+ * Signature: `async function getEventById(id: string): Promise<(NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }) | null>`
+ * Purpose: Loads one official activity or already-published user post with public author information.
+ */
 export async function getEventById(id: string) {
   const ev = await prisma.event.findUnique({ where: { id } });
   if (ev) { const [w] = await attachAuthors([normalizeOfficial(ev)]); return w; }
-  const post = await prisma.post.findUnique({ where: { id } });
+  const post = await prisma.post.findFirst({ where: { id, createdAt: { lte: new Date() } } });
   if (post) { const [w] = await attachAuthors([normalizePost(post)]); return w; }
   return null;
 }
 
-// 我的发帖：列出当前用户发布的帖子（Post 表），按创建时间倒序。
+/**
+ * Signature: `async function listUserEvents(userId: string): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Lists the user's posts that have reached their publication time.
+ */
 export async function listUserEvents(userId: string) {
   const posts = await prisma.post.findMany({
-    where: { userId },
+    where: { userId, createdAt: { lte: new Date() } },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
   return attachAuthors(posts.map(normalizePost));
 }
 
-// 管理员后台：只列出角色库中的虚拟用户帖子，避免把真实用户内容混入管理范围。
+/**
+ * Signature: `async function listVirtualUserEvents(): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Lists published virtual-user posts without mixing in real-user content.
+ */
 export async function listVirtualUserEvents() {
   const users = await prisma.user.findMany({
     where: { username: { in: DEMO_USERS.map((user) => user.username) } },
@@ -244,7 +254,7 @@ export async function listVirtualUserEvents() {
   });
   if (users.length === 0) return [];
   const posts = await prisma.post.findMany({
-    where: { userId: { in: users.map((user) => user.id) } },
+    where: { userId: { in: users.map((user) => user.id) }, createdAt: { lte: new Date() } },
     orderBy: { createdAt: "desc" },
   });
   return attachAuthors(posts.map(normalizePost));

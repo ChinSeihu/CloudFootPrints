@@ -35,6 +35,7 @@ type SocialCandidate = {
   title: string;
   authorUsername?: string | null;
   description?: string | null;
+  availableAt?: Date;
 };
 
 type ReplyCandidate = SocialCandidate & {
@@ -404,6 +405,7 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
       title: p.title,
       authorUsername: usernameById.get(p.userId) ?? null,
       description: p.description,
+      availableAt: p.createdAt,
     })),
     ...events.map((e) => ({
       id: e.id,
@@ -418,6 +420,7 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
       title: `${usernameById.get(c.userId) ?? "someone"}'s footprint: ${c.event?.title ?? c.post?.title ?? "Tokyo"}`,
       authorUsername: usernameById.get(c.userId) ?? null,
       description: c.note,
+      availableAt: c.createdAt,
     })),
   ];
 
@@ -438,6 +441,7 @@ async function loadCandidates(dateKey: string, demoUserIds: string[]): Promise<{
       commentId: c.id,
       commentText: c.text,
       commentAuthorUsername: usernameById.get(c.userId) ?? null,
+      availableAt: new Date(Math.max(c.createdAt.getTime(), post?.createdAt.getTime() ?? checkin?.createdAt.getTime() ?? 0)),
     }];
   });
 
@@ -562,6 +566,15 @@ function findReply(id: string | undefined, commentId: string | undefined, replie
 }
 
 /**
+ * Signature: `function releaseTimeForTarget(when: Date, target: SocialCandidate): Date`
+ * Purpose: Keeps a scheduled interaction from becoming visible before its target.
+ */
+function releaseTimeForTarget(when: Date, target: SocialCandidate): Date {
+  if (!target.availableAt || target.availableAt < when) return when;
+  return new Date(target.availableAt.getTime() + 60_000);
+}
+
+/**
  * Signature: `async function writePost(persona: PersonaV2, userId: string, decision: SocialDecision, when: Date, world: Awaited<ReturnType<typeof getOrCreateWorldState>>): Promise<Post | null>`
  * Purpose: Persists simulated social output as a LIFE post whose publication time is separate from activity scheduling.
  */
@@ -644,7 +657,11 @@ async function writeReply(userId: string, target: ReplyCandidate, text: string, 
   });
 }
 
-async function writeReaction(userId: string, target: SocialCandidate, reaction: SocialDecision["reaction"]) {
+/**
+ * Signature: `async function writeReaction(userId: string, target: SocialCandidate, reaction: SocialDecision["reaction"], when: Date): Promise<boolean>`
+ * Purpose: Persists one simulated reaction at its planned publication time.
+ */
+async function writeReaction(userId: string, target: SocialCandidate, reaction: SocialDecision["reaction"], when: Date) {
   if (!reaction) return false;
   if (target.kind === "checkin" && reaction !== "LIKE") return false;
   try {
@@ -653,6 +670,7 @@ async function writeReaction(userId: string, target: SocialCandidate, reaction: 
         ...targetData(target.kind, target.id),
         userId,
         type: ReactionType[reaction],
+        createdAt: when,
       },
     });
     return true;
@@ -779,7 +797,7 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
         postCount++;
         result.posts++;
         result.notes.push(`${username} posted: ${post.title}`);
-        candidates.unshift({ id: post.id, kind: "post", title: post.title, authorUsername: username, description: post.description });
+        candidates.unshift({ id: post.id, kind: "post", title: post.title, authorUsername: username, description: post.description, availableAt: post.createdAt });
         await writeSocialMemory(user.id, decision.memoryText ?? `社区里发了一条关于「${post.title}」的动态。`, when);
       }
       continue;
@@ -788,10 +806,11 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
     if (decision.action === "comment") {
       const target = findCandidate(decision.targetId, candidates);
       if (target && decision.text) {
-        await writeComment(user.id, target, decision.text, when);
+        const releaseTime = releaseTimeForTarget(when, target);
+        await writeComment(user.id, target, decision.text, releaseTime);
         result.comments++;
         result.notes.push(`${username} commented: ${decision.text}`);
-        await writeSocialMemory(user.id, decision.memoryText ?? `回复了${target.title}。`, when);
+        await writeSocialMemory(user.id, decision.memoryText ?? `回复了${target.title}。`, releaseTime);
       }
       continue;
     }
@@ -799,17 +818,18 @@ export async function simulateSocialDay(dateKey: string, opts: { dry?: boolean; 
     if (decision.action === "reply") {
       const target = findReply(decision.targetId, decision.commentId, replies);
       if (target && decision.text) {
-        await writeReply(user.id, target, decision.text, when);
+        const releaseTime = releaseTimeForTarget(when, target);
+        await writeReply(user.id, target, decision.text, releaseTime);
         result.replies++;
         result.notes.push(`${username} replied: ${decision.text}`);
-        await writeSocialMemory(user.id, decision.memoryText ?? `在评论里接了一句话。`, when);
+        await writeSocialMemory(user.id, decision.memoryText ?? `在评论里接了一句话。`, releaseTime);
       }
       continue;
     }
 
     if (decision.action === "react") {
       const target = findCandidate(decision.targetId, candidates);
-      if (target && await writeReaction(user.id, target, decision.reaction)) {
+      if (target && await writeReaction(user.id, target, decision.reaction, releaseTimeForTarget(when, target))) {
         result.reactions++;
         result.notes.push(`${username} reacted: ${decision.reaction}`);
       }

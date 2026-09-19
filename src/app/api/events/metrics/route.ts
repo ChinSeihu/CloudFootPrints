@@ -3,14 +3,14 @@ import { prisma } from "@/lib/db";
 import type { EventDTO } from "@/lib/types";
 /**
  * Signature: `async function loadEventMetrics(ids: string[]): Promise<Map<string, NonNullable<EventDTO["metrics"]>>>`
- * Purpose: Reads database-aggregated reaction counts without transferring individual user reactions.
+ * Purpose: Reads released reaction counts without transferring individual user reactions.
  */
 async function loadEventMetrics(ids: string[]) {
   if (ids.length === 0) return new Map<string, NonNullable<EventDTO["metrics"]>>();
   const [reactions, clicks] = await Promise.all([
     prisma.reaction.groupBy({
       by: ["eventId", "postId", "type"],
-      where: { OR: [{ eventId: { in: ids } }, { postId: { in: ids } }] },
+      where: { createdAt: { lte: new Date() }, OR: [{ eventId: { in: ids } }, { postId: { in: ids } }] },
       _count: { _all: true },
     }),
     prisma.eventMetric.findMany({ where: { eventId: { in: ids } }, select: { eventId: true, clickCount: true } }),

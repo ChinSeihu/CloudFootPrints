@@ -10,11 +10,11 @@ function arg(name: string): string | undefined {
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
 
 /**
- * Signature: `function tokyoYesterday(): string`
- * Purpose: Returns the default simulation date (yesterday in Tokyo).
+ * Signature: `function tokyoToday(): string`
+ * Purpose: Returns the default simulation date for the current Tokyo day.
  */
-function tokyoYesterday(): string {
-  return new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+function tokyoToday(): string {
+  return new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Tokyo",
   });
 }
@@ -43,8 +43,8 @@ async function main() {
   const to = arg("to");
   const single = arg("date");
 
-  const dates = from && to ? dateRange(from, to) : [single ?? tokyoYesterday()];
-  console.log(`日期来源：${from && to ? "指定日期范围" : single ? "指定日期" : "默认东京昨天"}；实际推演日期：${dates.join(", ")}`);
+  const dates = from && to ? dateRange(from, to) : [single ?? tokyoToday()];
+  console.log(`日期来源：${from && to ? "指定日期范围" : single ? "指定日期" : "默认东京当天"}；实际推演日期：${dates.join(", ")}`);
   const rangeText = dates.length > 1 ? `-${dates[dates.length - 1]}` : "";
   console.log(`模拟 ${dates.length} 天（${dates[0]}${rangeText}）${dry ? " [dry]" : ""}${only ? ` only=${only.join(",")}` : ""}\n`);
 

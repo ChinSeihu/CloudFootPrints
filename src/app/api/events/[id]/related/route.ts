@@ -5,14 +5,19 @@ import { normalizePost } from "@/services/events";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/**
+ * Signature: `async function GET(_request: Request, ctx: Ctx): Promise<NextResponse>`
+ * Purpose: Returns released posts and footprints related to a visible activity.
+ */
 export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const userId = await getCurrentUserId();
+  const now = new Date();
 
   try {
     const [event, post] = await Promise.all([
       prisma.event.findUnique({ where: { id }, select: { id: true } }),
-      prisma.post.findUnique({ where: { id }, select: { id: true } }),
+      prisma.post.findFirst({ where: { id, createdAt: { lte: now } }, select: { id: true } }),
     ]);
 
     if (!event && !post) {
@@ -20,13 +25,13 @@ export async function GET(_request: Request, ctx: Ctx) {
     }
 
     const checkinWhere = event
-      ? { eventId: id, OR: userId ? [{ isPublic: true }, { userId }] : [{ isPublic: true }] }
-      : { postId: id, OR: userId ? [{ isPublic: true }, { userId }] : [{ isPublic: true }] };
+      ? { eventId: id, createdAt: { lte: now }, OR: userId ? [{ isPublic: true }, { userId }] : [{ isPublic: true }] }
+      : { postId: id, createdAt: { lte: now }, OR: userId ? [{ isPublic: true }, { userId }] : [{ isPublic: true }] };
 
     const [posts, checkins] = await Promise.all([
       event
         ? prisma.post.findMany({
-            where: { eventId: id },
+            where: { eventId: id, createdAt: { lte: now } },
             orderBy: { createdAt: "desc" },
             take: 50,
           })
