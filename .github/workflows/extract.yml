@@ -28,6 +28,10 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: 生成 Prisma Client
         run: yarn prisma generate
+      - name: 应用数据库迁移
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: yarn prisma migrate deploy
       - name: 跑抓取管线（采集 → 抽取 → 地理编码 → 入库）
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
