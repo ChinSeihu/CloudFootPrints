@@ -101,7 +101,7 @@ function EndpointInput({ side, place, other, stationNames, onChange, onEdit }: {
 
 /**
  * Signature: `function RoutePanel({ initial, currentLocation, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: { initial: { from?: RoutePlace; to?: RoutePlace }; currentLocation: { lat: number; lng: number } | null; stationNames: string[]; coordOf: (name: string) => [number, number] | undefined; onClose: () => void; onShowRoute: (plan: RoutePlan) => void; onClearRoute: () => void }): React.JSX.Element`
- * Purpose: Shows transport plans, defaults an untouched origin to the permitted current location, and resolves endpoints.
+ * Purpose: Shows transport plans, replaces global navigation while open, defaults an untouched origin to the permitted current location, and resolves endpoints.
  */
 export function RoutePanel({ initial, currentLocation, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: {
   initial: { from?: RoutePlace; to?: RoutePlace };
@@ -122,6 +122,13 @@ export function RoutePanel({ initial, currentLocation, stationNames, coordOf, on
   const [activeIdx, setActiveIdx] = useState(0);
   const [base, setBase] = useState<{ min: number; real: boolean } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("tem:bottom-nav-visibility", { detail: { hidden: true } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("tem:bottom-nav-visibility", { detail: { hidden: false } }));
+    };
+  }, []);
 
   useEffect(() => {
     if (fromP || originEdited || !currentLocation) return;

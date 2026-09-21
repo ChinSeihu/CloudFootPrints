@@ -442,9 +442,12 @@ function checkinTrailToFC(list: CheckInDTO[]): GeoJSON.FeatureCollection {
   };
 }
 
-// 给有照片的足迹注册圆形缩略图地图图标（ci-photo-<id>）。跨域失败则跳过（回退脚印）。
-function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
-  if (!map) return;
+/**
+ * Signature: `loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]): void`
+ * Purpose: Registers footprint thumbnails only while their owning map remains mounted.
+ */
+function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]): void {
+  if (!map || !map.getContainer().isConnected) return;
   for (const c of list) {
     const url = c.photoUrls?.[0] ?? c.photoUrl;
     const key = `ci-photo-${c.id}`;
@@ -452,7 +455,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      if (map.hasImage(key)) return;
+      if (!map.getContainer().isConnected || map.hasImage(key)) return;
       const s = 96;
       const cv = document.createElement("canvas");
       cv.width = s; cv.height = s;
@@ -466,7 +469,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]) {
       cx.restore();
       cx.lineWidth = 5; cx.strokeStyle = "#fff";
       cx.beginPath(); cx.arc(s / 2, s / 2, s / 2 - 3, 0, Math.PI * 2); cx.stroke();
-      try { if (!map.hasImage(key)) { map.addImage(key, cx.getImageData(0, 0, s, s), { pixelRatio: 3 }); map.triggerRepaint(); } } catch { /* CORS 失败 → 回退脚印 */ }
+      try { if (map.getContainer().isConnected && !map.hasImage(key)) { map.addImage(key, cx.getImageData(0, 0, s, s), { pixelRatio: 3 }); map.triggerRepaint(); } } catch { /* CORS 失败 → 回退脚印 */ }
     };
     img.onerror = () => { /* 失败 → 回退脚印 */ };
     img.src = url;
@@ -928,15 +931,21 @@ export function MapExplorer() {
     src?.setData(eventsToFC(mapEvents));
   }, [mapEvents]);
 
+  /**
+   * Signature: `updateCheckinSource(): void`
+   * Purpose: Refreshes visible footprints and their trail only while the map is mounted.
+   */
   const updateCheckinSource = useCallback(() => {
-    const src = mapRef.current?.getSource("checkins") as maplibregl.GeoJSONSource | undefined;
+    const map = mapRef.current;
+    if (!map || !map.getContainer().isConnected) return;
+    const src = map.getSource("checkins") as maplibregl.GeoJSONSource | undefined;
     const visibleCheckins = showUserCheckinsRef.current
       ? checkinsRef.current.filter((checkin) => !mineOnlyRef.current || checkin.isMine)
       : [];
     src?.setData(checkinsToFC(visibleCheckins, locale));
-    const trail = mapRef.current?.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
+    const trail = map.getSource("checkin-trail") as maplibregl.GeoJSONSource | undefined;
     trail?.setData(checkinTrailToFC(visibleCheckins));
-    loadCheckinPhotos(mapRef.current, visibleCheckins);
+    loadCheckinPhotos(map, visibleCheckins);
   }, []);
 
   useEffect(() => {
@@ -2311,8 +2320,14 @@ export function MapExplorer() {
       });
     }
   }
-  function clearRouteLine() {
-    const src = mapRef.current?.getSource("route") as maplibregl.GeoJSONSource | undefined;
+  /**
+   * Signature: `clearRouteLine(): void`
+   * Purpose: Removes the displayed journey path while safely ignoring a map already detached during page navigation.
+   */
+  function clearRouteLine(): void {
+    const map = mapRef.current;
+    if (!map || !map.getContainer().isConnected) return;
+    const src = map.getSource("route") as maplibregl.GeoJSONSource | undefined;
     src?.setData({ type: "FeatureCollection", features: [] });
   }
 

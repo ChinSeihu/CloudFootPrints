@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MascotNavIcon, useMascotIdentity, type MascotNavRole, type MascotIdentity } from "@/components/Mascot/Mascot";
@@ -32,6 +32,20 @@ export function BottomNav() {
   const mascotIdentity = useMascotIdentity();
   const textOnly = mascotIdentity === "none";
   const [pending, setPending] = useState<string | null>(null);
+  const [hiddenByOverlay, setHiddenByOverlay] = useState(false);
+
+  useEffect(() => {
+    /**
+     * Signature: `handleVisibility(event: Event): void`
+     * Purpose: Keeps the global navigation inaccessible while a page-owned modal surface replaces it.
+     */
+    function handleVisibility(event: Event): void {
+      setHiddenByOverlay(Boolean((event as CustomEvent<{ hidden?: boolean }>).detail?.hidden));
+    }
+
+    window.addEventListener("tem:bottom-nav-visibility", handleVisibility);
+    return () => window.removeEventListener("tem:bottom-nav-visibility", handleVisibility);
+  }, []);
 
   const activeHref = pending && pending !== pathname ? pending : pathname;
 
@@ -49,7 +63,9 @@ export function BottomNav() {
   return (
     <nav
       aria-label={t("nav.primary")}
-      className={`relative z-[50] grid ${textOnly ? "min-h-14" : "min-h-[4.5rem]"} h-auto shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur`}
+      aria-hidden={hiddenByOverlay}
+      inert={hiddenByOverlay}
+      className={`relative z-[50] grid ${textOnly ? "min-h-14" : "min-h-[4.5rem]"} h-auto shrink-0 grid-cols-4 items-center gap-1 border-t border-black/10 bg-white/95 px-2 backdrop-blur ${hiddenByOverlay ? "invisible pointer-events-none" : "visible"}`}
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {TABS.map((tab) => {
