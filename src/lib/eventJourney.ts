@@ -1,33 +1,42 @@
 import type { EventDTO, EventWithCoordinates } from "@/lib/types";
 
 export type JourneyStage = "unscheduled" | "planned" | "soon" | "active" | "ended" | "visited";
+export type JourneyLabelKey =
+  | "journey.visited"
+  | "journey.unscheduled"
+  | "journey.ended"
+  | "journey.active"
+  | "journey.startsHours"
+  | "journey.startsDays"
+  | "journey.plannedDays";
 
 export type JourneyStatus = {
   stage: JourneyStage;
-  label: string;
+  labelKey: JourneyLabelKey;
+  labelValues?: Record<string, string | number>;
   canCheckIn: boolean;
 };
 
 /**
  * Signature: `function getJourneyStatus(event: EventDTO, now: number, visited: boolean): JourneyStatus`
- * Purpose: Converts an activity's schedule and check-in state into the reminder/arrival stage shown in the want-to-go journey.
+ * Purpose: Converts an activity's schedule and check-in state into a localized reminder descriptor for the want-to-go journey.
  */
 export function getJourneyStatus(event: EventDTO, now: number, visited: boolean): JourneyStatus {
-  if (visited) return { stage: "visited", label: "已到访 · 足迹已记录", canCheckIn: false };
-  if (!event.startTime) return { stage: "unscheduled", label: "已加入想去 · 时间待定", canCheckIn: false };
+  if (visited) return { stage: "visited", labelKey: "journey.visited", canCheckIn: false };
+  if (!event.startTime) return { stage: "unscheduled", labelKey: "journey.unscheduled", canCheckIn: false };
 
   const start = new Date(event.startTime).getTime();
-  if (!Number.isFinite(start)) return { stage: "unscheduled", label: "已加入想去 · 时间待定", canCheckIn: false };
+  if (!Number.isFinite(start)) return { stage: "unscheduled", labelKey: "journey.unscheduled", canCheckIn: false };
   const endValue = event.endTime ? new Date(event.endTime).getTime() : start;
   const end = Number.isFinite(endValue) ? endValue : start;
-  if (now > end) return { stage: "ended", label: "活动已结束 · 你去了吗？", canCheckIn: true };
-  if (now >= start) return { stage: "active", label: "活动进行中 · 到访后记录足迹", canCheckIn: true };
+  if (now > end) return { stage: "ended", labelKey: "journey.ended", canCheckIn: true };
+  if (now >= start) return { stage: "active", labelKey: "journey.active", canCheckIn: true };
 
   const hours = Math.ceil((start - now) / 3_600_000);
-  if (hours <= 24) return { stage: "soon", label: `即将开始 · 约 ${hours} 小时后`, canCheckIn: false };
+  if (hours <= 24) return { stage: "soon", labelKey: "journey.startsHours", labelValues: { count: hours }, canCheckIn: false };
   const days = Math.ceil(hours / 24);
-  if (days <= 7) return { stage: "soon", label: `本周提醒 · ${days} 天后开始`, canCheckIn: false };
-  return { stage: "planned", label: `已加入想去 · ${days} 天后开始`, canCheckIn: false };
+  if (days <= 7) return { stage: "soon", labelKey: "journey.startsDays", labelValues: { count: days }, canCheckIn: false };
+  return { stage: "planned", labelKey: "journey.plannedDays", labelValues: { count: days }, canCheckIn: false };
 }
 
 /**

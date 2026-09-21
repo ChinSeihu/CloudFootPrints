@@ -770,9 +770,9 @@ function MeContent() {
                             <p className="text-xs text-neutral-600 mt-1 line-clamp-3">{p.description}</p>
                           )}
                           {favSub === "wants" ? (
-                            <span className={`inline-flex items-center gap-1 text-xs mt-2 ${journey.stage === "soon" || journey.stage === "active" ? "font-semibold text-rose-600" : "text-rose-500"}`}>
-                              <IconHeart filled className="w-3.5 h-3.5" />
-                              {journey.label}
+                            <span className={`flex min-w-0 items-start gap-1 text-xs leading-4 mt-2 ${journey.stage === "soon" || journey.stage === "active" ? "font-semibold text-rose-600" : "text-rose-500"}`}>
+                              <IconHeart filled className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              {t(journey.labelKey, journey.labelValues)}
                             </span>
                           ) : favSub === "favorites" ? (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-500 mt-2">
@@ -787,11 +787,11 @@ function MeContent() {
                           </div>
                         </button>
                         {favSub === "wants" && hasEventCoordinates(p) && (
-                          <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 p-2">
+                          <div className="flex gap-2 border-t border-neutral-100 p-2">
                             <button
                               type="button"
                               onClick={() => router.push(buildJourneyMapUrl(p, "route"))}
-                              className="inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+                              className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-indigo-50 px-2 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
                             >
                               <IconMap className="h-3.5 w-3.5" />{t("detail.route")}
                             </button>
@@ -799,7 +799,7 @@ function MeContent() {
                               type="button"
                               disabled={!journey.canCheckIn}
                               onClick={() => router.push(buildJourneyMapUrl(p, "checkin"))}
-                              className="min-w-0 whitespace-nowrap rounded-lg bg-rose-50 px-2 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
+                              className="min-w-0 flex-1 whitespace-nowrap rounded-lg bg-rose-50 px-1.5 py-2 text-[11px] font-semibold tracking-tight text-rose-600 hover:bg-rose-100 disabled:bg-neutral-50 disabled:text-neutral-400"
                             >
                               {t(journey.stage === "visited" ? "me.visited" : journey.stage === "ended" ? "me.addFootprint" : journey.canCheckIn ? "me.recordVisit" : "me.recordAfterVisit")}
                             </button>
