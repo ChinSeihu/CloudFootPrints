@@ -646,6 +646,15 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     router.push(buildJourneyMapUrl(event, "route"));
   }
 
+  /**
+   * Signature: `function locateOnMap(): void`
+   * Purpose: Opens the map centered on this activity without starting route guidance.
+   */
+  function locateOnMap(): void {
+    if (!hasEventCoordinates(event)) return;
+    router.push(buildJourneyMapUrl(event, "locate"));
+  }
+
   function askGuide() {
     openGuide({
       title: event.title,
@@ -1047,7 +1056,7 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   </div>
                   {event.address && <div className="truncate text-xs font-semibold text-neutral-600">{event.address}</div>}
                 </div>
-                {hasCoordinates && <button type="button" onClick={jumpToMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">{t("detail.viewRoute")}</button>}
+                {hasCoordinates && <button type="button" onClick={locateOnMap} className="mt-2 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-500 sm:px-3 sm:py-1.5 sm:text-xs">{t("me.viewOnMap")} 〉</button>}
               </div>
             </div>
             <div className="border-t border-neutral-100 bg-neutral-50/70 px-3.5 py-2.5 sm:px-4 sm:py-3">

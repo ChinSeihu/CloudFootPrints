@@ -2163,7 +2163,7 @@ export function MapExplorer() {
         } else if (action === "checkin") {
           openTargetCheckinRef.current(target);
         }
-        if (action === "route" || action === "checkin") {
+        if (action === "locate" || action === "route" || action === "checkin") {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
