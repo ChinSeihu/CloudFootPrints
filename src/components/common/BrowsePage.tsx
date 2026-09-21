@@ -10,7 +10,7 @@ import { useLanguage } from "@/components/I18n/LanguageProvider";
 
 const CalendarView = dynamic(() => import("@/components/Calendar/CalendarView").then(m => m.CalendarView));
 const RecommendList = dynamic(() => import("@/components/Recommend/RecommendList").then(m => m.RecommendList));
-const EVENTS_URL = "/api/events?minLat=35.5&maxLat=35.85&minLng=139.5&maxLng=139.95";
+const EVENTS_URL = "/api/events?minLat=34.5&maxLat=37.3&minLng=137.2&maxLng=141";
 type Mode = "calendar" | "recommend";
 type Footprints = { checkins: CheckInDTO[]; hasMore: boolean };
 const EMPTY_CHECKINS: CheckInDTO[] = [];
@@ -70,15 +70,24 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
       if (!response.ok) throw new Error("read failed");
       return response.json() as Promise<T>;
     }
-    const activityRequest = read<{ events: EventDTO[] }>(EVENTS_URL).then(async data => {
+    const tokyoToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
+    const eventsUrl = mode === "recommend" ? `${EVENTS_URL}&from=${encodeURIComponent(`${tokyoToday}T00:00:00+09:00`)}` : EVENTS_URL;
+    const activityRequest = read<{ events: EventDTO[] }>(eventsUrl).then(async data => {
       if (controller.signal.aborted) return;
       const rows = data.events.filter(e => mode === "calendar" ? e.postKind !== "LIFE" : e.postKind === "LIFE" || !e.startTime || Date.parse(e.endTime ?? e.startTime) >= Date.now());
       if (hadEvents) setPendingEvents(rows); else setEvents(rows);
       if (mode === "recommend") {
         try {
-          const result = await read<{ metrics: Record<string, EventMetrics> }>("/api/events/metrics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: rows.map(e => e.id) }) });
+          const ids = rows.map(e => e.id);
+          const batches = Array.from({ length: Math.ceil(ids.length / 1000) }, (_, index) => ids.slice(index * 1000, (index + 1) * 1000));
+          const results = await Promise.all(batches.map(batch => read<{ metrics: Record<string, EventMetrics> }>("/api/events/metrics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: batch }),
+          })));
+          const nextMetrics = Object.assign({}, ...results.map(result => result.metrics)) as Record<string, EventMetrics>;
           if (!controller.signal.aborted) {
-            if (hadEvents) setPendingMetrics(result.metrics); else setMetrics(result.metrics);
+            if (hadEvents) setPendingMetrics(nextMetrics); else setMetrics(nextMetrics);
           }
         } catch { report("metrics"); }
       }

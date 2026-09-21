@@ -9,6 +9,7 @@ import { holidayName } from "@/lib/holidays";
 import type { EventDTO } from "@/lib/types";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
+import { useActivitySearch } from "@/components/common/useActivitySearch";
 
 function tokyoDateKey(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -70,6 +71,7 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef(new Map<string, HTMLButtonElement>());
+  const { results: activitySearchResults } = useActivitySearch(query);
 
   useEffect(() => {
     const node = dayRefs.current.get(selected) ?? dayRefs.current.get(todayKey);
@@ -86,8 +88,8 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
   }, [filterOpen]);
 
   const filteredEvents = useMemo(
-    () => events.filter((e) => (cat === "ALL" || e.category === cat) && eventMatchesQuery(e, query)),
-    [events, cat, query],
+    () => (activitySearchResults ?? events).filter((e) => (cat === "ALL" || e.category === cat) && eventMatchesQuery(e, query)),
+    [activitySearchResults, events, cat, query],
   );
 
   const byDate = useMemo(() => {
@@ -113,6 +115,24 @@ export function CalendarView({ events, refreshControl, refreshNotice }: { events
     }
     return m;
   }, [filteredEvents]);
+
+  const lastAutoLocatedSearch = useRef("");
+  useEffect(() => {
+    const keyword = query.trim();
+    if (!keyword) {
+      lastAutoLocatedSearch.current = "";
+      return;
+    }
+    if (activitySearchResults === null || lastAutoLocatedSearch.current === keyword) return;
+    lastAutoLocatedSearch.current = keyword;
+    if (byDate.has(selected)) return;
+    const dates = [...byDate.keys()].sort();
+    const nextDate = dates.find((date) => date >= todayKey) ?? dates.at(-1);
+    if (!nextDate) return;
+    setYear(Number(nextDate.slice(0, 4)));
+    setMonth(Number(nextDate.slice(5, 7)) - 1);
+    setSelectedDate(nextDate);
+  }, [activitySearchResults, byDate, query, selected, setMonth, setSelectedDate, setYear, todayKey]);
 
   const daysInMonth = useMemo(() => new Date(year, month + 1, 0).getDate(), [year, month]);
   const monthDays = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => ymd(year, month, i + 1)), [daysInMonth, month, year]);

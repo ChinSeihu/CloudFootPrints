@@ -35,7 +35,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Activities, discovery, and detail
 
 - Recommendation/discovery page: `src/app/recommend/page.tsx`.
-- Cached browsing shell: `src/components/common/BrowsePage.tsx` — independent activity/check-in/metric reads, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains versioned tab-local UI state across navigation and reloads through `src/lib/browseSession.ts` while large content snapshots remain memory-only.
+- Cached browsing shell: `src/components/common/BrowsePage.tsx` — expanded regional activity/check-in/metric reads, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains versioned tab-local UI state across navigation and reloads through `src/lib/browseSession.ts` while large content snapshots remain memory-only; `useActivitySearch.ts` provides debounced full-database activity search for discovery and calendar.
 - Deferred public activity metrics: `src/app/api/events/metrics/route.ts` — bounded IDs and database-aggregated reaction/click counts.
 - Feed and filters: `src/components/Recommend/RecommendList.tsx`.
 - Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx`.
@@ -303,6 +303,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `CalendarRangePicker.tsx` — calendar-based date-range input.
 - `ConfirmDialog.tsx` — reusable destructive-action confirmation.
 - `CountBadge.tsx` — compact numeric badge.
+- `useActivitySearch.ts` — debounced, cancellable full-database activity search shared by discovery and calendar.
 - `DateTimeField.tsx` — date/time form input.
 - `EventSource.tsx` — official/user source badges, filtering, and predicates.
 - `Lightbox.tsx` — portal-based fullscreen image gallery with button and keyboard navigation.

@@ -25,6 +25,7 @@ import type { CheckInDTO, CommentDTO, EventDTO, EventMetrics } from "@/lib/types
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import type { TranslationKey } from "@/i18n/config";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
+import { useActivitySearch } from "@/components/common/useActivitySearch";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
 type DiscoverFilter = "follow" | "near" | "new" | "hot";
@@ -276,6 +277,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
   const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
   const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
+  const { results: activitySearchResults } = useActivitySearch(query, hasOfficialSearch);
 
   useEffect(() => {
     /**
@@ -496,6 +498,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }, [tab, discoverFullType, checkinsHasMore, checkinsOffset, checkinsLoadingMore]);
 
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
+  const searchableOfficialEvents = useMemo(
+    () => activitySearchResults?.filter((event) => !isUserPost(event.sourceType)) ?? officialEvents,
+    [activitySearchResults, officialEvents],
+  );
   const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
   const featuredEvents = useMemo(() => {
@@ -512,10 +518,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }, [rankedOfficial]);
 
   const activityList = useMemo(() => {
-    return officialEvents
+    return searchableOfficialEvents
       .filter((e) => (cat === "ALL" || e.category === cat) && eventInDayRange(e, dateRange) && matchesQuery(e, query))
       .sort((a, b) => heatScore(b) - heatScore(a))
-  }, [officialEvents, cat, dateRange, query]);
+  }, [searchableOfficialEvents, cat, dateRange, query]);
 
   const discoverPosts = useMemo(() => {
     const followed = followingIds ?? new Set<string>();

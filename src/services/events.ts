@@ -113,7 +113,11 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery, inc
     ? { AND: [{ OR: [bbox, { lat: null }, { lng: null }] }, ...(or ? [{ OR: or }] : [])] }
     : { ...bbox, ...(or ? { OR: or } : {}) };
   if (q.category) eventWhere.category = q.category;
-  const events = await prisma.event.findMany({ where: eventWhere, orderBy: [{ startTime: "asc" }], take: 500 });
+  const events = await prisma.event.findMany({
+    where: eventWhere,
+    orderBy: [{ startTime: includeUnlocated && !q.from && !q.to ? "desc" : "asc" }],
+    take: includeUnlocated ? 1000 : 500,
+  });
   return events.map((event): CachedOfficialEvent => {
     const normalized = normalizeOfficial(event);
     return {
@@ -127,16 +131,16 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery, inc
 }, ["official-events-in-bounds-v2"], { revalidate: 86_400, tags: ["official-events"] });
 
 /**
- * Signature: `async function getFreshUserPosts(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
- * Purpose: Loads released user and virtual-user posts inside the requested map bounds and optional time/category filters.
+ * Signature: `async function getFreshUserPosts(q: EventQuery, includeUnlocated: boolean): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Loads released user and virtual-user posts inside the requested bounds, using a larger result window for non-map pages.
  */
-async function getFreshUserPosts(q: EventQuery) {
+async function getFreshUserPosts(q: EventQuery, includeUnlocated: boolean) {
   const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
   const or = timeWindowOR(q);
   const postWhere: Prisma.PostWhereInput = { ...bbox, createdAt: { lte: new Date() } };
   if (q.category) postWhere.category = q.category;
   if (or) postWhere.OR = or;
-  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }], take: 500 });
+  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }], take: includeUnlocated ? 1000 : 500 });
   return attachAuthors(posts.map(normalizePost));
 }
 
@@ -147,7 +151,7 @@ async function getFreshUserPosts(q: EventQuery) {
 async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
   const [cachedEvents, posts] = await Promise.all([
     getCachedOfficialEventsInBounds(q, includeUnlocated),
-    getFreshUserPosts(q),
+    getFreshUserPosts(q, includeUnlocated),
   ]);
   const events: NormalizedEvent[] = cachedEvents.map((event) => ({
     ...event,
@@ -158,7 +162,7 @@ async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
   }));
   return [...events.map((event) => ({ ...event, author: null })), ...posts].sort(
     (a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity),
-  ).slice(0, 500 + posts.length);
+  ).slice(0, (includeUnlocated ? 1000 : 500) + posts.length);
 }
 
 /**
@@ -179,15 +183,22 @@ export async function getMapEventsInBounds(q: EventQuery) {
 
 /**
  * Signature: `async function searchActivities(query: string, limit?: number): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
- * Purpose: Searches official activities and released user-created activities by title or venue, excluding LIFE posts.
+ * Purpose: Searches official activities and released user-created activities by title, venue, address, or tag, excluding LIFE posts.
  */
 export async function searchActivities(query: string, limit = 12) {
   const keyword = query.trim().slice(0, 60);
-  if (keyword.length < 2) return [];
-  const take = Math.min(Math.max(limit, 1), 20);
+  if (!keyword) return [];
+  const take = Math.min(Math.max(limit, 1), 100);
   const [events, posts] = await Promise.all([
     prisma.event.findMany({
-      where: { OR: [{ title: { contains: keyword, mode: "insensitive" } }, { venueName: { contains: keyword, mode: "insensitive" } }] },
+      where: {
+        OR: [
+          { title: { contains: keyword, mode: "insensitive" } },
+          { venueName: { contains: keyword, mode: "insensitive" } },
+          { address: { contains: keyword, mode: "insensitive" } },
+          { tags: { has: keyword } },
+        ],
+      },
       orderBy: { startTime: "desc" },
       take,
     }),
@@ -195,13 +206,26 @@ export async function searchActivities(query: string, limit = 12) {
       where: {
         kind: "ACTIVITY",
         createdAt: { lte: new Date() },
-        OR: [{ title: { contains: keyword, mode: "insensitive" } }, { venueName: { contains: keyword, mode: "insensitive" } }],
+        OR: [
+          { title: { contains: keyword, mode: "insensitive" } },
+          { venueName: { contains: keyword, mode: "insensitive" } },
+          { tags: { has: keyword } },
+        ],
       },
       orderBy: { startTime: "desc" },
       take,
     }),
   ]);
-  const combined = [...events.map(normalizeOfficial), ...posts.map(normalizePost)].slice(0, take);
+  const normalizedKeyword = keyword.toLocaleLowerCase();
+  const combined = [...events.map(normalizeOfficial), ...posts.map(normalizePost)]
+    .sort((a, b) => {
+      const aTitle = a.title.toLocaleLowerCase();
+      const bTitle = b.title.toLocaleLowerCase();
+      const aRank = aTitle === normalizedKeyword ? 0 : aTitle.startsWith(normalizedKeyword) ? 1 : aTitle.includes(normalizedKeyword) ? 2 : 3;
+      const bRank = bTitle === normalizedKeyword ? 0 : bTitle.startsWith(normalizedKeyword) ? 1 : bTitle.includes(normalizedKeyword) ? 2 : 3;
+      return aRank - bRank || (b.startTime?.getTime() ?? 0) - (a.startTime?.getTime() ?? 0);
+    })
+    .slice(0, take);
   return attachAuthors(combined);
 }
 

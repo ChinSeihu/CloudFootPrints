@@ -13,7 +13,7 @@ import type { EventCategory } from "@/lib/categories";
 
 /**
  * Signature: `async function GET(request: Request): Promise<NextResponse>`
- * Purpose: Returns personal posts, bounded event feeds, or a limited activity-name search used by optional check-in association.
+ * Purpose: Returns personal posts, bounded event feeds, or a bounded full-database activity search.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,7 +21,9 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim();
   if (search) {
     try {
-      const events = await searchActivities(search);
+      const rawLimit = Number(searchParams.get("limit"));
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.trunc(rawLimit) : undefined;
+      const events = await searchActivities(search, limit);
       return NextResponse.json({ events });
     } catch (err) {
       console.error("GET /api/events?search failed:", err);
