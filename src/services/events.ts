@@ -145,22 +145,31 @@ async function getFreshUserPosts(q: EventQuery, includeUnlocated: boolean) {
 }
 
 /**
- * Signature: `async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
- * Purpose: Merges cached official activities with fresh user posts for map or non-map callers.
+ * Signature: `async function loadOfficialEventsInBounds(q: EventQuery, includeUnlocated: boolean): Promise<Array<NormalizedEvent & { author: null }>>`
+ * Purpose: Restores cached official activity timestamps and returns the public map/feed shape without user authors.
  */
-async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
-  const [cachedEvents, posts] = await Promise.all([
-    getCachedOfficialEventsInBounds(q, includeUnlocated),
-    getFreshUserPosts(q, includeUnlocated),
-  ]);
-  const events: NormalizedEvent[] = cachedEvents.map((event) => ({
+async function loadOfficialEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
+  const cachedEvents = await getCachedOfficialEventsInBounds(q, includeUnlocated);
+  return cachedEvents.map((event) => ({
     ...event,
     startTime: event.startTime ? new Date(event.startTime) : null,
     endTime: event.endTime ? new Date(event.endTime) : null,
     createdAt: new Date(event.createdAt),
     updatedAt: new Date(event.updatedAt),
+    author: null,
   }));
-  return [...events.map((event) => ({ ...event, author: null })), ...posts].sort(
+}
+
+/**
+ * Signature: `async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Merges cached official activities with fresh user posts for map or non-map callers.
+ */
+async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
+  const [events, posts] = await Promise.all([
+    loadOfficialEventsInBounds(q, includeUnlocated),
+    getFreshUserPosts(q, includeUnlocated),
+  ]);
+  return [...events, ...posts].sort(
     (a, b) => (a.startTime?.getTime() ?? Infinity) - (b.startTime?.getTime() ?? Infinity),
   ).slice(0, (includeUnlocated ? 1000 : 500) + posts.length);
 }
@@ -179,6 +188,22 @@ export async function getEventsInBounds(q: EventQuery) {
  */
 export async function getMapEventsInBounds(q: EventQuery) {
   return loadEventsInBounds(q, false);
+}
+
+/**
+ * Signature: `async function getOfficialMapEventsInBounds(q: EventQuery): Promise<Array<NormalizedEvent & { author: null }>>`
+ * Purpose: Loads only coordinate-bearing official activities for the map's independently cached official layer.
+ */
+export async function getOfficialMapEventsInBounds(q: EventQuery) {
+  return loadOfficialEventsInBounds(q, false);
+}
+
+/**
+ * Signature: `async function getUserMapEventsInBounds(q: EventQuery): Promise<Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>>`
+ * Purpose: Loads only released coordinate-bearing user posts so they stay fresh and independent of official-event caching.
+ */
+export async function getUserMapEventsInBounds(q: EventQuery) {
+  return getFreshUserPosts(q, false);
 }
 
 /**

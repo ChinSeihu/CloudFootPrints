@@ -3,6 +3,8 @@ import {
   createUserEvent,
   getEventsInBounds,
   getMapEventsInBounds,
+  getOfficialMapEventsInBounds,
+  getUserMapEventsInBounds,
   listUserEvents,
   parseEventQuery,
   searchActivities,
@@ -13,7 +15,7 @@ import type { EventCategory } from "@/lib/categories";
 
 /**
  * Signature: `async function GET(request: Request): Promise<NextResponse>`
- * Purpose: Returns personal posts, bounded event feeds, or a bounded full-database activity search.
+ * Purpose: Returns personal posts, bounded feeds, source-specific map activities, or a bounded full-database activity search.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -48,9 +50,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
   try {
-    const events = searchParams.get("map") === "1"
-      ? await getMapEventsInBounds(parsed)
-      : await getEventsInBounds(parsed);
+    const mapRequest = searchParams.get("map") === "1";
+    const source = searchParams.get("source");
+    const events = mapRequest && source === "official"
+      ? await getOfficialMapEventsInBounds(parsed)
+      : mapRequest && source === "user"
+        ? await getUserMapEventsInBounds(parsed)
+        : mapRequest
+          ? await getMapEventsInBounds(parsed)
+          : await getEventsInBounds(parsed);
     return NextResponse.json({ events });
   } catch (err) {
     console.error("GET /api/events failed:", err);

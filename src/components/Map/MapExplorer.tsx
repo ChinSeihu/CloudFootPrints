@@ -40,6 +40,11 @@ import type { TranslationKey } from "@/i18n/config";
 import { MascotPublishIcon, useMascotIdentity } from "@/components/Mascot/Mascot";
 import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { MascotAnimation } from "@/components/Mascot/MascotFeedback";
+import {
+  officialEventCacheRegion,
+  readOfficialEventCache,
+  writeOfficialEventCache,
+} from "@/lib/mapOfficialEventCache";
 
 // ── 颜色映射（与 categories.ts 保持同步） ──
 const CATEGORY_COLORS: Record<string, string> = {
@@ -535,13 +540,22 @@ export function MapExplorer() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const maplibreRef = useRef<typeof maplibregl | null>(null);
   const reqIdRef = useRef(0);
+  const officialEventsAbortRef = useRef<AbortController | null>(null);
   const lastBboxRef = useRef<BBox | null>(null);
   // 美食懒加载已覆盖区域（含向外扩展的预取缓冲）：视野仍在其内则跳过请求，平移不卡顿。
   const foodAreaRef = useRef<BBox | null>(null);
   const placingRef = useRef<maplibregl.Marker | null>(null);
   const checkinsRef = useRef<CheckInDTO[]>([]);
 
-  const [events, setEvents] = useState<EventWithCoordinates[]>([]);
+  const [officialEvents, setOfficialEvents] = useState<EventWithCoordinates[]>([]);
+  const [userEvents, setUserEvents] = useState<EventWithCoordinates[]>([]);
+  const events = useMemo(
+    () => [...officialEvents, ...userEvents].sort(
+      (left, right) => (left.startTime ? new Date(left.startTime).getTime() : Infinity)
+        - (right.startTime ? new Date(right.startTime).getTime() : Infinity),
+    ),
+    [officialEvents, userEvents],
+  );
   const [filters, setFilters] = useBrowseState<FilterState>("map:filters", {
     categories: new Set(),
     dateRange: ALL_DATES,
@@ -820,6 +834,8 @@ export function MapExplorer() {
     if (pulseRafRef.current) cancelAnimationFrame(pulseRafRef.current);
   }, []);
 
+  useEffect(() => () => officialEventsAbortRef.current?.abort(), []);
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -870,19 +886,49 @@ export function MapExplorer() {
     lastBboxRef.current = bbox;
     setCenter({ lat: (bbox.minLat + bbox.maxLat) / 2, lng: (bbox.minLng + bbox.maxLng) / 2 });
     const id = ++reqIdRef.current;
-    const params = new URLSearchParams({
+    const userParams = new URLSearchParams({
       map: "1",
+      source: "user",
       minLat: String(bbox.minLat),
       maxLat: String(bbox.maxLat),
       minLng: String(bbox.minLng),
       maxLng: String(bbox.maxLng),
     });
-    const eventsPromise = (async () => {
-      const res = await fetch(`/api/events?${params}`);
+    const officialRegion = officialEventCacheRegion(bbox);
+    const officialParams = new URLSearchParams({
+      map: "1",
+      source: "official",
+      minLat: String(officialRegion.minLat),
+      maxLat: String(officialRegion.maxLat),
+      minLng: String(officialRegion.minLng),
+      maxLng: String(officialRegion.maxLng),
+    });
+
+    officialEventsAbortRef.current?.abort();
+    const officialController = new AbortController();
+    officialEventsAbortRef.current = officialController;
+    let officialRefreshApplied = false;
+
+    const cachedOfficialPromise = readOfficialEventCache(officialRegion).then((cachedEvents) => {
+      if (!officialRefreshApplied && cachedEvents && id === reqIdRef.current) setOfficialEvents(cachedEvents);
+    });
+    const userEventsPromise = (async () => {
+      const res = await fetch(`/api/events?${userParams}`);
       if (!res.ok) return;
       const data = (await res.json()) as { events: EventDTO[] };
-      if (id === reqIdRef.current) setEvents(data.events.filter(hasEventCoordinates));
+      if (id === reqIdRef.current) setUserEvents(data.events.filter(hasEventCoordinates));
     })().catch(() => { /* 静默 */ });
+    const officialEventsPromise = (async () => {
+      const res = await fetch(`/api/events?${officialParams}`, { signal: officialController.signal });
+      if (!res.ok) return;
+      const data = (await res.json()) as { events: EventDTO[] };
+      const freshEvents = data.events.filter(hasEventCoordinates);
+      officialRefreshApplied = true;
+      void writeOfficialEventCache(officialRegion, freshEvents).catch(() => { /* 静默 */ });
+      if (id === reqIdRef.current) setOfficialEvents(freshEvents);
+    })().catch(() => { /* 静默 */ }).finally(() => {
+      if (officialEventsAbortRef.current === officialController) officialEventsAbortRef.current = null;
+    });
 
     // Hot Pepper 全量餐厅：放大后按视野加载，并向外扩展预取一圈缓冲；
     // 平移仍落在已加载缓冲区内则跳过请求与重渲染，消除明显卡顿。
@@ -922,7 +968,7 @@ export function MapExplorer() {
         }
       }
     }
-    await eventsPromise;
+    await Promise.allSettled([cachedOfficialPromise, userEventsPromise, officialEventsPromise]);
   }, []);
 
   // 更新活动 GeoJSON source

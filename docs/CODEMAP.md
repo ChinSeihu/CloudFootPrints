@@ -17,6 +17,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 ### Map rendering and interaction
 
 - Entry: `src/components/Map/MapExplorer.tsx` — owns MapLibre sources/layers, clustering, popups, click hit-testing, exploration anchor, bottom action bar, content visibility, and publishing placement.
+- Official-event browser cache: `src/lib/mapOfficialEventCache.ts` — snaps map viewports to reusable geographic grids and stores short-lived IndexedDB snapshots without caching user posts or footprints.
 - Map lifecycle: `src/components/Map/MapView.tsx` — creates the MapLibre instance and reports bounds/readiness.
 - Filters: `src/components/Map/Filters.tsx`, `DateRangeDropdown.tsx` — category/date/mine/expired/trail controls.
 - Markers/theme: `src/components/Map/markers.ts`, `src/lib/mapTheme.ts`, `src/lib/categoryIcons.ts`.
@@ -372,6 +373,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `image.ts` — browser image compression.
 - `landmarkImages.ts`, `landmarks.ts` — landmark image lookup and curated landmark definitions.
 - `llm.ts` — Anthropic extraction, classification, summarization, guide, and persona chat calls.
+- `mapOfficialEventCache.ts` — browser IndexedDB cache and stable geographic-grid keys for official map activities.
 - `mapTheme.ts` — in-place MapLibre basemap recoloring.
 - `moods.tsx` — mood definitions and rendering metadata.
 - `personas.ts` — PersonaV2 definitions, voices, locations, relationships, and seed memories.
