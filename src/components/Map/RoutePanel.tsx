@@ -34,8 +34,12 @@ function endpointParam(side: "from" | "to", p: RoutePlace): string {
     : `${side}Lat=${p.lat}&${side}Lng=${p.lng}&${side}Name=${encodeURIComponent(p.name)}`;
 }
 
-function StationField({ stationNames, value, exclude, placeholder, onCommit }: {
-  stationNames: string[]; value: string; exclude?: string; placeholder: string; onCommit: (n: string) => void;
+/**
+ * Signature: `function StationField({ stationNames, value, exclude, placeholder, onCommit, onEdit }: { stationNames: string[]; value: string; exclude?: string; placeholder: string; onCommit: (n: string) => void; onEdit?: () => void }): React.JSX.Element`
+ * Purpose: Shows station-name suggestions while keeping an exact typed match selectable.
+ */
+function StationField({ stationNames, value, exclude, placeholder, onCommit, onEdit }: {
+  stationNames: string[]; value: string; exclude?: string; placeholder: string; onCommit: (n: string) => void; onEdit?: () => void;
 }) {
   const [q, setQ] = useState(value);
   const [open, setOpen] = useState(false);
@@ -43,12 +47,15 @@ function StationField({ stationNames, value, exclude, placeholder, onCommit }: {
   const sug = useMemo(() => {
     const s = q.trim();
     if (!s) return [];
-    return stationNames.filter((n) => n !== exclude && n !== s && n.includes(s)).slice(0, 8);
+    return stationNames
+      .filter((n) => n !== exclude && n.includes(s))
+      .sort((a, b) => Number(b === s) - Number(a === s))
+      .slice(0, 8);
   }, [q, exclude, stationNames]);
   return (
     <div className="relative flex-1 min-w-0">
       <input value={q} placeholder={placeholder}
-        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); onEdit?.(); }}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
         className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
       {open && sug.length > 0 && (
@@ -62,39 +69,43 @@ function StationField({ stationNames, value, exclude, placeholder, onCommit }: {
   );
 }
 
-// 一个端点：POI 显示成不可编辑地点芯片（可清除改为搜站）；否则车站搜索框。
-function EndpointInput({ side, place, other, stationNames, onChange }: {
-  side: "from" | "to"; place: RoutePlace | null; other: RoutePlace | null; stationNames: string[]; onChange: (p: RoutePlace | null) => void;
+/**
+ * Signature: `function EndpointInput({ side, place, other, stationNames, onChange, onEdit }: { side: "from" | "to"; place: RoutePlace | null; other: RoutePlace | null; stationNames: string[]; onChange: (p: RoutePlace | null) => void; onEdit?: () => void }): React.JSX.Element`
+ * Purpose: Renders a single-line endpoint label with either a fixed place chip or station autocomplete.
+ */
+function EndpointInput({ side, place, other, stationNames, onChange, onEdit }: {
+  side: "from" | "to"; place: RoutePlace | null; other: RoutePlace | null; stationNames: string[]; onChange: (p: RoutePlace | null) => void; onEdit?: () => void;
 }) {
   const { t } = useLanguage();
   const label = side === "from" ? t("route.origin") : t("route.destination");
   if (place && !place.station) {
     return (
       <div className="flex items-center gap-2">
-        <span className="w-6 shrink-0 text-xs text-neutral-400">{label}</span>
+        <span className="w-[4.5rem] shrink-0 whitespace-nowrap text-xs text-neutral-400">{label}</span>
         <span className="flex-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-sm min-w-0">
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
           <span className="truncate">{place.name}</span>
-          <button type="button" onClick={() => onChange(null)} aria-label={t("route.searchStation")} className="ml-auto shrink-0 text-blue-400 hover:text-blue-600">×</button>
+          <button type="button" onClick={() => { onEdit?.(); onChange(null); }} aria-label={t("route.searchStation")} className="ml-auto shrink-0 text-blue-400 hover:text-blue-600">×</button>
         </span>
       </div>
     );
   }
   return (
     <div className="flex items-center gap-2">
-      <span className="w-6 shrink-0 text-xs text-neutral-400">{label}</span>
+      <span className="w-[4.5rem] shrink-0 whitespace-nowrap text-xs text-neutral-400">{label}</span>
       <StationField stationNames={stationNames} value={place?.name ?? ""} exclude={other?.name}
-        placeholder={side === "from" ? t("route.originStation") : t("route.destinationStation")} onCommit={(n) => onChange({ name: n, station: true })} />
+        placeholder={side === "from" ? t("route.originStation") : t("route.destinationStation")} onEdit={onEdit} onCommit={(n) => onChange({ name: n, station: true })} />
     </div>
   );
 }
 
 /**
- * Signature: `function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: { initial: { from?: RoutePlace; to?: RoutePlace }; stationNames: string[]; coordOf: (name: string) => [number, number] | undefined; onClose: () => void; onShowRoute: (plan: RoutePlan) => void; onClearRoute: () => void }): React.JSX.Element`
- * Purpose: Shows transport plans and continuous route-loading feedback while resolving endpoints.
+ * Signature: `function RoutePanel({ initial, currentLocation, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: { initial: { from?: RoutePlace; to?: RoutePlace }; currentLocation: { lat: number; lng: number } | null; stationNames: string[]; coordOf: (name: string) => [number, number] | undefined; onClose: () => void; onShowRoute: (plan: RoutePlan) => void; onClearRoute: () => void }): React.JSX.Element`
+ * Purpose: Shows transport plans, defaults an untouched origin to the permitted current location, and resolves endpoints.
  */
-export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: {
+export function RoutePanel({ initial, currentLocation, stationNames, coordOf, onClose, onShowRoute, onClearRoute }: {
   initial: { from?: RoutePlace; to?: RoutePlace };
+  currentLocation: { lat: number; lng: number } | null;
   stationNames: string[];
   coordOf: (name: string) => [number, number] | undefined; // [lng, lat]
   onClose: () => void;
@@ -102,14 +113,20 @@ export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRout
   onClearRoute: () => void;
 }) {
   const { t } = useLanguage();
-  const [fromP, setFromP] = useState<RoutePlace | null>(initial.from ?? null);
+  const [fromP, setFromP] = useState<RoutePlace | null>(() => initial.from ?? (currentLocation ? { name: t("route.currentLocation"), ...currentLocation, station: false } : null));
   const [toP, setToP] = useState<RoutePlace | null>(initial.to ?? null);
+  const [originEdited, setOriginEdited] = useState(false);
   const [routes, setRoutes] = useState<RoutePlan[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const [base, setBase] = useState<{ min: number; real: boolean } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (fromP || originEdited || !currentLocation) return;
+    setFromP({ name: t("route.currentLocation"), ...currentLocation, station: false });
+  }, [currentLocation, fromP, originEdited, t]);
 
   useEffect(() => () => onClearRoute(), []);
 
@@ -149,7 +166,7 @@ export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRout
   }
 
   function pick(i: number) { setActiveIdx(i); onShowRoute(routes![i]); anchor(routes![i]); }
-  function swap() { const f = fromP; setFromP(toP); setToP(f); }
+  function swap() { const f = fromP; setOriginEdited(true); setFromP(toP); setToP(f); }
 
   const active = routes?.[activeIdx];
   const lastOff = active ? active.legs[active.legs.length - 1].offsets.slice(-1)[0] : 0;
@@ -181,7 +198,7 @@ export function RoutePanel({ initial, stationNames, coordOf, onClose, onShowRout
 
         <div className="shrink-0 px-4 py-2.5 border-b border-black/5 flex items-center gap-2">
           <div className="flex-1 min-w-0 flex flex-col gap-2">
-            <EndpointInput side="from" place={fromP} other={toP} stationNames={stationNames} onChange={setFromP} />
+            <EndpointInput side="from" place={fromP} other={toP} stationNames={stationNames} onEdit={() => setOriginEdited(true)} onChange={setFromP} />
             <EndpointInput side="to" place={toP} other={fromP} stationNames={stationNames} onChange={setToP} />
           </div>
           <button type="button" onClick={swap} aria-label={t("route.swap")} title={t("route.swapShort")} className="w-8 h-8 grid place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" /></svg></button>

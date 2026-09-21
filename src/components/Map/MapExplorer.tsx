@@ -2124,7 +2124,7 @@ export function MapExplorer() {
 
   /**
    * Signature: `const handleReady: (map: maplibregl.Map) => Promise<void>`
-   * Purpose: Initializes map layers, consumes deep links, and releases the initial nearby-card suppression.
+   * Purpose: Initializes map layers, consumes deep links, requests the permitted current location, and releases the initial nearby-card suppression.
    */
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
@@ -2157,12 +2157,13 @@ export function MapExplorer() {
         if (action === "route" || action === "checkin") {
           window.history.replaceState(null, "", window.location.pathname);
         }
-      } else if (navigator.geolocation) {
+      }
+      if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             rememberUserLocation(current);
-            map.flyTo({ center: [current.lng, current.lat], zoom: 15 });
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) map.flyTo({ center: [current.lng, current.lat], zoom: 15 });
           },
           () => {},
           { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
@@ -2796,6 +2797,7 @@ export function MapExplorer() {
       {routePanel && (
         <RoutePanel
           initial={routePanel}
+          currentLocation={userLocation}
           stationNames={stationNamesRef.current}
           coordOf={(name) => stationCoordRef.current.get(name)}
           onClose={() => { clearRouteLine(); setRoutePanel(null); setJourneyTarget(null); setArrivalDistance(null); }}
