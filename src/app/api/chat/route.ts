@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { streamGuideReply, type ChatMessage } from "@/lib/llm";
 import { buildGuideEventsContext } from "@/services/guideEvents";
+import { buildGuideWeatherContext, getTokyoWeather } from "@/services/weather";
 
 export const maxDuration = 240;
 
 /**
  * Signature: `async function POST(req: Request): Promise<Response>`
- * Purpose: Streams guide text and final activity cards, propagating client cancellation to the model.
+ * Purpose: Streams weather-aware guide text and final activity cards, propagating client cancellation to the model.
  */
 export async function POST(req: Request): Promise<Response> {
   const startedAt = Date.now();
@@ -30,7 +31,12 @@ export async function POST(req: Request): Promise<Response> {
         emit({ type: "start" });
         emit({ type: "status", statusKey: "guide.thinking" });
         console.log(JSON.stringify({ level: "info", message: "guide request started", requestId }));
-        const { context, refs } = await buildGuideEventsContext().catch(() => ({ context: "", refs: [] }));
+        const [eventsResult, weather] = await Promise.all([
+          buildGuideEventsContext().catch(() => ({ context: "", refs: [] })),
+          getTokyoWeather().catch(() => null),
+        ]);
+        const { refs } = eventsResult;
+        const context = [eventsResult.context, buildGuideWeatherContext(weather)].filter(Boolean).join("\n\n");
         if (controller.signal.aborted) return;
         phase = "model";
         const statuses = ["guide.comparing", "guide.checkingDetails", "guide.organizing"];

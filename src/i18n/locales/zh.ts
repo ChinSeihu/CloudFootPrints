@@ -49,6 +49,7 @@ export const zhMessages = {
   "weather.title": "天气",
   "weather.currentPrefix": "现在",
   "weather.forecastHint": "动画为实况，下为未来 7 天",
+  "weather.reliability": "可信度",
   "calendar.subtitle": "按日期查看东京活动",
   "calendar.categoryFilter": "分类筛选",
   "calendar.searchPlaceholder": "搜索活动、场馆、标签",

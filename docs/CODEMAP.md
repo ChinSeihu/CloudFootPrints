@@ -101,7 +101,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Food definitions/images: `src/lib/foodSpots.ts`, `foodSpotsImported.ts`, `foodSpotImages.ts`, `cuisineMap.ts`.
 - Food queries/APIs: `src/services/foodPoi.ts`, `hotPepperPoi.ts`, `src/app/api/food/route.ts`, `hotpepper/route.ts`.
 - Landmarks: `src/lib/landmarks.ts`, `landmarkImages.ts`.
-- Weather: `src/services/weather.ts`, `src/app/api/weather/route.ts`, `src/components/Map/WeatherPanel.tsx`, `WeatherAnimation.tsx`.
+- Weather: `src/services/weather.ts` normalizes official JMA JSON with an Open-Meteo JMA-model fallback and builds guide context; `src/app/api/weather/route.ts`, `src/components/Map/WeatherPanel.tsx`, `WeatherAnimation.tsx` consume the shared forecast.
 
 ### Event extraction and ingestion
 
@@ -395,7 +395,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `replies.ts` — reply-notification projection.
 - `routePlanner.ts` — cached station graph and Dijkstra route planning.
 - `users.ts` — demo users, registration/login, and profile updates.
-- `weather.ts` — Open-Meteo fetch and weather DTO mapping.
+- `weather.ts` — official JMA forecast parsing, Open-Meteo JMA-model fallback, shared weather DTOs, and AI-guide weather context.
 
 ### `src/services/extraction/`
 

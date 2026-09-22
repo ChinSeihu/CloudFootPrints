@@ -1,5 +1,6 @@
 import { readSSE } from "../src/lib/guideStream";
 import { requestDeepSeekContent } from "../src/lib/deepSeek";
+import { buildGuideWeatherContext, type WeatherForecast } from "../src/services/weather";
 
 /**
  * Signature: `async function collect(source: string): Promise<string[]>`
@@ -22,9 +23,18 @@ async function collect(source: string): Promise<string[]> {
 
 /**
  * Signature: `async function main(): Promise<void>`
- * Purpose: Verifies that complete SSE events survive chunking while empty events and unfinished tail frames are ignored.
+ * Purpose: Verifies guide weather grounding plus SSE and model-fallback behavior.
  */
 async function main(): Promise<void> {
+  const weatherFixture: WeatherForecast = {
+    source: "jma",
+    current: { temp: 22, code: 2, kind: "cloudy", label: "多云" },
+    daily: [{ date: "2026-09-24", code: 61, kind: "rain", label: "雨", tempMin: 20, tempMax: 27, precipProb: 70, reliability: "A" }],
+  };
+  const weatherContext = buildGuideWeatherContext(weatherFixture);
+  if (!weatherContext.includes("2026-09-24") || !weatherContext.includes("降水概率 70%") || !weatherContext.includes("可信度 A")) {
+    throw new Error(`guide weather context regression: ${weatherContext}`);
+  }
   const events = await collect('data: {"ok":1}\n\ndata: \n\ndata: {"unfinished":\n');
   const expected = ['{"ok":1}'];
   if (JSON.stringify(events) !== JSON.stringify(expected)) {

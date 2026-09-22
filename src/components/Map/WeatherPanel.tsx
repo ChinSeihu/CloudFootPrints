@@ -40,7 +40,7 @@ type Props = {
 
 /**
  * Signature: `function WeatherPanel(props: Props): React.JSX.Element | null`
- * Purpose: Provides an independently clickable map-weather control and forecast panel while reporting its expanded state to the map shell.
+ * Purpose: Provides current conditions plus JMA-backed forecasts and reliability while reporting its expanded state to the map shell.
  */
 export function WeatherPanel({ onOpenChange }: Props) {
   const { language, t } = useLanguage();
@@ -75,7 +75,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
   return (
     <>
       {/* 天气动画覆盖层（地图之上、UI 之下） */}
-      {open && data && (
+      {open && data?.current && (
         <div className="absolute inset-0 z-10 pointer-events-none">
           <WeatherAnimation kind={data.current.kind} isNight={isNight} />
         </div>
@@ -84,18 +84,18 @@ export function WeatherPanel({ onOpenChange }: Props) {
       {/* 天气按钮：缩放控件下方 */}
       <button
         type="button"
-        onClick={() => setOpen((v) => {
-          const next = !v;
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
           onOpenChange?.(next);
-          return next;
-        })}
+        }}
         aria-label={t("weather.title")}
         aria-pressed={open}
         className={`pointer-events-auto absolute top-28 right-3 z-[35] h-10 px-3 rounded-full border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.10)] flex items-center gap-1.5 text-sm font-semibold backdrop-blur transition-colors ${
           open ? "bg-blue-600 text-white" : "bg-white/95 text-neutral-800"
         }`}
       >
-        {data ? (
+        {data?.current ? (
           <>
             <WeatherIcon kind={data.current.kind} className="w-5 h-5" />
             <span>{data.current.temp}°</span>
@@ -111,8 +111,8 @@ export function WeatherPanel({ onOpenChange }: Props) {
         <div className="absolute bottom-4 left-0 right-0 z-[35] px-3 pointer-events-none">
           {/* 提示：地图动画跟"当前实况"，下方卡片是未来 7 天，避免歧义 */}
           <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] text-neutral-700 bg-white/90 rounded-full px-2.5 py-1 shadow-sm pointer-events-auto">
-            <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />
-            {t("weather.currentPrefix")} {t(weatherLabelKey(data.current.code))} {data.current.temp}° · {t("weather.forecastHint")}
+            {data.current && <WeatherIcon kind={data.current.kind} className="w-3.5 h-3.5 text-blue-600" />}
+            {data.current ? `${t("weather.currentPrefix")} ${t(weatherLabelKey(data.current.code))} ${data.current.temp}° · ` : ""}{t("weather.forecastHint")}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {data.daily.map((d, i) => (
@@ -132,6 +132,9 @@ export function WeatherPanel({ onOpenChange }: Props) {
                 </span>
                 {d.precipProb > 0 && (
                   <span className="text-[10px] text-blue-500">💧{d.precipProb}%</span>
+                )}
+                {d.reliability && (
+                  <span className="text-[9px] text-neutral-400">{t("weather.reliability")} {d.reliability}</span>
                 )}
               </div>
             ))}
