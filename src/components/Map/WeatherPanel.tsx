@@ -40,7 +40,7 @@ type Props = {
 
 /**
  * Signature: `function WeatherPanel(props: Props): React.JSX.Element | null`
- * Purpose: Provides current conditions plus JMA-backed forecasts and reliability while reporting its expanded state to the map shell.
+ * Purpose: Provides current conditions and layered forecasts in an adaptive-height panel while reporting its expanded state to the map shell.
  */
 export function WeatherPanel({ onOpenChange }: Props) {
   const { language, t } = useLanguage();
@@ -127,9 +127,11 @@ export function WeatherPanel({ onOpenChange }: Props) {
               className={`grid transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${detailOpen ? "mb-2 grid-rows-[1fr] translate-y-0 opacity-100" : "grid-rows-[0fr] translate-y-3 opacity-0 pointer-events-none"}`}
             >
               <div className="min-h-0 overflow-hidden">
-                <div className={`relative max-h-[46vh] overflow-x-hidden overflow-y-auto rounded-[28px] border border-white/80 bg-gradient-to-br p-3.5 text-neutral-700 shadow-[0_18px_50px_rgba(30,64,175,0.18)] backdrop-blur-xl pointer-events-auto ${selectedDay.kind === "rain" || selectedDay.kind === "storm" ? "from-slate-100/95 via-blue-50/95 to-indigo-100/95" : selectedDay.kind === "sunny" ? "from-amber-50/95 via-white/95 to-sky-100/95" : "from-sky-50/95 via-white/95 to-indigo-50/95"}`}>
-                  <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" />
-                  <div className="pointer-events-none absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-violet-300/15 blur-2xl" />
+                <div className={`relative max-h-[calc(100dvh-16.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-[28px] border border-white/80 bg-gradient-to-br p-3.5 text-neutral-700 shadow-[0_18px_50px_rgba(30,64,175,0.18)] backdrop-blur-xl pointer-events-auto ${selectedDay.kind === "rain" || selectedDay.kind === "storm" ? "from-slate-100/95 via-blue-50/95 to-indigo-100/95" : selectedDay.kind === "sunny" ? "from-amber-50/95 via-white/95 to-sky-100/95" : "from-sky-50/95 via-white/95 to-indigo-50/95"}`}>
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+                    <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" />
+                    <div className="absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-violet-300/15 blur-2xl" />
+                  </div>
 
                   <div className="relative flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
