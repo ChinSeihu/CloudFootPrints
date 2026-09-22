@@ -47,6 +47,7 @@ export function WeatherPanel({ onOpenChange }: Props) {
   const [data, setData] = useState<WeatherForecast | null>(null);
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -72,8 +73,8 @@ export function WeatherPanel({ onOpenChange }: Props) {
   if (failed) return null;
 
   const todayKey = data?.daily[0]?.date ?? "";
-  const selectedDay = data?.daily.find((day) => day.date === selectedDate) ?? null;
-  const selectedHours = data?.hourly?.filter((hour) => hour.time.startsWith(selectedDate ?? "") && Number(hour.time.slice(11, 13)) % 3 === 0) ?? [];
+  const selectedDay = data?.daily.find((day) => day.date === (selectedDate ?? todayKey)) ?? null;
+  const selectedHours = data?.hourly?.filter((hour) => hour.time.startsWith(selectedDay?.date ?? "") && Number(hour.time.slice(11, 13)) % 3 === 0) ?? [];
   const representativeHour = selectedHours.find((hour) => hour.time.slice(11, 13) === "12") ?? selectedHours[0];
   const firstRainHour = selectedHours.find((hour) => hour.precipProb >= 50 || hour.precipitation >= 0.1);
 
@@ -120,81 +121,93 @@ export function WeatherPanel({ onOpenChange }: Props) {
             {data.current ? `${t("weather.currentPrefix")} ${t(weatherLabelKey(data.current.code))} ${data.current.temp}° · ` : ""}{t("weather.forecastHint")}
           </div>
           {selectedDay && (
-            <div className="mb-2 max-h-[46vh] overflow-y-auto rounded-3xl border border-white/80 bg-white/95 p-3.5 text-neutral-700 shadow-xl backdrop-blur pointer-events-auto">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <WeatherIcon kind={selectedDay.kind} className="h-8 w-8 shrink-0 text-blue-600" />
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-semibold text-neutral-900">
-                        {dayLabel(selectedDay.date, data.daily.indexOf(selectedDay), todayKey, language, t("common.today"), t("common.tomorrow"))}
-                      </span>
-                      <span className="text-[11px] text-neutral-400">{selectedDay.date}</span>
-                    </div>
-                    <div className="mt-0.5 text-xs text-neutral-600">
-                      {t(weatherLabelKey(selectedDay.code))} · {selectedDay.tempMin}–{selectedDay.tempMax}° · 💧{selectedDay.precipProb}%
-                      {selectedDay.reliability ? ` · ${t("weather.reliability")} ${selectedDay.reliability}` : ""}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(null)}
-                  aria-label={t("weather.closeDetail")}
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-neutral-100 text-sm text-neutral-500"
-                >
-                  ×
-                </button>
-              </div>
+            <div
+              aria-hidden={!detailOpen}
+              inert={!detailOpen}
+              className={`grid transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${detailOpen ? "mb-2 grid-rows-[1fr] translate-y-0 opacity-100" : "grid-rows-[0fr] translate-y-3 opacity-0 pointer-events-none"}`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className={`relative max-h-[46vh] overflow-x-hidden overflow-y-auto rounded-[28px] border border-white/80 bg-gradient-to-br p-3.5 text-neutral-700 shadow-[0_18px_50px_rgba(30,64,175,0.18)] backdrop-blur-xl pointer-events-auto ${selectedDay.kind === "rain" || selectedDay.kind === "storm" ? "from-slate-100/95 via-blue-50/95 to-indigo-100/95" : selectedDay.kind === "sunny" ? "from-amber-50/95 via-white/95 to-sky-100/95" : "from-sky-50/95 via-white/95 to-indigo-50/95"}`}>
+                  <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" />
+                  <div className="pointer-events-none absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-violet-300/15 blur-2xl" />
 
-              {selectedDay.detail && (
-                <div className="mt-2 rounded-xl bg-blue-50 px-2.5 py-2 text-[11px] leading-relaxed text-blue-900">
-                  <span className="mr-1 font-semibold">JMA</span>{selectedDay.detail.replace(/\s+/g, " ")}
-                </div>
-              )}
-
-              <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-4">
-                <div className="rounded-xl bg-neutral-50 px-2.5 py-2">
-                  <div className="text-neutral-400">{t("weather.feelsLike")}</div>
-                  <div className="mt-0.5 font-semibold text-neutral-800">{representativeHour?.apparentTemp ?? "—"}°</div>
-                </div>
-                <div className="rounded-xl bg-neutral-50 px-2.5 py-2">
-                  <div className="text-neutral-400">{t("weather.humidity")}</div>
-                  <div className="mt-0.5 font-semibold text-neutral-800">{representativeHour?.humidity ?? "—"}%</div>
-                </div>
-                <div className="rounded-xl bg-neutral-50 px-2.5 py-2">
-                  <div className="text-neutral-400">{t("weather.wind")}</div>
-                  <div className="mt-0.5 font-semibold text-neutral-800">{selectedDay.windSpeedMax ?? "—"} km/h</div>
-                </div>
-                <div className="rounded-xl bg-neutral-50 px-2.5 py-2">
-                  <div className="text-neutral-400">{t("weather.sunriseSunset")}</div>
-                  <div className="mt-0.5 font-semibold text-neutral-800">{selectedDay.sunrise?.slice(11, 16) ?? "—"} / {selectedDay.sunset?.slice(11, 16) ?? "—"}</div>
-                </div>
-              </div>
-
-              <div className="mt-2 text-[11px] font-medium text-neutral-700">
-                {firstRainHour
-                  ? t("weather.rainAround", { time: firstRainHour.time.slice(11, 16) })
-                  : t("weather.noRainSignal")}
-              </div>
-
-              {selectedHours.length > 0 && (
-                <div className="mt-2">
-                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">{t("weather.hourly")}</div>
-                  <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {selectedHours.map((hour) => (
-                      <div key={hour.time} className="w-[4.6rem] shrink-0 rounded-xl border border-neutral-100 bg-white px-2 py-2 text-center shadow-sm">
-                        <div className="text-[10px] text-neutral-400">{hour.time.slice(11, 16)}</div>
-                        <WeatherIcon kind={hour.kind} className="mx-auto my-1 h-5 w-5 text-blue-600" />
-                        <div className="text-xs font-semibold text-neutral-800">{hour.temp}°</div>
-                        <div className="mt-0.5 text-[9px] text-blue-500">💧{hour.precipProb}%</div>
-                        {hour.precipitation > 0 && <div className="text-[9px] text-blue-400">{hour.precipitation} mm</div>}
-                        <div className="text-[9px] text-neutral-400">{hour.windSpeed ?? "—"} km/h</div>
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/80 bg-white/75 shadow-sm">
+                        <WeatherIcon kind={selectedDay.kind} className="h-8 w-8 text-blue-600" />
                       </div>
-                    ))}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="text-base font-semibold text-neutral-900">
+                            {dayLabel(selectedDay.date, data.daily.indexOf(selectedDay), todayKey, language, t("common.today"), t("common.tomorrow"))}
+                          </span>
+                          <span className="text-[11px] text-neutral-400">{selectedDay.date}</span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-neutral-600">{t(weatherLabelKey(selectedDay.code))}</div>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-start gap-2">
+                      <div className="text-right">
+                        <div className="text-xl font-semibold tracking-tight text-neutral-900">{selectedDay.tempMax}°</div>
+                        <div className="text-[10px] text-neutral-400">{selectedDay.tempMin}°</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDetailOpen(false)}
+                        aria-label={t("weather.closeDetail")}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/80 bg-white/70 text-sm text-neutral-500 shadow-sm transition-colors hover:bg-white"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="relative mt-2.5 flex flex-wrap gap-1.5 text-[10px]">
+                    <span className="rounded-full bg-blue-600 px-2.5 py-1 font-medium text-white shadow-sm">💧 {selectedDay.precipProb}%</span>
+                    {selectedDay.reliability && <span className="rounded-full border border-white/80 bg-white/70 px-2.5 py-1 text-neutral-600">{t("weather.reliability")} {selectedDay.reliability}</span>}
+                    <span className="rounded-full border border-white/80 bg-white/70 px-2.5 py-1 text-neutral-600">
+                      {firstRainHour ? t("weather.rainAround", { time: firstRainHour.time.slice(11, 16) }) : t("weather.noRainSignal")}
+                    </span>
+                  </div>
+
+                  <div className="relative mt-2.5 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-4">
+                    <div className="rounded-2xl border border-white/80 bg-white/65 px-2.5 py-2 shadow-sm">
+                      <div className="text-neutral-400">{t("weather.feelsLike")}</div>
+                      <div className="mt-0.5 text-sm font-semibold text-neutral-800">{representativeHour?.apparentTemp ?? "—"}°</div>
+                    </div>
+                    <div className="rounded-2xl border border-white/80 bg-white/65 px-2.5 py-2 shadow-sm">
+                      <div className="text-neutral-400">{t("weather.humidity")}</div>
+                      <div className="mt-0.5 text-sm font-semibold text-neutral-800">{representativeHour?.humidity ?? "—"}%</div>
+                    </div>
+                    <div className="rounded-2xl border border-white/80 bg-white/65 px-2.5 py-2 shadow-sm">
+                      <div className="text-neutral-400">{t("weather.wind")}</div>
+                      <div className="mt-0.5 text-sm font-semibold text-neutral-800">{selectedDay.windSpeedMax ?? "—"} <span className="text-[9px] font-normal text-neutral-400">km/h</span></div>
+                    </div>
+                    <div className="rounded-2xl border border-white/80 bg-white/65 px-2.5 py-2 shadow-sm">
+                      <div className="text-neutral-400">{t("weather.sunriseSunset")}</div>
+                      <div className="mt-0.5 text-sm font-semibold text-neutral-800">{selectedDay.sunrise?.slice(11, 16) ?? "—"} <span className="text-neutral-300">/</span> {selectedDay.sunset?.slice(11, 16) ?? "—"}</div>
+                    </div>
+                  </div>
+
+                  {selectedHours.length > 0 && (
+                    <div className="relative mt-3">
+                      <div className="mb-1.5 text-[10px] font-semibold tracking-wide text-neutral-400">{t("weather.hourly")}</div>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {selectedHours.map((hour) => (
+                          <div key={hour.time} className="w-[4.6rem] shrink-0 rounded-2xl border border-white/90 bg-white/75 px-2 py-2 text-center shadow-sm">
+                            <div className="text-[10px] font-medium text-neutral-400">{hour.time.slice(11, 16)}</div>
+                            <WeatherIcon kind={hour.kind} className="mx-auto my-1 h-5 w-5 text-blue-600" />
+                            <div className="text-xs font-semibold text-neutral-800">{hour.temp}°</div>
+                            <div className="mt-0.5 text-[9px] text-blue-500">💧{hour.precipProb}%</div>
+                            {hour.precipitation > 0 && <div className="text-[9px] text-blue-400">{hour.precipitation} mm</div>}
+                            <div className="text-[9px] text-neutral-400">{hour.windSpeed ?? "—"} km/h</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
           <div className="flex gap-2 overflow-x-auto pb-1 pr-16 pointer-events-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -202,9 +215,16 @@ export function WeatherPanel({ onOpenChange }: Props) {
               <button
                 type="button"
                 key={d.date}
-                onClick={() => setSelectedDate((current) => current === d.date ? null : d.date)}
-                aria-pressed={selectedDate === d.date}
-                className={`shrink-0 w-20 rounded-2xl backdrop-blur shadow-md px-2.5 py-2.5 flex flex-col items-center gap-1 border transition-colors ${selectedDate === d.date ? "border-blue-500 bg-blue-50/95" : "border-transparent bg-white/95"}`}
+                onClick={() => {
+                  if (detailOpen && selectedDate === d.date) {
+                    setDetailOpen(false);
+                    return;
+                  }
+                  setSelectedDate(d.date);
+                  setDetailOpen(true);
+                }}
+                aria-pressed={detailOpen && selectedDate === d.date}
+                className={`shrink-0 w-20 rounded-2xl backdrop-blur shadow-md px-2.5 py-2.5 flex flex-col items-center gap-1 border transition-all duration-300 ${detailOpen && selectedDate === d.date ? "-translate-y-1 border-blue-400 bg-blue-50/95 shadow-[0_10px_28px_rgba(37,99,235,0.18)]" : "border-transparent bg-white/95"}`}
               >
                 <span className="text-[11px] font-medium text-neutral-700">
                   {dayLabel(d.date, i, todayKey, language, t("common.today"), t("common.tomorrow"))}

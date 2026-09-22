@@ -333,8 +333,6 @@ export function buildGuideWeatherContext(forecast: WeatherForecast | null): stri
     return `- ${day.date}：${day.label}${detail}，${day.tempMin}–${day.tempMax}°C，降水概率 ${day.precipProb}%${reliability}`;
   }).join("\n");
   const overview = forecast.overview ? `\n气象厅天气概况：${forecast.overview.replace(/\s+/g, " ")}` : "";
-  const source = forecast.source === "jma"
-    ? `日本气象厅发布预报${forecast.current ? "；当前温度由 Open-Meteo 的 JMA 模型补齐" : ""}`
-    : "Open-Meteo 的 JMA 模型回退";
+  const source = forecast.source === "jma" ? "日本官方天气预报" : "天气预报备用来源";
   return `【东京天气参考】\n数据来源：${source}。${current}\n可用预报范围：${forecast.daily[0].date} 至 ${forecast.daily.at(-1)!.date}。\n${daily}${overview}\n回答涉及上述范围内日期的问题时，必须结合对应天气、气温和降水概率；超出范围时明确说明暂无可靠预报，不要自行推测。`;
 }
