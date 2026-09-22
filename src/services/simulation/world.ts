@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getTokyoDailyWeather, type DailyWeather } from "@/services/weather";
 
 // World Agent（V7）：模拟「东京当天」。规则化、零 LLM、按日期可复现（幂等）。
 // 产出 WorldState（季节/天气/城市情绪/热点），作为各角色决策的 Layer-1 情境。
@@ -98,17 +99,20 @@ function climateContextOf(dateKey: string): string {
 }
 
 /**
- * Signature: `function worldSnapshot(dateKey: string): World`
- * Purpose: Builds the deterministic Tokyo weather, mood, and trend snapshot for one date under the current season rules.
+ * Signature: `function worldSnapshot(dateKey: string, forecast?: DailyWeather | null): World`
+ * Purpose: Builds Tokyo's daily world snapshot using a real forecast when available and deterministic seasonal weather as an offline or out-of-range fallback.
  */
-function worldSnapshot(dateKey: string): World {
+function worldSnapshot(dateKey: string, forecast?: DailyWeather | null): World {
   const month = Number(dateKey.slice(5, 7));
   const season = seasonOf(month);
   const rnd = seededRand(dateKey);
   const weatherPool = month === 9 ? SEPTEMBER_WEATHER : WEATHER[season];
   const moodPool = month === 9 ? SEPTEMBER_MOOD : MOOD[season];
   const pool = month === 9 ? SEPTEMBER_VIRAL : VIRAL[season];
-  const weather = pick(rnd, weatherPool);
+  const fallbackWeather = pick(rnd, weatherPool);
+  const weather = forecast
+    ? `${forecast.label}，${forecast.tempMin}–${forecast.tempMax}°C，降水概率 ${forecast.precipProb}%`
+    : fallbackWeather;
   const cityMood = pick(rnd, moodPool);
   const viralTopics = [pick(rnd, pool)];
   const t2 = pick(rnd, pool);
@@ -119,16 +123,17 @@ function worldSnapshot(dateKey: string): World {
 // 取（或生成并落库）某天的世界状态。dateKey = YYYY-MM-DD（东京）。
 /**
  * Signature: `async function getOrCreateWorldState(dateKey: string): Promise<World>`
- * Purpose: Loads a deterministic Tokyo world state and refreshes cached rows when seasonal rules have changed.
+ * Purpose: Loads Tokyo's world state, refreshing its weather from the shared real forecast while retaining deterministic fallback behavior for unavailable dates.
  */
 export async function getOrCreateWorldState(dateKey: string): Promise<World> {
-  const expected = worldSnapshot(dateKey);
+  const forecast = await getTokyoDailyWeather(dateKey);
+  const expected = worldSnapshot(dateKey, forecast);
   const existing = await prisma.worldState.findUnique({ where: { date: dateKey } });
   if (existing) {
     const existingTopics = Array.isArray(existing.viralTopics) ? existing.viralTopics as string[] : [];
     const needsRefresh =
       existing.season !== expected.season ||
-      existing.weather !== expected.weather ||
+      (forecast !== null && existing.weather !== expected.weather) ||
       existing.cityMood !== expected.cityMood ||
       JSON.stringify(existingTopics) !== JSON.stringify(expected.viralTopics);
     if (needsRefresh) {
@@ -136,12 +141,12 @@ export async function getOrCreateWorldState(dateKey: string): Promise<World> {
         where: { date: dateKey },
         data: {
           season: expected.season,
-          weather: expected.weather,
+          weather: forecast ? expected.weather : existing.weather,
           cityMood: expected.cityMood,
           viralTopics: expected.viralTopics,
         },
       });
-      return expected;
+      return { ...expected, weather: forecast ? expected.weather : existing.weather };
     }
     return {
       date: existing.date,

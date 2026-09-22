@@ -29,6 +29,13 @@ export type WeatherForecast = {
   daily: DailyWeather[];
 };
 
+type ForecastCache = {
+  expiresAt: number;
+  value: WeatherForecast | null;
+};
+
+let forecastCache: ForecastCache | null = null;
+
 // WMO weather code → 大类 + 中文。参考 Open-Meteo 文档。
 function classify(code: number): { kind: WeatherKind; label: string } {
   if (code === 0) return { kind: "sunny", label: "晴" };
@@ -56,7 +63,13 @@ type OpenMeteoResponse = {
   };
 };
 
+/**
+ * Signature: `async function getTokyoWeather(): Promise<WeatherForecast | null>`
+ * Purpose: Loads Tokyo's current conditions and seven-day forecast, sharing a short-lived cache across UI and simulation callers.
+ */
 export async function getTokyoWeather(): Promise<WeatherForecast | null> {
+  if (forecastCache && forecastCache.expiresAt > Date.now()) return forecastCache.value;
+
   const params = new URLSearchParams({
     latitude: String(TOKYO.lat),
     longitude: String(TOKYO.lng),
@@ -70,9 +83,15 @@ export async function getTokyoWeather(): Promise<WeatherForecast | null> {
   try {
     // 半小时缓存：天气无需实时，省调用、降延迟。
     const res = await fetch(url, { next: { revalidate: 1800 } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      forecastCache = { expiresAt: Date.now() + 300_000, value: null };
+      return null;
+    }
     const j = (await res.json()) as OpenMeteoResponse;
-    if (!j.current || !j.daily) return null;
+    if (!j.current || !j.daily) {
+      forecastCache = { expiresAt: Date.now() + 300_000, value: null };
+      return null;
+    }
 
     const cur = classify(j.current.weather_code);
     const current: CurrentWeather = {
@@ -96,8 +115,20 @@ export async function getTokyoWeather(): Promise<WeatherForecast | null> {
       };
     });
 
-    return { current, daily };
+    const forecast = { current, daily };
+    forecastCache = { expiresAt: Date.now() + 1_800_000, value: forecast };
+    return forecast;
   } catch {
+    forecastCache = { expiresAt: Date.now() + 300_000, value: null };
     return null;
   }
+}
+
+/**
+ * Signature: `async function getTokyoDailyWeather(dateKey: string): Promise<DailyWeather | null>`
+ * Purpose: Returns the real Tokyo forecast for one simulation date when that date is present in the shared seven-day feed.
+ */
+export async function getTokyoDailyWeather(dateKey: string): Promise<DailyWeather | null> {
+  const forecast = await getTokyoWeather();
+  return forecast?.daily.find((day) => day.date === dateKey) ?? null;
 }
