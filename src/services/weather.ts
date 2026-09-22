@@ -17,6 +17,23 @@ export type DailyWeather = {
   tempMin: number;
   precipProb: number;
   reliability?: "A" | "B" | "C";
+  windSpeedMax?: number;
+  sunrise?: string;
+  sunset?: string;
+};
+
+export type HourlyWeather = {
+  time: string;
+  code: number;
+  kind: WeatherKind;
+  label: string;
+  temp: number;
+  apparentTemp?: number;
+  humidity?: number;
+  precipProb: number;
+  precipitation: number;
+  windSpeed?: number;
+  cloudCover?: number;
 };
 
 export type CurrentWeather = {
@@ -29,6 +46,7 @@ export type CurrentWeather = {
 export type WeatherForecast = {
   current: CurrentWeather | null;
   daily: DailyWeather[];
+  hourly?: HourlyWeather[];
   overview?: string;
   publishedAt?: string;
   source: "jma" | "open-meteo-jma";
@@ -59,6 +77,20 @@ type OpenMeteoResponse = {
     temperature_2m_max: number[];
     temperature_2m_min: number[];
     precipitation_probability_max: (number | null)[];
+    wind_speed_10m_max?: (number | null)[];
+    sunrise?: string[];
+    sunset?: string[];
+  };
+  hourly?: {
+    time: string[];
+    weather_code: number[];
+    temperature_2m: (number | null)[];
+    apparent_temperature?: (number | null)[];
+    relative_humidity_2m?: (number | null)[];
+    precipitation_probability?: (number | null)[];
+    precipitation?: (number | null)[];
+    wind_speed_10m?: (number | null)[];
+    cloud_cover?: (number | null)[];
   };
 };
 type MutableDailyWeather = Partial<DailyWeather> & Pick<DailyWeather, "date">;
@@ -130,7 +162,8 @@ async function getOpenMeteoJmaWeather(): Promise<WeatherForecast | null> {
   const params = new URLSearchParams({
     latitude: String(TOKYO.lat), longitude: String(TOKYO.lng),
     current: "temperature_2m,weather_code",
-    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+    hourly: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,cloud_cover",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset",
     timezone: "Asia/Tokyo", forecast_days: "7",
   });
   try {
@@ -149,7 +182,25 @@ async function getOpenMeteoJmaWeather(): Promise<WeatherForecast | null> {
           date, code: daily.weather_code[index], kind: weatherClass.kind, label: weatherClass.label,
           tempMax: Math.round(daily.temperature_2m_max[index]), tempMin: Math.round(daily.temperature_2m_min[index]),
           precipProb: daily.precipitation_probability_max[index] ?? 0,
+          windSpeedMax: numeric(daily.wind_speed_10m_max?.[index]),
+          sunrise: daily.sunrise?.[index], sunset: daily.sunset?.[index],
         };
+      }),
+      hourly: json.hourly?.time.flatMap((time, index): HourlyWeather[] => {
+        const hourly = json.hourly!;
+        const temp = numeric(hourly.temperature_2m[index]);
+        const code = hourly.weather_code[index];
+        if (temp === undefined || code === undefined) return [];
+        const weatherClass = classifyWmo(code);
+        return [{
+          time, code, kind: weatherClass.kind, label: weatherClass.label, temp,
+          apparentTemp: numeric(hourly.apparent_temperature?.[index]),
+          humidity: numeric(hourly.relative_humidity_2m?.[index]),
+          precipProb: numeric(hourly.precipitation_probability?.[index]) ?? 0,
+          precipitation: hourly.precipitation?.[index] ?? 0,
+          windSpeed: numeric(hourly.wind_speed_10m?.[index]),
+          cloudCover: numeric(hourly.cloud_cover?.[index]),
+        }];
       }),
     };
   } catch {
@@ -234,11 +285,12 @@ async function getOfficialJmaWeather(supplementPromise: Promise<WeatherForecast 
         return {
           date: day.date, code: day.code, kind: day.kind, label: day.label, detail: day.detail,
           tempMax, tempMin, precipProb: day.precipProb ?? fallback?.precipProb ?? 0, reliability: day.reliability,
+          windSpeedMax: fallback?.windSpeedMax, sunrise: fallback?.sunrise, sunset: fallback?.sunset,
         };
       }).filter((day): day is DailyWeather => day !== null).slice(0, 7);
     if (!daily.length) return null;
     return {
-      source: "jma", current: supplement?.current ?? null, daily,
+      source: "jma", current: supplement?.current ?? null, daily, hourly: supplement?.hourly,
       overview: overview?.text?.trim() || undefined,
       publishedAt: short.reportDatetime ?? overview?.reportDatetime,
     };
