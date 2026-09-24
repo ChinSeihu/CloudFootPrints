@@ -5,10 +5,10 @@ import { LoadingFeedback } from "@/components/Mascot/LoadingFeedback";
 import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
+import { CATEGORY_META, type EventCategory } from "@/lib/categories";
 import { CategoryIcon, IconHeart } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
-import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
+import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates, presetWeekend } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
 import { isUserPost } from "@/components/common/EventSource";
 import { moodLabelKey, moodTagOf } from "@/lib/moods";
@@ -28,12 +28,11 @@ import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
 import { useActivitySearch } from "@/components/common/useActivitySearch";
 
 type TopTab = "OFFICIAL" | "DISCOVER";
-type DiscoverFilter = "follow" | "near" | "new" | "hot";
-type DiscoverFullType = "posts" | "checkins";
+type SocialFilter = "all" | "posts" | "checkins" | "follow";
+type SocialItem = { kind: "post"; id: string; time: number; post: EventDTO } | { kind: "checkin"; id: string; time: number; checkin: CheckInDTO };
 
 const EMPTY_METRICS: EventMetrics = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 };
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-const TOKYO_CENTER = { lat: 35.681236, lng: 139.767125 };
 
 function fmtDate(d: string | null, locale: string, fallback: string): string {
   if (!d) return fallback;
@@ -60,26 +59,6 @@ function heatScore(ev: EventDTO): number {
   const imageBonus = ev.imageUrl ? 8 : 0;
   const soonBonus = ev.startTime ? Math.max(0, 14 - Math.ceil((Date.parse(ev.startTime) - Date.now()) / 86_400_000)) : 0;
   return m.likeCount * 4 + m.favoriteCount * 3 + m.signupCount * 5 + m.clickCount + imageBonus + soonBonus + ev.trustLevel;
-}
-
-function checkinHeatScore(checkin: CheckInDTO): number {
-  const imageBonus = checkin.photoUrl || checkin.photoUrls?.length ? 6 : 0;
-  return (checkin.metrics?.likeCount ?? 0) * 4 + (checkin.metrics?.commentCount ?? 0) * 5 + imageBonus;
-}
-
-/**
- * Signature: `function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }): number`
- * Purpose: Sorts located discovery items by distance while placing unresolved locations last.
- */
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }): number {
-  if (b.lat === null || b.lng === null) return Number.POSITIVE_INFINITY;
-  const r = 6371;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const lat1 = a.lat * Math.PI / 180;
-  const lat2 = b.lat * Math.PI / 180;
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * r * Math.asin(Math.sqrt(x));
 }
 
 function matchesQuery(ev: EventDTO, query: string): boolean {
@@ -132,10 +111,6 @@ function SectionTitle({ title, action, icon = "spark", tone = "zinc" }: { title:
       {action && <div className="shrink-0 pt-1">{action}</div>}
     </div>
   );
-}
-
-function MasonryGrid({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`columns-2 gap-1.5 [&>*]:mb-1.5 [&>*]:w-full [&>*]:break-inside-avoid-column ${className}`}>{children}</div>;
 }
 
 function ImagePreview({ urls, initialIndex, onClose }: { urls: string[]; initialIndex: number; onClose: () => void }) {
@@ -209,16 +184,14 @@ function SectionBand({ children, tone = "neutral", className = "", bandRef }: { 
   );
 }
 
-function discoverEmptyKey(filter: DiscoverFilter, kind: "posts" | "checkins"): TranslationKey {
+function discoverEmptyKey(filter: SocialFilter, kind: "posts" | "checkins"): TranslationKey {
   if (filter === "follow") return kind === "posts" ? "explore.emptyFollowPosts" : "explore.emptyFollowCheckins";
-  if (filter === "near") return kind === "posts" ? "explore.emptyNearPosts" : "explore.emptyNearCheckins";
-  if (filter === "hot") return kind === "posts" ? "explore.emptyHotPosts" : "explore.emptyHotCheckins";
   return kind === "posts" ? "explore.emptyPosts" : "explore.emptyCheckins";
 }
 
 /**
  * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
- * Purpose: Renders discovery and community feeds with bottom-triggered batches and dismisses details when the active Explore navigation tab is selected again.
+ * Purpose: Renders compact event browsing and a mixed post-footprint feed, with bottom-triggered batches and detail navigation.
  */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const { language, t } = useLanguage();
@@ -235,12 +208,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [cat, setCat] = useBrowseState<EventCategory | "ALL">(`recommend:${user?.id ?? "guest"}:cat`, "ALL");
   const [dateRange, setDateRange] = useBrowseState<DayRange>(`recommend:${user?.id ?? "guest"}:dateRange`, ALL_DATES);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useBrowseState(`recommend:${user?.id ?? "guest"}:searchOpen`, false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useBrowseState(`recommend:${user?.id ?? "guest"}:query`, "");
-  const [discoverFilter, setDiscoverFilter] = useBrowseState<DiscoverFilter>(`recommend:${user?.id ?? "guest"}:discoverFilter`, "new");
-  const [discoverFullType, setDiscoverFullType] = useBrowseState<DiscoverFullType>(`recommend:${user?.id ?? "guest"}:discoverFullType`, "posts");
+  const [socialFilter, setSocialFilter] = useBrowseState<SocialFilter>(`recommend:${user?.id ?? "guest"}:socialFilter`, "all");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [discoverCheckinRows, setDiscoverCheckinRows] = useBrowseState<CheckInDTO[]>(`recommend:${user?.id ?? "guest"}:discoverCheckinRows`, checkins, { persist: false });
   const [checkinsOffset, setCheckinsOffset] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsOffset`, checkins.length, { persist: false });
   const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore, { persist: false });
@@ -266,13 +237,11 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [deletingCheckin, setDeletingCheckin] = useState<CheckInDTO | null>(null);
   const [activityVisibleCount, setActivityVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:activityVisibleCount`, 12);
-  const [postVisibleCount, setPostVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:postVisibleCount`, 12);
+  const [socialVisibleCount, setSocialVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:socialVisibleCount`, 12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
-  const allDiscoverRef = useRef<HTMLElement | null>(null);
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
-  const postsSentinelRef = useRef<HTMLDivElement | null>(null);
-  const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const socialSentinelRef = useRef<HTMLDivElement | null>(null);
   const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
   const { results: activitySearchResults } = useActivitySearch(query, hasOfficialSearch);
 
@@ -426,7 +395,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }, [filterOpen]);
 
   useEffect(() => {
-    if (discoverFilter !== "follow" || followingIds) return;
+    if (socialFilter !== "follow" || followingIds) return;
     let cancelled = false;
     fetch("/api/users/follows?type=following")
       .then((res) => (res.ok ? res.json() : null))
@@ -441,16 +410,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         if (!cancelled) setFollowingIds(new Set());
       });
     return () => { cancelled = true; };
-  }, [discoverFilter, followingIds]);
-
-  useEffect(() => {
-    if (discoverFilter !== "near" || userLocation || typeof navigator === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setUserLocation(TOKYO_CENTER),
-      { enableHighAccuracy: false, timeout: 3500, maximumAge: 10 * 60 * 1000 },
-    );
-  }, [discoverFilter, userLocation]);
+  }, [socialFilter, followingIds]);
 
   const previousCheckins = useRef(checkins);
   useEffect(() => {
@@ -466,7 +426,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
    * Signature: `async function loadMoreCheckins(): Promise<void>`
    * Purpose: Fetches the next footprint page once and keeps a failed request available for explicit retry.
    */
-  async function loadMoreCheckins(): Promise<void> {
+  const loadMoreCheckins = useCallback(async function loadMoreCheckins(): Promise<void> {
     if (checkinsLoadInFlightRef.current || !checkinsHasMore) return;
     checkinsLoadInFlightRef.current = true;
     setCheckinsLoadingMore(true);
@@ -488,17 +448,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       checkinsLoadInFlightRef.current = false;
       setCheckinsLoadingMore(false);
     }
-  }
-
-  useEffect(() => {
-    const node = checkinsSentinelRef.current;
-    if (!node || tab !== "DISCOVER" || discoverFullType !== "checkins" || !checkinsHasMore || checkinsLoadError) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) void loadMoreCheckins();
-    }, { rootMargin: "500px 0px" });
-    io.observe(node);
-    return () => io.disconnect();
-  }, [tab, discoverFullType, checkinsHasMore, checkinsOffset, checkinsLoadingMore, checkinsLoadError]);
+  }, [checkinsHasMore, checkinsOffset, setDiscoverCheckinRows, setCheckinsOffset, setCheckinsHasMore]);
 
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
   const searchableOfficialEvents = useMemo(
@@ -512,6 +462,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const rest = rankedOfficial.filter((e) => !e.featuredToday);
     return [...flagged, ...rest].slice(0, 36);
   }, [rankedOfficial]);
+  const filteredRecommended = useMemo(
+    () => recommended.filter((event) => (cat === "ALL" || event.category === cat) && eventInDayRange(event, dateRange)),
+    [recommended, cat, dateRange],
+  );
 
   const activityList = useMemo(() => {
     return searchableOfficialEvents
@@ -522,22 +476,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const discoverPosts = useMemo(() => {
     const followed = followingIds ?? new Set<string>();
     let list = userPosts.filter((e) => matchesQuery(e, query));
-    if (discoverFilter === "follow") list = list.filter((e) => !!e.author?.id && followed.has(e.author.id));
-    if (discoverFilter === "near") {
-      const origin = userLocation ?? TOKYO_CENTER;
-      return [...list].sort((a, b) =>
-        distanceKm(origin, a) - distanceKm(origin, b) ||
-        Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? "")
-      );
-    }
-    if (discoverFilter === "new") return [...list].sort((a, b) => Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? ""));
-    if (discoverFilter === "hot") return [...list].sort((a, b) => heatScore(b) - heatScore(a));
-    return [...list].sort((a, b) =>
-      Date.parse(b.createdAt ?? b.startTime ?? "") - Date.parse(a.createdAt ?? a.startTime ?? "") ||
-      (b.imageUrl ? 1 : 0) - (a.imageUrl ? 1 : 0) ||
-      heatScore(b) - heatScore(a)
-    );
-  }, [userPosts, query, discoverFilter, followingIds, userLocation]);
+    if (socialFilter === "follow") list = list.filter((e) => !!e.author?.id && followed.has(e.author.id));
+    return list;
+  }, [userPosts, query, socialFilter, followingIds]);
 
   const discoverCheckins = useMemo(() => {
     const followed = followingIds ?? new Set<string>();
@@ -550,19 +491,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         .toLowerCase()
         .includes(q);
     });
-    if (discoverFilter === "follow") list = list.filter((checkin) => !!checkin.author?.id && followed.has(checkin.author.id));
-    if (discoverFilter === "near") {
-      const origin = userLocation ?? TOKYO_CENTER;
-      return [...list].sort((a, b) =>
-        distanceKm(origin, a) - distanceKm(origin, b) ||
-        Date.parse(b.createdAt) - Date.parse(a.createdAt)
-      );
-    }
-    if (discoverFilter === "hot") {
-      return [...list].sort((a, b) => checkinHeatScore(b) - checkinHeatScore(a) || Date.parse(b.createdAt) - Date.parse(a.createdAt));
-    }
-    return [...list].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  }, [discoverCheckinRows, query, discoverFilter, followingIds, userLocation]);
+    if (socialFilter === "follow") list = list.filter((checkin) => !!checkin.author?.id && followed.has(checkin.author.id));
+    return list;
+  }, [discoverCheckinRows, query, socialFilter, followingIds]);
+
+  const socialFeed = useMemo<SocialItem[]>(() => [
+    ...(socialFilter === "checkins" ? [] : discoverPosts.map((post) => ({ kind: "post" as const, id: `post:${post.id}`, time: Date.parse(post.createdAt ?? post.startTime ?? "") || 0, post }))),
+    ...(socialFilter === "posts" ? [] : discoverCheckins.map((checkin) => ({ kind: "checkin" as const, id: `checkin:${checkin.id}`, time: Date.parse(checkin.createdAt) || 0, checkin }))),
+  ].sort((a, b) => b.time - a.time), [discoverPosts, discoverCheckins, socialFilter]);
 
   const moodStats = useMemo(() => {
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" });
@@ -607,29 +543,19 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }, [activityList.length, activityVisibleCount, tab, setActivityVisibleCount]);
 
   useEffect(() => {
-    const el = postsSentinelRef.current;
-    if (!el || tab !== "DISCOVER" || discoverFullType !== "posts" || postVisibleCount >= discoverPosts.length) return;
+    const el = socialSentinelRef.current;
+    if (!el || tab !== "DISCOVER") return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) setPostVisibleCount((current) => Math.min(current + 12, discoverPosts.length));
+      if (!entries[0].isIntersecting) return;
+      if (socialVisibleCount < socialFeed.length) {
+        setSocialVisibleCount((current) => Math.min(current + 12, socialFeed.length));
+      } else if (socialFilter !== "posts" && checkinsHasMore && !checkinsLoadingMore && !checkinsLoadError) {
+        void loadMoreCheckins();
+      }
     }, { rootMargin: "320px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [discoverPosts.length, discoverFullType, postVisibleCount, setPostVisibleCount, tab]);
-
-  function scrollToAllActivities() {
-    setTab("OFFICIAL");
-    window.setTimeout(() => allActivitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
-  }
-
-  function selectCategory(next: EventCategory | "ALL") {
-    setCat((current) => (current === next ? "ALL" : next));
-    scrollToAllActivities();
-  }
-
-  function scrollToDiscover(type: DiscoverFullType) {
-    setDiscoverFullType(type);
-    window.setTimeout(() => allDiscoverRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
-  }
+  }, [socialFeed.length, socialFilter, socialVisibleCount, setSocialVisibleCount, tab, checkinsHasMore, checkinsLoadingMore, checkinsLoadError, loadMoreCheckins]);
 
   function toggleCheckin(id: string) {
     setExpandedCheckins((current) => {
@@ -811,7 +737,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   /**
    * Signature: `function renderPostCard(post: EventDTO): React.ReactNode`
-   * Purpose: Renders a community post card and exposes reporting only after a deliberate long press or context-menu action.
+   * Purpose: Renders a full-width community story in the mixed feed, with reporting behind a deliberate long press or context-menu action.
    */
   function renderPostCard(post: EventDTO) {
     const imgs = post.imageUrls?.length ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
@@ -842,19 +768,24 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             postLongPressTriggered.current = true;
             setPostMenuId(post.id);
           }}
-          className="block w-full overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10"
+          className="block w-full overflow-hidden rounded-xl bg-white p-3 text-left shadow-sm ring-1 ring-black/10"
         >
+          <div className="mb-2 flex items-center gap-2">
+            <Avatar user={post.author} size={32} />
+            <div className="min-w-0 flex-1"><strong className="block truncate text-xs text-neutral-900">{post.author?.username ?? t("detail.user")}</strong><small className="block truncate text-[11px] text-neutral-500">{post.createdAt ? relativeTime(post.createdAt, locale) : ""}{post.venueName ? ` · ${post.venueName}` : ""}</small></div>
+            <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{t("explore.posts")}</span>
+          </div>
+          <h3 className="text-sm font-bold leading-snug text-neutral-950">{post.title}</h3>
+          {post.description && <p className="mt-1 line-clamp-3 text-xs leading-5 text-neutral-600">{post.description}</p>}
           {imgs.length > 0 && (
-            <div className="relative aspect-[4/3] bg-neutral-100">
+            <div className="relative mt-2 aspect-[16/9] overflow-hidden rounded-lg bg-neutral-100">
               <img loading="lazy" decoding="async" src={imgs[0]} alt="" className="h-full w-full object-cover" />
               {imgs.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-white">+{imgs.length - 1}</span>}
             </div>
           )}
-          <div className="p-2.5">
-            <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-neutral-950">{post.title}</h3>
-            {post.description && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-neutral-600">{post.description}</p>}
-            {tags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">#{tag}</span>)}</div>}
-            {likeCount > 0 && <div className="mt-2 flex justify-end text-[10px] text-neutral-400"><span className="inline-flex items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span></div>}
+          <div className="mt-2 flex items-center justify-between border-t border-neutral-100 pt-2 text-[11px] text-neutral-500">
+            <span className="truncate">{tags.slice(0, 2).map((tag) => `#${tag}`).join(" ")}</span>
+            <span className="inline-flex shrink-0 items-center gap-1"><IconHeart className="h-3.5 w-3.5 text-rose-400" />{likeCount}</span>
           </div>
         </button>
         {postMenuId === post.id && (
@@ -878,7 +809,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   /**
    * Signature: `function renderCheckinCard(checkin: CheckInDTO): React.ReactNode`
-   * Purpose: Renders a discoverable check-in card with responsive photos, management, reactions, and comments.
+   * Purpose: Renders a footprint in the mixed feed with photos, management, reactions, and comments.
    */
   function renderCheckinCard(checkin: CheckInDTO) {
     const moods = (checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : [])
@@ -894,7 +825,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     const likedByMe = metricOverride?.likedByMe === true;
     const text = checkin.note || checkin.event?.title || t("explore.visitedHere");
     return (
-      <article key={checkin.id} className="relative rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
+      <article key={checkin.id} className="relative rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/10">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
@@ -906,6 +837,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                 </div>
                 <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt, locale)} · {checkin.event?.title ?? t("picks.tokyo")}</p>
               </div>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">{t("explore.footprints")}</span>
               {canManageCheckin(checkin) && (
                 <div className="relative shrink-0">
                   <button
@@ -1010,8 +942,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   }
 
   return (
-    <div className="-mx-3 min-h-full bg-[#F7F9FC] px-3 pb-5 pt-3 sm:px-3 sm:pt-3">
-      <header className="relative z-20 mb-3 rounded-2xl border border-violet-100 bg-white px-3 py-2.5 shadow-[0_6px_20px_rgba(15,23,42,0.05)]">
+    <div className="-mx-3 min-h-full bg-[#F7FAF8] px-3 pb-5 pt-3 sm:px-3 sm:pt-3">
+      <header className="relative z-20 mb-2 rounded-lg border border-violet-100 bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(15,23,42,0.05)]">
         <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <div aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-sky-400 text-white shadow-sm">
@@ -1023,7 +955,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label={t("common.search")} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-violet-700" : "text-slate-600"}`}>
+          <button type="button" onClick={() => setSearchOpen((v) => !v)} aria-label={t("common.search")} aria-expanded={searchOpen} className={`grid h-8 w-8 place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5 ${query ? "text-violet-700" : "text-slate-600"}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           </button>
           <div className="relative" ref={filterBoxRef}>
@@ -1047,37 +979,32 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       </header>
 
       {searchOpen && (
-        <div className="mb-3 rounded-xl bg-white p-2 shadow-sm ring-1 ring-black/10">
+        <div className="mb-2 rounded-lg bg-white p-2 shadow-sm ring-1 ring-black/10">
           <div className="flex items-center gap-2">
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("explore.searchPlaceholder")} className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("explore.searchPlaceholder")} className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-100" />
             <button type="button" onClick={() => setSearchOpen(false)} className="px-2 text-xs font-semibold text-blue-600">{t("common.cancel")}</button>
           </div>
         </div>
       )}
 
-      <nav className="mb-3 grid grid-cols-2 gap-1 rounded bg-white p-2 shadow-sm ring-1 ring-black/5 sm:mb-4 sm:p-1.5">
+      <nav className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-black/5" aria-label={t("explore.title")}>
         {[
-          ["OFFICIAL", t("me.events"), t("explore.officialTab")],
-          ["DISCOVER", t("explore.discover"), t("explore.discoverTab")],
+          ["OFFICIAL", t("explore.browseEvents")],
+          ["DISCOVER", t("explore.browseCommunity")],
         ].map(([key, label]) => {
           const active = tab === key;
-          const isDiscover = key === "DISCOVER";
           return (
             <button
               key={key}
               type="button"
               onClick={() => setTab(key as TopTab)}
-              className={`relative overflow-hidden rounded-md px-3 py-1 text-left transition sm:rounded-lg sm:py-2.5 ${
+              className={`rounded-lg px-3 py-2.5 text-center text-sm font-bold transition ${
                 active
-                  ? "bg-violet-50 text-violet-700 shadow-[0_1px_2px_rgba(124,58,237,0.10)] ring-1 ring-violet-100"
+                  ? "bg-emerald-700 text-white"
                   : "text-neutral-500 hover:bg-neutral-50"
               }`}
             >
-              <span className={`absolute right-2 top-2 h-2 w-2 rounded-full ${isDiscover ? "bg-emerald-400" : "bg-blue-500"} ${active ? "opacity-100" : "opacity-35"}`} />
-              <span className="block text-sm font-black leading-tight">{label}</span>
-              <span className={`mt-0.5 block text-[10px] font-medium leading-tight ${active ? "text-violet-400" : "text-neutral-400"}`}>
-                {t(isDiscover ? "explore.discoverTab" : "explore.officialTab")}
-              </span>
+              {label}
             </button>
           );
         })}
@@ -1085,25 +1012,25 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
       {tab === "OFFICIAL" ? (
         <div className="space-y-3">
-          {!hasOfficialSearch && <TodayPicks events={recommended} onOpen={openEvent} />}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t("filter.title")}>
+            {([
+              ["all", t("explore.allContent")],
+              ["weekend", t("explore.weekend")],
+              ["EXHIBITION", t("category.exhibition")],
+              ["MARKET", t("category.market")],
+            ] as const).map(([key, label]) => {
+              const weekend = presetWeekend();
+              const active = key === "all" ? cat === "ALL" && isAllDates(dateRange)
+                : key === "weekend" ? cat === "ALL" && dateRange.from === weekend.from && dateRange.to === weekend.to
+                  : cat === key;
+              return <button key={key} type="button" aria-pressed={active} onClick={() => {
+                if (key === "weekend") { setCat("ALL"); setDateRange(weekend); }
+                else { setCat(key === "all" ? "ALL" : key); setDateRange(ALL_DATES); }
+              }} className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${active ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-neutral-600 ring-black/10"}`}>{label}</button>;
+            })}
+          </div>
 
-          <section className="rounded-lg bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10 sm:px-3 sm:py-3">
-            <div className="grid grid-cols-6 gap-2">
-              {EVENT_CATEGORIES.slice(0, 5).map((c) => {
-                const active = cat === c;
-                return (
-                  <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
-                    <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}><CategoryIcon category={c} className="h-4.5 w-4.5 sm:h-5 sm:w-5" /></span>
-                    <span className="truncate">{t(CATEGORY_TRANSLATION_KEYS[c])}</span>
-                  </button>
-                );
-              })}
-              <button type="button" onClick={() => selectCategory("ALL")} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${cat === "ALL" ? "bg-blue-600 text-white" : "text-neutral-700"}`}>
-                <span className={`grid h-8 w-8 place-items-center rounded-full sm:h-9 sm:w-9 ${cat === "ALL" ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-600"}`}><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></span>
-                <span className="truncate">{t("common.all")}</span>
-              </button>
-            </div>
-          </section>
+          {!hasOfficialSearch && <TodayPicks events={filteredRecommended} onOpen={openEvent} />}
 
           {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
           {!eventsNotice && activityList.length === 0 && <div className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">
@@ -1115,112 +1042,57 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             </div>
           </div>}
           {activityList.length > 0 && (
-            <SectionBand tone="neutral" className="scroll-mt-4 !p-2" bandRef={allActivitiesRef}>
-              <SectionTitle title={cat === "ALL" ? t("explore.allEvents") : t("explore.categoryEvents", { category: t(CATEGORY_TRANSLATION_KEYS[cat]) })} icon="calendar" tone="green" />
-              <MasonryGrid>
-                {activityList.slice(0, activityVisibleCount).map((ev) => {
-                  const meta = CATEGORY_META[ev.category];
-                  return (
-                    <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-                      <div className="aspect-[4/3] w-full bg-emerald-50">
-                        {ev.imageUrl ? <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-emerald-300"><CategoryIcon category={ev.category} className="h-10 w-10" /></div>}
-                      </div>
-                      <div className="p-3">
-                        <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</div>
-                        <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
-                        <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </MasonryGrid>
+            <section ref={allActivitiesRef} className="scroll-mt-4">
+              <div className="mb-2 flex items-center justify-between"><h2 className="text-base font-black text-neutral-900">{cat === "ALL" ? t("explore.allEvents") : t("explore.categoryEvents", { category: t(CATEGORY_TRANSLATION_KEYS[cat]) })}</h2></div>
+              <div className="grid grid-cols-2 items-start gap-2">
+                {[0, 1].map((column) => (
+                  <div key={column} className="flex min-w-0 flex-col gap-2">
+                    {activityList.slice(0, activityVisibleCount).filter((_, index) => index % 2 === column).map((ev, index) => {
+                      const meta = CATEGORY_META[ev.category];
+                      return (
+                        <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="block min-w-0 overflow-hidden rounded-xl bg-white text-left shadow-sm ring-1 ring-black/10">
+                          <div className={`${(index * 2 + column) % 3 === 0 ? "aspect-[4/5]" : "aspect-[4/3]"} w-full bg-emerald-50`}>
+                            {ev.imageUrl ? <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-emerald-300"><CategoryIcon category={ev.category} className="h-10 w-10" /></div>}
+                          </div>
+                          <div className="p-2.5">
+                            <div className="mb-1 flex items-center gap-1 truncate text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5 shrink-0" />{fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</div>
+                            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
+                            <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? t(CATEGORY_TRANSLATION_KEYS[ev.category])}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
               {activityVisibleCount < activityList.length && (
                 <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">{t("explore.loadingMore")}</div>
               )}
-            </SectionBand>
+            </section>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          {discoverFilter !== "new" && ((discoverPosts.length === 0 && !eventsNotice) || (discoverCheckins.length === 0 && !checkinsNotice)) && <button type="button" className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700" onClick={() => setDiscoverFilter("new")}>{t("explore.latestTokyo")}</button>}
-          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {[
-              ["follow", t("detail.follow")],
-              ["near", t("explore.near")],
-              ["new", t("detail.new")],
-              ["hot", t("detail.hot")],
-            ].map(([key, label]) => {
-              const active = discoverFilter === key;
-              return <button key={key} type="button" onClick={() => setDiscoverFilter(key as DiscoverFilter)} className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold shadow-sm ring-1 ring-black/5 ${active ? "bg-emerald-600 text-white" : "bg-white text-neutral-500"}`}>{label}</button>;
+          <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {(["all", "posts", "checkins", "follow"] as const).map((key) => {
+              const active = socialFilter === key;
+              const label = t(key === "all" ? "explore.allContent" : key === "posts" ? "explore.posts" : key === "checkins" ? "explore.footprints" : "explore.following");
+              return <button key={key} type="button" aria-pressed={active} onClick={() => { setSocialFilter(key); setSocialVisibleCount(12); }} className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${active ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-white text-neutral-600 ring-black/10"}`}>{label}</button>;
             })}
           </div>
-
-          <SectionBand tone="emerald" className="space-y-3 !p-2">
-          <section>
-            <SectionTitle title={t("explore.communityPosts")} icon="chat" tone="blue" action={<button type="button" onClick={() => scrollToDiscover("posts")} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
-            {discoverPosts.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{eventsNotice ?? t(discoverEmptyKey(discoverFilter, "posts"))}</div>
+          <section className="space-y-2">
+            <h2 className="text-base font-black text-neutral-900">{t("explore.tokyoSharing")}</h2>
+            {socialFeed.length > 0 ? (
+              <div className="space-y-2">{socialFeed.slice(0, socialVisibleCount).map((item) => <div key={item.id}>{item.kind === "post" ? renderPostCard(item.post) : renderCheckinCard(item.checkin)}</div>)}</div>
             ) : (
-              <MasonryGrid>
-                {discoverPosts.slice(0, 6).map((post) => renderPostCard(post))}
-              </MasonryGrid>
+              <MascotFeedback>{eventsNotice ?? checkinsNotice ?? t(socialFilter === "posts" ? discoverEmptyKey(socialFilter, "posts") : socialFilter === "checkins" ? discoverEmptyKey(socialFilter, "checkins") : "explore.noShares")}</MascotFeedback>
             )}
-          </section>
-
-          <section>
-            <SectionTitle title={t("explore.nearbyFootprints")} icon="trail" tone="rose" action={<button type="button" onClick={() => scrollToDiscover("checkins")} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
-            {discoverCheckins.length === 0 ? (
-              <div className="rounded-lg bg-white py-8 text-center text-sm text-neutral-400 shadow-sm ring-1 ring-black/10">{checkinsNotice ?? t(discoverEmptyKey(discoverFilter, "checkins"))}</div>
-            ) : (
-              <div className="grid grid-cols-1 gap-1.5">
-                {discoverCheckins.slice(0, 4).map((checkin) => renderCheckinCard(checkin))}
+            {(socialVisibleCount < socialFeed.length || (socialFilter !== "posts" && checkinsHasMore)) && (
+              <div ref={socialSentinelRef} className="py-4 text-center text-xs text-neutral-400">
+                {checkinsLoadError ? <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-700">{t("explore.loadFailedRetry")}</button>
+                  : checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text={t("explore.findingFootprints")} /> : t("explore.loadingMore")}
               </div>
             )}
-          </section>
-          </SectionBand>
-
-          <section ref={allDiscoverRef} className="relative scroll-mt-4 overflow-hidden rounded-lg bg-white p-2 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-zinc-300/75 before:absolute before:left-0 before:top-0 before:h-0.5 before:w-20 before:bg-violet-500/75">
-            <div className="relative z-10 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-white/90 p-1.5 shadow-sm ring-1 ring-black/10 backdrop-blur">
-              {[
-                ["posts", t("explore.allPosts")],
-                ["checkins", t("explore.allFootprints")],
-              ].map(([key, label]) => {
-                const active = discoverFullType === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setDiscoverFullType(key as DiscoverFullType)}
-                    className={`rounded-md px-3 py-2 text-sm font-black transition ${active ? "bg-violet-50 text-violet-700 ring-1 ring-violet-100" : "text-neutral-500 hover:bg-neutral-50"}`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="relative z-10">
-            {discoverFullType === "posts" ? (
-              discoverPosts.length > 0 ? (
-                <>
-                  <MasonryGrid>{discoverPosts.slice(0, postVisibleCount).map((post) => renderPostCard(post))}</MasonryGrid>
-                  {postVisibleCount < discoverPosts.length && <div ref={postsSentinelRef} className="py-4 text-center text-xs text-neutral-400">{t("explore.loadingMore")}</div>}
-                </>
-              ) : (
-                <MascotFeedback>{eventsNotice ?? t(discoverEmptyKey(discoverFilter, "posts"))}</MascotFeedback>
-              )
-            ) : discoverCheckins.length > 0 || checkinsHasMore ? (
-              <>
-                <div className="grid grid-cols-1 gap-1.5">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
-                <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
-                  {checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text={t("explore.findingFootprints")} /> : checkinsLoadError ? (
-                    <MascotFeedback><button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-600">{t("explore.loadFailedRetry")}</button></MascotFeedback>
-                  ) : checkinsHasMore ? t("explore.scrollMoreFootprints") : t("explore.allFootprintsLoaded")}
-                </div>
-              </>
-            ) : (
-              <MascotFeedback>{checkinsNotice ?? t(discoverEmptyKey(discoverFilter, "checkins"))}</MascotFeedback>
-            )}
-            </div>
           </section>
 
           {moodStats.length > 0 && (

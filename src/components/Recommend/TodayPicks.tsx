@@ -123,10 +123,10 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
   if (!ready || picks.length === 0) return null;
 
   return (
-    <section aria-label={t("picks.title")}>
+    <section aria-label={t("picks.featuredTitle")}>
       <div className="mb-2 flex items-center justify-between gap-3 px-1">
-        <h2 className="text-base font-black tracking-tight text-neutral-950">{t("picks.title")}</h2>
-        <span className="text-xs text-neutral-500">{t("picks.daily")} · {Math.min(activeIndex + 1, picks.length)}/{picks.length}</span>
+        <h2 className="text-base font-black tracking-tight text-neutral-950">{t("picks.featuredTitle")}</h2>
+        <span className="text-xs text-neutral-500">{t("picks.daily")}</span>
       </div>
 
       {errorNotice ? (
@@ -136,6 +136,7 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
         </div>
       ) : null}
 
+      <div className="relative">
       <div
         ref={carouselRef}
         className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -254,11 +255,16 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
           );
         })}
       </div>
-      {picks.length > 1 && <div className="mt-1 flex items-center justify-center gap-2" aria-label={t("picks.title")}>
-        <button type="button" onClick={() => scrollToPick(activeIndex - 1)} aria-label={t("explore.switchFeatured", { count: (activeIndex - 1 + picks.length) % picks.length + 1 })} className="grid size-9 place-items-center rounded-full bg-white text-emerald-700 ring-1 ring-black/5">‹</button>
-        {picks.map((event, index) => <button key={event.id} type="button" onClick={() => scrollToPick(index)} aria-label={t("explore.switchFeatured", { count: index + 1 })} aria-current={index === activeIndex} className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-5 bg-emerald-600" : "w-2 bg-neutral-300"}`} />)}
-        <button type="button" onClick={() => scrollToPick(activeIndex + 1)} aria-label={t("explore.switchFeatured", { count: (activeIndex + 1) % picks.length + 1 })} className="grid size-9 place-items-center rounded-full bg-white text-emerald-700 ring-1 ring-black/5">›</button>
-      </div>}
+      {picks.length > 1 && <>
+        <div className="pointer-events-none absolute inset-x-2 top-[min(22vw,90px)] flex -translate-y-1/2 justify-between" aria-label={t("picks.featuredTitle")}>
+          <button type="button" onClick={() => scrollToPick(activeIndex - 1)} aria-label={t("explore.switchFeatured", { count: (activeIndex - 1 + picks.length) % picks.length + 1 })} className="pointer-events-auto grid size-10 place-items-center rounded-full bg-white/90 text-emerald-800 shadow-sm">‹</button>
+          <button type="button" onClick={() => scrollToPick(activeIndex + 1)} aria-label={t("explore.switchFeatured", { count: (activeIndex + 1) % picks.length + 1 })} className="pointer-events-auto grid size-10 place-items-center rounded-full bg-white/90 text-emerald-800 shadow-sm">›</button>
+        </div>
+        <div className="absolute right-3 top-[min(39vw,165px)] flex items-center gap-1.5 rounded-full bg-black/45 px-2 py-1" aria-label={t("picks.featuredTitle")}>
+          {picks.map((event, index) => <button key={event.id} type="button" onClick={() => scrollToPick(index)} aria-label={t("explore.switchFeatured", { count: index + 1 })} aria-current={index === activeIndex} className={`h-1.5 rounded-full transition-all ${index === activeIndex ? "w-4 bg-white" : "w-1.5 bg-white/50"}`} />)}
+        </div>
+      </>}
+      </div>
     </section>
   );
 }
