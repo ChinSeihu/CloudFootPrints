@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CATEGORY_META, EVENT_CATEGORIES, type EventCategory } from "@/lib/categories";
-import { CategoryIcon, IconHeart, IconPin } from "@/components/icons";
+import { CategoryIcon, IconHeart } from "@/components/icons";
 import { CalendarRangePicker } from "@/components/common/CalendarRangePicker";
 import { ALL_DATES, type DayRange, dayRangeLabel, eventInDayRange, isAllDates } from "@/lib/dateFilter";
 import { displayTags } from "@/lib/tags";
@@ -80,11 +80,6 @@ function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; ln
   const lat2 = b.lat * Math.PI / 180;
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * r * Math.asin(Math.sqrt(x));
-}
-
-function fallbackFeaturedScore(ev: EventDTO): number {
-  const m = metricsOf(ev);
-  return m.clickCount + m.likeCount * 4 + m.favoriteCount * 3;
 }
 
 function matchesQuery(ev: EventDTO, query: string): boolean {
@@ -223,7 +218,7 @@ function discoverEmptyKey(filter: DiscoverFilter, kind: "posts" | "checkins"): T
 
 /**
  * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
- * Purpose: Renders discovery and community feeds, including detail dismissal when the active Explore navigation tab is selected again.
+ * Purpose: Renders discovery and community feeds with bottom-triggered batches and dismisses details when the active Explore navigation tab is selected again.
  */
 export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const { language, t } = useLanguage();
@@ -242,7 +237,6 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useBrowseState(`recommend:${user?.id ?? "guest"}:searchOpen`, false);
   const [query, setQuery] = useBrowseState(`recommend:${user?.id ?? "guest"}:query`, "");
-  const [heroIndex, setHeroIndex] = useState(0);
   const [discoverFilter, setDiscoverFilter] = useBrowseState<DiscoverFilter>(`recommend:${user?.id ?? "guest"}:discoverFilter`, "new");
   const [discoverFullType, setDiscoverFullType] = useBrowseState<DiscoverFullType>(`recommend:${user?.id ?? "guest"}:discoverFullType`, "posts");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
@@ -252,6 +246,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore, { persist: false });
   const [checkinsLoadingMore, setCheckinsLoadingMore] = useState(false);
   const [checkinsLoadError, setCheckinsLoadError] = useState(false);
+  const checkinsLoadInFlightRef = useRef(false);
   const [expandedCheckins, setExpandedCheckins] = useBrowseState<Set<string>>(`recommend:${user?.id ?? "guest"}:expandedCheckins`, () => new Set());
   const [checkinCommentOpen, setCheckinCommentOpen] = useState<Set<string>>(() => new Set());
   const [checkinComments, setCheckinComments] = useState<Record<string, CommentDTO[]>>({});
@@ -271,10 +266,12 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [editingCheckin, setEditingCheckin] = useState<CheckInDTO | null>(null);
   const [deletingCheckin, setDeletingCheckin] = useState<CheckInDTO | null>(null);
   const [activityVisibleCount, setActivityVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:activityVisibleCount`, 12);
+  const [postVisibleCount, setPostVisibleCount] = useBrowseState(`recommend:${user?.id ?? "guest"}:postVisibleCount`, 12);
   const filterBoxRef = useRef<HTMLDivElement | null>(null);
   const allActivitiesRef = useRef<HTMLElement | null>(null);
   const allDiscoverRef = useRef<HTMLElement | null>(null);
   const activitySentinelRef = useRef<HTMLDivElement | null>(null);
+  const postsSentinelRef = useRef<HTMLDivElement | null>(null);
   const checkinsSentinelRef = useRef<HTMLDivElement | null>(null);
   const hasOfficialSearch = tab === "OFFICIAL" && query.trim().length > 0;
   const { results: activitySearchResults } = useActivitySearch(query, hasOfficialSearch);
@@ -465,8 +462,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     setCheckinsLoadError(false);
   }, [checkins, initialCheckinsHasMore]);
 
-  async function loadMoreCheckins() {
-    if (checkinsLoadingMore || !checkinsHasMore) return;
+  /**
+   * Signature: `async function loadMoreCheckins(): Promise<void>`
+   * Purpose: Fetches the next footprint page once and keeps a failed request available for explicit retry.
+   */
+  async function loadMoreCheckins(): Promise<void> {
+    if (checkinsLoadInFlightRef.current || !checkinsHasMore) return;
+    checkinsLoadInFlightRef.current = true;
     setCheckinsLoadingMore(true);
     setCheckinsLoadError(false);
     try {
@@ -483,19 +485,20 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     } catch {
       setCheckinsLoadError(true);
     } finally {
+      checkinsLoadInFlightRef.current = false;
       setCheckinsLoadingMore(false);
     }
   }
 
   useEffect(() => {
     const node = checkinsSentinelRef.current;
-    if (!node || tab !== "DISCOVER" || discoverFullType !== "checkins" || !checkinsHasMore) return;
+    if (!node || tab !== "DISCOVER" || discoverFullType !== "checkins" || !checkinsHasMore || checkinsLoadError) return;
     const io = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) void loadMoreCheckins();
     }, { rootMargin: "500px 0px" });
     io.observe(node);
     return () => io.disconnect();
-  }, [tab, discoverFullType, checkinsHasMore, checkinsOffset, checkinsLoadingMore]);
+  }, [tab, discoverFullType, checkinsHasMore, checkinsOffset, checkinsLoadingMore, checkinsLoadError]);
 
   const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
   const searchableOfficialEvents = useMemo(
@@ -504,13 +507,6 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   );
   const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
-  const featuredEvents = useMemo(() => {
-    const flagged = rankedOfficial.filter((e) => e.featuredToday);
-    const fallback = [...officialEvents].sort((a, b) => fallbackFeaturedScore(b) - fallbackFeaturedScore(a) || heatScore(b) - heatScore(a));
-    return (flagged.length ? flagged : fallback).slice(0, 5);
-  }, [officialEvents, rankedOfficial]);
-  const hero = featuredEvents[heroIndex % Math.max(1, featuredEvents.length)] ?? rankedOfficial[0] ?? events[0];
-  const hot = rankedOfficial.filter((e) => !featuredEvents.some((f) => f.id === e.id)).slice(0, 8);
   const recommended = useMemo(() => {
     const flagged = rankedOfficial.filter((e) => e.featuredToday);
     const rest = rankedOfficial.filter((e) => !e.featuredToday);
@@ -582,16 +578,6 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       .slice(0, 4);
   }, [discoverCheckinRows]);
 
-  useEffect(() => {
-    setHeroIndex(0);
-  }, [featuredEvents.map((event) => event.id).join("|")]);
-
-  useEffect(() => {
-    if (featuredEvents.length <= 1) return;
-    const timer = setInterval(() => setHeroIndex((i) => (i + 1) % featuredEvents.length), 4500);
-    return () => clearInterval(timer);
-  }, [featuredEvents.length]);
-
   const previousFilters = useRef({ cat, dateRange, query });
   useEffect(() => {
     const previous = previousFilters.current;
@@ -612,13 +598,23 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   useEffect(() => {
     const el = activitySentinelRef.current;
-    if (!el) return;
+    if (!el || tab !== "OFFICIAL" || activityVisibleCount >= activityList.length) return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) setActivityVisibleCount((current) => Math.min(current + 12, activityList.length));
     }, { rootMargin: "320px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [activityList.length]);
+  }, [activityList.length, activityVisibleCount, tab, setActivityVisibleCount]);
+
+  useEffect(() => {
+    const el = postsSentinelRef.current;
+    if (!el || tab !== "DISCOVER" || discoverFullType !== "posts" || postVisibleCount >= discoverPosts.length) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) setPostVisibleCount((current) => Math.min(current + 12, discoverPosts.length));
+    }, { rootMargin: "320px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [discoverPosts.length, discoverFullType, postVisibleCount, setPostVisibleCount, tab]);
 
   function scrollToAllActivities() {
     setTab("OFFICIAL");
@@ -1090,37 +1086,10 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       {tab === "OFFICIAL" ? (
         <div className="space-y-3">
           {!hasOfficialSearch && <TodayPicks events={recommended} onOpen={openEvent} />}
-          {hero && !hasOfficialSearch && (
-            <section className="relative overflow-hidden rounded-lg bg-neutral-900 shadow-[0_8px_24px_rgba(15,23,42,0.16)] ring-1 ring-black/10">
-              <button type="button" onClick={() => openEvent(hero)} className="relative block w-full text-left">
-                <div className="aspect-[16/7.5] sm:aspect-[16/8.5]">
-                  {hero.imageUrl ? <img src={hero.imageUrl} alt="" loading="eager" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-blue-500 to-emerald-300" />}
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
-                <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
-                  <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">{t("explore.officialFeatured")}</span>
-                  <span className="rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white">{heroIndex % Math.max(1, featuredEvents.length) + 1}/{Math.max(1, featuredEvents.length)}</span>
-                </div>
-                <div className="absolute bottom-5 left-3 right-3 text-white">
-                  <h2 className="line-clamp-2 text-lg font-black leading-tight sm:text-xl">{hero.title}</h2>
-                  <p className="mt-1 text-xs font-medium opacity-90">{fmtDate(hero.startTime, locale, t("calendar.timeTbd"))} · {hero.venueName ?? t("picks.tokyo")}</p>
-                </div>
-              </button>
-              {featuredEvents.length > 1 && (
-                <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5">
-                  {featuredEvents.map((event, index) => {
-                    const active = index === heroIndex % featuredEvents.length;
-                    return <button key={event.id} type="button" aria-label={t("explore.switchFeatured", { count: index + 1 })} onClick={() => setHeroIndex(index)} className={`h-1.5 rounded-full transition-all ${active ? "w-5 bg-white" : "w-1.5 bg-white/55"}`} />;
-                  })}
-                </div>
-              )}
-            </section>
-          )}
 
           <section className="rounded-lg bg-white px-2.5 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-black/10 sm:px-3 sm:py-3">
             <div className="grid grid-cols-6 gap-2">
               {EVENT_CATEGORIES.slice(0, 5).map((c) => {
-                const meta = CATEGORY_META[c];
                 const active = cat === c;
                 return (
                   <button key={c} type="button" onClick={() => selectCategory(c)} className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition sm:gap-1.5 sm:py-2 sm:text-xs ${active ? "bg-blue-50 text-blue-700" : "text-neutral-700"}`}>
@@ -1135,35 +1104,6 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               </button>
             </div>
           </section>
-
-          {!hasOfficialSearch && (
-          <SectionBand tone="blue" className="space-y-3 !p-2">
-          <section>
-            <SectionTitle title={t("explore.popularEvents")} icon="flame" tone="orange" action={<button type="button" onClick={scrollToAllActivities} className="text-xs font-semibold text-neutral-400">{t("nearby.viewAll")} 〉</button>} />
-            <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {hot.map((ev) => {
-                const meta = CATEGORY_META[ev.category];
-                return (
-                  <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="w-[8rem] shrink-0 overflow-hidden rounded-lg bg-white text-left shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10 sm:w-[9rem]">
-                    {ev.imageUrl && (
-                      <div className="relative aspect-square bg-neutral-100">
-                        <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
-                        <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: meta.color }}>{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</span>
-                      </div>
-                    )}
-                    <div className="p-2.5">
-                      {!ev.imageUrl && <div className="mb-1 text-[10px] font-semibold" style={{ color: meta.color }}>{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</div>}
-                      <h3 className="line-clamp-2 text-xs font-bold leading-snug text-neutral-900 sm:text-[13px]">{ev.title}</h3>
-                      <p className="mt-1 truncate text-[11px] text-neutral-400">{ev.venueName ?? fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          </SectionBand>
-          )}
 
           {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
           {!eventsNotice && activityList.length === 0 && <div className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">
@@ -1182,7 +1122,9 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                   const meta = CATEGORY_META[ev.category];
                   return (
                     <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="inline-block overflow-hidden rounded-lg bg-white text-left align-top shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-black/10">
-                      {ev.imageUrl && <img src={ev.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" />}
+                      <div className="aspect-[4/3] w-full bg-emerald-50">
+                        {ev.imageUrl ? <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-emerald-300"><CategoryIcon category={ev.category} className="h-10 w-10" /></div>}
+                      </div>
                       <div className="p-3">
                         <div className="mb-1 flex items-center gap-1 text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5" />{t(CATEGORY_TRANSLATION_KEYS[ev.category])}</div>
                         <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
@@ -1259,11 +1201,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             <div className="relative z-10">
             {discoverFullType === "posts" ? (
               discoverPosts.length > 0 ? (
-                <MasonryGrid>{discoverPosts.map((post) => renderPostCard(post))}</MasonryGrid>
+                <>
+                  <MasonryGrid>{discoverPosts.slice(0, postVisibleCount).map((post) => renderPostCard(post))}</MasonryGrid>
+                  {postVisibleCount < discoverPosts.length && <div ref={postsSentinelRef} className="py-4 text-center text-xs text-neutral-400">{t("explore.loadingMore")}</div>}
+                </>
               ) : (
                 <MascotFeedback>{eventsNotice ?? t(discoverEmptyKey(discoverFilter, "posts"))}</MascotFeedback>
               )
-            ) : discoverCheckins.length > 0 ? (
+            ) : discoverCheckins.length > 0 || checkinsHasMore ? (
               <>
                 <div className="grid grid-cols-1 gap-1.5">{discoverCheckins.map((checkin) => renderCheckinCard(checkin))}</div>
                 <div ref={checkinsSentinelRef} className="py-4 text-center text-xs text-neutral-400">
