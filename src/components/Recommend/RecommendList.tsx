@@ -809,7 +809,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   /**
    * Signature: `function renderCheckinCard(checkin: CheckInDTO): React.ReactNode`
-   * Purpose: Renders a footprint in the mixed feed with photos, management, reactions, and comments.
+   * Purpose: Renders a footprint with up to six wrapping mood tags, photos, management, reactions, and comments.
    */
   function renderCheckinCard(checkin: CheckInDTO) {
     const moods = (checkin.moodTags?.length ? checkin.moodTags : checkin.rating ? [checkin.rating] : [])
@@ -896,7 +896,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         {expanded && imageGrid(urls, text, false)}
         {moods.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {moods.slice(1, 4).map((mood) => <span key={mood.value} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{t(moodLabelKey(mood.value))}</span>)}
+            {moods.slice(1, 6).map((mood) => <span key={mood.value} className={`shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${mood.tone}`}>{t(moodLabelKey(mood.value))}</span>)}
           </div>
         )}
         <div className="mt-2 flex items-center gap-2 border-t border-neutral-100 pt-2 text-[11px] font-semibold text-neutral-500">
