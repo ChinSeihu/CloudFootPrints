@@ -832,8 +832,8 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
               <Avatar user={checkin.author} size={30} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <p className="truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? t("detail.user")}</p>
-                  {moods[0] && <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{t(moodLabelKey(moods[0].value))}</span>}
+                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-neutral-950">{checkin.author?.username ?? t("detail.user")}</p>
+                  {moods[0] && <span className={`shrink-0 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${moods[0].tone}`}>{t(moodLabelKey(moods[0].value))}</span>}
                 </div>
                 <p className="mt-0.5 truncate text-[10px] text-neutral-400">{relativeTime(checkin.createdAt, locale)} · {checkin.event?.title ?? t("picks.tokyo")}</p>
               </div>
