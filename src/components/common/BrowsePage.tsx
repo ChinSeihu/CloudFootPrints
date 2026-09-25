@@ -13,6 +13,7 @@ const RecommendList = dynamic(() => import("@/components/Recommend/RecommendList
 const EVENTS_URL = "/api/events?minLat=34.5&maxLat=37.3&minLng=137.2&maxLng=141";
 type Mode = "calendar" | "recommend";
 type Footprints = { checkins: CheckInDTO[]; hasMore: boolean };
+type FeedOffsets = { official: number; posts: number };
 const EMPTY_CHECKINS: CheckInDTO[] = [];
 
 /**
@@ -42,7 +43,7 @@ export function BrowsePage({ mode }: { mode: Mode }) {
 }
 /**
  * Signature: `function BrowseSession({ mode, scope }: { mode: Mode; scope: string }): React.JSX.Element`
- * Purpose: Shows saved content immediately, loads independent sections separately, and stages refreshes to avoid moving cards under the reader.
+ * Purpose: Shows saved content immediately, tracks discovery feed offsets, and stages independent refreshes to avoid moving cards under the reader.
  */
 function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
   const { t } = useLanguage();
@@ -50,9 +51,11 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
   const [events, setEvents] = useBrowseState<EventDTO[] | null>(`${key}:events`, null, { persist: false });
   const [footprints, setFootprints] = useBrowseState<Footprints | null>(`${key}:footprints`, null, { persist: false });
   const [metrics, setMetrics] = useBrowseState<Record<string, EventMetrics>>(`${key}:metrics`, {}, { persist: false });
+  const [feedOffsets, setFeedOffsets] = useBrowseState<FeedOffsets>(`${key}:feedOffsets`, { official: 0, posts: 0 }, { persist: false });
   const [pendingEvents, setPendingEvents] = useState<EventDTO[] | null>(null);
   const [pendingFootprints, setPendingFootprints] = useState<Footprints | null>(null);
   const [pendingMetrics, setPendingMetrics] = useState<Record<string, EventMetrics> | null>(null);
+  const [pendingFeedOffsets, setPendingFeedOffsets] = useState<FeedOffsets | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -74,6 +77,10 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
     const eventsUrl = mode === "recommend" ? `${EVENTS_URL}&from=${encodeURIComponent(`${tokyoToday}T00:00:00+09:00`)}` : EVENTS_URL;
     const activityRequest = read<{ events: EventDTO[] }>(eventsUrl).then(async data => {
       if (controller.signal.aborted) return;
+      if (mode === "recommend") {
+        const counts = { official: data.events.filter((event) => event.sourceType !== "USER").length, posts: data.events.filter((event) => event.sourceType === "USER").length };
+        if (hadEvents) setPendingFeedOffsets(counts); else setFeedOffsets(counts);
+      }
       const rows = data.events.filter(e => mode === "calendar" ? e.postKind !== "LIFE" : e.postKind === "LIFE" || !e.startTime || Date.parse(e.endTime ?? e.startTime) >= Date.now());
       if (hadEvents) setPendingEvents(rows); else setEvents(rows);
       if (mode === "recommend") {
@@ -110,14 +117,16 @@ function BrowseSession({ mode, scope }: { mode: Mode; scope: string }) {
     if (pendingEvents) setEvents(pendingEvents);
     if (pendingFootprints) setFootprints(pendingFootprints);
     if (pendingMetrics) setMetrics(pendingMetrics);
+    if (pendingFeedOffsets) setFeedOffsets(pendingFeedOffsets);
     setPendingEvents(null); setPendingFootprints(null); setPendingMetrics(null);
+    setPendingFeedOffsets(null);
   };
   const refresh = () => { setErrors([]); setBusy(true); setAttempt(n => n + 1); };
   const refreshControl: ReactNode = <BrowseRefreshControl busy={busy} hasUpdate={hasUpdate} hasError={errors.length > 0} onApply={applyPending} onRefresh={refresh} />;
   if (!hasContent && busy) return <PageLoading scene={mode === "calendar" ? "calendar" : "discover"} text={t("browse.finding")} />;
   return <BrowseScroll storageKey={key}>
     <div className={mode === "recommend" ? "px-3 pb-3" : ""}>
-      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} refreshControl={refreshControl} /> : <RecommendList events={displayEvents} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} refreshControl={refreshControl} eventsNotice={events === null ? t(errors.includes("events") ? "browse.eventsFailed" : "browse.eventsLoading") : undefined} checkinsNotice={footprints === null ? t(errors.includes("checkins") ? "browse.checkinsFailed" : "browse.checkinsLoading") : undefined} />)}
+      {hasContent && (mode === "calendar" ? <CalendarView events={displayEvents} refreshControl={refreshControl} /> : <RecommendList events={displayEvents} initialEventOffsets={feedOffsets} checkins={footprints?.checkins ?? EMPTY_CHECKINS} initialCheckinsHasMore={footprints?.hasMore ?? false} refreshControl={refreshControl} eventsNotice={events === null ? t(errors.includes("events") ? "browse.eventsFailed" : "browse.eventsLoading") : undefined} checkinsNotice={footprints === null ? t(errors.includes("checkins") ? "browse.checkinsFailed" : "browse.checkinsLoading") : undefined} />)}
     </div>
   </BrowseScroll>;
 }

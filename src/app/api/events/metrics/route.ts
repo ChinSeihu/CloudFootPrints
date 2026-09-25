@@ -3,24 +3,29 @@ import { prisma } from "@/lib/db";
 import type { EventDTO } from "@/lib/types";
 /**
  * Signature: `async function loadEventMetrics(ids: string[]): Promise<Map<string, NonNullable<EventDTO["metrics"]>>>`
- * Purpose: Reads released reaction counts without transferring individual user reactions.
+ * Purpose: Reads released reaction and public footprint counts without transferring individual interactions.
  */
 async function loadEventMetrics(ids: string[]) {
   if (ids.length === 0) return new Map<string, NonNullable<EventDTO["metrics"]>>();
-  const [reactions, clicks] = await Promise.all([
+  const [reactions, clicks, checkins] = await Promise.all([
     prisma.reaction.groupBy({
       by: ["eventId", "postId", "type"],
       where: { createdAt: { lte: new Date() }, OR: [{ eventId: { in: ids } }, { postId: { in: ids } }] },
       _count: { _all: true },
     }),
     prisma.eventMetric.findMany({ where: { eventId: { in: ids } }, select: { eventId: true, clickCount: true } }),
+    prisma.checkIn.groupBy({
+      by: ["eventId", "postId"],
+      where: { isPublic: true, createdAt: { lte: new Date() }, OR: [{ eventId: { in: ids } }, { postId: { in: ids } }] },
+      _count: { _all: true },
+    }),
   ]);
 
   const metrics = new Map<string, NonNullable<EventDTO["metrics"]>>();
   const ensure = (id: string) => {
     const current = metrics.get(id);
     if (current) return current;
-    const next = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0 };
+    const next = { likeCount: 0, favoriteCount: 0, signupCount: 0, clickCount: 0, checkinCount: 0 };
     metrics.set(id, next);
     return next;
   };
@@ -34,6 +39,13 @@ async function loadEventMetrics(ids: string[]) {
     if (r.type === "SIGNUP") m.signupCount += r._count._all;
   }
   for (const c of clicks) ensure(c.eventId).clickCount = c.clickCount;
+  for (const c of checkins) {
+    const id = c.eventId ?? c.postId;
+    if (id) {
+      const metric = ensure(id);
+      metric.checkinCount = (metric.checkinCount ?? 0) + c._count._all;
+    }
+  }
   return metrics;
 }
 

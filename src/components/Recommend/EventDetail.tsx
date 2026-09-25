@@ -15,7 +15,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { buildJourneyMapUrl } from "@/lib/eventJourney";
 import { useLanguage } from "@/components/I18n/LanguageProvider";
 import { CATEGORY_TRANSLATION_KEYS } from "@/i18n/category";
-import { hasEventCoordinates, type EventDTO, type CommentDTO } from "@/lib/types";
+import { hasEventCoordinates, type EventDTO, type CommentDTO, type CheckInDTO } from "@/lib/types";
 import type { ReactionState } from "@/services/reactions";
 
 type CommentSort = "hot" | "new";
@@ -200,10 +200,10 @@ function EventHeroImage({ src }: { src: string }) {
 }
 
 /**
- * Signature: `function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }): React.JSX.Element`
- * Purpose: Renders full-screen activity details above global navigation with zoomable images, saved actions, and type-appropriate interactions.
+ * Signature: `function EventDetail({ event, onClose, focusRelated }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }): React.JSX.Element`
+ * Purpose: Renders activity details with linked footprints, zoomable images, saved actions, and type-appropriate interactions.
  */
-export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () => void }) {
+export function EventDetail({ event, onClose, focusRelated = false }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }) {
   const { language, t } = useLanguage();
   const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
@@ -243,6 +243,8 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
   const [wantError, setWantError] = useState<string | null>(null);
   const [postActionsExpanded, setPostActionsExpanded] = useState(true);
   const [officialHeaderScrolled, setOfficialHeaderScrolled] = useState(false);
+  const [relatedCheckins, setRelatedCheckins] = useState<CheckInDTO[] | null>(null);
+  const relatedRef = useRef<HTMLElement | null>(null);
   const wantInFlight = useRef(false);
   const wantPulseTimer = useRef<number | null>(null);
   const shareNoticeTimer = useRef<number | null>(null);
@@ -286,6 +288,20 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
     if (!isUserPost) return;
     handlePostScroll();
   }, [event.id, isUserPost]);
+
+  useEffect(() => {
+    if (isUserPost) return;
+    let cancelled = false;
+    fetch(`/api/events/${encodeURIComponent(event.id)}/related`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: { checkins?: CheckInDTO[] }) => { if (!cancelled) setRelatedCheckins(Array.isArray(data.checkins) ? data.checkins : []); })
+      .catch(() => { if (!cancelled) setRelatedCheckins([]); });
+    return () => { cancelled = true; };
+  }, [event.id, isUserPost]);
+
+  useEffect(() => {
+    if (focusRelated && relatedCheckins?.length) relatedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusRelated, relatedCheckins]);
 
   useEffect(() => {
     if (!user || event.postKind === "LIFE") return;
@@ -1091,6 +1107,21 @@ export function EventDetail({ event, onClose }: { event: EventDTO; onClose: () =
                   </span>
                 </button>
               )}
+            </section>
+          )}
+
+          {!!relatedCheckins?.length && (
+            <section ref={relatedRef} className="scroll-mt-20 border-t border-neutral-100 px-2 py-5 sm:px-4">
+              <h2 className="text-sm font-black text-neutral-900">{t("explore.footprints")} · {relatedCheckins.length}</h2>
+              <div className="mt-3 space-y-2">
+                {relatedCheckins.slice(0, 3).map((checkin) => (
+                  <article key={checkin.id} className="rounded-xl bg-emerald-50/60 p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-neutral-700"><Avatar user={checkin.author} size={24} /><span>{checkin.author?.username ?? t("detail.user")}</span></div>
+                    {checkin.note && <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-neutral-800">{checkin.note}</p>}
+                    {!!checkin.photoUrls.length && <div className="mt-2 flex gap-1.5 overflow-x-auto">{checkin.photoUrls.slice(0, 3).map((url) => <img key={url} src={url} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-lg object-cover" />)}</div>}
+                  </article>
+                ))}
+              </div>
             </section>
           )}
 

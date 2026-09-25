@@ -115,7 +115,7 @@ const getCachedOfficialEventsInBounds = unstable_cache(async (q: EventQuery, inc
   if (q.category) eventWhere.category = q.category;
   const events = await prisma.event.findMany({
     where: eventWhere,
-    orderBy: [{ startTime: includeUnlocated && !q.from && !q.to ? "desc" : "asc" }],
+    orderBy: [{ startTime: includeUnlocated && !q.from && !q.to ? "desc" : "asc" }, { id: "asc" }],
     take: includeUnlocated ? 1000 : 500,
   });
   return events.map((event): CachedOfficialEvent => {
@@ -140,7 +140,7 @@ async function getFreshUserPosts(q: EventQuery, includeUnlocated: boolean) {
   const postWhere: Prisma.PostWhereInput = { ...bbox, createdAt: { lte: new Date() } };
   if (q.category) postWhere.category = q.category;
   if (or) postWhere.OR = or;
-  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }], take: includeUnlocated ? 1000 : 500 });
+  const posts = await prisma.post.findMany({ where: postWhere, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: includeUnlocated ? 1000 : 500 });
   return attachAuthors(posts.map(normalizePost));
 }
 
@@ -180,6 +180,26 @@ async function loadEventsInBounds(q: EventQuery, includeUnlocated: boolean) {
  */
 export async function getEventsInBounds(q: EventQuery) {
   return loadEventsInBounds(q, true);
+}
+
+/**
+ * Signature: `async function getDiscoverEventPage(q: EventQuery, source: "official" | "posts", offset: number, limit: number): Promise<{ events: Array<NormalizedEvent & { author: { id: string; username: string; avatarUrl: string | null } | null }>; nextOffset: number; hasMore: boolean }>`
+ * Purpose: Continues the discovery feed beyond its initial snapshot without changing map or calendar reads.
+ */
+export async function getDiscoverEventPage(q: EventQuery, source: "official" | "posts", offset: number, limit: number) {
+  const bbox = { lat: { gte: q.minLat, lte: q.maxLat }, lng: { gte: q.minLng, lte: q.maxLng } };
+  const window = timeWindowOR(q);
+  if (source === "official") {
+    const where: Prisma.EventWhereInput = { AND: [{ OR: [bbox, { lat: null }, { lng: null }] }, ...(window ? [{ OR: window }] : [])] };
+    if (q.category) where.category = q.category;
+    const rows = await prisma.event.findMany({ where, orderBy: [{ startTime: "asc" }, { id: "asc" }], skip: offset, take: limit + 1 });
+    return { events: rows.slice(0, limit).map((row) => ({ ...normalizeOfficial(row), author: null })), nextOffset: offset + Math.min(rows.length, limit), hasMore: rows.length > limit };
+  }
+  const where: Prisma.PostWhereInput = { ...bbox, createdAt: { lte: new Date() } };
+  if (q.category) where.category = q.category;
+  if (window) where.OR = window;
+  const rows = await prisma.post.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], skip: offset, take: limit + 1 });
+  return { events: await attachAuthors(rows.slice(0, limit).map(normalizePost)), nextOffset: offset + Math.min(rows.length, limit), hasMore: rows.length > limit };
 }
 
 /**

@@ -50,6 +50,7 @@ export type EventMetrics = {
   favoriteCount: number;
   signupCount: number;
   clickCount: number;
+  checkinCount?: number;
 };
 
 export type CommentDTO = {

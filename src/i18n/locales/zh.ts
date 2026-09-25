@@ -145,4 +145,6 @@ export const zhMessages = {
   "explore.title": "探索", "explore.officialSubtitle": "活动灵感与城市足迹", "explore.discoverSubtitle": "发现大家分享的东京", "explore.searchPlaceholder": "搜索活动、地点、标签", "explore.officialTab": "官方精选活动", "explore.discover": "发现", "explore.discoverTab": "用户内容与足迹", "explore.officialFeatured": "官方精选", "explore.switchFeatured": "切换精选 {count}", "explore.popularEvents": "热门活动", "explore.noMatchingEvents": "没有符合当前条件的活动。", "explore.viewAllEvents": "查看所有活动", "explore.anyDate": "不限日期", "explore.communityShares": "看看大家的分享", "explore.allEvents": "全部活动", "explore.categoryEvents": "{category}活动", "explore.loadingMore": "继续加载中…", "explore.latestTokyo": "换个范围，看看全东京最新分享",
   "picks.featuredTitle": "今日推荐", "explore.browseEvents": "逛活动", "explore.browseCommunity": "看动态 · 足迹", "explore.allContent": "全部", "explore.posts": "动态", "explore.footprints": "足迹", "explore.following": "关注", "explore.weekend": "本周末", "explore.tokyoSharing": "东京正在分享",
   "explore.noShares": "这里还没有动态或足迹。",
+  "explore.loadMoreEvents": "加载更多活动",
+  "explore.loadMoreContent": "加载更多内容",
 } as const;

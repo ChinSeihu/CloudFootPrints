@@ -62,4 +62,6 @@ export const jaMessages = {
   "explore.title": "見つける", "explore.officialSubtitle": "イベントのヒントと街の足あと", "explore.discoverSubtitle": "みんなが共有した東京を発見", "explore.searchPlaceholder": "イベント、場所、タグを検索", "explore.officialTab": "公式おすすめイベント", "explore.discover": "発見", "explore.discoverTab": "ユーザー投稿と足あと", "explore.officialFeatured": "公式おすすめ", "explore.switchFeatured": "おすすめ {count} に切り替え", "explore.popularEvents": "人気イベント", "explore.noMatchingEvents": "現在の条件に合うイベントはありません。", "explore.viewAllEvents": "すべてのイベントを見る", "explore.anyDate": "日付指定なし", "explore.communityShares": "みんなの投稿を見る", "explore.allEvents": "すべてのイベント", "explore.categoryEvents": "{category}イベント", "explore.loadingMore": "さらに読み込み中…", "explore.latestTokyo": "範囲を変えて東京の最新投稿を見る",
   "picks.featuredTitle": "今日のおすすめ", "explore.browseEvents": "イベントを探す", "explore.browseCommunity": "投稿・足あと", "explore.allContent": "すべて", "explore.posts": "投稿", "explore.footprints": "足あと", "explore.following": "フォロー", "explore.weekend": "今週末", "explore.tokyoSharing": "東京のみんなの投稿",
   "explore.noShares": "投稿や足あとはまだありません。",
+  "explore.loadMoreEvents": "イベントをさらに読み込む",
+  "explore.loadMoreContent": "さらに読み込む",
 } as const satisfies TranslationMessages;

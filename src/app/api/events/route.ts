@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   createUserEvent,
+  getDiscoverEventPage,
   getEventsInBounds,
   getMapEventsInBounds,
   getOfficialMapEventsInBounds,
@@ -15,7 +16,7 @@ import type { EventCategory } from "@/lib/categories";
 
 /**
  * Signature: `async function GET(request: Request): Promise<NextResponse>`
- * Purpose: Returns personal posts, bounded feeds, source-specific map activities, or a bounded full-database activity search.
+ * Purpose: Returns personal posts, bounded feeds with discovery continuation pages, source-specific map activities, or activity search.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -50,6 +51,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
   try {
+    const discoverSource = searchParams.get("discoverPage");
+    if (discoverSource === "official" || discoverSource === "posts") {
+      const offset = Number(searchParams.get("offset") ?? "0");
+      const limit = Number(searchParams.get("limit") ?? "40");
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset > 20_000 || !Number.isSafeInteger(limit) || limit < 1 || limit > 80) {
+        return NextResponse.json({ error: "分页参数错误" }, { status: 400 });
+      }
+      return NextResponse.json(await getDiscoverEventPage(parsed, discoverSource, offset, limit));
+    }
     const mapRequest = searchParams.get("map") === "1";
     const source = searchParams.get("source");
     const events = mapRequest && source === "official"

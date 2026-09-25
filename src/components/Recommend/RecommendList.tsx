@@ -190,15 +190,16 @@ function discoverEmptyKey(filter: SocialFilter, kind: "posts" | "checkins"): Tra
 }
 
 /**
- * Signature: `function RecommendList({ events, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
+ * Signature: `function RecommendList({ events, initialEventOffsets, checkins, initialCheckinsHasMore, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; initialEventOffsets: { official: number; posts: number }; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }): React.ReactElement`
  * Purpose: Renders compact event browsing and a mixed post-footprint feed, with bottom-triggered batches and detail navigation.
  */
-export function RecommendList({ events, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
+export function RecommendList({ events, initialEventOffsets, checkins, initialCheckinsHasMore = false, eventsNotice, checkinsNotice, refreshControl, refreshNotice }: { events: EventDTO[]; initialEventOffsets: { official: number; posts: number }; checkins: CheckInDTO[]; initialCheckinsHasMore?: boolean; eventsNotice?: string; checkinsNotice?: string; refreshControl?: ReactNode; refreshNotice?: string | null }) {
   const { language, t } = useLanguage();
   const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
   const { user } = useAuth();
   const [selected, setSelected] = useState<EventDTO | null>(null);
+  const [focusRelated, setFocusRelated] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailLoadError, setDetailLoadError] = useState(false);
   const [previewGallery, setPreviewGallery] = useState<{ urls: string[]; initialIndex: number } | null>(null);
@@ -213,6 +214,16 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
   const [socialFilter, setSocialFilter] = useBrowseState<SocialFilter>(`recommend:${user?.id ?? "guest"}:socialFilter`, "all");
   const [followingIds, setFollowingIds] = useState<Set<string> | null>(null);
   const [discoverCheckinRows, setDiscoverCheckinRows] = useBrowseState<CheckInDTO[]>(`recommend:${user?.id ?? "guest"}:discoverCheckinRows`, checkins, { persist: false });
+  const [moreOfficial, setMoreOfficial] = useState<EventDTO[]>([]);
+  const [morePosts, setMorePosts] = useState<EventDTO[]>([]);
+  const [officialOffset, setOfficialOffset] = useState(initialEventOffsets.official);
+  const [postsOffset, setPostsOffset] = useState(initialEventOffsets.posts);
+  const [officialHasMore, setOfficialHasMore] = useState(initialEventOffsets.official >= 1000);
+  const [postsHasMore, setPostsHasMore] = useState(initialEventOffsets.posts >= 1000);
+  const [eventsLoadingMore, setEventsLoadingMore] = useState<"official" | "posts" | null>(null);
+  const [eventsLoadError, setEventsLoadError] = useState<"official" | "posts" | null>(null);
+  const eventsLoadInFlightRef = useRef<Set<"official" | "posts">>(new Set());
+  const [discoverFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Tokyo" }));
   const [checkinsOffset, setCheckinsOffset] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsOffset`, checkins.length, { persist: false });
   const [checkinsHasMore, setCheckinsHasMore] = useBrowseState(`recommend:${user?.id ?? "guest"}:checkinsHasMore`, initialCheckinsHasMore, { persist: false });
   const [checkinsLoadingMore, setCheckinsLoadingMore] = useState(false);
@@ -312,9 +323,23 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     );
   }
 
+  /**
+   * Signature: `async function openEvent(ev: EventDTO): Promise<void>`
+   * Purpose: Opens an activity detail and records a best-effort visit without moving the feed.
+   */
   async function openEvent(ev: EventDTO) {
+    setFocusRelated(false);
     setSelected(ev);
     fetch(`/api/events/${encodeURIComponent(ev.id)}/click`, { method: "POST" }).catch(() => {});
+  }
+
+  /**
+   * Signature: `function openRelated(ev: EventDTO): void`
+   * Purpose: Opens the activity detail at its linked public footprints.
+   */
+  function openRelated(ev: EventDTO) {
+    void openEvent(ev);
+    setFocusRelated(true);
   }
 
   function closeEventDetail() {
@@ -422,6 +447,52 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     setCheckinsLoadError(false);
   }, [checkins, initialCheckinsHasMore]);
 
+  useEffect(() => {
+    setMoreOfficial([]);
+    setMorePosts([]);
+    setOfficialOffset(initialEventOffsets.official);
+    setPostsOffset(initialEventOffsets.posts);
+    setOfficialHasMore(initialEventOffsets.official >= 1000);
+    setPostsHasMore(initialEventOffsets.posts >= 1000);
+    setEventsLoadError(null);
+  }, [events, initialEventOffsets]);
+
+  /**
+   * Signature: `async function loadMoreEvents(source: "official" | "posts"): Promise<void>`
+   * Purpose: Fetches the next server-backed discovery page and its public metrics after the initial snapshot is consumed.
+   */
+  const loadMoreEvents = useCallback(async function loadMoreEvents(source: "official" | "posts"): Promise<void> {
+    if (eventsLoadInFlightRef.current.has(source) || !(source === "official" ? officialHasMore : postsHasMore)) return;
+    eventsLoadInFlightRef.current.add(source);
+    setEventsLoadingMore(source);
+    setEventsLoadError(null);
+    try {
+      const offset = source === "posts" ? postsOffset : officialOffset;
+      const url = `/api/events?minLat=34.5&maxLat=37.3&minLng=137.2&maxLng=141&from=${encodeURIComponent(`${discoverFrom}T00:00:00+09:00`)}&discoverPage=${source}&offset=${offset}&limit=40`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("load events failed");
+      const data = await response.json() as { events?: EventDTO[]; hasMore?: boolean; nextOffset?: number };
+      const rows = Array.isArray(data.events) ? data.events : [];
+      const metricResponse = rows.length ? await fetch("/api/events/metrics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: rows.map((row) => row.id) }) }) : null;
+      const metricData = metricResponse?.ok ? await metricResponse.json() as { metrics: Record<string, EventMetrics> } : null;
+      const next = rows
+        .filter((row) => row.postKind === "LIFE" || !row.startTime || Date.parse(row.endTime ?? row.startTime) >= Date.now())
+        .map((row) => metricData?.metrics[row.id] ? { ...row, metrics: metricData.metrics[row.id] } : row);
+      const append = source === "official" ? setMoreOfficial : setMorePosts;
+      append((current) => {
+        const seen = new Set([...events, ...current].map((event) => event.id));
+        return [...current, ...next.filter((row) => !seen.has(row.id))];
+      });
+      if (source === "official") { setOfficialOffset(data.nextOffset ?? offset + rows.length); setOfficialHasMore(data.hasMore === true); }
+      else { setPostsOffset(data.nextOffset ?? offset + rows.length); setPostsHasMore(data.hasMore === true); }
+    } catch {
+      setEventsLoadError(source);
+    } finally {
+      eventsLoadInFlightRef.current.delete(source);
+      setEventsLoadingMore(null);
+    }
+  }, [events, officialOffset, postsOffset, officialHasMore, postsHasMore, discoverFrom]);
+
   /**
    * Signature: `async function loadMoreCheckins(): Promise<void>`
    * Purpose: Fetches the next footprint page once and keeps a failed request available for explicit retry.
@@ -450,12 +521,12 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
     }
   }, [checkinsHasMore, checkinsOffset, setDiscoverCheckinRows, setCheckinsOffset, setCheckinsHasMore]);
 
-  const officialEvents = useMemo(() => events.filter((e) => !isUserPost(e.sourceType)), [events]);
+  const officialEvents = useMemo(() => [...events.filter((e) => !isUserPost(e.sourceType)), ...moreOfficial], [events, moreOfficial]);
   const searchableOfficialEvents = useMemo(
     () => activitySearchResults?.filter((event) => !isUserPost(event.sourceType)) ?? officialEvents,
     [activitySearchResults, officialEvents],
   );
-  const userPosts = useMemo(() => events.filter((e) => isUserPost(e.sourceType)), [events]);
+  const userPosts = useMemo(() => [...events.filter((e) => isUserPost(e.sourceType)), ...morePosts], [events, morePosts]);
   const rankedOfficial = useMemo(() => [...officialEvents].sort((a, b) => heatScore(b) - heatScore(a)), [officialEvents]);
   const recommended = useMemo(() => {
     const flagged = rankedOfficial.filter((e) => e.featuredToday);
@@ -534,13 +605,15 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
 
   useEffect(() => {
     const el = activitySentinelRef.current;
-    if (!el || tab !== "OFFICIAL" || activityVisibleCount >= activityList.length) return;
+    if (!el || tab !== "OFFICIAL") return;
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) setActivityVisibleCount((current) => Math.min(current + 12, activityList.length));
+      if (!entries[0].isIntersecting) return;
+      if (activityVisibleCount < activityList.length) setActivityVisibleCount((current) => Math.min(current + 12, activityList.length));
+      else if (officialHasMore && !eventsLoadingMore && eventsLoadError !== "official") void loadMoreEvents("official");
     }, { rootMargin: "320px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [activityList.length, activityVisibleCount, tab, setActivityVisibleCount]);
+  }, [activityList.length, activityVisibleCount, tab, setActivityVisibleCount, officialHasMore, eventsLoadingMore, eventsLoadError, loadMoreEvents]);
 
   useEffect(() => {
     const el = socialSentinelRef.current;
@@ -549,13 +622,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
       if (!entries[0].isIntersecting) return;
       if (socialVisibleCount < socialFeed.length) {
         setSocialVisibleCount((current) => Math.min(current + 12, socialFeed.length));
-      } else if (socialFilter !== "posts" && checkinsHasMore && !checkinsLoadingMore && !checkinsLoadError) {
-        void loadMoreCheckins();
+      } else {
+        if (socialFilter !== "posts" && checkinsHasMore && !checkinsLoadingMore && !checkinsLoadError) void loadMoreCheckins();
+        if (socialFilter !== "checkins" && postsHasMore && !eventsLoadingMore && eventsLoadError !== "posts") void loadMoreEvents("posts");
       }
     }, { rootMargin: "320px" });
     io.observe(el);
     return () => io.disconnect();
-  }, [socialFeed.length, socialFilter, socialVisibleCount, setSocialVisibleCount, tab, checkinsHasMore, checkinsLoadingMore, checkinsLoadError, loadMoreCheckins]);
+  }, [socialFeed.length, socialFilter, socialVisibleCount, setSocialVisibleCount, tab, checkinsHasMore, checkinsLoadingMore, checkinsLoadError, loadMoreCheckins, postsHasMore, eventsLoadingMore, eventsLoadError, loadMoreEvents]);
 
   function toggleCheckin(id: string) {
     setExpandedCheckins((current) => {
@@ -1030,13 +1104,14 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             })}
           </div>
 
-          {!hasOfficialSearch && <TodayPicks events={filteredRecommended} onOpen={openEvent} />}
+          {!hasOfficialSearch && <TodayPicks events={filteredRecommended} onOpen={openEvent} onOpenRelated={openRelated} />}
 
           {eventsNotice && <p role="status" className="py-4 text-center text-sm text-neutral-500">{eventsNotice}</p>}
           {!eventsNotice && activityList.length === 0 && <div className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">
             <p>{t("explore.noMatchingEvents")}</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <button type="button" className="rounded-full bg-violet-100 px-3 py-2 text-violet-700" onClick={() => { setCat("ALL"); setDateRange(ALL_DATES); setQuery(""); }}>{t("explore.viewAllEvents")}</button>
+              {officialHasMore && <button type="button" disabled={eventsLoadingMore === "official"} className="rounded-full bg-white px-3 py-2 disabled:opacity-50" onClick={() => void loadMoreEvents("official")}>{eventsLoadError === "official" ? t("explore.loadFailedRetry") : t("explore.loadMoreEvents")}</button>}
               {!isAllDates(dateRange) && <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setDateRange(ALL_DATES)}>{t("explore.anyDate")}</button>}
               <button type="button" className="rounded-full bg-white px-3 py-2" onClick={() => setTab("DISCOVER")}>{t("explore.communityShares")}</button>
             </div>
@@ -1050,23 +1125,28 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
                     {activityList.slice(0, activityVisibleCount).filter((_, index) => index % 2 === column).map((ev, index) => {
                       const meta = CATEGORY_META[ev.category];
                       return (
-                        <button key={ev.id} type="button" onClick={() => openEvent(ev)} className="block min-w-0 overflow-hidden rounded-xl bg-white text-left shadow-sm ring-1 ring-black/10">
-                          <div className={`${(index * 2 + column) % 3 === 0 ? "aspect-[4/5]" : "aspect-[4/3]"} w-full bg-emerald-50`}>
-                            {ev.imageUrl ? <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-emerald-300"><CategoryIcon category={ev.category} className="h-10 w-10" /></div>}
-                          </div>
-                          <div className="p-2.5">
-                            <div className="mb-1 flex items-center gap-1 truncate text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5 shrink-0" />{fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</div>
-                            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
-                            <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? t(CATEGORY_TRANSLATION_KEYS[ev.category])}</p>
-                          </div>
-                        </button>
+                        <div key={ev.id} className="min-w-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/10">
+                          <button type="button" onClick={() => void openEvent(ev)} className="block w-full text-left">
+                            <div className={`${(index * 2 + column) % 3 === 0 ? "aspect-[4/5]" : "aspect-[4/3]"} w-full bg-emerald-50`}>
+                              {ev.imageUrl ? <img src={ev.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-emerald-300"><CategoryIcon category={ev.category} className="h-10 w-10" /></div>}
+                            </div>
+                            <div className="p-2.5">
+                              <div className="mb-1 flex items-center gap-1 truncate text-[11px] font-semibold" style={{ color: meta.color }}><CategoryIcon category={ev.category} className="h-3.5 w-3.5 shrink-0" />{fmtDate(ev.startTime, locale, t("calendar.timeTbd"))}</div>
+                              <h3 className="line-clamp-2 text-sm font-bold leading-snug text-neutral-950">{ev.title}</h3>
+                              <p className="mt-1 truncate text-xs text-neutral-500">{ev.venueName ?? t(CATEGORY_TRANSLATION_KEYS[ev.category])}</p>
+                            </div>
+                          </button>
+                          {(ev.metrics?.checkinCount ?? 0) > 0 && <button type="button" onClick={() => openRelated(ev)} className="mx-2.5 mb-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">{t("explore.footprints")} · {ev.metrics?.checkinCount} ›</button>}
+                        </div>
                       );
                     })}
                   </div>
                 ))}
               </div>
-              {activityVisibleCount < activityList.length && (
-                <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">{t("explore.loadingMore")}</div>
+              {(activityVisibleCount < activityList.length || officialHasMore) && (
+                <div ref={activitySentinelRef} className="py-4 text-center text-xs text-neutral-400">
+                  {eventsLoadError === "official" ? <button type="button" onClick={() => void loadMoreEvents("official")} className="font-semibold text-emerald-700">{t("explore.loadFailedRetry")}</button> : t("explore.loadingMore")}
+                </div>
               )}
             </section>
           )}
@@ -1085,11 +1165,13 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
             {socialFeed.length > 0 ? (
               <div className="space-y-2">{socialFeed.slice(0, socialVisibleCount).map((item) => <div key={item.id}>{item.kind === "post" ? renderPostCard(item.post) : renderCheckinCard(item.checkin)}</div>)}</div>
             ) : (
-              <MascotFeedback>{eventsNotice ?? checkinsNotice ?? t(socialFilter === "posts" ? discoverEmptyKey(socialFilter, "posts") : socialFilter === "checkins" ? discoverEmptyKey(socialFilter, "checkins") : "explore.noShares")}</MascotFeedback>
+              <><MascotFeedback>{eventsNotice ?? checkinsNotice ?? t(socialFilter === "posts" ? discoverEmptyKey(socialFilter, "posts") : socialFilter === "checkins" ? discoverEmptyKey(socialFilter, "checkins") : "explore.noShares")}</MascotFeedback>
+                {((socialFilter !== "posts" && checkinsHasMore) || (socialFilter !== "checkins" && postsHasMore)) && <button type="button" onClick={() => { if (socialFilter !== "posts") void loadMoreCheckins(); if (socialFilter !== "checkins") void loadMoreEvents("posts"); }} className="mx-auto block rounded-full bg-white px-3 py-2 text-xs font-semibold text-emerald-700">{t("explore.loadMoreContent")}</button>}
+              </>
             )}
-            {(socialVisibleCount < socialFeed.length || (socialFilter !== "posts" && checkinsHasMore)) && (
+            {socialFeed.length > 0 && (socialVisibleCount < socialFeed.length || (socialFilter !== "posts" && checkinsHasMore) || (socialFilter !== "checkins" && postsHasMore)) && (
               <div ref={socialSentinelRef} className="py-4 text-center text-xs text-neutral-400">
-                {checkinsLoadError ? <button type="button" onClick={() => void loadMoreCheckins()} className="font-semibold text-emerald-700">{t("explore.loadFailedRetry")}</button>
+                {checkinsLoadError || eventsLoadError === "posts" ? <button type="button" onClick={() => { if (checkinsLoadError) void loadMoreCheckins(); if (eventsLoadError === "posts") void loadMoreEvents("posts"); }} className="font-semibold text-emerald-700">{t("explore.loadFailedRetry")}</button>
                   : checkinsLoadingMore ? <LoadingFeedback compact scene="discover" text={t("explore.findingFootprints")} /> : t("explore.loadingMore")}
               </div>
             )}
@@ -1113,7 +1195,7 @@ export function RecommendList({ events, checkins, initialCheckinsHasMore = false
         </div>
       )}
 
-      {selected && <EventDetail event={selected} onClose={closeEventDetail} />}
+      {selected && <EventDetail event={selected} onClose={closeEventDetail} focusRelated={focusRelated} />}
       {(loadingDetail || detailLoadError) && !selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"><div className="w-full rounded-t-3xl bg-white px-4 py-8 shadow-xl">{loadingDetail ? <LoadingFeedback scene="calendar" text={t("explore.openingEvent")} /> : <div role="alert" className="text-center text-sm text-neutral-600">{t("explore.openFailed")}<button type="button" onClick={() => setLoadingDetail(true)} className="ml-2 underline">{t("common.retry")}</button></div>}<button type="button" onClick={() => { setLoadingDetail(false); setDetailLoadError(false); }} className="mx-auto block rounded-full px-5 py-2 text-sm text-neutral-600">{t("common.cancel")}</button></div></div>}
       {previewGallery && <ImagePreview urls={previewGallery.urls} initialIndex={previewGallery.initialIndex} onClose={() => setPreviewGallery(null)} />}
       {postReportNotice && <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-[80] -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur">{postReportNotice}</div>}

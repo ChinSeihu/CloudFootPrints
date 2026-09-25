@@ -24,13 +24,14 @@ const CATEGORY_KEYS: Record<EventDTO["category"], TranslationKey> = {
 type TodayPicksProps = {
   events: EventDTO[];
   onOpen: (event: EventDTO) => void;
+  onOpenRelated: (event: EventDTO) => void;
 };
 
 /**
- * Signature: `function TodayPicks({ events, onOpen }: TodayPicksProps): React.ReactElement | null`
- * Purpose: Presents date-rotated recommendations in a swipeable carousel, replaces wanted or dismissed cards, and synchronizes account WANT reactions.
+ * Signature: `function TodayPicks({ events, onOpen, onOpenRelated }: TodayPicksProps): React.ReactElement | null`
+ * Purpose: Presents swipeable recommendations with footprint context, replaces dismissed cards, and synchronizes WANT reactions.
  */
-export function TodayPicks({ events, onOpen }: TodayPicksProps) {
+export function TodayPicks({ events, onOpen, onOpenRelated }: TodayPicksProps) {
   const { language, t } = useLanguage();
   const locale = language === "zh" ? "zh-CN" : language === "ja" ? "ja-JP" : "en-US";
   const router = useRouter();
@@ -194,6 +195,11 @@ export function TodayPicks({ events, onOpen }: TodayPicksProps) {
                   <p className="mt-1 truncate text-[11px] text-amber-700" title={caution}>{t("picks.cautionLabel")}{caution}</p>
                 </div>
               </button>
+              {(event.metrics?.checkinCount ?? 0) > 0 && (
+                <button type="button" onClick={() => onOpenRelated(event)} className="mx-3 mb-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  {t("explore.footprints")} · {event.metrics?.checkinCount} ›
+                </button>
+              )}
               <div className="grid grid-cols-2 gap-2 px-3 pb-3">
                 <button
                   type="button"
