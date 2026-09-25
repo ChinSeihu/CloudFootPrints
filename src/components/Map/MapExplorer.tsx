@@ -1246,7 +1246,10 @@ export function MapExplorer() {
     const ROUTE_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`;
     const SPARKLE_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>`;
 
-    // 单张活动卡片 HTML（信息更详细，整卡可点）
+    /**
+     * Signature: `const cardHtml: (ev: PopupEvent) => string`
+     * Purpose: Builds a map popup that offers related posts only for official events and footprints for all located content.
+     */
     const cardHtml = (ev: PopupEvent): string => {
       const color = CATEGORY_COLORS[ev.category] ?? "#6b7280";
       const meta = CATEGORY_META[ev.category as keyof typeof CATEGORY_META];
@@ -1289,7 +1292,7 @@ export function MapExplorer() {
           </div>
           <div class="tem-card-tabs" role="tablist">
             <button class="tem-card-tab active" data-tab="detail" type="button">${t("map.details")}</button>
-            <button class="tem-card-tab" data-tab="posts" type="button">${t("me.posts")}</button>
+            ${ev.sourceType !== "USER" ? `<button class="tem-card-tab" data-tab="posts" type="button">${t("me.posts")}</button>` : ""}
             <button class="tem-card-tab" data-tab="checkins" type="button">${t("me.checkins")}</button>
           </div>
           <div class="tem-card-panel active" data-panel="detail">
@@ -1302,10 +1305,10 @@ export function MapExplorer() {
               ${del}
             </div>
           </div>
-          <div class="tem-card-panel" data-panel="posts">
+          ${ev.sourceType !== "USER" ? `<div class="tem-card-panel" data-panel="posts">
             <button class="tem-card-create act-post" data-action="post" type="button">${t("map.publishRelatedPost")}</button>
             <div class="tem-card-related" data-related="posts">${t("map.loadRelatedPosts")}</div>
-          </div>
+          </div>` : ""}
           <div class="tem-card-panel" data-panel="checkins">
             <button class="tem-card-create act-checkin" data-action="checkin" type="button">${t("action.publishCheckin")}</button>
             <div class="tem-card-related" data-related="checkins">${t("map.loadPublicCheckins")}</div>
@@ -2179,7 +2182,7 @@ export function MapExplorer() {
 
   /**
    * Signature: `const handleReady: (map: maplibregl.Map) => Promise<void>`
-   * Purpose: Initializes map layers, consumes deep links, requests the permitted current location, and releases the initial nearby-card suppression.
+   * Purpose: Initializes map layers, consumes deep links without obscuring located content, requests the permitted current location, and releases the initial nearby-card suppression.
    */
   const handleReady = useCallback(
     async (map: maplibregl.Map) => {
@@ -2203,6 +2206,7 @@ export function MapExplorer() {
         const eventId = sp.get("eventId") ?? "";
         const title = sp.get("title") ?? t("map.eventLocation");
         const target = { id: eventId, title, lat, lng };
+        if (action === "locate") setNearbyCardOpen(false);
         if (action === "route") {
           setJourneyTarget(target);
           openRouteRef.current({ to: { name: title, lat, lng, station: false } });

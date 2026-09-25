@@ -201,7 +201,7 @@ function EventHeroImage({ src }: { src: string }) {
 
 /**
  * Signature: `function EventDetail({ event, onClose, focusRelated }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }): React.JSX.Element`
- * Purpose: Renders activity details with linked footprints, zoomable images, saved actions, and type-appropriate interactions.
+ * Purpose: Renders official and user-post details with linked footprints, zoomable images, and type-appropriate map actions.
  */
 export function EventDetail({ event, onClose, focusRelated = false }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }) {
   const { language, t } = useLanguage();
@@ -290,14 +290,14 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
   }, [event.id, isUserPost]);
 
   useEffect(() => {
-    if (isUserPost) return;
     let cancelled = false;
+    setRelatedCheckins(null);
     fetch(`/api/events/${encodeURIComponent(event.id)}/related`)
       .then((response) => response.ok ? response.json() : Promise.reject())
       .then((data: { checkins?: CheckInDTO[] }) => { if (!cancelled) setRelatedCheckins(Array.isArray(data.checkins) ? data.checkins : []); })
       .catch(() => { if (!cancelled) setRelatedCheckins([]); });
     return () => { cancelled = true; };
-  }, [event.id, isUserPost]);
+  }, [event.id]);
 
   useEffect(() => {
     if (focusRelated && relatedCheckins?.length) relatedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -695,7 +695,7 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
             <span className={`transition-transform duration-300 ${wantPulse ? "scale-125" : "scale-100"}`}><IconHeart filled={!!user && wantedId === event.id} className="h-3.5 w-3.5" /></span>
             <span aria-live="polite">{user && wantedId === event.id ? t("detail.wanted") : t("detail.want")}</span>
           </button>
-          {hasCoordinates && <button type="button" onClick={jumpToMap} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-violet-600 px-1.5 text-xs font-bold text-white"><IconMap className="h-3.5 w-3.5" />{isUserPost ? t("detail.planRoute") : t("detail.route")}</button>}
+          {hasCoordinates && <button type="button" onClick={isUserPost ? locateOnMap : jumpToMap} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-violet-600 px-1.5 text-xs font-bold text-white"><IconMap className="h-3.5 w-3.5" />{isUserPost ? t("me.viewOnMap") : t("detail.route")}</button>}
           {!isUserPost && <button type="button" onClick={askGuide} className="flex min-h-9 items-center justify-center gap-1 rounded-lg bg-indigo-50 px-1.5 text-xs font-bold text-indigo-700"><IconSparkles className="h-3.5 w-3.5" />{t("guide.title")}</button>}
         </div>
         <div className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600">
@@ -707,6 +707,26 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
         {wantError && <p role="alert" className="text-xs text-red-600">{wantError}</p>}
       </div>
     );
+  }
+
+  /**
+   * Signature: `function relatedFootprintSection(): React.JSX.Element | null`
+   * Purpose: Shows existing public or owned footprints for either an official activity or a user post.
+   */
+  function relatedFootprintSection(): React.JSX.Element | null {
+    if (!relatedCheckins?.length) return null;
+    return <section ref={relatedRef} className="scroll-mt-20 border-t border-neutral-100 px-2 py-5 sm:px-4">
+      <h2 className="text-sm font-black text-neutral-900">{t("explore.footprints")} · {relatedCheckins.length}</h2>
+      <div className="mt-3 space-y-2">
+        {relatedCheckins.slice(0, 3).map((checkin) => (
+          <article key={checkin.id} className="rounded-xl bg-emerald-50/60 p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-neutral-700"><Avatar user={checkin.author} size={24} /><span>{checkin.author?.username ?? t("detail.user")}</span></div>
+            {checkin.note && <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-neutral-800">{checkin.note}</p>}
+            {!!checkin.photoUrls.length && <div className="mt-2 flex gap-1.5 overflow-x-auto">{checkin.photoUrls.slice(0, 3).map((url) => <img key={url} src={url} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-lg object-cover" />)}</div>}
+          </article>
+        ))}
+      </div>
+    </section>;
   }
 
   function renderComment(c: CommentDTO, isReply: boolean) {
@@ -968,24 +988,25 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
             )}
 
             <section className="mt-2 bg-neutral-50 px-3 py-3 sm:mt-3">
-              {(event.venueName || event.address) && (
+              {(event.venueName || event.address || hasCoordinates) && (
                 <div className="mt-1.5 flex justify-between items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
                   <section className="bg-neutral-50">
                     <span className="flex items-center gap-1.5 min-w-0 mb-1">
                       <IconPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" />
-                      <span className="line-clamp-2 min-w-0">{event.venueName}{event.address ? ` · ${event.address}` : ""}</span>
+                      <span className="line-clamp-2 min-w-0">{event.venueName || event.address || t("map.eventLocation")}{event.venueName && event.address ? ` · ${event.address}` : ""}</span>
                     </span>
                     {event.postKind !== "LIFE" && (
                       <span>{t("detail.activityTimePrefix")}{fmtCompact(event.startTime, locale, t("detail.timeTbd"))}{event.endTime ? ` - ${fmtCompact(event.endTime, locale, t("detail.timeTbd"))}` : ""}</span>
                     )}
                   </section>
-                  {hasCoordinates && <button type="button" onClick={jumpToMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
+                  {hasCoordinates && <button type="button" onClick={locateOnMap} className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-600 sm:text-xs">
                     <IconMap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    {t("detail.viewRoute")}
+                    {t("me.viewOnMap")}
                   </button>}
                 </div>
               )}
             </section>
+            {relatedFootprintSection()}
             <div className="mt-3 sm:mt-5">{commentSection()}</div>
           </main>
 
@@ -1110,20 +1131,7 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
             </section>
           )}
 
-          {!!relatedCheckins?.length && (
-            <section ref={relatedRef} className="scroll-mt-20 border-t border-neutral-100 px-2 py-5 sm:px-4">
-              <h2 className="text-sm font-black text-neutral-900">{t("explore.footprints")} · {relatedCheckins.length}</h2>
-              <div className="mt-3 space-y-2">
-                {relatedCheckins.slice(0, 3).map((checkin) => (
-                  <article key={checkin.id} className="rounded-xl bg-emerald-50/60 p-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-neutral-700"><Avatar user={checkin.author} size={24} /><span>{checkin.author?.username ?? t("detail.user")}</span></div>
-                    {checkin.note && <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-neutral-800">{checkin.note}</p>}
-                    {!!checkin.photoUrls.length && <div className="mt-2 flex gap-1.5 overflow-x-auto">{checkin.photoUrls.slice(0, 3).map((url) => <img key={url} src={url} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-lg object-cover" />)}</div>}
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
+          {relatedFootprintSection()}
 
           <div className="mt-6 sm:mt-8">{commentSection()}</div>
 
