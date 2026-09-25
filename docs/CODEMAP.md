@@ -16,7 +16,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 
 ### Map rendering and interaction
 
-- Entry: `src/components/Map/MapExplorer.tsx` — owns MapLibre sources/layers, clustering, popups (official related posts and shared footprints), click hit-testing, exploration anchor, bottom action bar, content visibility, and publishing placement.
+- Entry: `src/components/Map/MapExplorer.tsx` — owns MapLibre sources/layers, clustering, popups (related posts and footprints for official and user content), click hit-testing, exploration anchor, bottom action bar, content visibility, and publishing placement.
 - Official-event browser cache: `src/lib/mapOfficialEventCache.ts` — snaps map viewports to reusable geographic grids and stores short-lived IndexedDB snapshots without caching user posts or footprints.
 - Map lifecycle: `src/components/Map/MapView.tsx` — creates the MapLibre instance and reports bounds/readiness.
 - Filters: `src/components/Map/Filters.tsx`, `DateRangeDropdown.tsx` — category/date/mine/expired/trail controls.
@@ -39,9 +39,9 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - Cached browsing shell: `src/components/common/BrowsePage.tsx` — expanded regional activity/check-in/metric reads, original discovery offsets, account-scoped tab snapshots, staged refresh and retry; `BrowseScroll.tsx` restores nested scroll positions; `useBrowseState.ts` retains versioned tab-local UI state across navigation and reloads through `src/lib/browseSession.ts` while large content snapshots remain memory-only; `useActivitySearch.ts` provides debounced full-database activity search for discovery and calendar.
 - Deferred public activity metrics: `src/app/api/events/metrics/route.ts` — bounded IDs and database-aggregated reaction/click/public-footprint counts.
 - Feed and filters: `src/components/Recommend/RecommendList.tsx` — client batches followed by server-backed event/post/check-in continuation.
-- Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx` — locates user posts on the map without routing and loads related footprints for official activities and user posts.
+- Detail drawer and interactions: `src/components/Recommend/EventDetail.tsx` — locates user posts on the map without routing and loads related posts and footprints for official activities and user posts.
 - On-demand activity/post body translation: `src/components/Recommend/EventDetail.tsx`, `src/app/api/translate/route.ts`, `src/lib/llmTaskConfig.ts`.
-- Shared event reads/writes: `src/services/events.ts` — includes source-specific discovery continuation pages served by `src/app/api/events/route.ts`.
+- Shared event reads/writes: `src/services/events.ts` — includes source-specific discovery continuation pages and user-post association writes served by `src/app/api/events/route.ts`.
 - Detail/related APIs: `src/app/api/events/[id]/route.ts`, `related/route.ts`.
 - Shared DTOs/tags/source helpers: `src/lib/types.ts`, `src/lib/tags.ts`, `src/components/common/EventSource.tsx`.
 
@@ -188,6 +188,7 @@ Do not use this map to justify broad repository reads. Generated assets, histori
 - `migrations/20260910120000_add_character_goal_daily_state/migration.sql` — additive structured goal progress and practical daily-state storage.
 - `migrations/20260910123000_backfill_character_goal_daily_state/migration.sql` — converts existing goals and emotion snapshots into initial structured character state.
 - `migrations/20260920090000_allow_events_without_coordinates/migration.sql` — allows extracted official events to remain discoverable when geocoding fails while map reads require coordinates.
+- `migrations/20260925120000_link_user_posts/migration.sql` — lets a new user post reference an existing user post as its association target.
 
 ### `public/`
 

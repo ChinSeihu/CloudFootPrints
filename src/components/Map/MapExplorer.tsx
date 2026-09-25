@@ -483,7 +483,7 @@ function loadCheckinPhotos(map: maplibregl.Map | null, list: CheckInDTO[]): void
 
 type Mode = "checkin" | "life" | "activity";
 const NEARBY_CARD_SEEN_KEY = "tem_nearby_card_seen";
-type PlacementTarget = { id: string; title: string; lat?: number; lng?: number } | null;
+type PlacementTarget = { id: string; title: string; lat?: number; lng?: number; postId?: string } | null;
 type JourneyTarget = { id: string; title: string; lat: number; lng: number };
 
 /**
@@ -492,7 +492,7 @@ type JourneyTarget = { id: string; title: string; lat: number; lng: number };
  */
 /**
  * Signature: `function MapExplorer()`
- * Purpose: Coordinates map content, exploration anchors, nearby recommendations, and route/publishing panels.
+ * Purpose: Coordinates map content, related-post popups, exploration anchors, nearby recommendations, and route/publishing panels.
  */
 export function MapExplorer() {
   const { language, t } = useLanguage();
@@ -1248,7 +1248,7 @@ export function MapExplorer() {
 
     /**
      * Signature: `const cardHtml: (ev: PopupEvent) => string`
-     * Purpose: Builds a map popup that offers related posts only for official events and footprints for all located content.
+     * Purpose: Builds a map popup with related posts and footprints for official activities and user posts.
      */
     const cardHtml = (ev: PopupEvent): string => {
       const color = CATEGORY_COLORS[ev.category] ?? "#6b7280";
@@ -1292,7 +1292,7 @@ export function MapExplorer() {
           </div>
           <div class="tem-card-tabs" role="tablist">
             <button class="tem-card-tab active" data-tab="detail" type="button">${t("map.details")}</button>
-            ${ev.sourceType !== "USER" ? `<button class="tem-card-tab" data-tab="posts" type="button">${t("me.posts")}</button>` : ""}
+            <button class="tem-card-tab" data-tab="posts" type="button">${t("me.posts")}</button>
             <button class="tem-card-tab" data-tab="checkins" type="button">${t("me.checkins")}</button>
           </div>
           <div class="tem-card-panel active" data-panel="detail">
@@ -1305,10 +1305,10 @@ export function MapExplorer() {
               ${del}
             </div>
           </div>
-          ${ev.sourceType !== "USER" ? `<div class="tem-card-panel" data-panel="posts">
+          <div class="tem-card-panel" data-panel="posts">
             <button class="tem-card-create act-post" data-action="post" type="button">${t("map.publishRelatedPost")}</button>
             <div class="tem-card-related" data-related="posts">${t("map.loadRelatedPosts")}</div>
-          </div>` : ""}
+          </div>
           <div class="tem-card-panel" data-panel="checkins">
             <button class="tem-card-create act-checkin" data-action="checkin" type="button">${t("action.publishCheckin")}</button>
             <div class="tem-card-related" data-related="checkins">${t("map.loadPublicCheckins")}</div>
@@ -1441,7 +1441,7 @@ export function MapExplorer() {
             ev.stopPropagation();
             popup.remove();
             const pe = evs.find((e) => e.id === id);
-            if (pe) openPlacement("activity", { id, title: pe.title, lat: coords[1], lng: coords[0] });
+            if (pe) openPlacement("activity", { id, title: pe.title, lat: coords[1], lng: coords[0], postId: pe.sourceType === "USER" ? id : undefined });
             return;
           }
           if (action === "favorite") {
@@ -2322,12 +2322,16 @@ export function MapExplorer() {
     }
   }
 
+  /**
+   * Signature: `async function submitPost(draft: PostDraft): Promise<void>`
+   * Purpose: Publishes a map post while preserving its official-event or user-post association.
+   */
   async function submitPost(draft: PostDraft) {
     const { lat, lng } = anchorPos(draft);
     const res = await fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: draft.kind, title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, eventId: draft.eventId ?? null, lat, lng }),
+      body: JSON.stringify({ kind: draft.kind, title: draft.title, category: draft.category, description: draft.description || null, venueName: draft.venueName || null, imageUrls: draft.imageUrls, startTime: draft.startTime, endTime: draft.endTime, tags: draft.tags, signupEnabled: draft.signupEnabled, eventId: draft.eventId ?? null, postId: draft.postId ?? null, lat, lng }),
     });
     clearPlacing();
     setDialogAt(null);
@@ -2795,7 +2799,8 @@ export function MapExplorer() {
           kind={mode === "life" ? "LIFE" : "ACTIVITY"}
           lat={dialogAt.lat}
           lng={dialogAt.lng}
-          eventId={checkinTarget?.id ?? null}
+          eventId={checkinTarget?.postId ? null : checkinTarget?.id ?? null}
+          postId={checkinTarget?.postId ?? null}
           targetTitle={checkinTarget?.title ?? null}
           onCancel={cancelDialog}
           onSubmit={submitPost}

@@ -92,6 +92,9 @@ model Post {
   signupEnabled Boolean       @default(false)
   eventId       String?
   event         Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  linkedPostId  String?
+  linkedPost    Post?         @relation("RelatedPosts", fields: [linkedPostId], references: [id], onDelete: SetNull)
+  relatedPosts  Post[]        @relation("RelatedPosts")
   userId        String // 作者（User.id）。发帖必有作者。
 
   checkIns  CheckIn[]
@@ -102,6 +105,7 @@ model Post {
 
   @@index([lat, lng])
   @@index([eventId, createdAt])
+  @@index([linkedPostId, createdAt])
   @@index([userId, createdAt])
   @@index([startTime])
   @@index([category])

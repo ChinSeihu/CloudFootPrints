@@ -7,7 +7,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * Signature: `async function GET(_request: Request, ctx: Ctx): Promise<NextResponse>`
- * Purpose: Returns released posts and footprints related to a visible activity.
+ * Purpose: Returns released posts and footprints related to an official activity or user post.
  */
 export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -29,13 +29,11 @@ export async function GET(_request: Request, ctx: Ctx) {
       : { postId: id, createdAt: { lte: now }, OR: userId ? [{ isPublic: true }, { userId }] : [{ isPublic: true }] };
 
     const [posts, checkins] = await Promise.all([
-      event
-        ? prisma.post.findMany({
-            where: { eventId: id, createdAt: { lte: now } },
-            orderBy: { createdAt: "desc" },
-            take: 50,
-          })
-        : Promise.resolve([]),
+      prisma.post.findMany({
+        where: event ? { eventId: id, createdAt: { lte: now } } : { linkedPostId: id, createdAt: { lte: now } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
       prisma.checkIn.findMany({
         where: checkinWhere,
         orderBy: { createdAt: "desc" },

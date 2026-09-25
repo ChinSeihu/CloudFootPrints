@@ -201,7 +201,7 @@ function EventHeroImage({ src }: { src: string }) {
 
 /**
  * Signature: `function EventDetail({ event, onClose, focusRelated }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }): React.JSX.Element`
- * Purpose: Renders official and user-post details with linked footprints, zoomable images, and type-appropriate map actions.
+ * Purpose: Renders official and user-post details with linked posts and footprints, zoomable images, and type-appropriate map actions.
  */
 export function EventDetail({ event, onClose, focusRelated = false }: { event: EventDTO; onClose: () => void; focusRelated?: boolean }) {
   const { language, t } = useLanguage();
@@ -244,6 +244,7 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
   const [postActionsExpanded, setPostActionsExpanded] = useState(true);
   const [officialHeaderScrolled, setOfficialHeaderScrolled] = useState(false);
   const [relatedCheckins, setRelatedCheckins] = useState<CheckInDTO[] | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<EventDTO[] | null>(null);
   const relatedRef = useRef<HTMLElement | null>(null);
   const wantInFlight = useRef(false);
   const wantPulseTimer = useRef<number | null>(null);
@@ -292,10 +293,15 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
   useEffect(() => {
     let cancelled = false;
     setRelatedCheckins(null);
+    setRelatedPosts(null);
     fetch(`/api/events/${encodeURIComponent(event.id)}/related`)
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { checkins?: CheckInDTO[] }) => { if (!cancelled) setRelatedCheckins(Array.isArray(data.checkins) ? data.checkins : []); })
-      .catch(() => { if (!cancelled) setRelatedCheckins([]); });
+      .then((data: { posts?: EventDTO[]; checkins?: CheckInDTO[] }) => {
+        if (cancelled) return;
+        setRelatedPosts(Array.isArray(data.posts) ? data.posts : []);
+        setRelatedCheckins(Array.isArray(data.checkins) ? data.checkins : []);
+      })
+      .catch(() => { if (!cancelled) { setRelatedPosts([]); setRelatedCheckins([]); } });
     return () => { cancelled = true; };
   }, [event.id]);
 
@@ -729,6 +735,28 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
     </section>;
   }
 
+  /**
+   * Signature: `function relatedPostSection(): React.JSX.Element | null`
+   * Purpose: Shows published posts linked to this official activity or user post in its detail view.
+   */
+  function relatedPostSection(): React.JSX.Element | null {
+    if (!relatedPosts?.length) return null;
+    return <section className="border-t border-neutral-100 px-2 py-5 sm:px-4">
+      <h2 className="text-sm font-black text-neutral-900">{t("map.relatedPost")} · {relatedPosts.length}</h2>
+      <div className="mt-3 space-y-2">
+        {relatedPosts.map((post) => (
+          <a key={post.id} href={`/recommend?event=${encodeURIComponent(post.id)}`} className="flex items-center gap-3 rounded-xl bg-violet-50/60 p-3 transition hover:bg-violet-100/70">
+            {post.imageUrl && <img src={post.imageUrl} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-lg object-cover" />}
+            <span className="min-w-0 flex-1">
+              <span className="line-clamp-2 text-xs font-semibold leading-5 text-neutral-900">{post.title}</span>
+              {post.venueName && <span className="mt-1 block truncate text-[11px] text-neutral-500">{post.venueName}</span>}
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>;
+  }
+
   function renderComment(c: CommentDTO, isReply: boolean) {
     const mine = !!user && c.userId === user.id;
     const parent = c.parentId ? byId.get(c.parentId) : null;
@@ -1006,6 +1034,7 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
                 </div>
               )}
             </section>
+            {relatedPostSection()}
             {relatedFootprintSection()}
             <div className="mt-3 sm:mt-5">{commentSection()}</div>
           </main>
@@ -1131,6 +1160,7 @@ export function EventDetail({ event, onClose, focusRelated = false }: { event: E
             </section>
           )}
 
+          {relatedPostSection()}
           {relatedFootprintSection()}
 
           <div className="mt-6 sm:mt-8">{commentSection()}</div>

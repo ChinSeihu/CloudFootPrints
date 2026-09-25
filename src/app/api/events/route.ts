@@ -78,7 +78,7 @@ export async function GET(request: Request) {
 
 /**
  * Signature: `async function POST(request: Request): Promise<NextResponse>`
- * Purpose: Creates either a LIFE update without activity time or a time-bounded ACTIVITY post at a map location.
+ * Purpose: Creates a LIFE or ACTIVITY post at a map location with an optional official-event or user-post association.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -109,6 +109,7 @@ export async function POST(request: Request) {
       endTime: typeof b.endTime === "string" ? b.endTime : null,
       tags: normalizeTags(b.tags),
       eventId: typeof b.eventId === "string" ? b.eventId : null,
+      postId: typeof b.postId === "string" ? b.postId : null,
       imageSpec: b.imageSpec && typeof b.imageSpec === "object" ? JSON.parse(JSON.stringify(b.imageSpec)) : null,
       lat: Number(b.lat),
       lng: Number(b.lng),

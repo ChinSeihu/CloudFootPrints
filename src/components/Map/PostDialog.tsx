@@ -28,6 +28,7 @@ export type PostDraft = {
   tags: string[];
   signupEnabled: boolean;
   eventId?: string | null;
+  postId?: string | null;
 };
 
 type Props = {
@@ -35,6 +36,7 @@ type Props = {
   lat: number;
   lng: number;
   eventId?: string | null;
+  postId?: string | null;
   targetTitle?: string | null;
   onCancel: () => void;
   onSubmit: (draft: PostDraft) => Promise<void>;
@@ -43,12 +45,12 @@ type Props = {
 
 const toISO = (local: string): string | null => (local ? new Date(local).toISOString() : null);
 
-// 锚点发帖："这里有个活动"——在地图上标记并发布一个活动（sourceType=USER）。
+// 锚点发帖：在地图位置发布生活动态或用户活动，可关联已有内容。
 /**
- * Signature: `function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props): React.JSX.Element`
- * Purpose: Collects either a location-based life update or a time-bounded user activity without conflating their time semantics.
+ * Signature: `function PostDialog({ kind, lat, lng, eventId, postId, targetTitle, onCancel, onSubmit, onSnapChange }: Props): React.JSX.Element`
+ * Purpose: Collects a life update or time-bounded user activity with an optional official-event or user-post link.
  */
-export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
+export function PostDialog({ kind, lat, lng, eventId, postId, targetTitle, onCancel, onSubmit, onSnapChange }: Props) {
   const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<EventCategory>("OTHER");
@@ -99,7 +101,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
 
   /**
    * Signature: `async function handleSubmit(): Promise<void>`
-   * Purpose: Validates fields by post kind, uploads optional images, and submits the normalized draft.
+   * Purpose: Validates fields, uploads optional images, and submits the draft with its association target.
    */
   async function handleSubmit() {
     if (!title.trim() || submitting) return;
@@ -142,6 +144,7 @@ export function PostDialog({ kind, lat, lng, eventId, targetTitle, onCancel, onS
         tags,
         signupEnabled: kind === "ACTIVITY" && signupEnabled,
         eventId: eventId ?? null,
+        postId: postId ?? null,
       });
     } finally {
       setSubmitting(false);

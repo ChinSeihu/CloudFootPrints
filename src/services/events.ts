@@ -344,6 +344,7 @@ export type CreateUserEventInput = {
   tags?: string[];
   signupEnabled?: boolean;
   eventId?: string | null;
+  postId?: string | null;
   imageSpec?: Prisma.InputJsonValue | null;
   lat: number;
   lng: number;
@@ -361,7 +362,7 @@ export type CreateUserEventResult =
 
 /**
  * Signature: `async function createUserEventRow(input: CreateUserEventInput, userId: string): Promise<NormalizedEvent>`
- * Purpose: Persists one typed user post with LIFE or ACTIVITY invariants supplied by the service boundary.
+ * Purpose: Persists one typed user post with an optional official-event or user-post association.
  */
 async function createUserEventRow(input: CreateUserEventInput, userId: string): Promise<NormalizedEvent> {
   const imageUrls = (input.imageUrls ?? []).filter(Boolean);
@@ -383,6 +384,7 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
       tags: input.tags ?? [],
       signupEnabled: input.signupEnabled ?? false,
       eventId: linkedEvent?.id ?? null,
+      linkedPostId: input.postId ?? null,
       userId,
     },
   });
@@ -391,7 +393,7 @@ async function createUserEventRow(input: CreateUserEventInput, userId: string): 
 
 /**
  * Signature: `async function createUserEvent(input: CreateUserEventInput, userId: string): Promise<CreateUserEventResult>`
- * Purpose: Validates and creates a LIFE update or a time-required ACTIVITY post.
+ * Purpose: Validates and creates a LIFE update or time-required ACTIVITY post with an existing association target.
  */
 export async function createUserEvent(
   input: CreateUserEventInput,
@@ -402,6 +404,14 @@ export async function createUserEvent(
   if (!isEventCategory(input.category)) return { ok: false, error: "非法分类" };
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     return { ok: false, error: "缺少或非法的坐标" };
+  }
+  if (input.eventId && input.postId) return { ok: false, error: "只能关联一个目标" };
+  if (input.postId) {
+    const target = await prisma.post.findFirst({
+      where: { id: input.postId, createdAt: { lte: new Date() } },
+      select: { id: true },
+    });
+    if (!target) return { ok: false, error: "关联的动态不存在" };
   }
   const event = await createUserEventRow(input, userId);
   return { ok: true, event };
